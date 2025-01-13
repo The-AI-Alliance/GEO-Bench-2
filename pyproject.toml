@@ -1,0 +1,139 @@
+[build-system]
+requires = [
+    # setuptools 61+ required for pyproject.toml support
+    "setuptools>=61",
+]
+build-backend = "setuptools.build_meta"
+
+# https://packaging.python.org/en/latest/specifications/declaring-project-metadata/
+[project]
+name = "GeoBenchV2"
+description = "GeoBenchV2: A comprehensive benchmark evaluation suite for Earth observation tasks."
+readme = "README.md"
+requires-python = ">=3.10"
+license = {file = "LICENSE"}
+authors = [
+    {name = "Alexandre Lacoste", email = "alexandre.lacoste@servicenow.com"},
+    {name = "Nils Lehmann", email = "n.lehmann@tum.de"}
+]
+maintainers = [
+    {name = "Alexandre Lacoste", email = "alexandre.lacoste@servicenow.com"},
+    {name = "Nils Lehmann", email = "n.lehmann@tum.de"}
+]
+keywords = ["earth_observation", "benchmark"]
+
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: Apache Software License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+dependencies = [
+    # lightning 2+ required for LightningCLI args + sys.argv support
+    "lightning>=2.4.0",
+    # matplotlib 3.5 required for Python 3.10 wheels
+    "matplotlib>=3.5",
+    # numpy 1.21.1+ required by Python 3.10 wheels
+    "numpy>=1.21.1",
+    # omegaconf
+    "omegaconf>=2.3.0",
+    # pandas 1.1.3+ required for Python 3.10 wheels
+    "pandas>=1.1.3",
+    # torch 1.12+ required by torchvision
+    "torch>=2.0",
+    # torchmetrics 0.10+ required for binary/multiclass/multilabel classification metrics
+    "torchmetrics>=1.2",
+    # torchvision 0.13+ required for torchvision.models._api.WeightsEnum
+    "torchvision>=0.16.1",
+    # torchgeo 
+    "torchgeo @ git+https://github.com/microsoft/torchgeo.git"
+]
+dynamic = ["version"]
+
+[project.optional-dependencies]
+tests = [
+    ### Tests ###
+    # pytest 7.3+ required for tmp_path_retention_policy
+    "pytest>=7.3",
+    # pytest-cov 4+ required for pytest 7.2+ compatibility
+    "pytest-cov>=4",
+    # pytest lazy fixture
+    "pytest-lazy-fixture>=0.6",
+    # hydra-core
+    "hydra-core>=1.3.2",
+    ## Style
+    # ruff 0.9+ required for 2025 style guide
+    "ruff>=0.9",
+]
+
+docs = [
+    ### Docs ###
+    # sphinx
+    "sphinx>=4,<7",
+    # ipywidgets 7+ required by nbsphinx
+    "ipywidgets>=7",
+    # notebooks with sphinx
+    "nbsphinx>=0.8.5",
+    # reat the docs theme
+    "sphinx-book-theme>=1.0.1",
+    # Extension for markdown
+    "myst-parser>=2.0",
+    # toggle dropdowns
+    "sphinx-togglebutton>=0.3.2",
+    # jupytext notebook creation from .py files
+    "jupytext>=1.15.2",
+    # ipykernel to run notebooks
+    "ipykernel>=6.29.3",
+]
+
+[project.scripts]
+geobench = "geobench_v2.main:main"
+
+[tool.pytest.ini_options]
+# Skip slow tests by default
+addopts = "-m 'not slow'"
+# https://docs.pytest.org/en/latest/how-to/capture-warnings.html
+filterwarnings = []
+
+[tool.env]
+USE_IOMP = "0"
+
+# https://mypy.readthedocs.io/en/stable/config_file.html
+[tool.mypy]
+# Import discovery
+ignore_missing_imports = true
+exclude = "(dist|docs|requirements|.*egg-info)/"
+
+[tool.ruff]
+extend-include = ["*.ipynb"]
+fix = true
+
+[tool.ruff.format]
+skip-magic-trailing-comma = true
+
+[tool.ruff.lint]
+extend-select = ["D", "I", "UP"]
+
+[tool.ruff.lint.per-file-ignores]
+"docs/**" = ["D"]
+"tests/**" = ["D"]
+
+[tool.ruff.lint.isort]
+split-on-trailing-comma = false
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+[tool.setuptools.dynamic]
+version = {attr = "geobench_v2.__version__"}
+
+[tool.setuptools.package-data]
+geobench_v2 = ["py.typed"]
+
+[tool.setuptools.packages.find]
+include = ["geobench_v2*"]
