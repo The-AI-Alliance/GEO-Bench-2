@@ -6,5 +6,5 @@
 A comprehensive evaluation framework for geospatial machine learning models.
 """
 
-__author__ = "Nils Lehmann"
+__authors__ = ("Alexandre Lacoste", "Nils Lehmann")
 __version__ = "0.1.0dev"
