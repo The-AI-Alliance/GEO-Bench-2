@@ -11,7 +11,7 @@ from .base import GeoBenchClassificationDataModule
 
 
 class GeoBenchRESISC45DataModule(GeoBenchClassificationDataModule):
-    """RESISC45 Data Module."""
+    """GeoBench RESISC45 Data Module."""
 
     # https://github.com/microsoft/torchgeo/blob/68e0cfebcd18edb6605008eeeaba96388e63eca7/torchgeo/datamodules/resisc45.py#L21
     band_means = {"r": 93.89391792, "g": 97.11226906, "b": 87.56775284}
@@ -56,9 +56,7 @@ class GeoBenchRESISC45DataModule(GeoBenchClassificationDataModule):
         Args:
             stage: One of 'fit', 'validate', 'test', or 'predict'.
         """
-        self.dataset_train = self.dataset_class(
-            split="train", img_size=self.img_size, **self.kwargs
-        )
+        self.dataset_train = self.dataset_class(split="train", **self.kwargs)
 
     def visualize_geolocation_distribution(self) -> None:
         """Visualize geolocation distribution."""
