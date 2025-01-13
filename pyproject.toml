@@ -8,17 +8,17 @@ build-backend = "setuptools.build_meta"
 # https://packaging.python.org/en/latest/specifications/declaring-project-metadata/
 [project]
 name = "GeoBenchV2"
-description = "GeoBenchV2: A comprehensive benchmark evaluation suite."
+description = "GeoBenchV2: A comprehensive benchmark evaluation suite for Earth observation tasks."
 readme = "README.md"
 requires-python = ">=3.10"
 license = {file = "LICENSE"}
 authors = [
-    {name="Alexandre Lacoste, email = "alexandre.lacoste@servicenow.com"},
-    {name = "Nils Lehmann", email = "n.lehmann@tum.de"},
+    {name = "Alexandre Lacoste", email = "alexandre.lacoste@servicenow.com"},
+    {name = "Nils Lehmann", email = "n.lehmann@tum.de"}
 ]
 maintainers = [
-    {name = "Nils Lehmann", email = "n.lehmann@tum.de"},
-    {name="Alexandre Lacoste, email = "alexandre.lacoste@servicenow.com"},
+    {name = "Alexandre Lacoste", email = "alexandre.lacoste@servicenow.com"},
+    {name = "Nils Lehmann", email = "n.lehmann@tum.de"}
 ]
 keywords = ["earth_observation", "benchmark"]
 
@@ -49,7 +49,7 @@ dependencies = [
     # torchmetrics 0.10+ required for binary/multiclass/multilabel classification metrics
     "torchmetrics>=1.2",
     # torchvision 0.13+ required for torchvision.models._api.WeightsEnum
-    "torchvision>=0.16.1"
+    "torchvision>=0.16.1",
     # torchgeo 
     "torchgeo @ git+https://github.com/microsoft/torchgeo.git"
 ]
