@@ -10,6 +10,8 @@ import kornia.augmentation as K
 import torch
 import torch.nn as nn
 from ligthning import LightningDataModule
+from matplotlib import pyplot as plt
+from torch import Tensor
 from torch.utils.data import DataLoader, Dataset
 from torchgeo.transforms import AugmentationSequential
 
@@ -177,6 +179,21 @@ class GeoBenchClassificationDataModule(GeoBenchDataModule):
             K.Normalize(mean=self.mean, std=self.std),
             K.Resize(size=self.img_size, align_corners=True),
         )
+
+    def visualize_batch(
+        self, split: str = "train"
+    ) -> tuple[plt.Figure, dict[str, Tensor]]:
+        """Visualize a batch of data.
+
+        Args:
+            split: One of 'train', 'val', 'test'
+
+        Returns:
+            The matplotlib figure and the batch of data
+        """
+        # subsample 8 examples from the batch
+        # plot image and mask
+        # add batch["image"] statistics to the figure
 
 
 class GeoBenchSegmentationDataModule(GeoBenchDataModule):

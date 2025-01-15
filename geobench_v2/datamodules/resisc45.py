@@ -1,7 +1,7 @@
 # Copyright (c) 2025 GeoBenchV2. All rights reserved.
 # Licensed under the Apache License 2.0.
 
-"""Resisc45 dataset module."""
+"""Resisc45 DataModule."""
 
 from collections.abc import Callable
 from typing import Any

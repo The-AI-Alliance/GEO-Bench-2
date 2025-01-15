@@ -1,20 +1,25 @@
 # Copyright (c) 2025 GeoBenchV2. All rights reserved.
 # Licensed under the Apache License 2.0.
 
-"""CaFFe DataMdule."""
+"""Fields of the World DataModule."""
 
 from collections.abc import Callable
 from typing import Any
 
+import torch
+
+from ..datasets.fotw import GeoBenchFieldsOfTheWorld
 from .base import GeoBenchSegmentationDataModule
 
 
-class GeoBenchCaFFeDataModule(GeoBenchSegmentationDataModule):
-    """GeoBench CaFFe Data Module."""
+class GeoBenchFieldsOfTheWorldDataModule(GeoBenchSegmentationDataModule):
+    """GeoBench Fields of the World Data Module."""
 
-    # https://github.com/microsoft/torchgeo/blob/68e0cfebcd18edb6605008eeeaba96388e63eca7/torchgeo/datamodules/caffe.py#L22
-    band_means = {"gray": 0.5517}
-    band_stds = {"gray": 11.8478}
+    # https://github.com/microsoft/torchgeo/blob/592f8926c1601bc94d0936f91196425b590b369d/torchgeo/datamodules/ftw.py#L21C5-L22C31
+    mean = torch.tensor([0])
+    std = torch.tensor([3000])
+
+    # TODO also compute other band statistics
 
     def __init__(
         self,
@@ -26,17 +31,27 @@ class GeoBenchCaFFeDataModule(GeoBenchSegmentationDataModule):
         pin_memory: bool = False,
         **kwargs: Any,
     ) -> None:
-        """Initialize CaFFe dataset module.
+        """Initialize Fields of the World dataset module.
 
         Args:
             img_size: Image size
-            batch_size: Batch size during
+            batch_size: Batch size during training
             eval_batch_size: Evaluation batch size
             num_workers: Number of workers
             collate_fn: Collate function
             pin_memory: Pin memory
-            **kwargs: Additional keyword arguments for the dataset class
+            **kwargs: Additional keyword arguments
         """
+        super().__init__(
+            dataset_class=GeoBenchFieldsOfTheWorld,
+            img_size=img_size,
+            batch_size=batch_size,
+            eval_batch_size=eval_batch_size,
+            num_workers=num_workers,
+            collate_fn=collate_fn,
+            pin_memory=pin_memory,
+            **kwargs,
+        )
 
     def setup(self, stage: str | None = None) -> None:
         """Setup data for train, val, test.
