@@ -6,7 +6,8 @@
 from collections.abc import Callable
 from typing import Any
 
-from ..datasets.resisc45 import GeoBenchRESISC45
+from geobench_v2.datasets import GeoBenchRESISC45
+
 from .base import GeoBenchClassificationDataModule
 
 
@@ -56,7 +57,7 @@ class GeoBenchRESISC45DataModule(GeoBenchClassificationDataModule):
         Args:
             stage: One of 'fit', 'validate', 'test', or 'predict'.
         """
-        self.dataset_train = self.dataset_class(split="train", **self.kwargs)
+        self.train_dataset = self.dataset_class(split="train", **self.kwargs)
 
     def visualize_geolocation_distribution(self) -> None:
         """Visualize geolocation distribution."""

@@ -1,22 +1,20 @@
 # Copyright (c) 2025 GeoBenchV2. All rights reserved.
 # Licensed under the Apache License 2.0.
 
-"""CaFFe DataMdule."""
+"""SpaceNet6 DataModule."""
 
 from collections.abc import Callable
 from typing import Any
 
-from geobench_v2.datasets.caffe import GeoBenchCaFFe
+from geobench_v2.datasets import GeoBenchSpaceNet6
 
 from .base import GeoBenchSegmentationDataModule
 
 
-class GeoBenchCaFFeDataModule(GeoBenchSegmentationDataModule):
-    """GeoBench CaFFe Data Module."""
+class GeoBenchSpaceNet6DataModule(GeoBenchSegmentationDataModule):
+    """GeoBench SpaceNet6 Data Module."""
 
-    # https://github.com/microsoft/torchgeo/blob/68e0cfebcd18edb6605008eeeaba96388e63eca7/torchgeo/datamodules/caffe.py#L22
-    band_means = {"gray": 0.5517}
-    band_stds = {"gray": 11.8478}
+    #
 
     def __init__(
         self,
@@ -28,11 +26,11 @@ class GeoBenchCaFFeDataModule(GeoBenchSegmentationDataModule):
         pin_memory: bool = False,
         **kwargs: Any,
     ) -> None:
-        """Initialize CaFFe dataset module.
+        """Initialize SpaceNet6 dataset module.
 
         Args:
             img_size: Image size
-            batch_size: Batch size during
+            batch_size: Batch size during training
             eval_batch_size: Evaluation batch size
             num_workers: Number of workers
             collate_fn: Collate function
@@ -40,7 +38,7 @@ class GeoBenchCaFFeDataModule(GeoBenchSegmentationDataModule):
             **kwargs: Additional keyword arguments for the dataset class
         """
         super().__init__(
-            dataset_class=GeoBenchCaFFe,
+            dataset_class=GeoBenchSpaceNet6,
             img_size=img_size,
             batch_size=batch_size,
             eval_batch_size=eval_batch_size,
@@ -58,7 +56,6 @@ class GeoBenchCaFFeDataModule(GeoBenchSegmentationDataModule):
         """
         self.train_dataset = self.dataset_class(split="train", **self.kwargs)
         self.val_dataset = self.dataset_class(split="val", **self.kwargs)
-        self.test_dataset = self.dataset_class(split="test", **self.kwargs)
 
     def visualize_geolocation_distribution(self) -> None:
         """Visualize the geolocation distribution of the dataset."""

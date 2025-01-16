@@ -3,6 +3,16 @@
 
 """GeoBench Datasets."""
 
+from .caffe import GeoBenchCaFFe
 from .fotw import GeoBenchFieldsOfTheWorld
+from .pastis import GeoBenchPASTIS
+from .resisc45 import GeoBenchRESISC45
+from .spacenet6 import GeoBenchSpaceNet6
 
-__all__ = ("GeoBenchFieldsOfTheWorld",)
+__all__ = (
+    "GeoBenchCaFFe",
+    "GeoBenchFieldsOfTheWorld",
+    "GeoBenchPASTIS",
+    "GeoBenchRESISC45",
+    "GeoBenchSpaceNet6",
+)

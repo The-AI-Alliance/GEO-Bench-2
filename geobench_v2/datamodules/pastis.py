@@ -1,22 +1,20 @@
 # Copyright (c) 2025 GeoBenchV2. All rights reserved.
 # Licensed under the Apache License 2.0.
 
-"""CaFFe DataMdule."""
+"""PASTIS DataModule."""
 
 from collections.abc import Callable
 from typing import Any
 
-from geobench_v2.datasets.caffe import GeoBenchCaFFe
+from geobench_v2.datasets import GeoBenchPASTIS
 
 from .base import GeoBenchSegmentationDataModule
 
 
-class GeoBenchCaFFeDataModule(GeoBenchSegmentationDataModule):
-    """GeoBench CaFFe Data Module."""
+class GeoBenchPASTISDataModule(GeoBenchSegmentationDataModule):
+    """GeoBench PASIS Data Module."""
 
-    # https://github.com/microsoft/torchgeo/blob/68e0cfebcd18edb6605008eeeaba96388e63eca7/torchgeo/datamodules/caffe.py#L22
-    band_means = {"gray": 0.5517}
-    band_stds = {"gray": 11.8478}
+    #
 
     def __init__(
         self,
@@ -28,19 +26,20 @@ class GeoBenchCaFFeDataModule(GeoBenchSegmentationDataModule):
         pin_memory: bool = False,
         **kwargs: Any,
     ) -> None:
-        """Initialize CaFFe dataset module.
+        """Initialize PASIS DataModule.
 
         Args:
             img_size: Image size
-            batch_size: Batch size during
+            batch_size: Batch size during training
             eval_batch_size: Evaluation batch size
             num_workers: Number of workers
             collate_fn: Collate function
             pin_memory: Pin memory
-            **kwargs: Additional keyword arguments for the dataset class
+            **kwargs: Additional keyword arguments to
+                :class:`~geobench_v2.datasets.pastis.GeoBenchPASTIS`.
         """
         super().__init__(
-            dataset_class=GeoBenchCaFFe,
+            dataset_class=GeoBenchPASTIS,
             img_size=img_size,
             batch_size=batch_size,
             eval_batch_size=eval_batch_size,
@@ -61,5 +60,5 @@ class GeoBenchCaFFeDataModule(GeoBenchSegmentationDataModule):
         self.test_dataset = self.dataset_class(split="test", **self.kwargs)
 
     def visualize_geolocation_distribution(self) -> None:
-        """Visualize the geolocation distribution of the dataset."""
+        """Visualize geolocation distribution."""
         pass

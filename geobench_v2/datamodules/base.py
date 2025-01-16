@@ -3,20 +3,22 @@
 
 """Base DataModules."""
 
+from abc import ABC, abstractmethod
 from collections.abc import Callable
 from typing import Any
 
 import kornia.augmentation as K
+import pandas as pd
 import torch
 import torch.nn as nn
-from ligthning import LightningDataModule
+from lightning import LightningDataModule
 from matplotlib import pyplot as plt
 from torch import Tensor
 from torch.utils.data import DataLoader, Dataset
 from torchgeo.transforms import AugmentationSequential
 
 
-class GeoBenchDataModule(LightningDataModule):
+class GeoBenchDataModule(LightningDataModule, ABC):
     """GeoBench DataModule."""
 
     def __init__(
@@ -45,6 +47,8 @@ class GeoBenchDataModule(LightningDataModule):
         """
         super().__init__()
 
+        self.dataset_class = dataset_class
+        self.img_size = img_size
         self.batch_size = batch_size
         self.eval_batch_size = eval_batch_size
         self.num_workers = num_workers
@@ -52,8 +56,13 @@ class GeoBenchDataModule(LightningDataModule):
         self.pin_memory = pin_memory
         self.kwargs = kwargs
 
-        self.define_augmentations()
         self.set_normalization_stats()
+        self.define_augmentations()
+
+    def prepare_data(self) -> None:
+        """Download and prepare data, only for distributed setup."""
+        if self.kwargs.get("download", False):
+            self.dataset_class(**self.kwargs)
 
     def setup(self, stage: str | None = None) -> None:
         """Setup data for train, val, test.
@@ -70,22 +79,25 @@ class GeoBenchDataModule(LightningDataModule):
         if "band_order" in self.kwargs:
             band_order = self.kwargs["band_order"]
         else:
-            band_order = self.dataset_class.band_order
+            band_order = self.dataset_class.band_default_order
 
         self.mean = torch.Tensor([self.band_means[band] for band in band_order])
         self.std = torch.Tensor([self.band_stds[band] for band in band_order])
 
+    @abstractmethod
     def define_augmentations(self) -> None:
         """Define augmentations for the dataset and task."""
-        raise NotImplementedError(
-            "This method should be implemented in task-specific classes"
-        )
+        pass
 
+    @abstractmethod
+    def collect_metadata(self) -> pd.DataFrame:
+        """Collect metadata of the dataset into a pandas DataFrame."""
+        pass
+
+    @abstractmethod
     def visualize_geolocation_distribution(self) -> None:
         """Visualize the geolocation distribution of the dataset."""
-        raise NotImplementedError(
-            "This method should be implemented in task-specific classes"
-        )
+        pass
 
     def train_dataloader(self) -> DataLoader:
         """Return train dataloader."""
@@ -163,7 +175,7 @@ class GeoBenchClassificationDataModule(GeoBenchDataModule):
             num_workers=num_workers,
             collate_fn=collate_fn,
             pin_memory=pin_memory,
-            kwargs=kwargs,
+            **kwargs,
         )
 
     def define_augmentations(self) -> None:
@@ -235,7 +247,7 @@ class GeoBenchSegmentationDataModule(GeoBenchDataModule):
             num_workers=num_workers,
             collate_fn=collate_fn,
             pin_memory=pin_memory,
-            kwargs=kwargs,
+            **kwargs,
         )
 
     def define_augmentations(self) -> None:

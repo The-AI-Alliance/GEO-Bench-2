@@ -8,7 +8,8 @@ from typing import Any
 
 import torch
 
-from ..datasets.fotw import GeoBenchFieldsOfTheWorld
+from geobench_v2.datasets import GeoBenchFieldsOfTheWorld
+
 from .base import GeoBenchSegmentationDataModule
 
 
@@ -21,6 +22,10 @@ class GeoBenchFieldsOfTheWorldDataModule(GeoBenchSegmentationDataModule):
 
     # TODO also compute other band statistics
 
+    band_means = {"red": 0.0, "green": 0.0, "blue": 0.0, "nir": 0.0}
+
+    band_stds = {"red": 1.0, "green": 1.0, "blue": 1.0, "nir": 1.0}
+
     def __init__(
         self,
         img_size: int,
@@ -31,7 +36,7 @@ class GeoBenchFieldsOfTheWorldDataModule(GeoBenchSegmentationDataModule):
         pin_memory: bool = False,
         **kwargs: Any,
     ) -> None:
-        """Initialize Fields of the World dataset module.
+        """Initialize Fields of the World DataModule.
 
         Args:
             img_size: Image size
@@ -41,6 +46,7 @@ class GeoBenchFieldsOfTheWorldDataModule(GeoBenchSegmentationDataModule):
             collate_fn: Collate function
             pin_memory: Pin memory
             **kwargs: Additional keyword arguments
+                :class:`~geobench_v2.datasets.fotw.GeoBenchFieldsOfTheWorld`.
         """
         super().__init__(
             dataset_class=GeoBenchFieldsOfTheWorld,
@@ -59,9 +65,13 @@ class GeoBenchFieldsOfTheWorldDataModule(GeoBenchSegmentationDataModule):
         Args:
             stage: One of 'fit', 'validate', 'test', or 'predict'.
         """
-        self.dataset_train = self.dataset_class(split="train", **self.kwargs)
-        self.dataset_val = self.dataset_class(split="val", **self.kwargs)
-        self.dataset_test = self.dataset_class(split="test", **self.kwargs)
+        self.train_dataset = self.dataset_class(split="train", **self.kwargs)
+        self.val_dataset = self.dataset_class(split="val", **self.kwargs)
+        self.test_dataset = self.dataset_class(split="test", **self.kwargs)
+
+    def collect_metadata(self) -> None:
+        """Collect metadata for the dataset."""
+        pass
 
     def visualize_geolocation_distribution(self) -> None:
         """Visualize the geolocation distribution of the dataset."""
