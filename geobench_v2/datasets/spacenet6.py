@@ -35,9 +35,9 @@ class GeoBenchSpaceNet6(SpaceNet6):
         """
         super().__init__(root=root, split=split, **kwargs)
         # TODO allow input of blank channels
-        assert all(
-            band in self.band_default_order.keys() for band in band_order
-        ), f"Invalid bands in {band_order}. Must be among {list(self.band_default_order.keys())}"
+        assert all(band in self.band_default_order.keys() for band in band_order), (
+            f"Invalid bands in {band_order}. Must be among {list(self.band_default_order.keys())}"
+        )
 
         self.band_order = band_order
 

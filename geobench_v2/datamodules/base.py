@@ -89,6 +89,8 @@ class GeoBenchDataModule(LightningDataModule, ABC):
         """Define augmentations for the dataset and task."""
         pass
 
+    # move to dataset class instead and make it accesible on datamodule level
+    # perhaps combining the dfs across the splits
     @abstractmethod
     def collect_metadata(self) -> pd.DataFrame:
         """Collect metadata of the dataset into a pandas DataFrame."""
