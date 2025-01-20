@@ -23,10 +23,12 @@ class GeoBenchPASTISDataModule(GeoBenchSegmentationDataModule):
         eval_batch_size: int = 64,
         num_workers: int = 0,
         collate_fn: Callable | None = None,
+        train_transforms: nn.Module | None = None,
+        eval_transforms: nn.Module | None = None,
         pin_memory: bool = False,
         **kwargs: Any,
     ) -> None:
-        """Initialize PASIS DataModule.
+        """Initialize GeoBench PASIS DataModule.
 
         Args:
             img_size: Image size
@@ -34,6 +36,12 @@ class GeoBenchPASTISDataModule(GeoBenchSegmentationDataModule):
             eval_batch_size: Evaluation batch size
             num_workers: Number of workers
             collate_fn: Collate function
+            train_transforms: Transforms/Augmentations to apply during training, they will be applied
+                at the sample level and should include normalization. See :method:`define_transformations`
+                for the default transformation.
+            eval_transforms: Transforms/Augmentations to apply during evaluation, they will be applied
+                at the sample level and should include normalization. See :method:`define_transformations`
+                for the default transformation.
             pin_memory: Pin memory
             **kwargs: Additional keyword arguments to
                 :class:`~geobench_v2.datasets.pastis.GeoBenchPASTIS`.
@@ -45,6 +53,8 @@ class GeoBenchPASTISDataModule(GeoBenchSegmentationDataModule):
             eval_batch_size=eval_batch_size,
             num_workers=num_workers,
             collate_fn=collate_fn,
+            train_transforms=train_transforms,
+            eval_transforms=eval_transforms,
             pin_memory=pin_memory,
             **kwargs,
         )
