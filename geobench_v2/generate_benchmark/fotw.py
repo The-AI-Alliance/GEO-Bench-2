@@ -24,7 +24,14 @@ def create_subset(
     """
     # based on the metadata_df create a subset of the dataset and copy it
     # with the same structure to the save_dir
-    pass
+    import pdb
+    pdb.set_trace()
+
+
+    print(0)
+
+
+
 
 
 def generate_metadata_df(ds: FieldsOfTheWorld) -> pd.DataFrame:
@@ -77,18 +84,23 @@ def main():
     parser.add_argument(
         "--root", default="data", help="Root directory for Fields of the World dataset"
     )
+    parser.add_argument(
+        "--save_dir", default="data_benchmark", help="Directory to save the subset benchmark data"
+    )
     args = parser.parse_args()
 
     # orig_dataset = FieldsOfTheWorld(root=args.root, download=False)
     orig_dataset = FieldsOfTheWorld(
-        root="/mnt/rg_climate_benchmark/data/datasets_segmentation/FieldsOfTheWorld",
+        root=args.root,
         countries=FieldsOfTheWorld.valid_countries,
         download=False,
     )
 
     metadata_df = generate_metadata_df(orig_dataset)
 
-    metadata_df.to_parquet(f"{ds.root}/metadata.parquet")
+    metadata_df.to_parquet(f"{args.save_dir}/metadata.parquet")
+
+    create_subset(orig_dataset, metadata_df, args.save_dir)
 
 
 if __name__ == "__main__":
