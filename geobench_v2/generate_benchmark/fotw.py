@@ -39,7 +39,6 @@ def generate_metadata_df(ds: FieldsOfTheWorld) -> pd.DataFrame:
 
     overall_df = pd.DataFrame()
     selected_countries = ds.countries
-    # df = pd.read_parquet("/mnt/rg_climate_benchmark/data/datasets_segmentation/FieldsOfTheWorld/austria/chips_austria.parquet")
 
     for country in tqdm(selected_countries, desc="Collecting metadata"):
         country_df = pd.read_parquet(f"{ds.root}/{country}/chips_{country}.parquet")
@@ -63,6 +62,13 @@ def generate_metadata_df(ds: FieldsOfTheWorld) -> pd.DataFrame:
     overall_df["aoi_id"] = overall_df["aoi_id"].astype(str)
 
     return overall_df
+
+
+def create_unit_test_subset() -> None:
+    """Create a subset of Fields of the World dataset for GeoBench unit tests."""
+
+    # create random images etc that respect the structure of the dataset in minimal format
+    pass
 
 
 def main():
