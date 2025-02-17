@@ -3,16 +3,16 @@
 
 """Generate Benchmark version of BenV2 dataset."""
 
-from geobench_v2.datasets import GeoBenchBigEarthNetV2
+from torchgeo.datasets import BigEarthNetV2
 
 
 def create_subset(
     ds: FieldsOfTheWorld, metadata_df: pd.DataFrame, save_dir: str
 ) -> None:
-    """Create a subset of Fields of the World dataset.
+    """Create a subset of BigEarthNet dataset.
 
     Args:
-        ds: Fields of the World dataset.
+        ds: BigEarthNet dataset.
         metadata_df: Metadata DataFrame.
         save_dir: Directory to save the subset.
     """
@@ -22,24 +22,22 @@ def create_subset(
 
 
 def create_unit_test_subset() -> None:
-    """Create a subset of Fields of the World dataset for GeoBench unit tests."""
+    """Create a subset of BigEarthNet dataset for GeoBench unit tests."""
 
     # create random images etc that respect the structure of the dataset in minimal format
     pass
 
 
 def main():
-    """Generate Fields of the World Benchmark."""
+    """Generate BigEarthNet Benchmark."""
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "--root", default="data", help="Root directory for Fields of the World dataset"
+        "--root", default="data", help="Root directory for BigEarthNet dataset"
     )
     args = parser.parse_args()
 
-    # orig_dataset = FieldsOfTheWorld(root=args.root, download=False)
-    orig_dataset = FieldsOfTheWorld(
-        root="/mnt/rg_climate_benchmark/data/datasets_classification/benv2",
-        countries=FieldsOfTheWorld.valid_countries,
+    orig_dataset = BigEarthNetV2(
+        root=args.root,
         download=False,
     )
 
@@ -50,3 +48,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
