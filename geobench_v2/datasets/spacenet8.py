@@ -3,7 +3,6 @@
 
 """SpaceNet8 dataset."""
 
-
 from torch import Tensor
 from torchgeo.datasets import SpaceNet8
 from pathlib import Path
@@ -17,12 +16,7 @@ class GeoBenchSpaceNet8(SpaceNet8):
     - Return band wavelengths
     """
 
-    band_default_order = {
-        "red": 0,
-        "green": 1,
-        "blue": 2,
-        "nir": 3,
-    }
+    band_default_order = {"red": 0, "green": 1, "blue": 2, "nir": 3}
 
     def __init__(
         self,

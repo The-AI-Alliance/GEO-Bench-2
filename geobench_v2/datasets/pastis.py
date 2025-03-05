@@ -8,7 +8,6 @@ from torchgeo.datasets import PASTIS
 from pathlib import Path
 
 
-
 class GeoBenchPASTIS(PASTIS):
     """PAStis Dataset with enhanced functionality.
 

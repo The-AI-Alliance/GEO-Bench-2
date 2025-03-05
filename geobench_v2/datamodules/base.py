@@ -211,7 +211,7 @@ class GeoBenchClassificationDataModule(GeoBenchDataModule):
 
         if self.eval_augmentations is not None:
             self.eval_transform = nn.Sequential(
-                K.Resize(size=self.img_size, align_corners=True),
+                K.Resize(size=self.img_size, align_corners=True)
             )
 
     def visualize_batch(
@@ -300,7 +300,7 @@ class GeoBenchSegmentationDataModule(GeoBenchDataModule):
 
 class GeoBenchObjectDetectionDataModule(GeoBenchDataModule):
     """GeoBench Object Detection DataModule.
-    
+
     By default, will yield a batch of images and their corresponding bounding boxes and labels as
     a dictionary with keys 'image', 'boxes_xyxy', and 'labels'.
     """
@@ -316,7 +316,7 @@ class GeoBenchObjectDetectionDataModule(GeoBenchDataModule):
         train_augmentations: nn.Module | None = None,
         eval_augmentations: nn.Module | None = None,
         pin_memory: bool = False,
-        **kwargs: Any,train_transforms
+        **kwargs: Any,
     ) -> None:
         """Initialize GeoBench Object Detection DataModule.
 

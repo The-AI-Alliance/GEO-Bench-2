@@ -8,10 +8,9 @@ from torch import Tensor
 from pathlib import Path
 
 
-
 class GeoBenchBENV2(BigEarthNetV2):
     """Big Earth Net V2 Dataset with enhanced functionality.
-    
+
     Allows:
     - Variable Band Selection
     - Return band wavelengths
@@ -35,10 +34,14 @@ class GeoBenchBENV2(BigEarthNetV2):
     }
 
     def __init__(
-        self, root: Path, split: str, band_order: list["str"] = ["B04", "B03", "B02"], **kwargs
+        self,
+        root: Path,
+        split: str,
+        band_order: list["str"] = ["B04", "B03", "B02"],
+        **kwargs,
     ) -> None:
         """Initialize Big Earth Net V2 Dataset.
-        
+
         Args:
             root: Path to the dataset root directory
             split: The dataset split, supports 'train', 'val', 'test'
@@ -57,7 +60,6 @@ class GeoBenchBENV2(BigEarthNetV2):
 
         self.band_order = band_order
 
-
     def __getitem__(self, index: int) -> dict[str, Tensor]:
         """Return an index within the dataset.
 
@@ -70,18 +72,18 @@ class GeoBenchBENV2(BigEarthNetV2):
         sample: dict[str, Tensor] = {}
 
         match self.bands:
-            case 's1':
-                sample['image'] = self._load_image(index, 's1')
-            case 's2':
-                sample['image'] = self._load_image(index, 's2')
-            case 'all':
-                sample['image_s1'] = self._load_image(index, 's1')
-                sample['image_s2'] = self._load_image(index, 's2')
+            case "s1":
+                sample["image"] = self._load_image(index, "s1")
+            case "s2":
+                sample["image"] = self._load_image(index, "s2")
+            case "all":
+                sample["image_s1"] = self._load_image(index, "s1")
+                sample["image_s2"] = self._load_image(index, "s2")
 
         # subselect_band_order
 
-        sample['mask'] = self._load_map(index)
-        sample['label'] = self._load_target(index)
+        sample["mask"] = self._load_map(index)
+        sample["label"] = self._load_target(index)
 
         if self.transforms is not None:
             sample = self.transforms(sample)

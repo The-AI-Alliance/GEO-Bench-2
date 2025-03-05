@@ -60,8 +60,7 @@ class GeoBenchBENV2DataModule(GeoBenchClassificationDataModule):
             stage: Stage
         """
         norm_transform = K.AugmentationSequential(
-            K.Normalize(self.mean, self.std, keepdim=True),
-            data_keys=["image", "mask"],
+            K.Normalize(self.mean, self.std, keepdim=True), data_keys=["image", "mask"]
         )
         self.train_dataset = self.dataset_class(split="train", **self.kwargs)
         self.val_dataset = self.dataset_class(split="val", **self.kwargs)

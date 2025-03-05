@@ -3,7 +3,6 @@
 
 """GeoBench BigEarthNetV2 DataModule."""
 
-
 from collections.abc import Callable
 from typing import Any
 import kornia.augmentation as K
@@ -19,7 +18,6 @@ class GeoBenchEverWatchDataModule(GeoBenchObjectDetectionDataModule):
     # norm stats
     band_means = {"red": 0.0, "green": 0.0, "blue": 0.0}
     band_stds = {"red": 1.0, "green": 1.0, "blue": 1.0}
-
 
     def __init__(
         self,
@@ -70,10 +68,14 @@ class GeoBenchEverWatchDataModule(GeoBenchObjectDetectionDataModule):
             stage: One of 'fit', 'validate', 'test', or 'predict'.
         """
         norm_transform = K.AugmentationSequential(
-            K.Normalize(self.mean, self.std, keepdim=True),
-            data_keys=["image"],
+            K.Normalize(self.mean, self.std, keepdim=True), data_keys=["image"]
         )
-        self.train_dataset = self.dataset_class(split="train", transforms=norm_transform, **self.kwargs)
-        self.val_dataset = self.dataset_class(split="val", transforms=norm_transform, **self.kwargs)
-        self.test_dataset = self.dataset_class(split="test", transforms=norm_transform, **self.kwargs)
-
+        self.train_dataset = self.dataset_class(
+            split="train", transforms=norm_transform, **self.kwargs
+        )
+        self.val_dataset = self.dataset_class(
+            split="val", transforms=norm_transform, **self.kwargs
+        )
+        self.test_dataset = self.dataset_class(
+            split="test", transforms=norm_transform, **self.kwargs
+        )

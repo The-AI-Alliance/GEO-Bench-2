@@ -3,4 +3,4 @@
 
 """Utility Functions."""
 
-# TODO variable band selection mode and naming 
+# TODO variable band selection mode and naming

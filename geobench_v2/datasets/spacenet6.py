@@ -16,12 +16,7 @@ class GeoBenchSpaceNet6(SpaceNet6):
     - Return band wavelengths
     """
 
-    band_default_order = {
-        "red": 0,
-        "green": 1,
-        "blue": 2,
-        "nir": 3,
-    }
+    band_default_order = {"red": 0, "green": 1, "blue": 2, "nir": 3}
 
     def __init__(
         self,

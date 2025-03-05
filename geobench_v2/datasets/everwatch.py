@@ -12,18 +12,14 @@ from pathlib import Path
 
 
 class GeoBenchEverWatch(EverWatch):
-    """"GeoBenchEverWatch dataset with enhanced functionality.
-    
+    """ "GeoBenchEverWatch dataset with enhanced functionality.
+
     Allows:
     - Variable Band Selection
     - Return band wavelengths
     """
 
-    band_default_order = {
-        "red": 0,
-        "green": 1,
-        "blue": 2,
-    }
+    band_default_order = {"red": 0, "green": 1, "blue": 2}
 
     def __init__(
         self,
@@ -33,7 +29,7 @@ class GeoBenchEverWatch(EverWatch):
         **kwargs,
     ) -> None:
         """Initialize EverWatch dataset.
-        
+
         Args:
             root: Path to the dataset root directory
             split: The dataset split, supports 'train', 'val', 'test'
@@ -65,10 +61,9 @@ class GeoBenchEverWatch(EverWatch):
             tensor = torch.from_numpy(array)
             # Convert from HxWxC to CxHxW
             tensor = tensor.permute((2, 0, 1))
-        
+
         # variable band selection
         tensor = torch.stack(
             [tensor[self.band_default_order[band]] for band in self.band_order]
         )
         return tensor
-
