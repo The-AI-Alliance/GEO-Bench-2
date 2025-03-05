@@ -9,6 +9,7 @@ from typing import Any
 from geobench_v2.datasets import GeoBenchSpaceNet6
 
 from .base import GeoBenchSegmentationDataModule
+import torch.nn as nn
 
 
 class GeoBenchSpaceNet6DataModule(GeoBenchSegmentationDataModule):

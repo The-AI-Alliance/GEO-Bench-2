@@ -47,6 +47,7 @@ class GeoBenchEverWatch(EverWatch):
 
         self.band_order = band_order
 
+    # TODO need to overwrite __getitem__ method instead to also add wavelength infox
     def _load_image(self, path: Path) -> Tensor:
         """Load a single image.
 

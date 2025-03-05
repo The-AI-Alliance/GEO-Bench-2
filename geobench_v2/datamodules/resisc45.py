@@ -9,6 +9,7 @@ from typing import Any
 from geobench_v2.datasets import GeoBenchRESISC45
 
 from .base import GeoBenchClassificationDataModule
+import torch.nn as nn
 
 
 class GeoBenchRESISC45DataModule(GeoBenchClassificationDataModule):

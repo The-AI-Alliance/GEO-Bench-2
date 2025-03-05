@@ -10,6 +10,7 @@ import kornia.augmentation as K
 from geobench_v2.datasets.caffe import GeoBenchCaFFe
 
 from .base import GeoBenchSegmentationDataModule
+import torch.nn as nn
 
 
 class GeoBenchCaFFeDataModule(GeoBenchSegmentationDataModule):

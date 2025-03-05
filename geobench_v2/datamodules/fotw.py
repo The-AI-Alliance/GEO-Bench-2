@@ -11,20 +11,11 @@ import torch
 from geobench_v2.datasets import GeoBenchFieldsOfTheWorld
 
 from .base import GeoBenchSegmentationDataModule
+import torch.nn as nn
 
 
 class GeoBenchFieldsOfTheWorldDataModule(GeoBenchSegmentationDataModule):
     """GeoBench Fields of the World Data Module."""
-
-    # https://github.com/microsoft/torchgeo/blob/592f8926c1601bc94d0936f91196425b590b369d/torchgeo/datamodules/ftw.py#L21C5-L22C31
-    mean = torch.tensor([0])
-    std = torch.tensor([3000])
-
-    # TODO also compute other band statistics
-
-    band_means = {"red": 0.0, "green": 0.0, "blue": 0.0, "nir": 0.0}
-
-    band_stds = {"red": 1.0, "green": 1.0, "blue": 1.0, "nir": 1.0}
 
     def __init__(
         self,

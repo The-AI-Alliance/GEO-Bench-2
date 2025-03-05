@@ -6,9 +6,13 @@
 from torchgeo.datasets import BigEarthNetV2
 from torch import Tensor
 from pathlib import Path
+from typing import List, Union, Optional
+from .sensor_util import BandRegistry, SatelliteType
+from .data_util import DataUtilsMixin
+import torch
 
 
-class GeoBenchBENV2(BigEarthNetV2):
+class GeoBenchBENV2(BigEarthNetV2, DataUtilsMixin):
     """Big Earth Net V2 Dataset with enhanced functionality.
 
     Allows:
@@ -16,21 +20,56 @@ class GeoBenchBENV2(BigEarthNetV2):
     - Return band wavelengths
     """
 
-    band_default_order = {
-        "B01": 0,
-        "B02": 1,
-        "B03": 2,
-        "B04": 3,
-        "B05": 4,
-        "B06": 5,
-        "B07": 6,
-        "B08": 7,
-        "B8A": 8,
-        "B09": 9,
-        "B11": 10,
-        "B12": 11,
-        "VV": 0,
-        "VH": 1,
+    band_default_order = (
+        "B01",
+        "B02",
+        "B03",
+        "B04",
+        "B05",
+        "B06",
+        "B07",
+        "B08",
+        "B8A",
+        "B09",
+        "B11",
+        "B12",
+        "VV",
+        "VH",
+    )
+
+    normalization_stats = {
+        "means": {
+            "B01": 0.0,
+            "B02": 0.0,
+            "B03": 0.0,
+            "B04": 0.0,
+            "B05": 0.0,
+            "B06": 0.0,
+            "B07": 0.0,
+            "B08": 0.0,
+            "B8A": 0.0,
+            "B09": 0.0,
+            "B11": 0.0,
+            "B12": 0.0,
+            "VV": 0.0,
+            "VH": 0.0,
+        },
+        "stds": {
+            "B01": 3000.0,
+            "B02": 3000.0,
+            "B03": 3000.0,
+            "B04": 3000.0,
+            "B05": 3000.0,
+            "B06": 3000.0,
+            "B07": 3000.0,
+            "B08": 3000.0,
+            "B8A": 3000.0,
+            "B09": 3000.0,
+            "B11": 3000.0,
+            "B12": 3000.0,
+            "VV": 3000.0,
+            "VH": 3000.0,
+        },
     }
 
     def __init__(
@@ -53,12 +92,21 @@ class GeoBenchBENV2(BigEarthNetV2):
         """
         super().__init__(root=root, split=split, bands="all", **kwargs)
 
-        # TODO allow input of blank channels
-        assert all(band in self.band_default_order.keys() for band in band_order), (
-            f"Invalid bands in {band_order}. Must be among {list(self.band_default_order.keys())}"
-        )
+        # Resolve band names at init time
+        self.band_order = []
+        for band in band_order or self.band_default_order:
+            if isinstance(band, (int, float)):
+                self.band_order.append(band)
+            else:
+                # For multimodal, keep modality prefix
+                if "_" in band:
+                    mod, band_name = band.split("_", 1)
+                    canonical = f"{mod}_{BandRegistry.resolve_band(band_name)}"
+                else:
+                    canonical = BandRegistry.resolve_band(band)
+                self.band_order.append(canonical)
 
-        self.band_order = band_order
+        self.set_normalization_stats(self.band_order)
 
     def __getitem__(self, index: int) -> dict[str, Tensor]:
         """Return an index within the dataset.
@@ -71,14 +119,13 @@ class GeoBenchBENV2(BigEarthNetV2):
         """
         sample: dict[str, Tensor] = {}
 
-        match self.bands:
-            case "s1":
-                sample["image"] = self._load_image(index, "s1")
-            case "s2":
-                sample["image"] = self._load_image(index, "s2")
-            case "all":
-                sample["image_s1"] = self._load_image(index, "s1")
-                sample["image_s2"] = self._load_image(index, "s2")
+        img = torch.cat(
+            [self._load_image(index, "s1"), self._load_image(index, "s2")], dim=0
+        )
+
+        img = self.rearrange_bands(img, self.band_default_order, self.band_order)
+
+        sample["image"] = self.normalizer(img)
 
         # subselect_band_order
 

@@ -36,10 +36,7 @@ def main():
     )
     args = parser.parse_args()
 
-    orig_dataset = BigEarthNetV2(
-        root=args.root,
-        download=False,
-    )
+    orig_dataset = BigEarthNetV2(root=args.root, download=False)
 
     metadata_df = generate_metadata_df(orig_dataset)
 
@@ -48,4 +45,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-

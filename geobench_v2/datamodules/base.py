@@ -66,7 +66,6 @@ class GeoBenchDataModule(LightningDataModule, ABC):
         self.train_augmentations = train_augmentations
         self.eval_augmentations = eval_augmentations
 
-        self.set_normalization_stats()
         self.define_augmentations()
 
     def prepare_data(self) -> None:
@@ -84,27 +83,17 @@ class GeoBenchDataModule(LightningDataModule, ABC):
             "This method should be implemented in task-specific classes"
         )
 
-    def set_normalization_stats(self):
-        """Set normalization statistics for the input images of the dataset according to the band order."""
-        if "band_order" in self.kwargs:
-            band_order = self.kwargs["band_order"]
-        else:
-            band_order = self.dataset_class.band_default_order
-
-        self.mean = torch.Tensor([self.band_means[band] for band in band_order])
-        self.std = torch.Tensor([self.band_stds[band] for band in band_order])
-
     @abstractmethod
     def define_augmentations(self) -> None:
         """Define augmentations for the dataset and task."""
         pass
 
-    # move to dataset class instead and make it accesible on datamodule level
-    # perhaps combining the dfs across the splits
-    @abstractmethod
-    def collect_metadata(self) -> pd.DataFrame:
-        """Collect metadata of the dataset into a pandas DataFrame."""
-        pass
+    # # move to dataset class instead and make it accesible on datamodule level
+    # # perhaps combining the dfs across the splits
+    # @abstractmethod
+    # def collect_metadata(self) -> pd.DataFrame:
+    #     """Collect metadata of the dataset into a pandas DataFrame."""
+    #     pass
 
     @abstractmethod
     def visualize_geolocation_distribution(self) -> None:
@@ -292,7 +281,7 @@ class GeoBenchSegmentationDataModule(GeoBenchDataModule):
         )
 
         self.eval_transform = AugmentationSequential(
-            K.Normalize(mean=self.mean, std=self.std),
+            # K.Normalize(mean=self.mean, std=self.std),
             K.Resize(size=self.img_size, align_corners=True),
             data_keys=["image", "mask"],
         )

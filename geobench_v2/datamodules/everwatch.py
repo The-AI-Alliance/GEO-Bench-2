@@ -10,6 +10,7 @@ import kornia.augmentation as K
 from geobench_v2.datasets import GeoBenchEverWatch
 
 from .base import GeoBenchObjectDetectionDataModule
+import torch.nn as nn
 
 
 class GeoBenchEverWatchDataModule(GeoBenchObjectDetectionDataModule):

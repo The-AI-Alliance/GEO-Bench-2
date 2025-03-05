@@ -10,12 +10,11 @@ from geobench_v2.datasets import GeoBenchBENV2
 import kornia.augmentation as K
 
 from .base import GeoBenchClassificationDataModule
+import torch.nn as nn
 
 
 class GeoBenchBENV2DataModule(GeoBenchClassificationDataModule):
     """GeoBench BigEarthNetV2 Data Module."""
-
-    # Normalization stats
 
     def __init__(
         self,
@@ -59,9 +58,6 @@ class GeoBenchBENV2DataModule(GeoBenchClassificationDataModule):
         Args:
             stage: Stage
         """
-        norm_transform = K.AugmentationSequential(
-            K.Normalize(self.mean, self.std, keepdim=True), data_keys=["image", "mask"]
-        )
         self.train_dataset = self.dataset_class(split="train", **self.kwargs)
         self.val_dataset = self.dataset_class(split="val", **self.kwargs)
         self.test_dataset = self.dataset_class(split="test", **self.kwargs)

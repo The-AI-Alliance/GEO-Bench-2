@@ -9,7 +9,12 @@ from torchgeo.datasets import FieldsOfTheWorld
 from pathlib import Path
 
 
-class GeoBenchFieldsOfTheWorld(FieldsOfTheWorld):
+from typing import List, Union, Optional
+from .sensor_util import BandRegistry, SatelliteType
+from .data_util import DataUtilsMixin
+
+
+class GeoBenchFieldsOfTheWorld(FieldsOfTheWorld, DataUtilsMixin):
     """Fields of the World Dataset with enhanced functionality.
 
     Allows:
@@ -17,7 +22,15 @@ class GeoBenchFieldsOfTheWorld(FieldsOfTheWorld):
     - Return band wavelengths
     """
 
-    band_default_order = {"red": 0, "green": 1, "blue": 2, "nir": 3}
+    # keys should be specified according to the sensor default values
+    # defined in sensor_util.py
+    band_default_order = ("r", "g", "b", "n")
+
+    # Define normalization stats using canonical names
+    normalization_stats = {
+        "means": {"r": 0.0, "g": 0.0, "b": 0.0, "n": 0.0},
+        "stds": {"r": 3000.0, "g": 3000.0, "b": 3000.0, "n": 3000.0},
+    }
 
     def __init__(
         self,
@@ -39,13 +52,22 @@ class GeoBenchFieldsOfTheWorld(FieldsOfTheWorld):
         """
         super().__init__(root=root, split=split, **kwargs)
         # TODO allow input of blank channels
-        assert all(band in self.band_default_order.keys() for band in band_order), (
-            f"Invalid bands in {band_order}. Must be among {list(self.band_default_order.keys())}"
-        )
+        # assert all(band in self.band_default_order.keys() for band in band_order), (
+        #     f"Invalid bands in {band_order}. Must be among {list(self.band_default_order.keys())}"
+        # )
 
-        self.band_order = band_order
+        self.band_order = []
+        for band in band_order:
+            if not isinstance(band, (int, float)):
+                self.band_order.append(
+                    BandRegistry.resolve_band(band, SatelliteType.RGBN)
+                )
+            else:
+                self.band_order.append(band)
 
-    def __getitem_(self, idx: int) -> dict[str, Tensor]:
+        self.set_normalization_stats(self.band_order)
+
+    def __getitem__(self, idx: int) -> dict[str, Tensor]:
         """Return the image and mask at the given index.
 
         Args:
@@ -62,13 +84,21 @@ class GeoBenchFieldsOfTheWorld(FieldsOfTheWorld):
         win_b = self._load_image(win_b_fn)
 
         # adapt img according to band_order
-        win_a = torch.stack(
-            [win_a[self.band_default_order[band]] for band in self.band_order]
-        )
-        win_b = torch.stack(
-            [win_b[self.band_default_order[band]] for band in self.band_order]
-        )
+        # win_a = torch.stack(
+        #     [win_a[self.band_default_order[band]] for band in self.band_order]
+        # )
+        # win_b = torch.stack(
+        #     [win_b[self.band_default_order[band]] for band in self.band_order]
+        # )
         mask = self._load_target(mask_fn)
+
+        win_a = self.rearrange_bands(win_a, self.band_default_order, self.band_order)
+
+        win_a = self.normalizer(win_a)
+
+        win_b = self.rearrange_bands(win_b, self.band_default_order, self.band_order)
+
+        win_b = self.normalizer(win_b)
 
         # concat or return two separate images?
         image = torch.cat((win_a, win_b), dim=0)
