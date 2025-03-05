@@ -7,7 +7,7 @@ from torchgeo.datasets import BigEarthNetV2
 
 
 def create_subset(
-    ds: FieldsOfTheWorld, metadata_df: pd.DataFrame, save_dir: str
+    ds: BigEarthNetV2, metadata_df: pd.DataFrame, save_dir: str
 ) -> None:
     """Create a subset of BigEarthNet dataset.
 
