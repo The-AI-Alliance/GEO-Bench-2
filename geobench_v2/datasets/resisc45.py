@@ -6,6 +6,7 @@
 import torch
 from torch import Tensor
 from torchgeo.datasets import RESISC45
+from pathlib import Path
 
 
 class GeoBenchRESISC45(RESISC45):
@@ -19,7 +20,7 @@ class GeoBenchRESISC45(RESISC45):
     band_orig_order = {"r": 0, "g": 1, "b": 2}
 
     def __init__(
-        self, root: str, split: str, band_order: list["str"] = ["r", "g", "b"], **kwargs
+        self, root: Path, split: str, band_order: list["str"] = ["r", "g", "b"], **kwargs
     ):
         """Initialize Resisc45 Dataset.
 

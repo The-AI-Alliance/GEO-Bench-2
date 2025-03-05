@@ -1,20 +1,25 @@
 # Copyright (c) 2025 GeoBenchV2. All rights reserved.
 # Licensed under the Apache License 2.0.
 
-"""SpaceNet6 DataModule."""
+"""GeoBench BigEarthNetV2 DataModule."""
+
 
 from collections.abc import Callable
 from typing import Any
+import kornia.augmentation as K
 
-from geobench_v2.datasets import GeoBenchSpaceNet6
+from geobench_v2.datasets import GeoBenchEverWatch
 
-from .base import GeoBenchSegmentationDataModule
+from .base import GeoBenchObjectDetectionDataModule
 
 
-class GeoBenchSpaceNet6DataModule(GeoBenchSegmentationDataModule):
-    """GeoBench SpaceNet6 Data Module."""
+class GeoBenchEverWatchDataModule(GeoBenchObjectDetectionDataModule):
+    """GeoBench EverWatch Data Module."""
 
-    #
+    # norm stats
+    band_means = {"red": 0.0, "green": 0.0, "blue": 0.0}
+    band_stds = {"red": 1.0, "green": 1.0, "blue": 1.0}
+
 
     def __init__(
         self,
@@ -28,11 +33,11 @@ class GeoBenchSpaceNet6DataModule(GeoBenchSegmentationDataModule):
         pin_memory: bool = False,
         **kwargs: Any,
     ) -> None:
-        """Initialize GeoBench SpaceNet6 dataset module.
+        """Initialize GeoBench CaFFe dataset module.
 
         Args:
             img_size: Image size
-            batch_size: Batch size during training
+            batch_size: Batch size during
             eval_batch_size: Evaluation batch size
             num_workers: Number of workers
             collate_fn: Collate function
@@ -46,7 +51,7 @@ class GeoBenchSpaceNet6DataModule(GeoBenchSegmentationDataModule):
             **kwargs: Additional keyword arguments for the dataset class
         """
         super().__init__(
-            dataset_class=GeoBenchSpaceNet6,
+            dataset_class=GeoBenchCaFFe,
             img_size=img_size,
             batch_size=batch_size,
             eval_batch_size=eval_batch_size,
@@ -64,9 +69,11 @@ class GeoBenchSpaceNet6DataModule(GeoBenchSegmentationDataModule):
         Args:
             stage: One of 'fit', 'validate', 'test', or 'predict'.
         """
-        self.train_dataset = self.dataset_class(split="train", **self.kwargs)
-        self.val_dataset = self.dataset_class(split="val", **self.kwargs)
+        norm_transform = K.AugmentationSequential(
+            K.Normalize(self.mean, self.std, keepdim=True),
+            data_keys=["image"],
+        )
+        self.train_dataset = self.dataset_class(split="train", transforms=norm_transform, **self.kwargs)
+        self.val_dataset = self.dataset_class(split="val", transforms=norm_transform, **self.kwargs)
+        self.test_dataset = self.dataset_class(split="test", transforms=norm_transform, **self.kwargs)
 
-    def visualize_geolocation_distribution(self) -> None:
-        """Visualize the geolocation distribution of the dataset."""
-        pass

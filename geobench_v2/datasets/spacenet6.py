@@ -5,6 +5,7 @@
 
 from torch import Tensor
 from torchgeo.datasets import SpaceNet6
+from pathlib import Path
 
 
 class GeoBenchSpaceNet6(SpaceNet6):
@@ -15,9 +16,16 @@ class GeoBenchSpaceNet6(SpaceNet6):
     - Return band wavelengths
     """
 
+    band_default_order = {
+        "red": 0,
+        "green": 1,
+        "blue": 2,
+        "nir": 3,
+    }
+
     def __init__(
         self,
-        root: str,
+        root: Path,
         split: str,
         band_order: list[str] = ["red", "green", "blue", "nir"],
         **kwargs,
@@ -55,6 +63,9 @@ class GeoBenchSpaceNet6(SpaceNet6):
         h, w = img.shape[1:]
 
         # adapt img according to band order
+        img = torch.stack(
+            [img[self.band_default_order[band]] for band in self.band_order]
+        )
 
         sample = {"image": img}
 

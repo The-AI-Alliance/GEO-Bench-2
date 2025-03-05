@@ -5,6 +5,8 @@
 
 from torch import Tensor
 from torchgeo.datasets import PASTIS
+from pathlib import Path
+
 
 
 class GeoBenchPASTIS(PASTIS):
@@ -29,7 +31,7 @@ class GeoBenchPASTIS(PASTIS):
 
     def __init__(
         self,
-        root: str,
+        root: Path,
         split: str,
         band_order: list[str] = ["red", "green", "blue", "nir"],
         **kwargs,

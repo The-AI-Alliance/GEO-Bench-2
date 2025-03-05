@@ -29,8 +29,8 @@ class GeoBenchDataModule(LightningDataModule, ABC):
         eval_batch_size: int = 64,
         num_workers: int = 0,
         collate_fn: Callable | None = None,
-        train_transforms: nn.Module | None = None,
-        eval_transforms: nn.Module | None = None,
+        train_augmentations: nn.Module | None = None,
+        eval_augmentations: nn.Module | None = None,
         pin_memory: bool = False,
         **kwargs: Any,
     ) -> None:
@@ -44,10 +44,12 @@ class GeoBenchDataModule(LightningDataModule, ABC):
                 to speed up evaluation.
             num_workers: Number of workers for dataloaders
             collate_fn: Collate function that can reformat samples to the needs of the model.
-            train_transforms: Transforms/Augmentations to apply during training, they will be applied
-                at the sample level and should include normalization
-            eval_transforms: Transforms/Augmentations to apply during evaluation, they will be applied
-                at the sample level and should include normalization
+            train_augmentations: Transforms/Augmentations to apply during training, they will be applied
+                at the sample level and should *not* include normalization, normalization happens on the dataset level for each
+                sample, while geometric and color augmentations will be applied on a batch of data
+            eval_augmentations: Transforms/Augmentations to apply during evaluation, they will be applied
+                at the sample level and should *not* include normalization, normalization happens on the dataset level for each
+                sample, while geometric and color augmentations will be applied on a batch of data
             pin_memory: whether to pin memory in dataloaders
             **kwargs: Additional keyword arguments passed to ``dataset_class``
         """
@@ -61,11 +63,11 @@ class GeoBenchDataModule(LightningDataModule, ABC):
         self.collate_fn = collate_fn
         self.pin_memory = pin_memory
         self.kwargs = kwargs
-        self.train_transforms = train_transforms
-        self.eval_transforms = eval_transforms
+        self.train_augmentations = train_augmentations
+        self.eval_augmentations = eval_augmentations
 
         self.set_normalization_stats()
-        self.define_transformations()
+        self.define_augmentations()
 
     def prepare_data(self) -> None:
         """Download and prepare data, only for distributed setup."""
@@ -93,8 +95,8 @@ class GeoBenchDataModule(LightningDataModule, ABC):
         self.std = torch.Tensor([self.band_stds[band] for band in band_order])
 
     @abstractmethod
-    def define_transformations(self) -> None:
-        """Define transformations/augmentations for the dataset and task."""
+    def define_augmentations(self) -> None:
+        """Define augmentations for the dataset and task."""
         pass
 
     # move to dataset class instead and make it accesible on datamodule level
@@ -161,8 +163,8 @@ class GeoBenchClassificationDataModule(GeoBenchDataModule):
         eval_batch_size: int = 64,
         num_workers: int = 0,
         collate_fn: Callable | None = None,
-        train_transforms: nn.Module | None = None,
-        eval_transforms: nn.Module | None = None,
+        train_augmentations: nn.Module | None = None,
+        eval_augmentations: nn.Module | None = None,
         pin_memory: bool = False,
         **kwargs: Any,
     ) -> None:
@@ -176,11 +178,11 @@ class GeoBenchClassificationDataModule(GeoBenchDataModule):
                 to speed up evaluation.
             num_workers: Number of workers for dataloaders
             collate_fn: Collate function that can reformat samples to the needs of the model.
-            train_transforms: Transforms/Augmentations to apply during training, they will be applied
-                at the sample level and should include normalization. See :method:`define_transformations`
+            train_augmentations: Transforms/Augmentations to apply during training, they will be applied
+                at the sample level and should include normalization. See :method:`define_augmentations`
                 for the default transformation.
-            eval_transforms: Transforms/Augmentations to apply during evaluation, they will be applied
-                at the sample level and should include normalization. See :method:`define_transformations`
+            eval_augmentations: Transforms/Augmentations to apply during evaluation, they will be applied
+                at the sample level and should include normalization. See :method:`define_augmentations`
                 for the default transformation.
             pin_memory: whether to pin memory in dataloaders
             **kwargs: Additional keyword arguments passed to ``dataset_class``
@@ -192,25 +194,23 @@ class GeoBenchClassificationDataModule(GeoBenchDataModule):
             eval_batch_size=eval_batch_size,
             num_workers=num_workers,
             collate_fn=collate_fn,
-            train_transforms=train_transforms,
-            eval_transforms=eval_transforms,
+            train_augmentations=train_augmentations,
+            eval_augmentations=eval_augmentations,
             pin_memory=pin_memory,
             **kwargs,
         )
 
-    def define_transformations(self) -> None:
+    def define_augmentations(self) -> None:
         """Define data transform/augmentations for the dataset and task."""
-        if self.train_transforms is not None:
+        if self.train_augmentations is not None:
             self.train_transform = nn.Sequential(
-                K.Normalize(mean=self.mean, std=self.std),
                 K.Resize(size=self.img_size, align_corners=True),
                 K.RandomHorizontalFlip(p=0.5),
                 K.RandomVerticalFlip(p=0.5),
             )
 
-        if self.eval_transforms is not None:
+        if self.eval_augmentations is not None:
             self.eval_transform = nn.Sequential(
-                K.Normalize(mean=self.mean, std=self.std),
                 K.Resize(size=self.img_size, align_corners=True),
             )
 
@@ -245,8 +245,8 @@ class GeoBenchSegmentationDataModule(GeoBenchDataModule):
         eval_batch_size: int = 64,
         num_workers: int = 0,
         collate_fn: Callable | None = None,
-        train_transforms: nn.Module | None = None,
-        eval_transforms: nn.Module | None = None,
+        train_augmentations: nn.Module | None = None,
+        eval_augmentations: nn.Module | None = None,
         pin_memory: bool = False,
         **kwargs: Any,
     ) -> None:
@@ -260,11 +260,11 @@ class GeoBenchSegmentationDataModule(GeoBenchDataModule):
                 to speed up evaluation.
             num_workers: Number of workers for dataloaders
             collate_fn: Collate function that can reformat samples to the needs of the model.
-            train_transforms: Transforms/Augmentations to apply during training, they will be applied
-                at the sample level and should include normalization. See :method:`define_transformations`
+            train_augmentations: Transforms/Augmentations to apply during training, they will be applied
+                at the sample level and should include normalization. See :method:`define_augmentations`
                 for the default transformation.
-            eval_transforms: Transforms/Augmentations to apply during evaluation, they will be applied
-                at the sample level and should include normalization. See :method:`define_transformations`
+            eval_augmentations: Transforms/Augmentations to apply during evaluation, they will be applied
+                at the sample level and should include normalization. See :method:`define_augmentations`
                 for the default transformation.
             pin_memory: whether to pin memory in dataloaders
             **kwargs: Additional keyword arguments passed to ``dataset_class``
@@ -276,16 +276,15 @@ class GeoBenchSegmentationDataModule(GeoBenchDataModule):
             eval_batch_size=eval_batch_size,
             num_workers=num_workers,
             collate_fn=collate_fn,
-            train_transforms=train_transforms,
-            eval_transforms=eval_transforms,
+            train_augmentations=train_augmentations,
+            eval_augmentations=eval_augmentations,
             pin_memory=pin_memory,
             **kwargs,
         )
 
     def define_augmentations(self) -> None:
         """Define augmentations for the dataset and task."""
-        self.train_transform = AugmentationSequential(
-            K.Normalize(mean=self.mean, std=self.std),
+        self.train_augmentations = AugmentationSequential(
             K.Resize(size=self.img_size, align_corners=True),
             K.RandomHorizontalFlip(p=0.5),
             K.RandomVerticalFlip(p=0.5),
@@ -296,4 +295,71 @@ class GeoBenchSegmentationDataModule(GeoBenchDataModule):
             K.Normalize(mean=self.mean, std=self.std),
             K.Resize(size=self.img_size, align_corners=True),
             data_keys=["image", "mask"],
+        )
+
+
+class GeoBenchObjectDetectionDataModule(GeoBenchDataModule):
+    """GeoBench Object Detection DataModule.
+    
+    By default, will yield a batch of images and their corresponding bounding boxes and labels as
+    a dictionary with keys 'image', 'boxes_xyxy', and 'labels'.
+    """
+
+    def __init__(
+        self,
+        dataset_class: Dataset,
+        img_size: int,
+        batch_size: int = 32,
+        eval_batch_size: int = 64,
+        num_workers: int = 0,
+        collate_fn: Callable | None = None,
+        train_augmentations: nn.Module | None = None,
+        eval_augmentations: nn.Module | None = None,
+        pin_memory: bool = False,
+        **kwargs: Any,train_transforms
+    ) -> None:
+        """Initialize GeoBench Object Detection DataModule.
+
+        Args:
+            dataset_class: Dataset class to use in the DataModule
+            img_size: Desired image input size for the model
+            batch_size: Batch size during training
+            eval_batch_size: Batch size during evaluation, can usually be larger than batch_size,
+                to speed up evaluation.
+            num_workers: Number of workers for dataloaders
+            collate_fn: Collate function that can reformat samples to the needs of the model.
+            train_augmentations: Transforms/Augmentations to apply during training, they will be applied
+                at the sample level and should include normalization. See :method:`define_augmentations`
+                for the default transformation.
+            eval_augmentations: Transforms/Augmentations to apply during evaluation, they will be applied
+                at the sample level and should include normalization. See :method:`define_augmentations`
+                for the default transformation.
+            pin_memory: whether to pin memory in dataloaders
+            **kwargs: Additional keyword arguments passed to ``dataset_class``
+        """
+        super().__init__(
+            dataset_class=dataset_class,
+            img_size=img_size,
+            batch_size=batch_size,
+            eval_batch_size=eval_batch_size,
+            num_workers=num_workers,
+            collate_fn=collate_fn,
+            train_augmentations=train_augmentations,
+            eval_augmentations=eval_augmentations,
+            pin_memory=pin_memory,
+            **kwargs,
+        )
+
+    def define_augmentations(self) -> None:
+        """Define augmentations for the dataset and task."""
+        self.train_transform = AugmentationSequential(
+            K.Resize(size=self.img_size, align_corners=True),
+            K.RandomHorizontalFlip(p=0.5),
+            K.RandomVerticalFlip(p=0.5),
+            data_keys=["image", "boxes_xyxy", "labels"],
+        )
+
+        self.eval_transform = AugmentationSequential(
+            K.Resize(size=self.img_size, align_corners=True),
+            data_keys=["image", "boxes_xyxy", "labels"],
         )

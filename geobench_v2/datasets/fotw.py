@@ -6,6 +6,7 @@
 import torch
 from torch import Tensor
 from torchgeo.datasets import FieldsOfTheWorld
+from pathlib import Path
 
 
 class GeoBenchFieldsOfTheWorld(FieldsOfTheWorld):
@@ -20,7 +21,7 @@ class GeoBenchFieldsOfTheWorld(FieldsOfTheWorld):
 
     def __init__(
         self,
-        root: str,
+        root: Path,
         split: str,
         band_order: list[str] = ["red", "green", "blue", "nir"],
         **kwargs,

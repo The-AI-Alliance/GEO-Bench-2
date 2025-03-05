@@ -26,8 +26,8 @@ class GeoBenchRESISC45DataModule(GeoBenchClassificationDataModule):
         eval_batch_size: int = 64,
         num_workers: int = 0,
         collate_fn: Callable | None = None,
-        train_transforms: nn.Module | None = None,
-        eval_transforms: nn.Module | None = None,
+        train_augmentations: nn.Module | None = None,
+        eval_augmentations: nn.Module | None = None,
         pin_memory: bool = False,
         **kwargs: Any,
     ) -> None:
@@ -39,11 +39,11 @@ class GeoBenchRESISC45DataModule(GeoBenchClassificationDataModule):
             eval_batch_size: Evaluation batch size
             num_workers: Number of workers
             collate_fn: Collate function
-            train_transforms: Transforms/Augmentations to apply during training, they will be applied
-                at the sample level and should include normalization. See :method:`define_transformations`
+            train_augmentations: Transforms/Augmentations to apply during training, they will be applied
+                at the sample level and should include normalization. See :method:`define_augmentations`
                 for the default transformation.
-            eval_transforms: Transforms/Augmentations to apply during evaluation, they will be applied
-                at the sample level and should include normalization. See :method:`define_transformations`
+            eval_augmentations: Transforms/Augmentations to apply during evaluation, they will be applied
+                at the sample level and should include normalization. See :method:`define_augmentations`
                 for the default transformation.
             pin_memory: Pin memory
             **kwargs: Additional keyword arguments
@@ -55,8 +55,8 @@ class GeoBenchRESISC45DataModule(GeoBenchClassificationDataModule):
             eval_batch_size=eval_batch_size,
             num_workers=num_workers,
             collate_fn=collate_fn,
-            train_transforms=train_transforms,
-            eval_transforms=eval_transforms,
+            train_augmentations=train_augmentations,
+            eval_augmentations=eval_augmentations,
             pin_memory=pin_memory,
             **kwargs,
         )

@@ -10,6 +10,7 @@ import torch
 from PIL import Image
 from torch import Tensor
 from torchgeo.datasets import CaFFe
+from pathlib import Path
 
 
 class GeoBenchCaFFe(CaFFe):
@@ -22,8 +23,8 @@ class GeoBenchCaFFe(CaFFe):
 
     band_default_order = {"gray": 0}
 
-    def _init_(
-        self, root: str, split: str, band_order: list["str"] = ["gray"], **kwargs
+    def __init__(
+        self, root: Path, split: str, band_order: list["str"] = ["gray"], **kwargs
     ) -> None:
         """Initialize CaFFe Dataset.
 
