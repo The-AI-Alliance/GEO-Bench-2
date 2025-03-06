@@ -19,7 +19,7 @@ class SatelliteType(Enum):
     # MODIS = "modis"
     RGB = "rgb"
     RGBN = "rgbn"
-    # GRAYSCALE = "gray"
+    GRAYSCALE = "gray"
     # MULTIMODAL = "multimodal"
 
 
@@ -44,6 +44,13 @@ class ModalityConfig:
 
 class BandRegistry:
     """Global registry of band configurations for different satellites/modalities."""
+    # GRAYSCALE configuration
+    GRAYSCALE = ModalityConfig(
+        bands={
+            "gray": BandConfig("gray", ["gray"], wavelength=None, resolution=None)
+        },
+        default_order=["gray"],
+    )
 
     # Standard RGB configuration
     RGB = ModalityConfig(
@@ -154,10 +161,6 @@ class BandRegistry:
                 return cls._resolve_in_config(band_spec, config)
             except ValueError:
                 continue
-
-        import pdb
-
-        pdb.set_trace()
 
         raise ValueError(f"Unknown band: {band_spec}\n\n{cls.format_help()}")
 

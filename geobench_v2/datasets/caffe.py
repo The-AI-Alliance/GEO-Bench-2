@@ -5,12 +5,16 @@
 
 import os
 
+from typing import Sequence
 import numpy as np
 import torch
 from PIL import Image
 from torch import Tensor
 from torchgeo.datasets import CaFFe
 from pathlib import Path
+
+from .sensor_util import BandRegistry, SatelliteType
+from .data_util import DataUtilsMixin
 
 
 class GeoBenchCaFFe(CaFFe):
@@ -20,11 +24,18 @@ class GeoBenchCaFFe(CaFFe):
     - Variable Band Selection
     - Return band wavelengths
     """
+    sensor_type = SatelliteType.GRAYSCALE
+    # TODO update sensor type with wavelength and resolution
+    
+    band_default_order = ("gray",)
 
-    band_default_order = {"gray": 0}
+    normalization_stats = {
+        "means": {"gray": 0.0},
+        "stds": {"gray": 255.0},
+    }
 
     def __init__(
-        self, root: Path, split: str, band_order: list["str"] = ["gray"], **kwargs
+        self, root: Path, split: str, band_order: list["str"] = band_default_order, **kwargs
     ) -> None:
         """Initialize CaFFe Dataset.
 
@@ -39,11 +50,10 @@ class GeoBenchCaFFe(CaFFe):
         """
         super().__init__(root=root, split=split, **kwargs)
         # TODO allow input of blank channels
-        assert all(band in self.band_default_order.keys() for band in band_order), (
-            f"Invalid bands in {band_order}. Must be among {list(self.band_default_order.keys())}"
-        )
 
-        self.band_order = band_order
+        self.band_order = self.resolve_band_order(band_order)
+
+        self.set_normalization_stats(self.band_order)
 
     def __getitem__(self, idx: int) -> dict[str, Tensor]:
         """Return the image and mask at the given index.
@@ -65,10 +75,9 @@ class GeoBenchCaFFe(CaFFe):
         )
         img = read_tensor(img_path).unsqueeze(0).float()
 
-        # adapt img according to band_order
-        img = torch.stack(
-            [img[self.band_default_order[band]] for band in self.band_order]
-        )
+        img = self.rearrange_bands(img, self.band_default_order, self.band_order)
+
+        img = self.normalizer(img)
 
         zone_mask = read_tensor(
             os.path.join(
