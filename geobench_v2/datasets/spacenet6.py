@@ -8,7 +8,7 @@ from torchgeo.datasets import SpaceNet6
 from pathlib import Path
 from typing import Sequence
 
-from .sensor_util import BandRegistry, SatelliteType
+from .sensor_util import BandRegistry, DatasetBandRegistry
 from .data_util import DataUtilsMixin
 
 
@@ -20,7 +20,7 @@ class GeoBenchSpaceNet6(SpaceNet6, DataUtilsMixin):
     - Return band wavelengths
     """
 
-    sensor_type = SatelliteType.RGBN
+    dataset_band_config = DatasetBandRegistry.SPACENET6
 
     band_default_order = {"red": 0, "green": 1, "blue": 2, "nir": 3}
 

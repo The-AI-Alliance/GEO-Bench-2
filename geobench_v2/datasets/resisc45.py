@@ -9,7 +9,7 @@ from torchgeo.datasets import RESISC45
 from pathlib import Path
 from typing import Sequence
 
-from .sensor_util import BandRegistry, SatelliteType
+from .sensor_util import BandRegistry, DatasetBandRegistry
 from .data_util import DataUtilsMixin
 
 
@@ -21,7 +21,7 @@ class GeoBenchRESISC45(RESISC45, DataUtilsMixin):
     - Return band wavelengths
     """
 
-    sensor_type = SatelliteType.RGB
+    dataset_band_config = DatasetBandRegistry.RESISC45
 
     band_orig_order = {"r": 0, "g": 1, "b": 2}
     band_default_order = ("r", "g", "b")

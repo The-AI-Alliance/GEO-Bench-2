@@ -9,30 +9,165 @@ from enum import Enum
 import torch
 from torch import Tensor
 
-
-class SatelliteType(Enum):
-    """Supported satellite types and modalities."""
-
-    SENTINEL1 = "s1"
-    SENTINEL2 = "s2"
-    # LANDSAT8 = "l8"
-    # MODIS = "modis"
-    RGB = "rgb"
-    RGBN = "rgbn"
-    GRAYSCALE = "gray"
-    # MULTIMODAL = "multimodal"
-
+from dataclasses import dataclass
+from typing import Dict, List, Union, Optional
+from enum import Enum
+import torch
+from torch import Tensor
 
 @dataclass
 class BandConfig:
     """Configuration for a single band."""
-
     canonical_name: str
     aliases: List[str]
     wavelength: Optional[float] = None
     resolution: Optional[int] = None  # spatial resolution in meters
 
+@dataclass
+class ModalityConfig:
+    """Configuration for a satellite/sensor modality."""
+    bands: Dict[str, BandConfig]
+    default_order: List[str]  # Default band order for this modality
+    native_resolution: Optional[int] = None  # Native resolution in meters
 
+@dataclass
+class MultiModalConfig:
+    """Configuration for multi-modal datasets combining multiple sensors."""
+    modalities: Dict[str, ModalityConfig]
+    default_order: List[str]  # Default band order across all modalities
+    band_to_modality: Dict[str, str]  # Maps band names to their modality
+
+class SensorType(Enum):
+    """Supported sensor types."""
+    SENTINEL1 = "s1"
+    SENTINEL2 = "s2"
+    RGB = "rgb"
+    RGBN = "rgbn"
+    GRAYSCALE = "gray"
+
+class SensorBandRegistry:
+    """Registry of sensor-specific band configurations."""
+
+    # Basic modality configurations
+    GRAYSCALE = ModalityConfig(
+        bands={"gray": BandConfig("gray", ["gray"], wavelength=None, resolution=None)},
+        default_order=["gray"],
+    )
+
+    RGB = ModalityConfig(
+        bands={
+            "r": BandConfig("red", ["r", "red", "R"], wavelength=0.665),
+            "g": BandConfig("green", ["g", "green", "G"], wavelength=0.560),
+            "b": BandConfig("blue", ["b", "blue", "B"], wavelength=0.490),
+        },
+        default_order=["r", "g", "b"],
+    )
+
+    RGBN = ModalityConfig(
+        bands={
+            **RGB.bands,
+            "nir": BandConfig("nir", ["nir", "NIR",], wavelength=0.842),
+        },
+        default_order=["r", "g", "b", "nir"],
+    )
+
+    # Satellite-specific configurations
+    SENTINEL2 = ModalityConfig(
+        bands={
+            "B01": BandConfig("coastal", ["coastal_aerosol"], wavelength=0.443, resolution=60),
+            "B02": BandConfig("blue", ["blue", "b"], wavelength=0.490, resolution=10),
+            "B03": BandConfig("green", ["green", "g"], wavelength=0.560, resolution=10),
+            "B04": BandConfig("red", ["red", "r"], wavelength=0.665, resolution=10),
+            "B05": BandConfig("vegetation_red_edge_1", ["re1"], wavelength=0.705, resolution=20),
+            "B06": BandConfig("vegetation_red_edge_2", ["re2"], wavelength=0.740, resolution=20),
+            "B07": BandConfig("vegetation_red_edge_3", ["re3"], wavelength=0.783, resolution=20),
+            "B08": BandConfig("nir", ["near_infrared"], wavelength=0.842, resolution=10),
+            "B8A": BandConfig("vegetation_red_edge_4", ["re4"], wavelength=0.865, resolution=20),
+            "B09": BandConfig("water_vapor", ["wv"], wavelength=0.945, resolution=60),
+            "B11": BandConfig("swir1", ["short_wave_infrared_1"], wavelength=1.610, resolution=20),
+            "B12": BandConfig("swir2", ["short_wave_infrared_2"], wavelength=2.190, resolution=20)
+        },
+        default_order=["B01", "B02", "B03", "B04", "B05", "B06", "B07", "B08", "B8A", "B09", "B11", "B12"],
+        native_resolution=10,
+    )
+
+    SENTINEL1 = ModalityConfig(
+        bands={
+            "VV": BandConfig("vv", ["co_pol"], resolution=10),
+            "VH": BandConfig("vh", ["cross_pol"], resolution=10),
+        },
+        default_order=["VV", "VH"],
+        native_resolution=10,
+    )
+
+class DatasetBandRegistry:
+    """Registry of dataset-specific band configurations."""
+
+    BENV2 = MultiModalConfig(
+        modalities={
+            "s2": SensorBandRegistry.SENTINEL2,
+            "s1": SensorBandRegistry.SENTINEL1,
+        },
+        default_order=[
+            "B01", "B02", "B03", "B04", "B05", "B06", "B07", "B08",
+            "B8A", "B09", "B11", "B12", "VV", "VH"
+        ],
+        band_to_modality={
+            "B01": "s2", "B02": "s2", "B03": "s2", "B04": "s2",
+            "B05": "s2", "B06": "s2", "B07": "s2", "B08": "s2",
+            "B8A": "s2", "B09": "s2", "B11": "s2", "B12": "s2",
+            "VV": "s1", "VH": "s1"
+        }
+    )
+
+    PASTIS = MultiModalConfig(
+        modalities={
+            "s2": SensorBandRegistry.SENTINEL2,
+            "s1": SensorBandRegistry.SENTINEL1,
+        },
+        default_order=[
+            "B02", "B03", "B04", "B05", "B06", "B07", "B08", "B8A", "B11", "B12",
+            "s1_VV_asc", "s1_VH_asc", "s1_VV/VH_asc",
+            "s1_VV_desc", "s1_VH_desc", "s1_VV/VH_desc"
+        ],
+        band_to_modality={
+            "B02": "s2", "B03": "s2", "B04": "s2", "B05": "s2",
+            "B06": "s2", "B07": "s2", "B08": "s2", "B8A": "s2",
+            "B11": "s2", "B12": "s2",
+            "VV_asc": "s1", "VH_asc": "s1", "VV/VH_asc": "s1",
+            "VV_desc": "s1", "VH_desc": "s1", "VV/VH_desc": "s1"
+        }
+    )
+
+    CAFFE = ModalityConfig(
+        bands=SensorBandRegistry.GRAYSCALE.bands,
+        default_order=["gray"],
+    )
+
+    EVERWATCH = ModalityConfig(
+        bands=SensorBandRegistry.RGB.bands,
+        default_order=["r", "g", "b"],
+    )
+
+    FOTW = ModalityConfig(
+        bands=SensorBandRegistry.RGBN.bands,
+        default_order=["r", "g", "b", "nir"],
+    )
+
+    RESISC45 = ModalityConfig(
+        bands=SensorBandRegistry.RGB.bands,
+        default_order=["r", "g", "b"],
+    )
+
+    SPACENET6 = ModalityConfig(
+        bands=SensorBandRegistry.RGBN.bands,
+        default_order=["r", "g", "b", "nir"],
+    )
+
+    @classmethod
+    def get_dataset_config(cls, dataset_name: str) -> Union[ModalityConfig, MultiModalConfig]:
+        """Get configuration for a specific dataset."""
+        return getattr(cls, dataset_name.upper())
 @dataclass
 class ModalityConfig:
     """Configuration for a satellite/sensor modality."""
@@ -44,11 +179,10 @@ class ModalityConfig:
 
 class BandRegistry:
     """Global registry of band configurations for different satellites/modalities."""
+
     # GRAYSCALE configuration
     GRAYSCALE = ModalityConfig(
-        bands={
-            "gray": BandConfig("gray", ["gray"], wavelength=None, resolution=None)
-        },
+        bands={"gray": BandConfig("gray", ["gray"], wavelength=None, resolution=None)},
         default_order=["gray"],
     )
 
@@ -69,7 +203,7 @@ class BandRegistry:
     RGBN = ModalityConfig(
         bands={
             **RGB.bands,
-            "n": BandConfig("nir", ["nir", "NIR", "B08", "B8"], wavelength=0.842),
+            "nir": BandConfig("nir", ["nir", "NIR", "B08", "B8"], wavelength=0.842),
         },
         default_order=["r", "g", "b", "nir"],
     )
@@ -124,10 +258,10 @@ class BandRegistry:
     )
 
     @classmethod
-    def get_modality_config(cls, modality: Union[str, SatelliteType]) -> ModalityConfig:
+    def get_modality_config(cls, modality: Union[str, SensorType]) -> ModalityConfig:
         """Get configuration for a specific modality."""
         if isinstance(modality, str):
-            modality = SatelliteType(modality)
+            modality = SensorType(modality)
 
         return getattr(cls, modality.name)
 
@@ -135,7 +269,7 @@ class BandRegistry:
     def resolve_band(
         cls,
         band_spec: Union[str, float],
-        modality: Optional[Union[str, SatelliteType]] = None,
+        modality: Optional[Union[str, SensorType]] = None,
     ) -> Union[tuple[str, str], float]:
         """Resolve band specification to (modality, band_name) or fill value."""
         if isinstance(band_spec, (int, float)):
@@ -154,7 +288,7 @@ class BandRegistry:
             return cls._resolve_in_config(band_spec, config)
 
         # Try all modalities
-        for mod in SatelliteType:
+        for mod in SensorType:
             try:
                 config = cls.get_modality_config(mod)
                 # return mod.value, cls._resolve_in_config(band_spec, config)
@@ -176,7 +310,7 @@ class BandRegistry:
     def format_help(cls) -> str:
         """Format help string showing all available bands."""
         lines = ["Available bands by modality:"]
-        for modality in SatelliteType:
+        for modality in SensorType:
             try:
                 config = cls.get_modality_config(modality)
                 lines.append(f"\n{modality.value}:")
@@ -189,7 +323,7 @@ class BandRegistry:
 
 
 def get_wavelengths(
-    band_order: List[str], satellite_type: SatelliteType
+    band_order: List[str], satellite_type: SensorType
 ) -> List[float]:
     """Get center wavelengths in micrometers for given bands.
 
@@ -207,7 +341,7 @@ def get_wavelengths(
     """
     # Wavelengths in micrometers (μm)
     WAVELENGTHS = {
-        SatelliteType.SENTINEL2: {
+        SensorType.SENTINEL2: {
             "B01": 0.443,  # Coastal aerosol (60m)
             "B02": 0.490,  # Blue (10m)
             "B03": 0.560,  # Green (10m)
@@ -221,7 +355,7 @@ def get_wavelengths(
             "B11": 1.610,  # SWIR 1 (20m)
             "B12": 2.190,  # SWIR 2 (20m)
         },
-        SatelliteType.LANDSAT8: {
+        SensorType.LANDSAT8: {
             "B1": 0.443,  # Coastal aerosol
             "B2": 0.482,  # Blue
             "B3": 0.562,  # Green
@@ -234,7 +368,7 @@ def get_wavelengths(
             "B10": 10.9,  # Thermal Infrared 1
             "B11": 12.0,  # Thermal Infrared 2
         },
-        SatelliteType.MODIS: {
+        SensorType.MODIS: {
             "B1": 0.645,  # Red
             "B2": 0.858,  # NIR
             "B3": 0.469,  # Blue
@@ -244,13 +378,13 @@ def get_wavelengths(
             "B7": 2.130,  # SWIR 2
             # MODIS has more bands (36 total), adding most commonly used ones
         },
-        SatelliteType.RGB: {
+        SensorType.RGB: {
             "r": 0.665,  # Red
             "g": 0.560,  # Green
             "b": 0.490,  # Blue
         },
         # Sentinel-1 uses C-band SAR (wavelength ~5.6cm)
-        SatelliteType.SENTINEL1: {
+        SensorType.SENTINEL1: {
             "VV": 0.056,  # Vertical transmit, Vertical receive
             "VH": 0.056,  # Vertical transmit, Horizontal receive
         },

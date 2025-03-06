@@ -4,7 +4,7 @@
 """Fields of the World DataModule."""
 
 from collections.abc import Callable
-from typing import Any
+from typing import Any, Sequence
 
 import torch
 
@@ -20,6 +20,7 @@ class GeoBenchFieldsOfTheWorldDataModule(GeoBenchSegmentationDataModule):
     def __init__(
         self,
         img_size: int,
+        band_order: Sequence[float | str] = GeoBenchFieldsOfTheWorld.band_default_order,
         batch_size: int = 32,
         eval_batch_size: int = 64,
         num_workers: int = 0,
@@ -50,6 +51,7 @@ class GeoBenchFieldsOfTheWorldDataModule(GeoBenchSegmentationDataModule):
         super().__init__(
             dataset_class=GeoBenchFieldsOfTheWorld,
             img_size=img_size,
+            band_order=band_order,
             batch_size=batch_size,
             eval_batch_size=eval_batch_size,
             num_workers=num_workers,
@@ -59,16 +61,6 @@ class GeoBenchFieldsOfTheWorldDataModule(GeoBenchSegmentationDataModule):
             pin_memory=pin_memory,
             **kwargs,
         )
-
-    def setup(self, stage: str | None = None) -> None:
-        """Setup data for train, val, test.
-
-        Args:
-            stage: One of 'fit', 'validate', 'test', or 'predict'.
-        """
-        self.train_dataset = self.dataset_class(split="train", **self.kwargs)
-        self.val_dataset = self.dataset_class(split="val", **self.kwargs)
-        self.test_dataset = self.dataset_class(split="test", **self.kwargs)
 
     def collect_metadata(self) -> None:
         """Collect metadata for the dataset."""

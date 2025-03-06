@@ -4,7 +4,7 @@
 """GeoBench BigEarthNetV2 DataModule."""
 
 from collections.abc import Callable
-from typing import Any
+from typing import Any, Sequence
 import kornia.augmentation as K
 
 from geobench_v2.datasets import GeoBenchEverWatch
@@ -23,6 +23,7 @@ class GeoBenchEverWatchDataModule(GeoBenchObjectDetectionDataModule):
     def __init__(
         self,
         img_size: int,
+        band_order: Sequence[float | str] = GeoBenchEverWatch.band_default_order,
         batch_size: int = 32,
         eval_batch_size: int = 64,
         num_workers: int = 0,
@@ -52,6 +53,7 @@ class GeoBenchEverWatchDataModule(GeoBenchObjectDetectionDataModule):
         super().__init__(
             dataset_class=GeoBenchCaFFe,
             img_size=img_size,
+            band_order=band_order,
             batch_size=batch_size,
             eval_batch_size=eval_batch_size,
             num_workers=num_workers,
@@ -62,21 +64,6 @@ class GeoBenchEverWatchDataModule(GeoBenchObjectDetectionDataModule):
             **kwargs,
         )
 
-    def setup(self, stage: str | None = None) -> None:
-        """Setup data for train, val, test.
-
-        Args:
-            stage: One of 'fit', 'validate', 'test', or 'predict'.
-        """
-        norm_transform = K.AugmentationSequential(
-            K.Normalize(self.mean, self.std, keepdim=True), data_keys=["image"]
-        )
-        self.train_dataset = self.dataset_class(
-            split="train", transforms=norm_transform, **self.kwargs
-        )
-        self.val_dataset = self.dataset_class(
-            split="val", transforms=norm_transform, **self.kwargs
-        )
-        self.test_dataset = self.dataset_class(
-            split="test", transforms=norm_transform, **self.kwargs
-        )
+    def visualize_geolocation_distribution(self) -> None:
+        """Visualize geolocation distribution."""
+        raise AttributeError("EverWAtch does not have geolocation information.")

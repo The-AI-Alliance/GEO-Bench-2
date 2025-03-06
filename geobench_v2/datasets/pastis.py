@@ -18,15 +18,26 @@ class GeoBenchPASTIS(PASTIS):
     - Return band wavelengths
     """
 
-    band_default_order = {
-        "red": 0,
-        "green": 1,
-        "blue": 2,
-        "nir": 3,
-        "swir1": 4,
-        "swir2": 5,
-        "pan": 6,
-    }
+    band_default_order = (
+        'B02',
+        'B03',
+        'B04',
+        'B05',
+        'B06',
+        'B07',
+        'B08',
+        'B8A',
+        'B11',
+        'B12',
+        'vv_asc',
+        'vh_asc',
+        'vv/vh_asc',
+        'vv_desc',
+        'vh_desc',
+        'vv/vh_desc',
+    )
+
+    valid_splits = ("train", "val", "test")
 
     def __init__(
         self,
@@ -45,12 +56,18 @@ class GeoBenchPASTIS(PASTIS):
                 in that order. This is useful for models that expect a certain band order, or
                 test the impact of band order on model performance.
             **kwargs: Additional keyword arguments passed to ``PASTIS``
+
+        Raises:
+            AssertionError: If an invalid split is specified
         """
-        super().__init__(root=root, split=split, **kwargs)
+        super().__init__(root=root, **kwargs)
         # TODO allow input of blank channels
-        assert all(band in self.band_default_order.keys() for band in band_order), (
-            f"Invalid bands in {band_order}. Must be among {list(self.band_default_order.keys())}"
-        )
+       
+
+        assert split in self.valid_splits, f"Invalid split {split}. Must be one of {self.valid_splits}"
+        self.split = split
+
+
 
         self.band_order = band_order
 
@@ -65,7 +82,14 @@ class GeoBenchPASTIS(PASTIS):
         """
         # TODO need to allow multiple modalities
         # TODO need to allow band order
-        image = self._load_image(index)
+        image_s2 = self._load_image(index, 's2')
+        image_s1a = self._load_image(index, 's1a')
+        image_s1a = self._load_image(index, 's1b')
+
+        # each of them is a time series, so we concatenate them along the channel dimension
+        image = torch.cat([image_s2, image_s1a, image_s1b], dim=1)
+        import pdb
+        pdb.set_trace()
         if self.mode == "semantic":
             mask = self._load_semantic_targets(index)
             sample = {"image": image, "mask": mask}
@@ -77,3 +101,19 @@ class GeoBenchPASTIS(PASTIS):
             sample = self.transforms(sample)
 
         return sample
+
+    def _load_image(self, index: int, bands: str) -> Tensor:
+        """Load a single time-series.
+
+        Args:
+            index: index to return
+            bands: bands to internally load from torchgeo
+
+        Returns:
+            the time-series
+        """
+        path = self.files[index][bands]
+        array = np.load(path)
+
+        tensor = torch.from_numpy(array)
+        return tensor

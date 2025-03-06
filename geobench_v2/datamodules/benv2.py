@@ -4,7 +4,7 @@
 """GeoBench BigEarthNetV2 DataModule."""
 
 from collections.abc import Callable
-from typing import Any
+from typing import Any, Sequence
 
 from geobench_v2.datasets import GeoBenchBENV2
 import kornia.augmentation as K
@@ -19,6 +19,7 @@ class GeoBenchBENV2DataModule(GeoBenchClassificationDataModule):
     def __init__(
         self,
         img_size: int,
+        band_order: Sequence[float | str] = GeoBenchBENV2.band_default_order,
         batch_size: int = 32,
         eval_batch_size: int = 64,
         num_workers: int = 0,
@@ -42,6 +43,7 @@ class GeoBenchBENV2DataModule(GeoBenchClassificationDataModule):
         super().__init__(
             dataset_class=GeoBenchBENV2,
             img_size=img_size,
+            band_order=band_order,
             batch_size=batch_size,
             eval_batch_size=eval_batch_size,
             num_workers=num_workers,
@@ -51,16 +53,6 @@ class GeoBenchBENV2DataModule(GeoBenchClassificationDataModule):
             pin_memory=pin_memory,
             **kwargs,
         )
-
-    def setup(self, stage: str | None = None) -> None:
-        """Setup the dataset.
-
-        Args:
-            stage: Stage
-        """
-        self.train_dataset = self.dataset_class(split="train", **self.kwargs)
-        self.val_dataset = self.dataset_class(split="val", **self.kwargs)
-        self.test_dataset = self.dataset_class(split="test", **self.kwargs)
 
     def visualize_geolocation_distribution(self) -> None:
         """Visualize the geolocation distribution."""

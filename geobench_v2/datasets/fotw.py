@@ -9,8 +9,8 @@ from torchgeo.datasets import FieldsOfTheWorld
 from pathlib import Path
 
 
-from typing import List, Union, Optional
-from .sensor_util import BandRegistry, SatelliteType
+from typing import List, Union, Optional, Sequence
+from .sensor_util import BandRegistry, DatasetBandRegistry
 from .data_util import DataUtilsMixin
 
 
@@ -22,23 +22,23 @@ class GeoBenchFieldsOfTheWorld(FieldsOfTheWorld, DataUtilsMixin):
     - Return band wavelengths
     """
 
-    sensor_type = SatelliteType.RGBN
+    dataset_band_config = DatasetBandRegistry.FOTW
 
     # keys should be specified according to the sensor default values
     # defined in sensor_util.py
-    band_default_order = ("r", "g", "b", "n")
+    band_default_order = ("r", "g", "b", "nir")
 
     # Define normalization stats using canonical names
     normalization_stats = {
-        "means": {"r": 0.0, "g": 0.0, "b": 0.0, "n": 0.0},
-        "stds": {"r": 3000.0, "g": 3000.0, "b": 3000.0, "n": 3000.0},
+        "means": {"r": 0.0, "g": 0.0, "b": 0.0, "nir": 0.0},
+        "stds": {"r": 3000.0, "g": 3000.0, "b": 3000.0, "nir": 3000.0},
     }
 
     def __init__(
         self,
         root: Path,
         split: str,
-        band_order: list[str] = ["red", "green", "blue", "nir"],
+        band_order: Sequence[str | float] = dataset_band_config.default_order,
         **kwargs,
     ) -> None:
         """Initialize Fields of the World Dataset.
@@ -74,25 +74,20 @@ class GeoBenchFieldsOfTheWorld(FieldsOfTheWorld, DataUtilsMixin):
         win_a = self._load_image(win_a_fn)
         win_b = self._load_image(win_b_fn)
 
-        # adapt img according to band_order
-        # win_a = torch.stack(
-        #     [win_a[self.band_default_order[band]] for band in self.band_order]
-        # )
-        # win_b = torch.stack(
-        #     [win_b[self.band_default_order[band]] for band in self.band_order]
-        # )
-        mask = self._load_target(mask_fn)
-
-        win_a = self.rearrange_bands(win_a, self.band_default_order, self.band_order)
+        win_a = self.rearrange_bands(win_a, self.band_order)
 
         win_a = self.normalizer(win_a)
 
-        win_b = self.rearrange_bands(win_b, self.band_default_order, self.band_order)
+        win_b = self.rearrange_bands(win_b, self.band_order)
 
         win_b = self.normalizer(win_b)
 
-        # concat or return two separate images?
-        image = torch.cat((win_a, win_b), dim=0)
-        sample = {"image": image, "mask": mask}
+        # TODO return concat or return two separate images or just one?
+        # image = torch.cat((win_a, win_b), dim=0)
+
+
+        mask = self._load_target(mask_fn)
+
+        sample = {"image": win_a, "mask": mask}
 
         return sample

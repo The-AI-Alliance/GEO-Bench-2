@@ -10,11 +10,11 @@ from torch import Tensor
 import torch
 from pathlib import Path
 
-from .sensor_util import BandRegistry, SatelliteType
+from .sensor_util import BandRegistry, DatasetBandRegistry
 from .data_util import DataUtilsMixin
 
 
-class GeoBenchEverWatch(EverWatch):
+class GeoBenchEverWatch(EverWatch, DataUtilsMixin):
     """ "GeoBenchEverWatch dataset with enhanced functionality.
 
     Allows:
@@ -22,7 +22,7 @@ class GeoBenchEverWatch(EverWatch):
     - Return band wavelengths
     """
 
-    sensor_type = SatelliteType.RGB
+    dataset_band_config = DatasetBandRegistry.EVERWATCH
     band_default_order = ("r", "g", "b")
 
     normalization_stats = {
@@ -76,5 +76,5 @@ class GeoBenchEverWatch(EverWatch):
         boxes, labels = self._load_target(sample_df)
 
         sample = {"image": image, "bbox_xyxy": boxes, "label": labels}
-        
+
         return sample

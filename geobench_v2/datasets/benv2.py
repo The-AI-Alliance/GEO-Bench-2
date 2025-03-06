@@ -7,7 +7,7 @@ from torchgeo.datasets import BigEarthNetV2
 from torch import Tensor
 from pathlib import Path
 from typing import Sequence
-from .sensor_util import BandRegistry, SatelliteType
+from .sensor_util import BandRegistry, DatasetBandRegistry
 from .data_util import DataUtilsMixin
 import torch
 
@@ -36,6 +36,8 @@ class GeoBenchBENV2(BigEarthNetV2, DataUtilsMixin):
         "VV",
         "VH",
     )
+
+    dataset_band_config = DatasetBandRegistry.BENV2
 
     normalization_stats = {
         "means": {
@@ -124,11 +126,14 @@ class GeoBenchBENV2(BigEarthNetV2, DataUtilsMixin):
         """
         sample: dict[str, Tensor] = {}
 
-        img = torch.cat(
-            [self._load_image(index, "s1"), self._load_image(index, "s2")], dim=0
-        )
-
-        img = self.rearrange_bands(img, self.band_default_order, self.band_order)
+        # Load modalities separately
+        data = {
+            "s1": self._load_image(index, "s1"),
+            "s2": self._load_image(index, "s2")
+        }
+        
+        # Rearrange bands (will return tensor since band_order is a list)
+        img = self.rearrange_bands(data, self.band_order)
 
         sample["image"] = self.normalizer(img)
 

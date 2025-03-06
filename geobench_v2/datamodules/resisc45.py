@@ -4,7 +4,7 @@
 """Resisc45 DataModule."""
 
 from collections.abc import Callable
-from typing import Any
+from typing import Any, Sequence
 
 from geobench_v2.datasets import GeoBenchRESISC45
 
@@ -23,6 +23,7 @@ class GeoBenchRESISC45DataModule(GeoBenchClassificationDataModule):
     def __init__(
         self,
         img_size: int,
+        band_order: Sequence[float | str] = GeoBenchRESISC45.band_default_order,
         batch_size: int = 32,
         eval_batch_size: int = 64,
         num_workers: int = 0,
@@ -52,6 +53,7 @@ class GeoBenchRESISC45DataModule(GeoBenchClassificationDataModule):
         super().__init__(
             dataset_class=GeoBenchRESISC45,
             img_size=img_size,
+            band_order=band_order,
             batch_size=batch_size,
             eval_batch_size=eval_batch_size,
             num_workers=num_workers,
@@ -61,14 +63,6 @@ class GeoBenchRESISC45DataModule(GeoBenchClassificationDataModule):
             pin_memory=pin_memory,
             **kwargs,
         )
-
-    def setup(self, stage: str | None = None) -> None:
-        """Setup data for train, val, test.
-
-        Args:
-            stage: One of 'fit', 'validate', 'test', or 'predict'.
-        """
-        self.train_dataset = self.dataset_class(split="train", **self.kwargs)
 
     def visualize_geolocation_distribution(self) -> None:
         """Visualize geolocation distribution."""

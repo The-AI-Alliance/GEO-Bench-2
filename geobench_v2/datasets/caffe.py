@@ -13,29 +13,31 @@ from torch import Tensor
 from torchgeo.datasets import CaFFe
 from pathlib import Path
 
-from .sensor_util import BandRegistry, SatelliteType
+from .sensor_util import BandRegistry, DatasetBandRegistry 
 from .data_util import DataUtilsMixin
 
 
-class GeoBenchCaFFe(CaFFe):
+class GeoBenchCaFFe(CaFFe, DataUtilsMixin):
     """CaFFe Dataset with enhanced functionality.
 
     Allows:
     - Variable Band Selection
     - Return band wavelengths
     """
-    sensor_type = SatelliteType.GRAYSCALE
+
+    dataset_band_config = DatasetBandRegistry.CAFFE
     # TODO update sensor type with wavelength and resolution
-    
+
     band_default_order = ("gray",)
 
-    normalization_stats = {
-        "means": {"gray": 0.0},
-        "stds": {"gray": 255.0},
-    }
+    normalization_stats = {"means": {"gray": 0.0}, "stds": {"gray": 255.0}}
 
     def __init__(
-        self, root: Path, split: str, band_order: list["str"] = band_default_order, **kwargs
+        self,
+        root: Path,
+        split: str,
+        band_order: list["str"] = band_default_order,
+        **kwargs,
     ) -> None:
         """Initialize CaFFe Dataset.
 

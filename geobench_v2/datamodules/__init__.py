@@ -9,6 +9,7 @@ from .pastis import GeoBenchPASTISDataModule
 from .resisc45 import GeoBenchRESISC45DataModule
 from .spacenet6 import GeoBenchSpaceNet6DataModule
 from .benv2 import GeoBenchBENV2DataModule
+from .everwatch import GeoBenchEverWatchDataModule
 
 __all__ = (
     "GeoBenchCaFFeDataModule",
@@ -17,4 +18,5 @@ __all__ = (
     "GeoBenchRESISC45DataModule",
     "GeoBenchSpaceNet6DataModule",
     "GeoBenchBENV2DataModule",
+    "GeoBenchEverWatchDataModule"
 )
