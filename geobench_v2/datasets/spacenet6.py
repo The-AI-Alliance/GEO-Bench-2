@@ -6,9 +6,13 @@
 from torch import Tensor
 from torchgeo.datasets import SpaceNet6
 from pathlib import Path
+from typing import Sequence
+
+from .sensor_util import BandRegistry, SatelliteType
+from .data_util import DataUtilsMixin
 
 
-class GeoBenchSpaceNet6(SpaceNet6):
+class GeoBenchSpaceNet6(SpaceNet6, DataUtilsMixin):
     """SpaceNet6 dataset with enhanced functionality.
 
     Allows:
@@ -16,13 +20,22 @@ class GeoBenchSpaceNet6(SpaceNet6):
     - Return band wavelengths
     """
 
+    sensor_type = SatelliteType.RGBN
+
     band_default_order = {"red": 0, "green": 1, "blue": 2, "nir": 3}
+
+    band_default_order = ("r", "g", "b", "n")
+
+    normalization_stats = {
+        "means": {"r": 0.0, "g": 0.0, "b": 0.0, "n": 0.0},
+        "stds": {"r": 3000.0, "g": 3000.0, "b": 3000.0, "n": 3000.0},
+    }
 
     def __init__(
         self,
         root: Path,
         split: str,
-        band_order: list[str] = ["red", "green", "blue", "nir"],
+        band_order: Sequence[str] = band_default_order,
         **kwargs,
     ) -> None:
         """Initialize SpaceNet6 dataset.
@@ -37,12 +50,10 @@ class GeoBenchSpaceNet6(SpaceNet6):
             **kwargs: Additional keyword arguments passed to ``SpaceNet6``
         """
         super().__init__(root=root, split=split, **kwargs)
-        # TODO allow input of blank channels
-        assert all(band in self.band_default_order.keys() for band in band_order), (
-            f"Invalid bands in {band_order}. Must be among {list(self.band_default_order.keys())}"
-        )
 
-        self.band_order = band_order
+        self.band_order = self.resolve_band_order(band_order)
+
+        self.set_normalization_stats(self.band_order)
 
     def __getitem__(self, index: int) -> dict[str, Tensor]:
         """Return an index within the dataset.
@@ -57,10 +68,9 @@ class GeoBenchSpaceNet6(SpaceNet6):
         img, tfm, raster_crs = self._load_image(image_path)
         h, w = img.shape[1:]
 
-        # adapt img according to band order
-        img = torch.stack(
-            [img[self.band_default_order[band]] for band in self.band_order]
-        )
+        img = self.rearrange_bands(img, self.band_default_order, self.band_order)
+
+        img = self.normalizer(img)
 
         sample = {"image": img}
 
@@ -74,8 +84,5 @@ class GeoBenchSpaceNet6(SpaceNet6):
         # mask that we want to ignore in the loss function.
         if "mask" in sample:
             sample["mask"] += 1
-
-        if self.transforms is not None:
-            sample = self.transforms(sample)
 
         return sample

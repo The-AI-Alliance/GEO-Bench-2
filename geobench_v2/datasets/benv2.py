@@ -6,7 +6,7 @@
 from torchgeo.datasets import BigEarthNetV2
 from torch import Tensor
 from pathlib import Path
-from typing import List, Union, Optional
+from typing import Sequence
 from .sensor_util import BandRegistry, SatelliteType
 from .data_util import DataUtilsMixin
 import torch
@@ -76,7 +76,7 @@ class GeoBenchBENV2(BigEarthNetV2, DataUtilsMixin):
         self,
         root: Path,
         split: str,
-        band_order: list["str"] = ["B04", "B03", "B02"],
+        band_order: Sequence["str"] = ["B04", "B03", "B02"],
         **kwargs,
     ) -> None:
         """Initialize Big Earth Net V2 Dataset.
@@ -93,10 +93,16 @@ class GeoBenchBENV2(BigEarthNetV2, DataUtilsMixin):
         super().__init__(root=root, split=split, bands="all", **kwargs)
 
         # Resolve band names at init time
-        self.band_order = []
+        self.band_order = self.resolve_band_order(band_order)
+
+        self.set_normalization_stats(self.band_order)
+
+    def resolve_band_order(self, band_order: Sequence[str]) -> Sequence[str]:
+        """Resolve band order to band names. Overwrite to deal with multi-modality."""
+        resolved_band_order = []
         for band in band_order or self.band_default_order:
             if isinstance(band, (int, float)):
-                self.band_order.append(band)
+                resolved_band_order.append(band)
             else:
                 # For multimodal, keep modality prefix
                 if "_" in band:
@@ -104,9 +110,8 @@ class GeoBenchBENV2(BigEarthNetV2, DataUtilsMixin):
                     canonical = f"{mod}_{BandRegistry.resolve_band(band_name)}"
                 else:
                     canonical = BandRegistry.resolve_band(band)
-                self.band_order.append(canonical)
-
-        self.set_normalization_stats(self.band_order)
+                resolved_band_order.append(canonical)
+        return resolved_band_order
 
     def __getitem__(self, index: int) -> dict[str, Tensor]:
         """Return an index within the dataset.
@@ -131,8 +136,5 @@ class GeoBenchBENV2(BigEarthNetV2, DataUtilsMixin):
 
         sample["mask"] = self._load_map(index)
         sample["label"] = self._load_target(index)
-
-        if self.transforms is not None:
-            sample = self.transforms(sample)
 
         return sample

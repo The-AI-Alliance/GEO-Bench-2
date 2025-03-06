@@ -10,6 +10,9 @@ from torch import Tensor
 import torch
 from pathlib import Path
 
+from .sensor_util import BandRegistry, SatelliteType
+from .data_util import DataUtilsMixin
+
 
 class GeoBenchEverWatch(EverWatch):
     """ "GeoBenchEverWatch dataset with enhanced functionality.
@@ -19,13 +22,19 @@ class GeoBenchEverWatch(EverWatch):
     - Return band wavelengths
     """
 
-    band_default_order = {"red": 0, "green": 1, "blue": 2}
+    sensor_type = SatelliteType.RGB
+    band_default_order = ("r", "g", "b")
+
+    normalization_stats = {
+        "means": {"r": 0.0, "g": 0.0, "b": 0.0},
+        "stds": {"r": 255.0, "g": 255.0, "b": 255.0},
+    }
 
     def __init__(
         self,
         root: Path,
         split: str,
-        band_order: list[str] = ["red", "green", "blue"],
+        band_order: list[str] = band_default_order,
         **kwargs,
     ) -> None:
         """Initialize EverWatch dataset.
@@ -40,31 +49,32 @@ class GeoBenchEverWatch(EverWatch):
             **kwargs: Additional keyword arguments passed to ``EverWatch``
         """
         super().__init__(root=root, split=split, **kwargs)
-        # TODO allow input of blank channels
-        assert all(band in self.band_default_order.keys() for band in band_order), (
-            f"Invalid bands in {band_order}. Must be among {list(self.band_default_order.keys())}"
-        )
 
-        self.band_order = band_order
+        self.band_order = self.resolve_band_order(band_order)
 
-    # TODO need to overwrite __getitem__ method instead to also add wavelength infox
-    def _load_image(self, path: Path) -> Tensor:
-        """Load a single image.
+        self.set_normalization_stats(self.band_order)
+
+    def __getitem__(self, index: int) -> dict[str, Tensor]:
+        """Return an index within the dataset.
 
         Args:
-            path: path to the image
+            index: index to return
 
         Returns:
-            the image
+            data and label at that index
         """
-        with Image.open(path) as img:
-            array: np.typing.NDArray[np.uint8] = np.array(img)
-            tensor = torch.from_numpy(array)
-            # Convert from HxWxC to CxHxW
-            tensor = tensor.permute((2, 0, 1))
+        sample_df = self.annot_df.loc[index]
 
-        # variable band selection
-        tensor = torch.stack(
-            [tensor[self.band_default_order[band]] for band in self.band_order]
-        )
-        return tensor
+        img_path = os.path.join(self.root, self.dir, sample_df["image_path"].iloc[0])
+
+        image = self._load_image(img_path)
+
+        image = self.rearrange_bands(image, self.band_orig_order, self.band_order)
+
+        image = self.normalizer(image)
+
+        boxes, labels = self._load_target(sample_df)
+
+        sample = {"image": image, "bbox_xyxy": boxes, "label": labels}
+        
+        return sample

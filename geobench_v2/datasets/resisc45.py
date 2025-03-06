@@ -7,9 +7,13 @@ import torch
 from torch import Tensor
 from torchgeo.datasets import RESISC45
 from pathlib import Path
+from typing import Sequence
+
+from .sensor_util import BandRegistry, SatelliteType
+from .data_util import DataUtilsMixin
 
 
-class GeoBenchRESISC45(RESISC45):
+class GeoBenchRESISC45(RESISC45, DataUtilsMixin):
     """Resisc45 Dataset with enhanced functionality.
 
     Allows:
@@ -17,13 +21,21 @@ class GeoBenchRESISC45(RESISC45):
     - Return band wavelengths
     """
 
+    sensor_type = SatelliteType.RGB
+
     band_orig_order = {"r": 0, "g": 1, "b": 2}
+    band_default_order = ("r", "g", "b")
+
+    normalization_stats = {
+        "means": {"r": 0.0, "g": 0.0, "b": 0.0},
+        "stds": {"r": 255.0, "g": 255.0, "b": 255.0},
+    }
 
     def __init__(
         self,
         root: Path,
         split: str,
-        band_order: list["str"] = ["r", "g", "b"],
+        band_order: Sequence["str"] = band_default_order,
         **kwargs,
     ):
         """Initialize Resisc45 Dataset.
@@ -39,28 +51,25 @@ class GeoBenchRESISC45(RESISC45):
         """
         super().__init__(root=root, split=split, **kwargs)
 
-        # TODO: allow input of blank channels
-        assert all(band in self.band_orig_order.keys() for band in band_order), (
-            f"Invalid bands in {band_order}. Must be among {list(self.band_orig_order.keys())}"
-        )
+        self.band_order = self.resolve_band_order(band_order)
 
-        self.band_order = band_order
+        self.set_normalization_stats(self.band_order)
 
-    def _load_image(self, index: int) -> tuple[Tensor, Tensor]:
-        """Load a single image and its class label.
+    def __getitem__(self, index: int) -> dict[str, Tensor]:
+        """Return an index within the dataset.
 
         Args:
             index: index to return
 
         Returns:
-            the image and class label
+            data and label at that index
         """
-        image, label = super()._load_image(index)
+        image, label = self._load_image(index)
 
-        # Reorder bands according to band_order
-        def _reorder_bands(image: Tensor) -> Tensor:
-            return torch.stack(
-                [image[self.band_orig_order[band]] for band in self.band_order]
-            )
+        image = self.rearrange_bands(image, self.band_orig_order, self.band_order)
 
-        return self._reorder_bands(image), label
+        image = self.normalizer(image)
+
+        sample = {"image": image, "label": label}
+
+        return sample

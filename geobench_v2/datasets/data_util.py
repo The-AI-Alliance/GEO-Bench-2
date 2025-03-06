@@ -13,6 +13,20 @@ class DataUtilsMixin(ABC):
         """Per-modality normalization statistics."""
         pass
 
+    def resolve_bands(
+        self, band_order: Sequence[Union[str, float]]
+    ) -> list[Union[str, float]]:
+        """Resolve band names to canonical names."""
+        resolved_bands = []
+        for band_spec in band_order:
+            if isinstance(band_spec, (int, float)):
+                resolved_bands.append(band_spec)
+            else:
+                resolved_bands.append(
+                    BandRegistry.resolve_band(band_spec, self.sensor_type)
+                )
+        return resolved_bands
+
     def rearrange_bands(
         self,
         data: Union[Tensor, Dict[str, Tensor]],

@@ -22,6 +22,8 @@ class GeoBenchFieldsOfTheWorld(FieldsOfTheWorld, DataUtilsMixin):
     - Return band wavelengths
     """
 
+    sensor_type = SatelliteType.RGBN
+
     # keys should be specified according to the sensor default values
     # defined in sensor_util.py
     band_default_order = ("r", "g", "b", "n")
@@ -51,19 +53,8 @@ class GeoBenchFieldsOfTheWorld(FieldsOfTheWorld, DataUtilsMixin):
             **kwargs: Additional keyword arguments passed to ``FieldsOfTheWorld``
         """
         super().__init__(root=root, split=split, **kwargs)
-        # TODO allow input of blank channels
-        # assert all(band in self.band_default_order.keys() for band in band_order), (
-        #     f"Invalid bands in {band_order}. Must be among {list(self.band_default_order.keys())}"
-        # )
 
-        self.band_order = []
-        for band in band_order:
-            if not isinstance(band, (int, float)):
-                self.band_order.append(
-                    BandRegistry.resolve_band(band, SatelliteType.RGBN)
-                )
-            else:
-                self.band_order.append(band)
+        self.band_order = self.resolve_band_order(band_order)
 
         self.set_normalization_stats(self.band_order)
 
@@ -103,8 +94,5 @@ class GeoBenchFieldsOfTheWorld(FieldsOfTheWorld, DataUtilsMixin):
         # concat or return two separate images?
         image = torch.cat((win_a, win_b), dim=0)
         sample = {"image": image, "mask": mask}
-
-        if self.transforms is not None:
-            sample = self.transforms(sample)
 
         return sample
