@@ -1,0 +1,240 @@
+import pytest
+import torch
+from geobench_v2.datasets.data_util import DataUtilsMixin
+from geobench_v2.datasets.sensor_util import (
+    ModalityConfig,
+    MultiModalConfig,
+    BandConfig,
+    DatasetBandRegistry,
+    SensorBandRegistry,
+)
+
+
+class MockMultiModal_S1_S2(MultiModalConfig):
+    """S1+S2 configuration testing standard satellite combination."""
+
+    def __init__(self):
+        super().__init__(
+            modalities={
+                "s2": SensorBandRegistry.SENTINEL2,
+                "s1": SensorBandRegistry.SENTINEL1,
+            },
+            default_order=["B02", "B03", "B04", "VV", "VH"],
+            band_to_modality={
+                "B01": "s2",
+                "B02": "s2",
+                "B03": "s2",
+                "B04": "s2",
+                "B05": "s2",
+                "B06": "s2",
+                "B07": "s2",
+                "B08": "s2",
+                "B8A": "s2",
+                "B09": "s2",
+                "B11": "s2",
+                "B12": "s2",
+                "VV": "s1",
+                "VH": "s1",
+            },
+        )
+
+
+class MockMultiModal_S2_RGB(MultiModalConfig):
+    """S2+RGB configuration testing overlapping band names."""
+
+    def __init__(self):
+        super().__init__(
+            modalities={
+                "s2": SensorBandRegistry.SENTINEL2,
+                "rgb": SensorBandRegistry.RGB,
+            },
+            default_order=["B02", "B03", "B04", "r", "g", "b"],
+            band_to_modality={
+                # S2 bands with standard names
+                "B02": "s2",
+                "B03": "s2",
+                "B04": "s2",
+                # RGB bands with aliases
+                "r": "rgb",
+                "red": "rgb",
+                "g": "rgb",
+                "green": "rgb",
+                "b": "rgb",
+                "blue": "rgb",
+            },
+        )
+
+
+class MockMultiModal_AllSensors(MultiModalConfig):
+    """Complex configuration with all sensor types."""
+
+    def __init__(self):
+        super().__init__(
+            modalities={
+                "s2": SensorBandRegistry.SENTINEL2,
+                "s1": SensorBandRegistry.SENTINEL1,
+                "rgb": SensorBandRegistry.RGB,
+                "rgbn": SensorBandRegistry.RGBN,
+            },
+            default_order=["B02", "r", "VV", "nir"],
+            band_to_modality={
+                # S2 bands
+                "B02": "s2",
+                "blue": "s2",
+                "B03": "s2",
+                "green": "s2",
+                "B04": "s2",
+                "red": "s2",
+                # S1 bands
+                "VV": "s1",
+                "VH": "s1",
+                # RGB bands
+                "r": "rgb",
+                "g": "rgb",
+                "b": "rgb",
+                # RGBN specific
+                "nir": "rgbn",
+            },
+        )
+
+
+class TestDatasetS1S2:
+    """Test cases for S1+S2 combination."""
+
+    @pytest.fixture
+    def s1s2_dataset(self):
+        class Dataset(DataUtilsMixin):
+            dataset_band_config = MockMultiModal_S1_S2()
+
+        return Dataset()
+
+    @pytest.fixture
+    def s1s2_data(self):
+        """Create enumerated test data for each band."""
+        s2_data = torch.arange(12).float().reshape(12, 1, 1).expand(-1, 32, 32)
+        s1_data = torch.arange(2).float().reshape(2, 1, 1).expand(-1, 32, 32) + 100
+        return {
+            "s2": s2_data,  # Bands 0-11 for S2
+            "s1": s1_data,  # Bands 100-101 for S1
+        }
+
+    def test_band_resolution(self, s1s2_dataset):
+        """Test basic band resolution."""
+        resolved = s1s2_dataset.resolve_band_order(["B02", "VV"])
+        assert resolved == ["B02", "VV"]
+
+        # Test with aliases
+        resolved = s1s2_dataset.resolve_band_order(["b02", "co_pol"])
+        assert resolved == ["B02", "VV"]
+
+    def test_band_rearrangement(self, s1s2_dataset, s1s2_data):
+        """Test band selection and ordering."""
+        result = s1s2_dataset.rearrange_bands(s1s2_data, ["B02", "VV", "B04"])
+        expected = torch.stack(
+            [
+                s1s2_data["s2"][1],  # B02 = 1
+                s1s2_data["s1"][0],  # VV = 100
+                s1s2_data["s2"][3],  # B04 = 3
+            ]
+        )
+        assert torch.allclose(result, expected)
+
+    def test_modality_dict_output(self, s1s2_dataset, s1s2_data):
+        """Test dictionary output mode."""
+        result = s1s2_dataset.rearrange_bands(
+            s1s2_data, {"s2": ["B02", "B03"], "s1": ["VV", "VH"]}
+        )
+        assert torch.allclose(result["image_s2"], s1s2_data["s2"][[1, 2]])
+        assert torch.allclose(result["image_s1"], s1s2_data["s1"])
+
+
+class TestDatasetS2RGB:
+    """Test cases for S2+RGB combination with overlapping bands."""
+
+    @pytest.fixture
+    def s2rgb_dataset(self):
+        class Dataset(DataUtilsMixin):
+            dataset_band_config = MockMultiModal_S2_RGB()
+
+        return Dataset()
+
+    @pytest.fixture
+    def s2rgb_data(self):
+        """Create enumerated test data."""
+        s2_data = torch.arange(12).float().reshape(12, 1, 1).expand(-1, 32, 32)
+        rgb_data = torch.arange(3).float().reshape(3, 1, 1).expand(-1, 32, 32) + 200
+        return {
+            "s2": s2_data,  # Bands 0-11
+            "rgb": rgb_data,  # Bands 200-202
+        }
+
+    def test_overlapping_bands(self, s2rgb_dataset, s2rgb_data):
+        """Test handling of overlapping band names."""
+        # Using RGB names should select from RGB modality
+        result = s2rgb_dataset.rearrange_bands(s2rgb_data, ["r", "g", "b"])
+        expected = s2rgb_data["rgb"]
+        assert torch.allclose(result, expected)
+
+        # Using S2 names should select from S2
+        result = s2rgb_dataset.rearrange_bands(s2rgb_data, ["B02", "B03", "B04"])
+        expected = s2rgb_data["s2"][[1, 2, 3]]
+        assert torch.allclose(result, expected)
+
+
+class TestAllSensors:
+    """Test cases for complex configuration with all sensors."""
+
+    @pytest.fixture
+    def all_sensors_dataset(self):
+        class Dataset(DataUtilsMixin):
+            dataset_band_config = MockMultiModal_AllSensors()
+
+        return Dataset()
+
+    @pytest.fixture
+    def all_sensors_data(self):
+        """Create enumerated test data."""
+        return {
+            "s2": torch.arange(12).float().reshape(12, 1, 1).expand(-1, 32, 32),
+            "s1": torch.arange(2).float().reshape(2, 1, 1).expand(-1, 32, 32) + 100,
+            "rgb": torch.arange(3).float().reshape(3, 1, 1).expand(-1, 32, 32) + 200,
+            "rgbn": torch.arange(4).float().reshape(4, 1, 1).expand(-1, 32, 32) + 300,
+        }
+
+    def test_mixed_band_selection(self, all_sensors_dataset, all_sensors_data):
+        """Test selecting bands across all modalities."""
+        result = all_sensors_dataset.rearrange_bands(
+            all_sensors_data, ["B02", "r", "VV", "nir"]
+        )
+        expected = torch.stack(
+            [
+                all_sensors_data["s2"][1],  # B02 = 1
+                all_sensors_data["rgb"][0],  # r = 200
+                all_sensors_data["s1"][0],  # VV = 100
+                all_sensors_data["rgbn"][3],  # nir = 303
+            ]
+        )
+        assert torch.allclose(result, expected)
+
+    def test_fill_values(self, all_sensors_dataset, all_sensors_data):
+        """Test mixing fill values with real bands."""
+        result = all_sensors_dataset.rearrange_bands(
+            all_sensors_data, ["B02", 0.0, "VV", -999.0, "nir"]
+        )
+        assert result.shape == (5, 32, 32)
+        assert torch.allclose(result[1], torch.zeros_like(result[1]))
+        assert torch.allclose(result[3], torch.full_like(result[3], -999.0))
+
+    @pytest.mark.parametrize(
+        "invalid_input",
+        [
+            ["invalid_band"],
+            ["B02_invalid"],
+            ["rgb_B02"],  # Wrong modality prefix
+            ["VV", "invalid", "B02"],
+        ],
+    )
+    def test_invalid_inputs(self, all_sensors_dataset, all_sensors_data, invalid_input):
+        """Test various invalid input combinations."""
+        with pytest.raises(ValueError):
+            all_sensors_dataset.rearrange_bands(all_sensors_data, invalid_input)

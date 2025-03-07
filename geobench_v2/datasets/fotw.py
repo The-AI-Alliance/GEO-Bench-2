@@ -10,7 +10,7 @@ from pathlib import Path
 
 
 from typing import List, Union, Optional, Sequence
-from .sensor_util import BandRegistry, DatasetBandRegistry
+from .sensor_util import DatasetBandRegistry
 from .data_util import DataUtilsMixin
 
 
@@ -84,7 +84,6 @@ class GeoBenchFieldsOfTheWorld(FieldsOfTheWorld, DataUtilsMixin):
 
         # TODO return concat or return two separate images or just one?
         # image = torch.cat((win_a, win_b), dim=0)
-
 
         mask = self._load_target(mask_fn)
 

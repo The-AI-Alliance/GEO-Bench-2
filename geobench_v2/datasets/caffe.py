@@ -13,7 +13,7 @@ from torch import Tensor
 from torchgeo.datasets import CaFFe
 from pathlib import Path
 
-from .sensor_util import BandRegistry, DatasetBandRegistry 
+from .sensor_util import DatasetBandRegistry
 from .data_util import DataUtilsMixin
 
 

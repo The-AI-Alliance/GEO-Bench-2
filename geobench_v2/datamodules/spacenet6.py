@@ -64,9 +64,7 @@ class GeoBenchSpaceNet6DataModule(GeoBenchSegmentationDataModule):
     def setup(self, stage: str | None = None) -> None:
         """Setup the dataset."""
         self.train_dataset = self.dataset_class(
-            split="train",
-            band_order=self.band_order,
-            **self.kwargs,
+            split="train", band_order=self.band_order, **self.kwargs
         )
 
     def visualize_geolocation_distribution(self) -> None:

@@ -18,5 +18,5 @@ __all__ = (
     "GeoBenchRESISC45",
     "GeoBenchSpaceNet6",
     "GeoBenchBENV2",
-    "GeoBenchEverWatch"
+    "GeoBenchEverWatch",
 )

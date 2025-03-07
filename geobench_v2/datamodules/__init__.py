@@ -18,5 +18,5 @@ __all__ = (
     "GeoBenchRESISC45DataModule",
     "GeoBenchSpaceNet6DataModule",
     "GeoBenchBENV2DataModule",
-    "GeoBenchEverWatchDataModule"
+    "GeoBenchEverWatchDataModule",
 )

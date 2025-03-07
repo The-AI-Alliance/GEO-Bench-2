@@ -7,7 +7,7 @@ from torchgeo.datasets import BigEarthNetV2
 from torch import Tensor
 from pathlib import Path
 from typing import Sequence
-from .sensor_util import BandRegistry, DatasetBandRegistry
+from .sensor_util import DatasetBandRegistry
 from .data_util import DataUtilsMixin
 import torch
 
@@ -129,9 +129,9 @@ class GeoBenchBENV2(BigEarthNetV2, DataUtilsMixin):
         # Load modalities separately
         data = {
             "s1": self._load_image(index, "s1"),
-            "s2": self._load_image(index, "s2")
+            "s2": self._load_image(index, "s2"),
         }
-        
+
         # Rearrange bands (will return tensor since band_order is a list)
         img = self.rearrange_bands(data, self.band_order)
 

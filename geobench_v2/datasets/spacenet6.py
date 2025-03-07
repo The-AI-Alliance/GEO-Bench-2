@@ -8,7 +8,7 @@ from torchgeo.datasets import SpaceNet6
 from pathlib import Path
 from typing import Sequence
 
-from .sensor_util import BandRegistry, DatasetBandRegistry
+from .sensor_util import DatasetBandRegistry
 from .data_util import DataUtilsMixin
 
 

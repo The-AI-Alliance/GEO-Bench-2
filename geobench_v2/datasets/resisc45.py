@@ -9,7 +9,7 @@ from torchgeo.datasets import RESISC45
 from pathlib import Path
 from typing import Sequence
 
-from .sensor_util import BandRegistry, DatasetBandRegistry
+from .sensor_util import DatasetBandRegistry
 from .data_util import DataUtilsMixin
 
 

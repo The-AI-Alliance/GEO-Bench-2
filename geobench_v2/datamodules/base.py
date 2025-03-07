@@ -82,9 +82,15 @@ class GeoBenchDataModule(LightningDataModule, ABC):
         Args:
             stage: One of 'fit', 'validate', 'test', or 'predict'.
         """
-        self.train_dataset = self.dataset_class(split="train", band_order=self.band_order, **self.kwargs)
-        self.val_dataset = self.dataset_class(split="val", band_order=self.band_order, **self.kwargs)
-        self.test_dataset = self.dataset_class(split="test", band_order=self.band_order, **self.kwargs)
+        self.train_dataset = self.dataset_class(
+            split="train", band_order=self.band_order, **self.kwargs
+        )
+        self.val_dataset = self.dataset_class(
+            split="val", band_order=self.band_order, **self.kwargs
+        )
+        self.test_dataset = self.dataset_class(
+            split="test", band_order=self.band_order, **self.kwargs
+        )
 
     @abstractmethod
     def define_augmentations(self) -> None:

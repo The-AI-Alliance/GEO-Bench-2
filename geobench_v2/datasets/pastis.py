@@ -19,22 +19,22 @@ class GeoBenchPASTIS(PASTIS):
     """
 
     band_default_order = (
-        'B02',
-        'B03',
-        'B04',
-        'B05',
-        'B06',
-        'B07',
-        'B08',
-        'B8A',
-        'B11',
-        'B12',
-        'vv_asc',
-        'vh_asc',
-        'vv/vh_asc',
-        'vv_desc',
-        'vh_desc',
-        'vv/vh_desc',
+        "B02",
+        "B03",
+        "B04",
+        "B05",
+        "B06",
+        "B07",
+        "B08",
+        "B8A",
+        "B11",
+        "B12",
+        "vv_asc",
+        "vh_asc",
+        "vv/vh_asc",
+        "vv_desc",
+        "vh_desc",
+        "vv/vh_desc",
     )
 
     valid_splits = ("train", "val", "test")
@@ -62,12 +62,11 @@ class GeoBenchPASTIS(PASTIS):
         """
         super().__init__(root=root, **kwargs)
         # TODO allow input of blank channels
-       
 
-        assert split in self.valid_splits, f"Invalid split {split}. Must be one of {self.valid_splits}"
+        assert split in self.valid_splits, (
+            f"Invalid split {split}. Must be one of {self.valid_splits}"
+        )
         self.split = split
-
-
 
         self.band_order = band_order
 
@@ -82,13 +81,14 @@ class GeoBenchPASTIS(PASTIS):
         """
         # TODO need to allow multiple modalities
         # TODO need to allow band order
-        image_s2 = self._load_image(index, 's2')
-        image_s1a = self._load_image(index, 's1a')
-        image_s1a = self._load_image(index, 's1b')
+        image_s2 = self._load_image(index, "s2")
+        image_s1a = self._load_image(index, "s1a")
+        image_s1a = self._load_image(index, "s1b")
 
         # each of them is a time series, so we concatenate them along the channel dimension
         image = torch.cat([image_s2, image_s1a, image_s1b], dim=1)
         import pdb
+
         pdb.set_trace()
         if self.mode == "semantic":
             mask = self._load_semantic_targets(index)
