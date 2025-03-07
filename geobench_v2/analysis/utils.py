@@ -48,7 +48,7 @@ def collect_overview_df(exp_dir: str, select_criteria: str) -> pd.DataFrame:
                     print(
                         f"'epoch' column not found in metrics.csv for {exp_name}, looks like a failed run run."
                     )
-                    continueexpected_s2
+                    continue
 
                 task = config.dataset_config.task
 
