@@ -6,11 +6,36 @@
 from collections.abc import Callable
 from typing import Any, Sequence
 import kornia.augmentation as K
+import torch
+
 
 from geobench_v2.datasets import GeoBenchEverWatch
+from torch.utils.data import random_split
 
 from .base import GeoBenchObjectDetectionDataModule
 import torch.nn as nn
+
+# TODO everwatch collate_fn check the different image sizes
+
+
+def everwatch_collate_fn(batch: Sequence[dict[str, Any]]) -> dict[str, Any]:
+    """Collate function for EverWatch dataset.
+
+    Args:
+        batch: A list of dictionaries containing the data for each sample
+
+    Returns:
+        A dictionary containing the collated data
+    """
+    # collate images
+    images = [sample["image"] for sample in batch]
+    images = torch.stack(images, dim=0)
+
+    # collate boxes into list of boxes
+    boxes = [sample["bbox_xyxy"] for sample in batch]
+    label = [sample["label"] for sample in batch]
+
+    return {"image": images, "bbox_xyxy": boxes, "label": label}
 
 
 class GeoBenchEverWatchDataModule(GeoBenchObjectDetectionDataModule):
@@ -27,7 +52,7 @@ class GeoBenchEverWatchDataModule(GeoBenchObjectDetectionDataModule):
         batch_size: int = 32,
         eval_batch_size: int = 64,
         num_workers: int = 0,
-        collate_fn: Callable | None = None,
+        collate_fn: Callable | None = everwatch_collate_fn,
         train_augmentations: nn.Module | None = None,
         eval_augmentations: nn.Module | None = None,
         pin_memory: bool = False,
@@ -62,6 +87,22 @@ class GeoBenchEverWatchDataModule(GeoBenchObjectDetectionDataModule):
             eval_augmentations=eval_augmentations,
             pin_memory=pin_memory,
             **kwargs,
+        )
+
+    def setup(self, stage: str) -> None:
+        """Setup the dataset for training or evaluation."""
+        train_dataset = self.dataset_class(
+            split="train", band_order=self.band_order, **self.kwargs
+        )
+        # split into train and validation
+        generator = torch.Generator().manual_seed(0)
+        # random 80-20 split
+        self.train_dataset, self.val_dataset = random_split(
+            train_dataset, [1 - 0.2, 0.2], generator
+        )
+
+        self.test_dataset = self.dataset_class(
+            split="test", band_order=self.band_order, **self.kwargs
         )
 
     def visualize_geolocation_distribution(self) -> None:

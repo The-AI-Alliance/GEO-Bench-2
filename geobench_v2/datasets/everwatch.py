@@ -3,15 +3,19 @@
 
 """EverWatch dataset."""
 
+import os
+
 from torchgeo.datasets import EverWatch
 import numpy as np
 from PIL import Image
 from torch import Tensor
 import torch
 from pathlib import Path
+import kornia.augmentation as K
+import torch.nn.functional as F
 
 from .sensor_util import DatasetBandRegistry
-from .data_util import DataUtilsMixin
+from .data_util import DataUtilsMixin, MultiModalNormalizer
 
 
 class GeoBenchEverWatch(EverWatch, DataUtilsMixin):
@@ -52,7 +56,9 @@ class GeoBenchEverWatch(EverWatch, DataUtilsMixin):
 
         self.band_order = self.resolve_band_order(band_order)
 
-        self.set_normalization_module(self.band_order)
+        self.normalizer = MultiModalNormalizer(
+            self.normalization_stats, self.band_order
+        )
 
     def __getitem__(self, index: int) -> dict[str, Tensor]:
         """Return an index within the dataset.
@@ -63,18 +69,27 @@ class GeoBenchEverWatch(EverWatch, DataUtilsMixin):
         Returns:
             data and label at that index
         """
+        sample: dict[str, Tensor] = {}
+
         sample_df = self.annot_df.loc[index]
 
         img_path = os.path.join(self.root, self.dir, sample_df["image_path"].iloc[0])
 
-        image = self._load_image(img_path)
+        image = self._load_image(img_path).float()
+        # some images deviate by single pixel
+        image = K.Resize((1500, 1500), keepdim=True)(image)
 
-        image = self.rearrange_bands(image, self.band_orig_order, self.band_order)
+        image_dict = self.rearrange_bands(image, self.band_order)
 
-        image = self.normalizer(image)
+        image_dict = self.normalizer(image_dict)
+
+        sample.update(image_dict)
+
+        sample.update(image_dict)
 
         boxes, labels = self._load_target(sample_df)
 
-        sample = {"image": image, "bbox_xyxy": boxes, "label": labels}
+        sample["bbox_xyxy"] = boxes
+        sample["label"] = labels
 
         return sample

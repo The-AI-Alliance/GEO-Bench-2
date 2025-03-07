@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import Sequence
 
 from .sensor_util import DatasetBandRegistry
-from .data_util import DataUtilsMixin
+from .data_util import DataUtilsMixin, MultiModalNormalizer
 
 
 class GeoBenchSpaceNet6(SpaceNet6, DataUtilsMixin):
@@ -53,7 +53,9 @@ class GeoBenchSpaceNet6(SpaceNet6, DataUtilsMixin):
 
         self.band_order = self.resolve_band_order(band_order)
 
-        self.set_normalization_module(self.band_order)
+        self.normalizer = MultiModalNormalizer(
+            self.normalization_stats, self.band_order
+        )
 
     def __getitem__(self, index: int) -> dict[str, Tensor]:
         """Return an index within the dataset.
@@ -64,16 +66,18 @@ class GeoBenchSpaceNet6(SpaceNet6, DataUtilsMixin):
         Returns:
             data and label at that index
         """
+        sample: dict[str, Tensor] = {}
         image_path = self.images[index]
         img, tfm, raster_crs = self._load_image(image_path)
         h, w = img.shape[1:]
 
-        img = self.rearrange_bands(img, self.band_default_order, self.band_order)
+        img_dict = self.rearrange_bands(img, self.band_default_order, self.band_order)
 
-        img = self.normalizer(img)
+        img_dict = self.normalizer(img_dict)
 
-        sample = {"image": img}
+        sample.update(img_dict)
 
+        # TODO change when we have dedicated splits for everything
         if self.split == "train":
             mask_path = self.masks[index]
             mask = self._load_mask(mask_path, tfm, raster_crs, (h, w))

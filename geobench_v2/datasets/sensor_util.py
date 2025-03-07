@@ -40,12 +40,19 @@ class ModalityConfig:
         """For consistency with MultiModalConfig interface."""
         return {"self": self}
 
-    def resolve_band(self, band_spec: str) -> str:
-        """Resolve band name to canonical name within this modality."""
+    def resolve_band(self, band_spec: str) -> Optional[str]:
+        """Resolve band name to canonical name within this modality.
+
+        Args:
+            band_spec: Band name or alias to resolve
+
+        Returns:
+            Canonical band name if found, None otherwise
+        """
         for canon, band_config in self.bands.items():
             if band_spec == canon or band_spec in band_config.aliases:
                 return canon
-        raise ValueError(f"Band {band_spec} not found in configuration")
+        return None  # Return None instead of raising ValueError
 
 
 @dataclass
@@ -213,8 +220,86 @@ class DatasetBandRegistry:
 
     PASTIS = MultiModalConfig(
         modalities={
-            "s2": SensorBandRegistry.SENTINEL2,
-            "s1": SensorBandRegistry.SENTINEL1,
+            "s2": ModalityConfig(
+                bands={
+                    k: v
+                    for k, v in SensorBandRegistry.SENTINEL2.bands.items()
+                    if k
+                    in [
+                        "B02",
+                        "B03",
+                        "B04",
+                        "B05",
+                        "B06",
+                        "B07",
+                        "B08",
+                        "B8A",
+                        "B11",
+                        "B12",
+                    ]
+                },
+                default_order=[
+                    "B02",
+                    "B03",
+                    "B04",
+                    "B05",
+                    "B06",
+                    "B07",
+                    "B08",
+                    "B8A",
+                    "B11",
+                    "B12",
+                ],
+                native_resolution=10,
+            ),
+            "s1_asc": ModalityConfig(
+                bands={
+                    "VV_asc": BandConfig(
+                        "vv_ascending",
+                        ["co_pol_asc", "vv_asc"],
+                        wavelength=0.056,
+                        resolution=10,
+                    ),
+                    "VH_asc": BandConfig(
+                        "vh_ascending",
+                        ["cross_pol_asc", "vh_asc"],
+                        wavelength=0.056,
+                        resolution=10,
+                    ),
+                    "VV/VH_asc": BandConfig(
+                        "ratio_ascending",
+                        ["ratio_asc", "vv/vh_asc"],
+                        wavelength=0.056,
+                        resolution=10,
+                    ),
+                },
+                default_order=["VV_asc", "VH_asc", "VV/VH_asc"],
+                native_resolution=10,
+            ),
+            "s1_desc": ModalityConfig(
+                bands={
+                    "VV_desc": BandConfig(
+                        "vv_descending",
+                        ["co_pol_desc", "vv_desc"],
+                        wavelength=0.056,
+                        resolution=10,
+                    ),
+                    "VH_desc": BandConfig(
+                        "vh_descending",
+                        ["cross_pol_desc", "vv_desc"],
+                        wavelength=0.056,
+                        resolution=10,
+                    ),
+                    "VV/VH_desc": BandConfig(
+                        "ratio_descending",
+                        ["ratio_desc", "vv/vh_desc"],
+                        wavelength=0.056,
+                        resolution=10,
+                    ),
+                },
+                default_order=["VV_desc", "VH_desc", "VV/VH_desc"],
+                native_resolution=10,
+            ),
         },
         default_order=[
             "B02",
@@ -227,30 +312,27 @@ class DatasetBandRegistry:
             "B8A",
             "B11",
             "B12",
-            "VV_asc",
-            "VH_asc",
-            "VV/VH_asc",
-            "VV_desc",
-            "VH_desc",
-            "VV/VH_desc",
+            *["VV_asc", "VH_asc", "VV/VH_asc"],  # S1 ascending bands
+            *["VV_desc", "VH_desc", "VV/VH_desc"],  # S1 descending bands
         ],
         band_to_modality={
-            "B02": "s2",
-            "B03": "s2",
-            "B04": "s2",
-            "B05": "s2",
-            "B06": "s2",
-            "B07": "s2",
-            "B08": "s2",
-            "B8A": "s2",
-            "B11": "s2",
-            "B12": "s2",
-            "VV_asc": "s1",
-            "VH_asc": "s1",
-            "VV/VH_asc": "s1",
-            "VV_desc": "s1",
-            "VH_desc": "s1",
-            "VV/VH_desc": "s1",
+            **{
+                k: "s2"
+                for k in [
+                    "B02",
+                    "B03",
+                    "B04",
+                    "B05",
+                    "B06",
+                    "B07",
+                    "B08",
+                    "B8A",
+                    "B11",
+                    "B12",
+                ]
+            },
+            **{band: "s1_asc" for band in ["VV_asc", "VH_asc", "VV/VH_asc"]},
+            **{band: "s1_desc" for band in ["VV_desc", "VH_desc", "VV/VH_desc"]},
         },
     )
 

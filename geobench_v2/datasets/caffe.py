@@ -14,7 +14,7 @@ from torchgeo.datasets import CaFFe
 from pathlib import Path
 
 from .sensor_util import DatasetBandRegistry
-from .data_util import DataUtilsMixin
+from .data_util import DataUtilsMixin, MultiModalNormalizer
 
 
 class GeoBenchCaFFe(CaFFe, DataUtilsMixin):
@@ -55,7 +55,9 @@ class GeoBenchCaFFe(CaFFe, DataUtilsMixin):
 
         self.band_order = self.resolve_band_order(band_order)
 
-        self.set_normalization_module(self.band_order)
+        self.normalizer = MultiModalNormalizer(
+            self.normalization_stats, self.band_order
+        )
 
     def __getitem__(self, idx: int) -> dict[str, Tensor]:
         """Return the image and mask at the given index.
@@ -66,6 +68,7 @@ class GeoBenchCaFFe(CaFFe, DataUtilsMixin):
         Returns:
             dict: a dict containing the image and mask
         """
+        sample: dict[str, Tensor] = {}
         zones_filename = os.path.basename(self.fpaths[idx])
         img_filename = zones_filename.replace("_zones_", "_")
 
@@ -77,9 +80,11 @@ class GeoBenchCaFFe(CaFFe, DataUtilsMixin):
         )
         img = read_tensor(img_path).unsqueeze(0).float()
 
-        img = self.rearrange_bands(img, self.band_order)
+        img_dict = self.rearrange_bands(img, self.band_order)
 
-        img = self.normalizer(img)
+        img_dict = self.normalizer(img_dict)
+
+        sample.update(img_dict)
 
         zone_mask = read_tensor(
             os.path.join(
@@ -89,7 +94,7 @@ class GeoBenchCaFFe(CaFFe, DataUtilsMixin):
 
         zone_mask = self.ordinal_map_zones[zone_mask]
 
-        sample = {"image": img, "mask": zone_mask}
+        sample["mask"] = zone_mask
 
         if self.transforms:
             sample = self.transforms(sample)

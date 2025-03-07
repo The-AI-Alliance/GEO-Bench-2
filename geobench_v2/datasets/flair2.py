@@ -17,7 +17,7 @@ import matplotlib.pyplot as plt
 import glob
 
 from .sensor_util import DatasetBandRegistry
-from .data_util import DataUtilsMixin
+from .data_util import DataUtilsMixin, MultiModalNormalizer
 
 
 class GeoBenchFLAIR2(NonGeoDataset, DataUtilsMixin):
@@ -66,13 +66,7 @@ class GeoBenchFLAIR2(NonGeoDataset, DataUtilsMixin):
 
     normalization_stats = {
         "means": {"r": 0.0, "g": 0.0, "b": 0.0, "nir": 0.0, "elevation": 0.0},
-        "stds": {
-            "r": 3000.0,
-            "g": 3000.0,
-            "b": 3000.0,
-            "nir": 3000.0,
-            "elevation": 3000.0,
-        },
+        "stds": {"r": 255.0, "g": 255.0, "b": 255.0, "nir": 255.0, "elevation": 255.0},
     }
 
     band_default_order = ("r", "g", "b", "nir", "elevation")
@@ -104,7 +98,9 @@ class GeoBenchFLAIR2(NonGeoDataset, DataUtilsMixin):
 
         self.band_order = self.resolve_band_order(band_order)
 
-        self.set_normalization_module(self.band_order)
+        self.normalizer = MultiModalNormalizer(
+            self.normalization_stats, self.band_order
+        )
 
         self.samples = self._load_files()
 
@@ -151,20 +147,19 @@ class GeoBenchFLAIR2(NonGeoDataset, DataUtilsMixin):
         Returns:
             data and label at that index
         """
+        sample: dict[str, Tensor] = {}
         path = self.samples[index]["image"]
         image = self.load_image(path)
 
-        image = self.rearrange_bands(image, self.band_order)
+        image_dict = self.rearrange_bands(image, self.band_order)
 
-        image = self.normalizer(image)
+        image_dict = self.normalizer(image_dict)
+        sample.update(image_dict)
 
         path = self.samples[index]["mask"]
         mask = self.load_mask(path)
 
-        sample = dict(image=image, mask=mask)
-
-        if self.transforms is not None:
-            sample = self.transforms(sample)
+        sample["mask"] = mask
 
         return sample
 

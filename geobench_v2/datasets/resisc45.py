@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import Sequence
 
 from .sensor_util import DatasetBandRegistry
-from .data_util import DataUtilsMixin
+from .data_util import DataUtilsMixin, MultiModalNormalizer
 
 
 class GeoBenchRESISC45(RESISC45, DataUtilsMixin):
@@ -53,7 +53,9 @@ class GeoBenchRESISC45(RESISC45, DataUtilsMixin):
 
         self.band_order = self.resolve_band_order(band_order)
 
-        self.set_normalization_module(self.band_order)
+        self.normalizer = MultiModalNormalizer(
+            self.normalization_stats, self.band_order
+        )
 
     def __getitem__(self, index: int) -> dict[str, Tensor]:
         """Return an index within the dataset.
@@ -64,12 +66,14 @@ class GeoBenchRESISC45(RESISC45, DataUtilsMixin):
         Returns:
             data and label at that index
         """
+        sample: dict[str, Tensor] = {}
         image, label = self._load_image(index)
 
-        image = self.rearrange_bands(image, self.band_order)
+        image_dict = self.rearrange_bands(image, self.band_order)
 
-        image = self.normalizer(image)
+        image_dict = self.normalizer(image_dict)
 
-        sample = {"image": image, "label": label}
+        sample.update(image_dict)
+        sample["label"] = label
 
         return sample

@@ -12,6 +12,7 @@ from geobench_v2.datasets import GeoBenchFLAIR2
 
 from .base import GeoBenchSegmentationDataModule
 import torch.nn as nn
+from torch.utils.data import random_split
 
 
 class GeoBenchFLAIR2DataModule(GeoBenchSegmentationDataModule):
@@ -60,6 +61,22 @@ class GeoBenchFLAIR2DataModule(GeoBenchSegmentationDataModule):
             eval_augmentations=eval_augmentations,
             pin_memory=pin_memory,
             **kwargs,
+        )
+
+    def setup(self, stage: str) -> None:
+        """Setup the dataset for training or evaluation."""
+        train_dataset = self.dataset_class(
+            split="train", band_order=self.band_order, **self.kwargs
+        )
+        # split into train and validation
+        generator = torch.Generator().manual_seed(0)
+        # random 80-20 split
+        self.train_dataset, self.val_dataset = random_split(
+            train_dataset, [1 - 0.2, 0.2], generator
+        )
+
+        self.test_dataset = self.dataset_class(
+            split="test", band_order=self.band_order, **self.kwargs
         )
 
     def collect_metadata(self) -> None:

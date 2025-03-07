@@ -4,7 +4,7 @@
 """Data Processing Utility Mixin."""
 
 from abc import ABC, abstractmethod
-from typing import Dict, List, Union, Sequence, Optional
+from typing import Union, Sequence, Optional
 import torch
 from torch import Tensor
 import kornia.augmentation as K
@@ -15,11 +15,11 @@ class DataUtilsMixin(ABC):
     """Mixin for datasets that require band manipulation and normalization."""
 
     @property
-    def normalization_stats(self) -> Dict[str, Dict[str, Dict[str, float]]]:
+    def normalization_stats(self) -> dict[str, dict[str, dict[str, float]]]:
         """Per-modality normalization statistics."""
         pass
 
-    def get_source_order(self) -> Union[List[str], Dict[str, List[str]]]:
+    def get_source_order(self) -> Union[list[str], dict[str, list[str]]]:
         """Derive source order from dataset configuration."""
         if isinstance(self.dataset_band_config, MultiModalConfig):
             return {
@@ -29,66 +29,93 @@ class DataUtilsMixin(ABC):
         return self.dataset_band_config.default_order
 
     def resolve_band_order(
-        self, band_order: Optional[Sequence[Union[str, float]]] = None
-    ) -> List[Union[str, float]]:
-        """Resolve band names to canonical names using modality configurations.
-
-        Args:
-            band_order: List of band specifications (names or fill values).
-                    If None, returns dataset's default order.
-
-        Returns:
-            List of resolved canonical band names and fill values.
-
-        Raises:
-            ValueError: If a band name cannot be resolved to a canonical name.
-        """
+        self,
+        band_order: Optional[
+            Union[Sequence[Union[str, float]], dict[str, Sequence[Union[str, float]]]]
+        ] = None,
+    ) -> Union[list[Union[str, float]], dict[str, list[Union[str, float]]]]:
+        """Resolve band names to canonical names using modality configurations."""
         if band_order is None:
             return self.dataset_band_config.default_order
 
-        resolved_bands = []
-        for band_spec in band_order:
-            # Handle fill values
-            if isinstance(band_spec, (int, float)):
-                resolved_bands.append(band_spec)
-                continue
+        if isinstance(band_order, dict):
+            resolved = {}
+            for modality, bands in band_order.items():
+                if modality not in self.dataset_band_config.modalities:
+                    raise ValueError(f"Unknown modality: {modality}")
 
-            # First check if it's already a canonical name
-            if band_spec in self.dataset_band_config.band_to_modality:
-                resolved_bands.append(band_spec)
-                continue
+                resolved_bands = []
+                mod_config = self.dataset_band_config.modalities[modality]
 
-            # Search through modalities for matching aliases
-            resolved = None
-            for mod, config in self.dataset_band_config.modalities.items():
-                # Check if band exists in this modality
-                for canon, band_config in config.bands.items():
-                    if band_spec == canon or band_spec in band_config.aliases:
-                        # Verify it's in the band mapping
-                        if canon in self.dataset_band_config.band_to_modality:
-                            resolved = canon
-                            break
-                if resolved is not None:
-                    break
+                for band_spec in bands:
+                    if isinstance(band_spec, (int, float)):
+                        resolved_bands.append(band_spec)
+                        continue
 
-            # If we couldn't resolve the band, raise error with helpful message
-            if resolved is None:
-                raise ValueError(
-                    f"Could not resolve band {band_spec}\n"
-                    f"Available bands: {self._format_available_bands()}"
-                )
+                    # Check if band exists in this modality's configuration
+                    resolved_band = self._resolve_in_config(band_spec, mod_config)
+                    if resolved_band is None:
+                        raise ValueError(
+                            f"Could not resolve band {band_spec} for modality {modality}\n"
+                            f"Available bands: {self._format_available_bands()}"
+                        )
+                    resolved_bands.append(resolved_band)
 
-            resolved_bands.append(resolved)
+                resolved[modality] = resolved_bands
+            return resolved
+        else:
+            # Handle sequence input
+            resolved_bands = []
+            for band_spec in band_order:
+                if isinstance(band_spec, (int, float)):
+                    resolved_bands.append(band_spec)
+                    continue
 
-        return resolved_bands
+                # First check if it's already a canonical name
+                if band_spec in self.dataset_band_config.band_to_modality:
+                    resolved_bands.append(band_spec)
+                    continue
+
+                # Search through modalities for matching aliases
+                resolved = None
+                for mod, config in self.dataset_band_config.modalities.items():
+                    resolved_band = self._resolve_in_config(band_spec, config)
+                    if (
+                        resolved_band is not None
+                        and resolved_band in self.dataset_band_config.band_to_modality
+                    ):
+                        resolved = resolved_band
+                        break
+
+                if resolved is None:
+                    raise ValueError(
+                        f"Could not resolve band {band_spec}\n"
+                        f"Available bands: {self._format_available_bands()}"
+                    )
+                resolved_bands.append(resolved)
+
+            return resolved_bands
+
+    @staticmethod
+    def _resolve_in_config(band: str, config: ModalityConfig) -> Optional[str]:
+        """Resolve band name within a specific modality configuration.
+
+        Args:
+            band: Band name to resolve
+            config: Modality configuration to search in
+
+        Returns:
+            Canonical band name if found, None otherwise
+        """
+        return config.resolve_band(band)
 
     def rearrange_bands(
         self,
-        data: Union[Tensor, Dict[str, Tensor]],
+        data: Union[Tensor, dict[str, Tensor]],
         target_order: Union[
-            List[Union[str, float]], Dict[str, List[Union[str, float]]]
+            list[Union[str, float]], dict[str, list[Union[str, float]]]
         ],
-    ) -> Union[Tensor, Dict[str, Tensor]]:
+    ) -> dict[str, Tensor]:
         """Rearrange bands using dataset configuration."""
         if not isinstance(self.dataset_band_config, MultiModalConfig):
             # Handle single modality case
@@ -104,19 +131,19 @@ class DataUtilsMixin(ABC):
         if not isinstance(data, dict):
             raise ValueError("Multi-modal config requires dict input data")
 
-        # Case 1: Dict target order -> return dict of tensors
+        # Case 1: dict target order -> return dict of tensors
         if isinstance(target_order, dict):
             return self._rearrange_multimodal_to_dict(data, target_order)
 
-        # Case 2: List target order -> return single tensor
+        # Case 2: list target order -> return single tensor
         return self._rearrange_multimodal_to_tensor(data, target_order)
 
     def _rearrange_bands_single_modality(
         self,
         data: Tensor,
-        source_order: List[str],
-        target_order: List[Union[str, float]],
-    ) -> Tensor:
+        source_order: list[str],
+        target_order: list[Union[str, float]],
+    ) -> dict[str, Tensor]:
         """Rearrange bands for single modality."""
         output_channels = []
         source_lookup = {band: idx for idx, band in enumerate(source_order)}
@@ -125,8 +152,11 @@ class DataUtilsMixin(ABC):
             if isinstance(band_spec, (int, float)):
                 # Handle fill values
                 shape = list(data.shape)
-                shape[0] = 1
-                channel = torch.full(shape, float(band_spec), device=data.device)
+                if len(shape) == 4:  # timeseries of [T, C, H, W]
+                    shape[1] = 1
+                else:  # assume [C, H, W]
+                    shape[0] = 1
+                channel = torch.full(shape, float(band_spec))
             else:
                 if band_spec not in source_lookup:
                     raise ValueError(
@@ -137,11 +167,15 @@ class DataUtilsMixin(ABC):
                 channel = data[idx : idx + 1]
             output_channels.append(channel)
 
-        return torch.cat(output_channels, dim=0)
+        shape = data.shape
+        if len(shape) == 4:  # handle time series case
+            return {"image": torch.cat(output_channels, dim=1)}
+        else:  # assume [C, H, W]
+            return {"image": torch.cat(output_channels, dim=0)}
 
     def _rearrange_multimodal_to_tensor(
-        self, data: Dict[str, Tensor], target_order: List[Union[str, float]]
-    ) -> Tensor:
+        self, data: dict[str, Tensor], target_order: list[Union[str, float]]
+    ) -> dict[str, Tensor]:
         """Create single tensor from multi-modal data."""
         resolved_order = self.resolve_band_order(target_order)
         output_channels = []
@@ -149,10 +183,11 @@ class DataUtilsMixin(ABC):
         for band_spec in resolved_order:
             if isinstance(band_spec, (int, float)):
                 shape = list(next(iter(data.values())).shape)
-                shape[0] = 1
-                channel = torch.full(
-                    shape, float(band_spec), device=next(iter(data.values())).device
-                )
+                if len(shape) == 4:  # timeseries of [T, C, H, W]
+                    shape[1] = 1
+                else:  # assume [C, H, W]
+                    shape[0] = 1
+                channel = torch.full(shape, float(band_spec))
             else:
                 # Use band_to_modality mapping to find source
                 modality = self.dataset_band_config.band_to_modality[band_spec]
@@ -166,15 +201,23 @@ class DataUtilsMixin(ABC):
                         f"Available bands: {', '.join(mod_config.default_order)}"
                     )
                 idx = mod_config.default_order.index(band_spec)
-                channel = source_data[idx : idx + 1]
+                if len(source_data.shape) == 4:  # timeseries of [T, C, H, W]
+                    channel = source_data[:, idx : idx + 1]
+                else:  # assume [C, H, W]
+                    channel = source_data[idx : idx + 1]
 
             output_channels.append(channel)
 
-        return torch.cat(output_channels, dim=0)
+        # TODO Assuming that each time-series has the same length
+        shape = list(next(iter(data.values())).shape)
+        if len(shape) == 4:  # handle time series case
+            return {"image": torch.cat(output_channels, dim=1)}
+        else:  # assume [C, H, W]
+            return {"image": torch.cat(output_channels, dim=0)}
 
     def _rearrange_multimodal_to_dict(
-        self, data: Dict[str, Tensor], target_order: Dict[str, List[Union[str, float]]]
-    ) -> Dict[str, Tensor]:
+        self, data: dict[str, Tensor], target_order: dict[str, list[Union[str, float]]]
+    ) -> dict[str, Tensor]:
         """Create dict of tensors from multi-modal data."""
         output = {}
 
@@ -196,24 +239,26 @@ class DataUtilsMixin(ABC):
             for band in resolved:
                 if isinstance(band, (int, float)):
                     shape = list(source_data.shape)
-                    shape[0] = 1
-                    channel = torch.full(shape, float(band), device=source_data.device)
+                    if len(shape) == 4:  # timeseries of [T, C, H, W]
+                        shape[1] = 1
+                    else:  # assume [C, H, W]
+                        shape[0] = 1
+                    channel = torch.full(shape, float(band))
                 else:
                     idx = mod_config.default_order.index(band)
-                    channel = source_data[idx : idx + 1]
+                    if len(source_data.shape) == 4:  # timeseries of [T, C, H, W]
+                        channel = source_data[:, idx : idx + 1]
+                    else:  # assume [C, H, W]
+                        channel = source_data[idx : idx + 1]
                 channels.append(channel)
 
-            output[f"image_{modality}"] = torch.cat(channels, dim=0)
+            shape = list(next(iter(data.values())).shape)
+            if len(shape) == 4:  # handle time series case
+                output[f"image_{modality}"] = torch.cat(channels, dim=1)
+            else:  # assume [C, H, W]
+                output[f"image_{modality}"] = torch.cat(channels, dim=0)
 
         return output
-
-    @staticmethod
-    def _resolve_in_config(band: str, config: ModalityConfig) -> str:
-        """Resolve band name within a specific modality configuration."""
-        for canon, band_config in config.bands.items():
-            if band == canon or band in band_config.aliases:
-                return canon
-        raise ValueError(f"Band {band} not found in configuration")
 
     def _format_available_bands(self) -> str:
         """Format help string showing available bands for this dataset."""
@@ -230,44 +275,71 @@ class DataUtilsMixin(ABC):
                 lines.append(f"  - {name} ({band.canonical_name}): {aliases}")
         return "\n".join(lines)
 
-    def set_normalization_module(
+
+class MultiModalNormalizer(torch.nn.Module):
+    """Normalization module for single or multi-modal data."""
+
+    def __init__(
         self,
-        band_order: Union[List[Union[str, float]], Dict[str, List[Union[str, float]]]],
+        stats: dict[str, dict[str, float]],
+        band_order: Union[list[Union[str, float]], dict[str, list[Union[str, float]]]],
     ) -> None:
-        """Set up normalization transform(s) for the specified band order.
+        """Initialize normalizer.
 
         Args:
-            band_order: Either a sequence of bands (for single tensor output)
-                    or a dict mapping modalities to their band sequences
-                    (for multi-modal output)
+            stats: dictionary containing mean and std for each band
+            band_order: Either a sequence of bands or dict mapping modalities to sequences
         """
+        super().__init__()
+        self.stats = stats
+        self.normalizers = self._setup_normalizers(band_order)
+
+    def _setup_normalizers(
+        self,
+        band_order: Union[list[Union[str, float]], dict[str, list[Union[str, float]]]],
+    ) -> dict[str, K.Normalize]:
+        """Set up normalization transforms."""
         if isinstance(band_order, dict):
-            # Multi-modal case with separate tensors
-            self.normalizer = {}
+            # Multi-modal case
+            normalizers = {}
             for modality, bands in band_order.items():
                 means, stds = [], []
-                for band_spec in bands:
-                    if isinstance(band_spec, (int, float)):
+                for band in bands:
+                    if isinstance(band, (int, float)):
                         means.append(0.0)
                         stds.append(1.0)
                     else:
-                        means.append(self.normalization_stats["means"][band_spec])
-                        stds.append(self.normalization_stats["stds"][band_spec])
-
-                self.normalizer[f"image_{modality}"] = K.Normalize(
+                        means.append(self.stats["means"][band])
+                        stds.append(self.stats["stds"][band])
+                normalizers[f"image_{modality}"] = K.Normalize(
                     torch.tensor(means), torch.tensor(stds), keepdim=True
                 )
+            return normalizers
         else:
-            # Single tensor case (could be multi-modal bands)
+            # Single tensor case
             means, stds = [], []
-            for band_spec in band_order:
-                if isinstance(band_spec, (int, float)):
+            for band in band_order:
+                if isinstance(band, (int, float)):
                     means.append(0.0)
                     stds.append(1.0)
                 else:
-                    means.append(self.normalization_stats["means"][band_spec])
-                    stds.append(self.normalization_stats["stds"][band_spec])
+                    means.append(self.stats["means"][band])
+                    stds.append(self.stats["stds"][band])
+            return {
+                "image": K.Normalize(
+                    torch.tensor(means), torch.tensor(stds), keepdim=True
+                )
+            }
 
-            self.normalizer = K.Normalize(
-                torch.tensor(means), torch.tensor(stds), keepdim=True
-            )
+    def forward(self, data: dict[str, Tensor]) -> dict[str, Tensor]:
+        """Normalize input tensors.
+
+        Args:
+            data: dictionary mapping keys to tensors
+                 For single modality: {"image": tensor}
+                 For multi-modal: {"image_s1": tensor1, "image_s2": tensor2}
+
+        Returns:
+            dictionary with normalized tensors using same keys
+        """
+        return {key: self.normalizers[key](tensor) for key, tensor in data.items()}

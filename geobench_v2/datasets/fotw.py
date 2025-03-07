@@ -11,7 +11,7 @@ from pathlib import Path
 
 from typing import List, Union, Optional, Sequence
 from .sensor_util import DatasetBandRegistry
-from .data_util import DataUtilsMixin
+from .data_util import DataUtilsMixin, MultiModalNormalizer
 
 
 class GeoBenchFieldsOfTheWorld(FieldsOfTheWorld, DataUtilsMixin):
@@ -56,7 +56,9 @@ class GeoBenchFieldsOfTheWorld(FieldsOfTheWorld, DataUtilsMixin):
 
         self.band_order = self.resolve_band_order(band_order)
 
-        self.set_normalization_module(self.band_order)
+        self.normalizer = MultiModalNormalizer(
+            self.normalization_stats, self.band_order
+        )
 
     def __getitem__(self, idx: int) -> dict[str, Tensor]:
         """Return the image and mask at the given index.
@@ -67,26 +69,29 @@ class GeoBenchFieldsOfTheWorld(FieldsOfTheWorld, DataUtilsMixin):
         Returns:
             dict: a dict containing the image and mask
         """
+        sample: dict[str, Tensor] = {}
         win_a_fn = self.files[idx]["win_a"]
         win_b_fn = self.files[idx]["win_b"]
         mask_fn = self.files[idx]["mask"]
 
         win_a = self._load_image(win_a_fn)
-        win_b = self._load_image(win_b_fn)
+        # win_b = self._load_image(win_b_fn)
 
         win_a = self.rearrange_bands(win_a, self.band_order)
 
         win_a = self.normalizer(win_a)
 
-        win_b = self.rearrange_bands(win_b, self.band_order)
+        # win_b = self.rearrange_bands(win_b, self.band_order)
 
-        win_b = self.normalizer(win_b)
+        # win_b = self.normalizer(win_b)
 
         # TODO return concat or return two separate images or just one?
         # image = torch.cat((win_a, win_b), dim=0)
 
         mask = self._load_target(mask_fn)
 
-        sample = {"image": win_a, "mask": mask}
+        sample.update(win_a)
+
+        sample["mask"] = mask
 
         return sample

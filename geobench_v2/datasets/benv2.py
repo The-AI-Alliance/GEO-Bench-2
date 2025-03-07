@@ -8,7 +8,7 @@ from torch import Tensor
 from pathlib import Path
 from typing import Sequence
 from .sensor_util import DatasetBandRegistry
-from .data_util import DataUtilsMixin
+from .data_util import DataUtilsMixin, MultiModalNormalizer
 import torch
 
 
@@ -101,7 +101,9 @@ class GeoBenchBENV2(BigEarthNetV2, DataUtilsMixin):
         # Resolve band names at init time
         self.band_order = self.resolve_band_order(band_order)
 
-        self.set_normalization_module(self.band_order)
+        self.normalizer = MultiModalNormalizer(
+            self.normalization_stats, self.band_order
+        )
 
     def __getitem__(self, index: int) -> dict[str, Tensor]:
         """Return an index within the dataset.
@@ -120,10 +122,10 @@ class GeoBenchBENV2(BigEarthNetV2, DataUtilsMixin):
             "s2": self._load_image(index, "s2"),
         }
 
-        # Rearrange bands (will return tensor since band_order is a list)
+        # Rearrange bands and normalize
         img = self.rearrange_bands(data, self.band_order)
-
-        sample["image"] = self.normalizer(img)
+        img = self.normalizer(img)
+        sample.update(img)
 
         # subselect_band_order
 

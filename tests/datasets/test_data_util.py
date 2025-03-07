@@ -137,7 +137,7 @@ class TestDatasetS1S2:
                 s1s2_data["s2"][3],  # B04 = 3
             ]
         )
-        assert torch.allclose(result, expected)
+        assert torch.allclose(result["image"], expected)
 
     def test_modality_dict_output(self, s1s2_dataset, s1s2_data):
         """Test dictionary output mode."""
@@ -173,12 +173,12 @@ class TestDatasetS2RGB:
         # Using RGB names should select from RGB modality
         result = s2rgb_dataset.rearrange_bands(s2rgb_data, ["r", "g", "b"])
         expected = s2rgb_data["rgb"]
-        assert torch.allclose(result, expected)
+        assert torch.allclose(result["image"], expected)
 
         # Using S2 names should select from S2
         result = s2rgb_dataset.rearrange_bands(s2rgb_data, ["B02", "B03", "B04"])
         expected = s2rgb_data["s2"][[1, 2, 3]]
-        assert torch.allclose(result, expected)
+        assert torch.allclose(result["image"], expected)
 
 
 class TestAllSensors:
@@ -214,13 +214,13 @@ class TestAllSensors:
                 all_sensors_data["rgbn"][3],  # nir = 303
             ]
         )
-        assert torch.allclose(result, expected)
+        assert torch.allclose(result["image"], expected)
 
     def test_fill_values(self, all_sensors_dataset, all_sensors_data):
         """Test mixing fill values with real bands."""
         result = all_sensors_dataset.rearrange_bands(
             all_sensors_data, ["B02", 0.0, "VV", -999.0, "nir"]
-        )
+        )["image"]
         assert result.shape == (5, 32, 32)
         assert torch.allclose(result[1], torch.zeros_like(result[1]))
         assert torch.allclose(result[3], torch.full_like(result[3], -999.0))
@@ -238,3 +238,66 @@ class TestAllSensors:
         """Test various invalid input combinations."""
         with pytest.raises(ValueError):
             all_sensors_dataset.rearrange_bands(all_sensors_data, invalid_input)
+
+    def test_multimodal_dict_output(self, all_sensors_dataset, all_sensors_data):
+        """Test dictionary output with multiple modalities."""
+        result = all_sensors_dataset.rearrange_bands(
+            all_sensors_data,
+            {
+                "s2": ["B02", "B03", 0.0],
+                "s1": ["VV", -1.0, "VH"],
+                "rgb": ["r", "g", "b"],
+                "rgbn": ["nir"],
+            },
+        )
+
+        # Check all modalities are present
+        assert set(result.keys()) == {"image_s2", "image_s1", "image_rgb", "image_rgbn"}
+
+        # Check dimensions
+        assert result["image_s2"].shape == (3, 32, 32)
+        assert result["image_s1"].shape == (3, 32, 32)
+        assert result["image_rgb"].shape == (3, 32, 32)
+        assert result["image_rgbn"].shape == (1, 32, 32)
+
+        # Check values including fill values
+        assert torch.allclose(result["image_s2"][0:2], all_sensors_data["s2"][[1, 2]])
+        assert torch.allclose(
+            result["image_s2"][2], torch.zeros_like(result["image_s2"][2])
+        )
+        assert torch.allclose(result["image_s1"][[0, 2]], all_sensors_data["s1"])
+        assert torch.allclose(
+            result["image_s1"][1], torch.full_like(result["image_s1"][1], -1.0)
+        )
+        assert torch.allclose(result["image_rgb"], all_sensors_data["rgb"])
+        assert torch.allclose(result["image_rgbn"], all_sensors_data["rgbn"][3:4])
+
+    @pytest.mark.parametrize(
+        "invalid_dict",
+        [
+            {"invalid_modality": ["B02"]},
+            {"s2": ["invalid_band"]},
+            {"s1": ["VV"], "s2": ["invalid"]},
+            {"rgb": ["r", "invalid", "b"]},
+        ],
+    )
+    def test_invalid_multimodal_dict(
+        self, all_sensors_dataset, all_sensors_data, invalid_dict
+    ):
+        """Test error handling for invalid dictionary configurations."""
+        with pytest.raises(ValueError):
+            all_sensors_dataset.rearrange_bands(all_sensors_data, invalid_dict)
+
+    def test_empty_modality_sequence(self, all_sensors_dataset, all_sensors_data):
+        """Test proper error handling for empty band sequences."""
+        with pytest.raises(
+            ValueError, match="Empty band sequence provided for modality s1"
+        ):
+            all_sensors_dataset.rearrange_bands(
+                all_sensors_data,
+                {
+                    "s2": ["B02", "B03"],
+                    "s1": [],  # Empty sequence should raise error
+                    "rgb": ["r"],
+                },
+            )

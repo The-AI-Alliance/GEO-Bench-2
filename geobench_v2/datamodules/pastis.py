@@ -8,10 +8,34 @@ from typing import Any, Sequence
 
 from geobench_v2.datasets import GeoBenchPASTIS
 
+import torch
 from .base import GeoBenchSegmentationDataModule
 import torch.nn as nn
+from torch import Tensor
 
 
+# def pastis_collate_fn(batch: Sequence[dict[str, Any]]) -> dict[str, Tensor]:
+#     """Collate function for PASTIS dataset to deal with timeseries
+
+#     Args:
+#         batch: A list of samples from PASTIS dataset
+
+#     Returns:
+#         A dictionary containing the collated batch
+#     """
+#     collated_batch = {}
+#     # deal with various timeseries, collate to min-number of time steps
+#     min_time_steps = min([sample["image"].shape[0] for sample in batch])
+#     images = [sample["image"][:min_time_steps] for sample in batch]
+#     images = torch.stack(images, dim=0)
+#     collated_batch["image"] = images
+
+#     collate_batch["mask"] = torch.stack([sample["mask"] for sample in batch], dim=0)
+
+#     return collated_batch
+
+
+# TODO add timeseries argument
 class GeoBenchPASTISDataModule(GeoBenchSegmentationDataModule):
     """GeoBench PASIS Data Module."""
 
