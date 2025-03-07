@@ -128,11 +128,13 @@ class DataUtilsMixin(ABC):
                 shape[0] = 1
                 channel = torch.full(shape, float(band_spec), device=data.device)
             else:
-                try:
-                    idx = source_lookup[band_spec]
-                    channel = data[idx : idx + 1]
-                except KeyError:
-                    raise ValueError(f"Band {band_spec} not found in source order")
+                if band_spec not in source_lookup:
+                    raise ValueError(
+                        f"Band {band_spec} not found in source order.\n"
+                        f"Available bands: {', '.join(source_lookup.keys())}"
+                    )
+                idx = source_lookup[band_spec]
+                channel = data[idx : idx + 1]
             output_channels.append(channel)
 
         return torch.cat(output_channels, dim=0)
@@ -158,13 +160,12 @@ class DataUtilsMixin(ABC):
 
                 # Find index in source modality's order
                 mod_config = self.dataset_band_config.modalities[modality]
-                try:
-                    idx = mod_config.default_order.index(band_spec)
-                except ValueError:
+                if band_spec not in mod_config.default_order:
                     raise ValueError(
-                        f"Band {band_spec} not found in {modality} default order"
+                        f"Band {band_spec} not found in {modality} default order.\n"
+                        f"Available bands: {', '.join(mod_config.default_order)}"
                     )
-
+                idx = mod_config.default_order.index(band_spec)
                 channel = source_data[idx : idx + 1]
 
             output_channels.append(channel)
@@ -180,6 +181,12 @@ class DataUtilsMixin(ABC):
         for modality, bands in target_order.items():
             if modality not in self.dataset_band_config.modalities:
                 raise ValueError(f"Unknown modality: {modality}")
+
+            if not bands:  # Check for empty sequence
+                raise ValueError(
+                    f"Empty band sequence provided for modality {modality}. "
+                    "Each modality must specify at least one band or fill value."
+                )
 
             resolved = self.resolve_band_order(bands)
             source_data = data[modality]
@@ -223,19 +230,44 @@ class DataUtilsMixin(ABC):
                 lines.append(f"  - {name} ({band.canonical_name}): {aliases}")
         return "\n".join(lines)
 
-    def set_normalization_stats(self, band_order: List[Union[str, float]]) -> None:
-        """Set up normalization transform for the specified band order."""
-        means, stds = [], []
+    def set_normalization_module(
+        self,
+        band_order: Union[List[Union[str, float]], Dict[str, List[Union[str, float]]]],
+    ) -> None:
+        """Set up normalization transform(s) for the specified band order.
 
-        for band_spec in band_order:
-            if isinstance(band_spec, (int, float)):
-                means.append(0.0)
-                stds.append(1.0)
-            else:
-                # Band names are already resolved, direct lookup
-                means.append(self.normalization_stats["means"][band_spec])
-                stds.append(self.normalization_stats["stds"][band_spec])
+        Args:
+            band_order: Either a sequence of bands (for single tensor output)
+                    or a dict mapping modalities to their band sequences
+                    (for multi-modal output)
+        """
+        if isinstance(band_order, dict):
+            # Multi-modal case with separate tensors
+            self.normalizer = {}
+            for modality, bands in band_order.items():
+                means, stds = [], []
+                for band_spec in bands:
+                    if isinstance(band_spec, (int, float)):
+                        means.append(0.0)
+                        stds.append(1.0)
+                    else:
+                        means.append(self.normalization_stats["means"][band_spec])
+                        stds.append(self.normalization_stats["stds"][band_spec])
 
-        self.normalizer = K.Normalize(
-            torch.tensor(means), torch.tensor(stds), keepdim=True
-        )
+                self.normalizer[f"image_{modality}"] = K.Normalize(
+                    torch.tensor(means), torch.tensor(stds), keepdim=True
+                )
+        else:
+            # Single tensor case (could be multi-modal bands)
+            means, stds = [], []
+            for band_spec in band_order:
+                if isinstance(band_spec, (int, float)):
+                    means.append(0.0)
+                    stds.append(1.0)
+                else:
+                    means.append(self.normalization_stats["means"][band_spec])
+                    stds.append(self.normalization_stats["stds"][band_spec])
+
+            self.normalizer = K.Normalize(
+                torch.tensor(means), torch.tensor(stds), keepdim=True
+            )

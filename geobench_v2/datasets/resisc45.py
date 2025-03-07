@@ -53,7 +53,7 @@ class GeoBenchRESISC45(RESISC45, DataUtilsMixin):
 
         self.band_order = self.resolve_band_order(band_order)
 
-        self.set_normalization_stats(self.band_order)
+        self.set_normalization_module(self.band_order)
 
     def __getitem__(self, index: int) -> dict[str, Tensor]:
         """Return an index within the dataset.

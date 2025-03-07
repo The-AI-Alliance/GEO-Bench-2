@@ -56,7 +56,7 @@ class GeoBenchFieldsOfTheWorld(FieldsOfTheWorld, DataUtilsMixin):
 
         self.band_order = self.resolve_band_order(band_order)
 
-        self.set_normalization_stats(self.band_order)
+        self.set_normalization_module(self.band_order)
 
     def __getitem__(self, idx: int) -> dict[str, Tensor]:
         """Return the image and mask at the given index.

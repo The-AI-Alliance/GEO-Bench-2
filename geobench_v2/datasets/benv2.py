@@ -78,7 +78,11 @@ class GeoBenchBENV2(BigEarthNetV2, DataUtilsMixin):
         self,
         root: Path,
         split: str,
-        band_order: Sequence["str"] = ["B04", "B03", "B02"],
+        band_order: Sequence[float | str] | dict[str, Sequence[float | str]] = [
+            "B04",
+            "B03",
+            "B02",
+        ],
         **kwargs,
     ) -> None:
         """Initialize Big Earth Net V2 Dataset.
@@ -97,7 +101,7 @@ class GeoBenchBENV2(BigEarthNetV2, DataUtilsMixin):
         # Resolve band names at init time
         self.band_order = self.resolve_band_order(band_order)
 
-        self.set_normalization_stats(self.band_order)
+        self.set_normalization_module(self.band_order)
 
     def __getitem__(self, index: int) -> dict[str, Tensor]:
         """Return an index within the dataset.

@@ -6,6 +6,8 @@
 from torch import Tensor
 from torchgeo.datasets import PASTIS
 from pathlib import Path
+import numpy as np
+import torch
 
 
 class GeoBenchPASTIS(PASTIS):

@@ -274,6 +274,15 @@ class DatasetBandRegistry:
         bands=SensorBandRegistry.RGBN.bands, default_order=["r", "g", "b", "nir"]
     )
 
+    # flair 2 has rgbn and elevation bands
+    FLAIR2 = ModalityConfig(
+        bands={
+            **SensorBandRegistry.RGBN.bands,
+            "elevation": BandConfig("elevation", ["elevation"], wavelength=None),
+        },
+        default_order=["r", "g", "b", "nir", "elevation"],
+    )
+
     @classmethod
     def get_dataset_config(
         cls, dataset_name: str
