@@ -1,6 +1,6 @@
 import pytest
 import torch
-from geobench_v2.datasets.data_util import DataUtilsMixin
+from geobench_v2.datasets.data_util import DataUtilsMixin, MultiModalNormalizer
 from geobench_v2.datasets.sensor_util import (
     ModalityConfig,
     MultiModalConfig,
@@ -301,3 +301,116 @@ class TestAllSensors:
                     "rgb": ["r"],
                 },
             )
+
+
+class TestMultiModalNormalizer:
+    """Test cases for MultiModalNormalizer functionality."""
+
+    @pytest.fixture
+    def normalization_stats(self):
+        """Create test normalization statistics."""
+        return {
+            "means": {
+                "B02": 1000.0,
+                "B03": 1200.0,
+                "B04": 1400.0,
+                "VV": -10.0,
+                "VH": -15.0,
+                "r": 128.0,
+                "g": 127.0,
+                "b": 126.0,
+                "nir": 2000.0,
+            },
+            "stds": {
+                "B02": 500.0,
+                "B03": 600.0,
+                "B04": 700.0,
+                "VV": 5.0,
+                "VH": 3.0,
+                "r": 64.0,
+                "g": 63.0,
+                "b": 62.0,
+                "nir": 1000.0,
+            },
+        }
+
+    def test_single_tensor_normalization(self, normalization_stats):
+        """Test normalization of single tensor data."""
+        # Create test data: mean-std, mean, mean+std for each band
+        data = torch.zeros(3, 4, 8, 8)
+
+        # B02, B03, fill=0, B04
+        data[0] = torch.tensor([500.0, 600.0, 0.0, 700.0]).reshape(4, 1, 1)
+        data[1] = torch.tensor([1000.0, 1200.0, 0.0, 1400.0]).reshape(4, 1, 1)
+        data[2] = torch.tensor([1500.0, 1800.0, 0.0, 2100.0]).reshape(4, 1, 1)
+        data = data.expand(-1, -1, 8, 8)
+
+        # Expected: -1, 0, 1 for each normalized band, 0 for fill
+        expected = (
+            torch.tensor(
+                [[-1.0, -1.0, 0.0, -1.0], [0.0, 0.0, 0.0, 0.0], [1.0, 1.0, 0.0, 1.0]]
+            )
+            .reshape(3, 4, 1, 1)
+            .expand(-1, -1, 8, 8)
+        )
+
+        normalizer = MultiModalNormalizer(
+            normalization_stats, ["B02", "B03", 0.0, "B04"]
+        )
+        result = normalizer({"image": data})
+
+        assert torch.allclose(result["image"], expected, rtol=1e-5)
+
+    def test_multimodal_normalization(self, normalization_stats):
+        """Test normalization of multi-modal data."""
+        # Create test data for two modalities
+        s2_data = torch.zeros(3, 3, 8, 8)
+        s1_data = torch.zeros(3, 3, 8, 8)
+
+        # B02, B03, fill values for S2
+        s2_values = (
+            torch.tensor(
+                [
+                    [500.0, 600.0, 0.0],  # mean-std
+                    [1000.0, 1200.0, 0.0],  # mean
+                    [1500.0, 1800.0, 0.0],  # mean+std
+                ]
+            )
+            .reshape(3, 3, 1, 1)
+            .expand(-1, -1, 8, 8)
+        )
+        s2_data.copy_(s2_values)
+
+        # VV, VH, fill values for S1
+        s1_values = (
+            torch.tensor(
+                [
+                    [-15.0, -18.0, -999.0],  # mean-std
+                    [-10.0, -15.0, -999.0],  # mean
+                    [-5.0, -12.0, -999.0],  # mean+std
+                ]
+            )
+            .reshape(3, 3, 1, 1)
+            .expand(-1, -1, 8, 8)
+        )
+        s1_data.copy_(s1_values)
+
+        # Expected normalized values: -1, 0, 1 for real bands
+        expected_s2 = (
+            torch.tensor([[-1.0, -1.0, 0.0], [0.0, 0.0, 0.0], [1.0, 1.0, 0.0]])
+            .reshape(3, 3, 1, 1)
+            .expand(-1, -1, 8, 8)
+        )
+
+        expected_s1 = (
+            torch.tensor([[-1.0, -1.0, -999.0], [0.0, 0.0, -999.0], [1.0, 1.0, -999.0]])
+            .reshape(3, 3, 1, 1)
+            .expand(-1, -1, 8, 8)
+        )
+
+        band_order = {"s2": ["B02", "B03", 0.0], "s1": ["VV", "VH", -999.0]}
+        normalizer = MultiModalNormalizer(normalization_stats, band_order)
+        result = normalizer({"image_s2": s2_data, "image_s1": s1_data})
+
+        assert torch.allclose(result["image_s2"], expected_s2, rtol=1e-5)
+        assert torch.allclose(result["image_s1"], expected_s1, rtol=1e-5)
