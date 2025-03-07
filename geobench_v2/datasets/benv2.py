@@ -99,22 +99,6 @@ class GeoBenchBENV2(BigEarthNetV2, DataUtilsMixin):
 
         self.set_normalization_stats(self.band_order)
 
-    def resolve_band_order(self, band_order: Sequence[str]) -> Sequence[str]:
-        """Resolve band order to band names. Overwrite to deal with multi-modality."""
-        resolved_band_order = []
-        for band in band_order or self.band_default_order:
-            if isinstance(band, (int, float)):
-                resolved_band_order.append(band)
-            else:
-                # For multimodal, keep modality prefix
-                if "_" in band:
-                    mod, band_name = band.split("_", 1)
-                    canonical = f"{mod}_{BandRegistry.resolve_band(band_name)}"
-                else:
-                    canonical = BandRegistry.resolve_band(band)
-                resolved_band_order.append(canonical)
-        return resolved_band_order
-
     def __getitem__(self, index: int) -> dict[str, Tensor]:
         """Return an index within the dataset.
 

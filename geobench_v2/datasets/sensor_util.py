@@ -29,6 +29,17 @@ class ModalityConfig:
     default_order: List[str]  # Default band order for this modality
     native_resolution: Optional[int] = None  # Native resolution in meters
 
+    # Add band_to_modality mapping for consistency with MultiModalConfig
+    @property
+    def band_to_modality(self) -> Dict[str, str]:
+        """Maps band names to their modality. For single modality, all bands map to same modality."""
+        return {band: "self" for band in self.bands.keys()}
+
+    @property
+    def modalities(self) -> Dict[str, "ModalityConfig"]:
+        """For consistency with MultiModalConfig interface."""
+        return {"self": self}
+
     def resolve_band(self, band_spec: str) -> str:
         """Resolve band name to canonical name within this modality."""
         for canon, band_config in self.bands.items():

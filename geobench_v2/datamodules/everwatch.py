@@ -51,7 +51,7 @@ class GeoBenchEverWatchDataModule(GeoBenchObjectDetectionDataModule):
             **kwargs: Additional keyword arguments for the dataset class
         """
         super().__init__(
-            dataset_class=GeoBenchCaFFe,
+            dataset_class=GeoBenchEverWatch,
             img_size=img_size,
             band_order=band_order,
             batch_size=batch_size,

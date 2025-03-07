@@ -77,7 +77,7 @@ class GeoBenchCaFFe(CaFFe, DataUtilsMixin):
         )
         img = read_tensor(img_path).unsqueeze(0).float()
 
-        img = self.rearrange_bands(img, self.band_default_order, self.band_order)
+        img = self.rearrange_bands(img, self.band_order)
 
         img = self.normalizer(img)
 

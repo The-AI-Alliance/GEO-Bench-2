@@ -31,37 +31,53 @@ class DataUtilsMixin(ABC):
     def resolve_band_order(
         self, band_order: Optional[Sequence[Union[str, float]]] = None
     ) -> List[Union[str, float]]:
-        """Resolve band names to canonical names."""
+        """Resolve band names to canonical names using modality configurations.
+
+        Args:
+            band_order: List of band specifications (names or fill values).
+                    If None, returns dataset's default order.
+
+        Returns:
+            List of resolved canonical band names and fill values.
+
+        Raises:
+            ValueError: If a band name cannot be resolved to a canonical name.
+        """
         if band_order is None:
             return self.dataset_band_config.default_order
 
         resolved_bands = []
         for band_spec in band_order:
+            # Handle fill values
             if isinstance(band_spec, (int, float)):
                 resolved_bands.append(band_spec)
                 continue
 
-            # First try exact match in band_to_modality mapping
+            # First check if it's already a canonical name
             if band_spec in self.dataset_band_config.band_to_modality:
-                resolved_bands.append(band_spec)  # Already canonical
+                resolved_bands.append(band_spec)
                 continue
 
-            # Try resolving through aliases in each modality
+            # Search through modalities for matching aliases
             resolved = None
             for mod, config in self.dataset_band_config.modalities.items():
-                try:
-                    canon = self._resolve_in_config(band_spec, config)
-                    if canon in self.dataset_band_config.band_to_modality:
-                        resolved = canon
-                        break
-                except ValueError:
-                    continue
+                # Check if band exists in this modality
+                for canon, band_config in config.bands.items():
+                    if band_spec == canon or band_spec in band_config.aliases:
+                        # Verify it's in the band mapping
+                        if canon in self.dataset_band_config.band_to_modality:
+                            resolved = canon
+                            break
+                if resolved is not None:
+                    break
 
+            # If we couldn't resolve the band, raise error with helpful message
             if resolved is None:
                 raise ValueError(
                     f"Could not resolve band {band_spec}\n"
                     f"Available bands: {self._format_available_bands()}"
                 )
+
             resolved_bands.append(resolved)
 
         return resolved_bands
@@ -80,7 +96,7 @@ class DataUtilsMixin(ABC):
                 raise ValueError(
                     "Single modality config requires tensor input and list target_order"
                 )
-            return self._rearrange_single_modality(
+            return self._rearrange_bands_single_modality(
                 data, self.dataset_band_config.default_order, target_order
             )
 
@@ -94,6 +110,32 @@ class DataUtilsMixin(ABC):
 
         # Case 2: List target order -> return single tensor
         return self._rearrange_multimodal_to_tensor(data, target_order)
+
+    def _rearrange_bands_single_modality(
+        self,
+        data: Tensor,
+        source_order: List[str],
+        target_order: List[Union[str, float]],
+    ) -> Tensor:
+        """Rearrange bands for single modality."""
+        output_channels = []
+        source_lookup = {band: idx for idx, band in enumerate(source_order)}
+
+        for band_spec in target_order:
+            if isinstance(band_spec, (int, float)):
+                # Handle fill values
+                shape = list(data.shape)
+                shape[0] = 1
+                channel = torch.full(shape, float(band_spec), device=data.device)
+            else:
+                try:
+                    idx = source_lookup[band_spec]
+                    channel = data[idx : idx + 1]
+                except KeyError:
+                    raise ValueError(f"Band {band_spec} not found in source order")
+            output_channels.append(channel)
+
+        return torch.cat(output_channels, dim=0)
 
     def _rearrange_multimodal_to_tensor(
         self, data: Dict[str, Tensor], target_order: List[Union[str, float]]

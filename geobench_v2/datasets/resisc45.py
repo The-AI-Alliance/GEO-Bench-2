@@ -66,7 +66,7 @@ class GeoBenchRESISC45(RESISC45, DataUtilsMixin):
         """
         image, label = self._load_image(index)
 
-        image = self.rearrange_bands(image, self.band_orig_order, self.band_order)
+        image = self.rearrange_bands(image, self.band_order)
 
         image = self.normalizer(image)
 

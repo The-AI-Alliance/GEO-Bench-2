@@ -1,23 +1,23 @@
 import pytest
-from geobench_v2.datamodules import GeoBenchCaFFeDataModule
+from geobench_v2.datamodules import GeoBenchFieldsOfTheWorldDataModule
 
 
 @pytest.fixture
 def data_root():
     """Path to test data directory."""
-    return "/mnt/rg_climate_benchmark/data/datasets_segmentation/Caffe"
+    return "/mnt/rg_climate_benchmark/data/datasets_segmentation/FieldsOfTheWorld"
 
 
 @pytest.fixture
 def band_order():
-    """Test band configuration with fill values."""
-    return ["gray", 0.0, "gray"]
+    """Test band configuration with RGBN bands."""
+    return ["red", "green", "blue", "nir", 0.0]
 
 
 @pytest.fixture
 def datamodule(data_root, band_order):
-    """Initialize CaFFe datamodule with test configuration."""
-    return GeoBenchCaFFeDataModule(
+    """Initialize FOTW datamodule with test configuration."""
+    return GeoBenchFieldsOfTheWorldDataModule(
         img_size=256,
         batch_size=32,
         eval_batch_size=64,
@@ -28,8 +28,8 @@ def datamodule(data_root, band_order):
     )
 
 
-class TestCaFFeDataModule:
-    """Test cases for CaFFe datamodule functionality."""
+class TestFOTWDataModule:
+    """Test cases for Fields of the World datamodule functionality."""
 
     def test_batch_dimensions(self, datamodule):
         """Test if batches have correct dimensions."""
@@ -40,6 +40,6 @@ class TestCaFFeDataModule:
 
     def test_band_order_resolution(self, datamodule):
         """Test if band order is correctly resolved."""
-        assert len(datamodule.band_order) == 3
-        assert isinstance(datamodule.band_order[1], float)
-        assert datamodule.band_order[1] == 0.0
+        assert len(datamodule.band_order) == 5
+        assert isinstance(datamodule.band_order[4], float)
+        assert datamodule.band_order[4] == 0.0

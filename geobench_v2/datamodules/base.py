@@ -15,7 +15,6 @@ from lightning import LightningDataModule
 from matplotlib import pyplot as plt
 from torch import Tensor
 from torch.utils.data import DataLoader, Dataset
-from torchgeo.transforms import AugmentationSequential
 
 
 class GeoBenchDataModule(LightningDataModule, ABC):
@@ -281,14 +280,14 @@ class GeoBenchSegmentationDataModule(GeoBenchDataModule):
 
     def define_augmentations(self) -> None:
         """Define augmentations for the dataset and task."""
-        self.train_augmentations = AugmentationSequential(
+        self.train_augmentations = K.AugmentationSequential(
             K.Resize(size=self.img_size, align_corners=True),
             K.RandomHorizontalFlip(p=0.5),
             K.RandomVerticalFlip(p=0.5),
             data_keys=["image", "mask"],
         )
 
-        self.eval_transform = AugmentationSequential(
+        self.eval_transform = K.AugmentationSequential(
             # K.Normalize(mean=self.mean, std=self.std),
             K.Resize(size=self.img_size, align_corners=True),
             data_keys=["image", "mask"],
@@ -351,14 +350,14 @@ class GeoBenchObjectDetectionDataModule(GeoBenchDataModule):
 
     def define_augmentations(self) -> None:
         """Define augmentations for the dataset and task."""
-        self.train_transform = AugmentationSequential(
+        self.train_transform = K.AugmentationSequential(
             K.Resize(size=self.img_size, align_corners=True),
             K.RandomHorizontalFlip(p=0.5),
             K.RandomVerticalFlip(p=0.5),
-            data_keys=["image", "boxes_xyxy", "labels"],
+            data_keys=["image", "bbox_xyxy", "label"],
         )
 
-        self.eval_transform = AugmentationSequential(
+        self.eval_transform = K.AugmentationSequential(
             K.Resize(size=self.img_size, align_corners=True),
-            data_keys=["image", "boxes_xyxy", "labels"],
+            data_keys=["image", "bbox_xyxy", "label"],
         )
