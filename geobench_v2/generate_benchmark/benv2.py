@@ -19,12 +19,10 @@ import cartopy.crs as ccrs
 import cartopy.feature as cfeature
 from matplotlib.colors import LinearSegmentedColormap
 import numpy as np
-from .utils import plot_sample_locations
+from geobench_v2.generate_benchmark.utils import plot_sample_locations
 
 
-def create_subset(
-    ds: BigEarthNetV2, metadata_df: pd.DataFrame, save_dir: str
-) -> None:
+def create_subset(ds: BigEarthNetV2, metadata_df: pd.DataFrame, save_dir: str) -> None:
     """Create a subset of BigEarthNet dataset.
 
     Args:
@@ -39,60 +37,59 @@ def create_subset(
 
 def process_row(args: tuple) -> dict[str, Any]:
     """Process a single row from the metadata DataFrame.
-    
+
     Args:
         args: Tuple containing (row, root, dir_file_names)
-        
+
     Returns:
         Dictionary with patch_id, lon, and lat
     """
     row, root, dir_file_names = args
     patch_id = row["patch_id"]
-    patch_dir = '_'.join(patch_id.split('_')[0:-2])
-    
+    patch_dir = "_".join(patch_id.split("_")[0:-2])
+
     # Find the first TIF file in the patch directory
     path_pattern = os.path.join(
-        root, dir_file_names['s2'], patch_dir, patch_id, '*.tif'
+        root, dir_file_names["s2"], patch_dir, patch_id, "*.tif"
     )
     paths = glob.glob(path_pattern)
-    
+
     if not paths:
-        return {"patch_id": patch_id, "lon": None, "lat": None, "error": "No TIF files found"}
-    
-    try:
-        with rasterio.open(paths[0]) as src:
-            lon, lat = src.lnglat()
-            return {
-                "patch_id": patch_id,
-                "lon": lon,
-                "lat": lat,
-            }
-    except Exception as e:
         return {
             "patch_id": patch_id,
             "lon": None,
             "lat": None,
-            "error": str(e)
+            "error": "No TIF files found",
         }
+
+    try:
+        with rasterio.open(paths[0]) as src:
+            lon, lat = src.lnglat()
+            return {"patch_id": patch_id, "lon": lon, "lat": lat}
+    except Exception as e:
+        return {"patch_id": patch_id, "lon": None, "lat": None, "error": str(e)}
 
 
 def generate_metadata_df(ds: BigEarthNetV2, num_workers: int = 8) -> pd.DataFrame:
     """Generate metadata DataFrame for BigEarthNet dataset with parallel processing.
-    
+
     Args:
         ds: BigEarthNet dataset
         num_workers: Number of parallel workers to use
-        
+
     Returns:
         DataFrame with metadata including geolocation for each patch
     """
-    full_metadata_df = pd.read_parquet(os.path.join(ds.root, 'metadata.parquet'))
-    print(f"Generating metadata for {len(full_metadata_df)} patches using {num_workers} workers...")
+    full_metadata_df = pd.read_parquet(os.path.join(ds.root, "metadata.parquet"))
+    print(
+        f"Generating metadata for {len(full_metadata_df)} patches using {num_workers} workers..."
+    )
 
-    
     # Prepare arguments for parallel processing
-    args_list = [(row, ds.root, ds.dir_file_names) for _, row in full_metadata_df.iterrows()]
-    
+    args_list = [
+        (row, ds.root, ds.dir_file_names) for _, row in full_metadata_df.iterrows()
+    ]
+
     # Process in parallel with progress bar
     metadata = []
     with concurrent.futures.ProcessPoolExecutor(max_workers=num_workers) as executor:
@@ -100,10 +97,10 @@ def generate_metadata_df(ds: BigEarthNetV2, num_workers: int = 8) -> pd.DataFram
         for result in tqdm(
             executor.map(process_row, args_list),
             total=len(args_list),
-            desc="Processing patches"
+            desc="Processing patches",
         ):
             metadata.append(result)
-    
+
     # Create DataFrame from results
     metadata_df = pd.DataFrame(metadata)
 
@@ -126,7 +123,9 @@ def main():
         "--root", default="data", help="Root directory for BigEarthNet dataset"
     )
     parser.add_argument(
-        "--output-dir", default="geobenchBenV2", help="Output directory for the benchmark"
+        "--output-dir",
+        default="geobenchBenV2",
+        help="Output directory for the benchmark",
     )
     args = parser.parse_args()
 
@@ -142,8 +141,9 @@ def main():
     else:
         metadata_df = pd.read_parquet(new_metadata_path)
 
-    plot_sample_locations(metadata_df, output_path=os.path.join(args.output_dir, "sample_locations.png"), sample_fraction=0.20)
-
+    plot_sample_locations(
+        metadata_df, output_path=os.path.join(args.output_dir, "sample_locations.png")
+    )
 
 
 if __name__ == "__main__":
