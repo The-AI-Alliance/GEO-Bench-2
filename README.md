@@ -8,6 +8,12 @@
 pip install -e .
 ```
 
+## Unit Tests
+
+Before we can use CI when the repo is public, we can still run unit tests to make sure things work as expected.
+
+Pytests are contained in the tests directory and have configured path to the datasets that work atm, with paths on our toolkit workstation .
+
 ## Documentation
 
 ## Generating the Benchmark
