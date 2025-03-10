@@ -1,29 +1,27 @@
 # Copyright (c) 2025 GeoBenchV2. All rights reserved.
 # Licensed under the Apache License 2.0.
 
-"""Resisc45 DataModule."""
+"""Flair 2 Aerial DataModule."""
 
 from collections.abc import Callable
 from typing import Any, Sequence
 
-from geobench_v2.datasets import GeoBenchRESISC45
+import torch
 
-from .base import GeoBenchClassificationDataModule
+from geobench_v2.datasets import GeoBenchFLAIR2
+
+from .base import GeoBenchSegmentationDataModule
 import torch.nn as nn
+from torch.utils.data import random_split
 
 
-class GeoBenchRESISC45DataModule(GeoBenchClassificationDataModule):
-    """GeoBench RESISC45 Data Module."""
-
-    # https://github.com/microsoft/torchgeo/blob/68e0cfebcd18edb6605008eeeaba96388e63eca7/torchgeo/datamodules/resisc45.py#L21
-    band_means = {"r": 93.89391792, "g": 97.11226906, "b": 87.56775284}
-
-    band_stds = {"r": 51.84919672, "g": 47.2365918, "b": 47.06308786}
+class GeoBenchFLAIR2DataModule(GeoBenchSegmentationDataModule):
+    """GeoBench Fields of the World Data Module."""
 
     def __init__(
         self,
         img_size: int,
-        band_order: Sequence[float | str] = GeoBenchRESISC45.band_default_order,
+        band_order: Sequence[float | str] = GeoBenchFLAIR2.band_default_order,
         batch_size: int = 32,
         eval_batch_size: int = 64,
         num_workers: int = 0,
@@ -33,11 +31,11 @@ class GeoBenchRESISC45DataModule(GeoBenchClassificationDataModule):
         pin_memory: bool = False,
         **kwargs: Any,
     ) -> None:
-        """Initialize GeoBench Resisc45 dataset module.
+        """Initialize GeoBench Fields of the World DataModule.
 
         Args:
             img_size: Image size
-            batch_size: Batch size
+            batch_size: Batch size during training
             eval_batch_size: Evaluation batch size
             num_workers: Number of workers
             collate_fn: Collate function
@@ -49,9 +47,10 @@ class GeoBenchRESISC45DataModule(GeoBenchClassificationDataModule):
                 for the default transformation.
             pin_memory: Pin memory
             **kwargs: Additional keyword arguments
+                :class:`~geobench_v2.datasets.flair2.GeoBenchFLAIR2`.
         """
         super().__init__(
-            dataset_class=GeoBenchRESISC45,
+            dataset_class=GeoBenchFLAIR2,
             img_size=img_size,
             band_order=band_order,
             batch_size=batch_size,
@@ -64,6 +63,26 @@ class GeoBenchRESISC45DataModule(GeoBenchClassificationDataModule):
             **kwargs,
         )
 
+    def setup(self, stage: str) -> None:
+        """Setup the dataset for training or evaluation."""
+        train_dataset = self.dataset_class(
+            split="train", band_order=self.band_order, **self.kwargs
+        )
+        # split into train and validation
+        generator = torch.Generator().manual_seed(0)
+        # random 80-20 split
+        self.train_dataset, self.val_dataset = random_split(
+            train_dataset, [1 - 0.2, 0.2], generator
+        )
+
+        self.test_dataset = self.dataset_class(
+            split="test", band_order=self.band_order, **self.kwargs
+        )
+
+    def collect_metadata(self) -> None:
+        """Collect metadata for the dataset."""
+        pass
+
     def visualize_geolocation_distribution(self) -> None:
-        """Visualize geolocation distribution."""
-        raise AttributeError("RESISC45 does not have geolocation information.")
+        """Visualize the geolocation distribution of the dataset."""
+        pass
