@@ -5,14 +5,19 @@
 
 import os
 
+from typing import Sequence
 import numpy as np
 import torch
 from PIL import Image
 from torch import Tensor
 from torchgeo.datasets import CaFFe
+from pathlib import Path
+
+from .sensor_util import DatasetBandRegistry
+from .data_util import DataUtilsMixin, MultiModalNormalizer
 
 
-class GeoBenchCaFFe(CaFFe):
+class GeoBenchCaFFe(CaFFe, DataUtilsMixin):
     """CaFFe Dataset with enhanced functionality.
 
     Allows:
@@ -20,10 +25,19 @@ class GeoBenchCaFFe(CaFFe):
     - Return band wavelengths
     """
 
-    band_default_order = {"gray": 0}
+    dataset_band_config = DatasetBandRegistry.CAFFE
+    # TODO update sensor type with wavelength and resolution
 
-    def _init_(
-        self, root: str, split: str, band_order: list["str"] = ["gray"], **kwargs
+    band_default_order = ("gray",)
+
+    normalization_stats = {"means": {"gray": 0.0}, "stds": {"gray": 255.0}}
+
+    def __init__(
+        self,
+        root: Path,
+        split: str,
+        band_order: list["str"] = band_default_order,
+        **kwargs,
     ) -> None:
         """Initialize CaFFe Dataset.
 
@@ -38,11 +52,12 @@ class GeoBenchCaFFe(CaFFe):
         """
         super().__init__(root=root, split=split, **kwargs)
         # TODO allow input of blank channels
-        assert all(band in self.band_default_order.keys() for band in band_order), (
-            f"Invalid bands in {band_order}. Must be among {list(self.band_default_order.keys())}"
-        )
 
-        self.band_order = band_order
+        self.band_order = self.resolve_band_order(band_order)
+
+        self.normalizer = MultiModalNormalizer(
+            self.normalization_stats, self.band_order
+        )
 
     def __getitem__(self, idx: int) -> dict[str, Tensor]:
         """Return the image and mask at the given index.
@@ -53,6 +68,7 @@ class GeoBenchCaFFe(CaFFe):
         Returns:
             dict: a dict containing the image and mask
         """
+        sample: dict[str, Tensor] = {}
         zones_filename = os.path.basename(self.fpaths[idx])
         img_filename = zones_filename.replace("_zones_", "_")
 
@@ -64,10 +80,11 @@ class GeoBenchCaFFe(CaFFe):
         )
         img = read_tensor(img_path).unsqueeze(0).float()
 
-        # adapt img according to band_order
-        img = torch.stack(
-            [img[self.band_default_order[band]] for band in self.band_order]
-        )
+        img_dict = self.rearrange_bands(img, self.band_order)
+
+        img_dict = self.normalizer(img_dict)
+
+        sample.update(img_dict)
 
         zone_mask = read_tensor(
             os.path.join(
@@ -77,7 +94,7 @@ class GeoBenchCaFFe(CaFFe):
 
         zone_mask = self.ordinal_map_zones[zone_mask]
 
-        sample = {"image": img, "mask": zone_mask}
+        sample["mask"] = zone_mask
 
         if self.transforms:
             sample = self.transforms(sample)

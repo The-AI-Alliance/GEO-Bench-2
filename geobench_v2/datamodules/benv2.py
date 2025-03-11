@@ -1,29 +1,25 @@
 # Copyright (c) 2025 GeoBenchV2. All rights reserved.
 # Licensed under the Apache License 2.0.
 
-"""Resisc45 DataModule."""
+"""GeoBench BigEarthNetV2 DataModule."""
 
 from collections.abc import Callable
 from typing import Any, Sequence
 
-from geobench_v2.datasets import GeoBenchRESISC45
+from geobench_v2.datasets import GeoBenchBENV2
+import kornia.augmentation as K
 
 from .base import GeoBenchClassificationDataModule
 import torch.nn as nn
 
 
-class GeoBenchRESISC45DataModule(GeoBenchClassificationDataModule):
-    """GeoBench RESISC45 Data Module."""
-
-    # https://github.com/microsoft/torchgeo/blob/68e0cfebcd18edb6605008eeeaba96388e63eca7/torchgeo/datamodules/resisc45.py#L21
-    band_means = {"r": 93.89391792, "g": 97.11226906, "b": 87.56775284}
-
-    band_stds = {"r": 51.84919672, "g": 47.2365918, "b": 47.06308786}
+class GeoBenchBENV2DataModule(GeoBenchClassificationDataModule):
+    """GeoBench BigEarthNetV2 Data Module."""
 
     def __init__(
         self,
         img_size: int,
-        band_order: Sequence[float | str] = GeoBenchRESISC45.band_default_order,
+        band_order: Sequence[float | str] = GeoBenchBENV2.band_default_order,
         batch_size: int = 32,
         eval_batch_size: int = 64,
         num_workers: int = 0,
@@ -33,7 +29,7 @@ class GeoBenchRESISC45DataModule(GeoBenchClassificationDataModule):
         pin_memory: bool = False,
         **kwargs: Any,
     ) -> None:
-        """Initialize GeoBench Resisc45 dataset module.
+        """Initialize GeoBench BigEarthNetV2 dataset module.
 
         Args:
             img_size: Image size
@@ -41,17 +37,11 @@ class GeoBenchRESISC45DataModule(GeoBenchClassificationDataModule):
             eval_batch_size: Evaluation batch size
             num_workers: Number of workers
             collate_fn: Collate function
-            train_augmentations: Transforms/Augmentations to apply during training, they will be applied
-                at the sample level and should include normalization. See :method:`define_augmentations`
-                for the default transformation.
-            eval_augmentations: Transforms/Augmentations to apply during evaluation, they will be applied
-                at the sample level and should include normalization. See :method:`define_augmentations`
-                for the default transformation.
             pin_memory: Pin memory
             **kwargs: Additional keyword arguments
         """
         super().__init__(
-            dataset_class=GeoBenchRESISC45,
+            dataset_class=GeoBenchBENV2,
             img_size=img_size,
             band_order=band_order,
             batch_size=batch_size,
@@ -65,5 +55,5 @@ class GeoBenchRESISC45DataModule(GeoBenchClassificationDataModule):
         )
 
     def visualize_geolocation_distribution(self) -> None:
-        """Visualize geolocation distribution."""
-        raise AttributeError("RESISC45 does not have geolocation information.")
+        """Visualize the geolocation distribution."""
+        raise NotImplementedError
