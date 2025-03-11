@@ -40,42 +40,9 @@ def generate_metadata_df(orig_dataset=None, save_dir=None):
         if i >= 4:
             break
 
-    # Add spatial region info
-    def assign_region(lon, lat):
-        # Define simple regions within France
-        if lat > 48.5:
-            return "Northern France"
-        elif lat < 44.5:
-            return "Southern France"
-        elif lon < 2.0:
-            return "Western France"
-        else:
-            return "Eastern France"
+    import pdb
 
-    metadata_df["region"] = metadata_df.apply(
-        lambda row: assign_region(row.longitude, row.latitude), axis=1
-    )
-
-    # Assign a standard split (we can customize this based on domains or regions)
-    # Using domain to ensure spatial coherence in splits
-    all_domains = metadata_df["domain"].unique()
-    n_domains = len(all_domains)
-
-    # Assign approximately 70/15/15 split based on domains
-    train_domains = all_domains[: int(0.7 * n_domains)]
-    val_domains = all_domains[int(0.7 * n_domains) : int(0.85 * n_domains)]
-    test_domains = all_domains[int(0.85 * n_domains) :]
-
-    def assign_split(domain):
-        if domain in train_domains:
-            return "train"
-        elif domain in val_domains:
-            return "val"
-        else:
-            return "test"
-
-    metadata_df["split"] = metadata_df["domain"].apply(assign_split)
-
+    pdb.set_trace()
     # Add summary statistics
     print(f"\nTotal patches: {len(metadata_df)}")
     print(f"Split distribution:")
@@ -97,15 +64,22 @@ def main():
         default="geobenchV2/flair2",
         help="Directory to save the subset benchmark data",
     )
+    from huggingface_hub import HfFileSystem
+
+    fs = HfFileSystem()
+    out = fs.ls(repo_id="IGNF/FLAIR", repo_type="dataset", detail=False)
+    import pdb
+
+    pdb.set_trace()
     args = parser.parse_args()
     os.makedirs(args.save_dir, exist_ok=True)
 
     metadata_path = os.path.join(args.save_dir, "geobench_metadata.parquet")
-    if os.path.exists(metadata_path):
-        metadata_df = pd.read_parquet(metadata_path)
-    else:
-        metadata_df = generate_metadata_df(save_dir=args.save_dir)
-        metadata_df.to_parquet(metadata_path)
+    # if os.path.exists(metadata_path):
+    #     metadata_df = pd.read_parquet(metadata_path)
+    # else:
+    metadata_df = generate_metadata_df(save_dir=args.save_dir)
+    metadata_df.to_parquet(metadata_path)
 
     plot_sample_locations(
         metadata_df,

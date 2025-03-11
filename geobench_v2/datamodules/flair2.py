@@ -16,7 +16,7 @@ from torch.utils.data import random_split
 
 
 class GeoBenchFLAIR2DataModule(GeoBenchSegmentationDataModule):
-    """GeoBench Fields of the World Data Module."""
+    """GeoBench FLAIR2 Data Module."""
 
     def __init__(
         self,
@@ -31,7 +31,7 @@ class GeoBenchFLAIR2DataModule(GeoBenchSegmentationDataModule):
         pin_memory: bool = False,
         **kwargs: Any,
     ) -> None:
-        """Initialize GeoBench Fields of the World DataModule.
+        """Initialize GeoBench FLAIR2 DataModule.
 
         Args:
             img_size: Image size

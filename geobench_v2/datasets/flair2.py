@@ -69,6 +69,9 @@ class GeoBenchFLAIR2(NonGeoDataset, DataUtilsMixin):
         "stds": {"r": 255.0, "g": 255.0, "b": 255.0, "nir": 255.0, "elevation": 255.0},
     }
 
+    # TODO need to implement actual train/val split based on
+    # https://huggingface.co/datasets/IGNF/FLAIR/tree/main/data
+
     band_default_order = ("r", "g", "b", "nir", "elevation")
 
     def __init__(
