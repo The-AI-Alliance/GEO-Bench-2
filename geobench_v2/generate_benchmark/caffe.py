@@ -19,7 +19,6 @@ import cartopy.crs as ccrs
 import cartopy.feature as cfeature
 from matplotlib.colors import LinearSegmentedColormap
 import numpy as np
-from geobench_v2.generate_benchmark.utils import plot_sample_locations
 
 
 import os
@@ -368,6 +367,157 @@ def create_unit_test_subset() -> None:
     # create random images etc that respect the structure of the dataset in minimal format
     pass
 
+def plot_samples_by_glacier(metadata_df: pd.DataFrame, output_path: str, dataset_name: str) -> None:
+    """Create plots of sample locations grouped by glacier.
+    
+    Args:
+        metadata_df: DataFrame containing metadata with glacier_name, latitude, longitude, and split
+        output_path: Path to save the output plot
+        dataset_name: Name of the dataset for the title
+    """
+    # Ensure we have required columns
+    required_cols = ['glacier_name', 'latitude', 'longitude', 'split']
+    if not all(col in metadata_df.columns for col in required_cols):
+        missing = [col for col in required_cols if col not in metadata_df.columns]
+        raise ValueError(f"Missing required columns: {missing}")
+    
+    # Drop rows with missing lat/lon
+    valid_df = metadata_df.dropna(subset=['latitude', 'longitude', 'glacier_name'])
+    if len(valid_df) == 0:
+        print("No valid samples with location data to plot")
+        return
+    
+    # Get unique glaciers
+    glaciers = valid_df['glacier_name'].unique()
+    num_glaciers = len(glaciers)
+    
+    # Calculate grid dimensions for subplots
+    n_cols = min(3, num_glaciers)  # Max 3 columns
+    n_rows = (num_glaciers + n_cols - 1) // n_cols  # Ceiling division
+    
+    # Create figure
+    fig = plt.figure(figsize=(n_cols * 6, n_rows * 5))
+    fig.suptitle(f"{dataset_name} Samples by Glacier (Total: {len(valid_df)} samples)", fontsize=16, y=0.98)
+    
+    # Create a shared colormap for all glaciers
+    split_cmap = {
+        'train': '#1f77b4',  # Blue
+        'val': '#ff7f0e',    # Orange
+        'test': '#2ca02c'    # Green
+    }
+    
+    # Get global min/max longitude for all glaciers
+    global_stats = {}
+    for glacier in glaciers:
+        glacier_df = valid_df[valid_df['glacier_name'] == glacier]
+        global_stats[glacier] = {
+            'min_lon': glacier_df['longitude'].min(),
+            'max_lon': glacier_df['longitude'].max(),
+            'min_lat': glacier_df['latitude'].min(),
+            'max_lat': glacier_df['latitude'].max(),
+            'lon_range': glacier_df['longitude'].max() - glacier_df['longitude'].min(),
+            'lat_range': glacier_df['latitude'].max() - glacier_df['latitude'].min()
+        }
+    
+    # Create subplots
+    for i, glacier in enumerate(glaciers):
+        glacier_df = valid_df[valid_df['glacier_name'] == glacier]
+        
+        split_counts = glacier_df['split'].value_counts().to_dict()
+        for split in ['train', 'val', 'test']:
+            if split not in split_counts:
+                split_counts[split] = 0
+        
+        # Calculate subplot position
+        ax = fig.add_subplot(n_rows, n_cols, i+1, projection=ccrs.PlateCarree())
+
+        min_lon = global_stats[glacier]['min_lon']
+        max_lon = global_stats[glacier]['max_lon']
+        min_lat = global_stats[glacier]['min_lat']
+        max_lat = global_stats[glacier]['max_lat']
+        
+        lon_buffer = global_stats[glacier]['lon_range'] * 0.1
+        lat_buffer = global_stats[glacier]['lat_range'] * 0.1
+        lon_buffer = max(lon_buffer, 0.01)
+        lat_buffer = max(lat_buffer, 0.01)
+        
+        ax.set_extent([min_lon - lon_buffer, max_lon + lon_buffer, 
+                      min_lat - lat_buffer, max_lat + lat_buffer])
+        
+        # Add coastlines and borders
+        ax.add_feature(cfeature.COASTLINE, linewidth=0.5)
+        ax.add_feature(cfeature.BORDERS, linewidth=0.5)
+        ax.add_feature(cfeature.STATES, linewidth=0.3)
+        ax.gridlines(draw_labels=True, linewidth=0.2, color='gray', alpha=0.5)
+        
+        # Plot each split with different colors
+        for split in ['train', 'val', 'test']:
+            split_data = glacier_df[glacier_df['split'] == split]
+            if len(split_data) > 0:
+                ax.scatter(
+                    split_data['longitude'], split_data['latitude'],
+                    c=split_cmap[split], label=f"{split} ({len(split_data)})",
+                    alpha=0.7, s=20, transform=ccrs.PlateCarree()
+                )
+        
+        total_count = len(glacier_df)
+        title = f"{glacier} Glacier ({total_count} samples)\n"
+        title += f"Train: {split_counts['train']}, Val: {split_counts['val']}, Test: {split_counts['test']}"
+        ax.set_title(title, fontsize=12)
+        
+        # Add legend
+        ax.legend(loc='upper right')
+    
+    total_counts = valid_df['split'].value_counts().to_dict()
+    for split in ['train', 'val', 'test']:
+        if split not in total_counts:
+            total_counts[split] = 0
+    
+    # Add an overall summary in the figure footer
+    summary = (f"Summary - Total: {len(valid_df)} samples across {num_glaciers} glaciers | " 
+               f"Train: {total_counts.get('train', 0)} | "
+               f"Val: {total_counts.get('val', 0)} | "
+               f"Test: {total_counts.get('test', 0)}")
+    
+    fig.text(0.5, 0.01, summary, ha='center', fontsize=14)
+    
+    # Adjust layout and save
+    plt.tight_layout(rect=[0, 0.03, 1, 0.97])
+    plt.savefig(output_path, bbox_inches='tight', dpi=300)
+    print(f"Plot saved to {output_path}")
+    plt.close(fig)
+
+    # Create and save a summary DataFrame
+    summary_data = []
+    for glacier in glaciers:
+        glacier_df = valid_df[valid_df['glacier_name'] == glacier]
+        split_counts = glacier_df['split'].value_counts().to_dict()
+        summary_data.append({
+            'glacier_name': glacier,
+            'train_samples': split_counts.get('train', 0),
+            'val_samples': split_counts.get('val', 0),
+            'test_samples': split_counts.get('test', 0),
+            'total_samples': len(glacier_df)
+        })
+    
+    summary_df = pd.DataFrame(summary_data)
+    summary_df = summary_df.sort_values('total_samples', ascending=False)
+    
+    # Add total row
+    total_row = {
+        'glacier_name': 'TOTAL',
+        'train_samples': total_counts.get('train', 0),
+        'val_samples': total_counts.get('val', 0),
+        'test_samples': total_counts.get('test', 0),
+        'total_samples': len(valid_df)
+    }
+    summary_df = pd.concat([summary_df, pd.DataFrame([total_row])], ignore_index=True)
+    
+    # Save summary to CSV
+    summary_path = output_path.replace('.png', '_summary.csv')
+    summary_df.to_csv(summary_path, index=False)
+    print(f"Summary saved to {summary_path}")
+
 
 def main():
     """Generate CaFFe Benchmark."""
@@ -414,7 +564,7 @@ def main():
         extract_quality_factor
     )
 
-    plot_sample_locations(
+    plot_samples_by_glacier(
         metadata_df,
         output_path=os.path.join(args.output_dir, "sample_locations.png"),
         dataset_name="CaFFe",
