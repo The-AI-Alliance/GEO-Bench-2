@@ -121,8 +121,21 @@ class GeoBenchFLAIR2(NonGeoDataset, DataUtilsMixin):
         """
         sample: dict[str, Tensor] = {}
         row = self.metadata_df.iloc[idx]
-        image_path = os.path.join(self.root, self.dir_names[self.split]["images"], row["domain"], "img", f'{row["image_id"]}.tif')
-        mask_path = os.path.join(self.root, self.dir_names[self.split]["masks"], row["domain"], "msk", f'{row["image_id"].replace('IMG', 'MSK')}.tif')
+        image_path = os.path.join(
+            self.root, 
+            self.dir_names[self.split]["images"], 
+            row["domain"], 
+            "img", 
+            f"{row['image_id']}.tif"
+        )
+        
+        mask_path = os.path.join(
+            self.root, 
+            self.dir_names[self.split]["masks"], 
+            row["domain"], 
+            "msk", 
+            f"{row['image_id'].replace('IMG', 'MSK')}.tif"
+        )
 
         image = self.load_image(image_path)
 

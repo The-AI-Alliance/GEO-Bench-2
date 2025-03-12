@@ -92,21 +92,18 @@ def main():
     os.makedirs(args.save_dir, exist_ok=True)
 
     metadata_path = os.path.join(args.save_dir, "geobench_metadata.parquet")
-    # if os.path.exists(metadata_path):
-    #     metadata_df = pd.read_parquet(metadata_path)
-    # else:
-    metadata_df = generate_metadata_df(save_dir=args.save_dir)
-    metadata_df.to_parquet(metadata_path)
+    if os.path.exists(metadata_path):
+        metadata_df = pd.read_parquet(metadata_path)
+    else:
+        metadata_df = generate_metadata_df(save_dir=args.save_dir)
+        metadata_df.to_parquet(metadata_path)
 
-    import pdb
-    pdb.set_trace()
     plot_sample_locations(
         metadata_df,
         output_path=os.path.join(args.save_dir, "sample_locations.png"),
         buffer_degrees=1.5,
-        sample_fraction=0.1,
         split_column="split",
-        alpha=0.5,
+        s=2.0,
     )
 
     print("\nFLAIR2 benchmark metadata generation complete.")
