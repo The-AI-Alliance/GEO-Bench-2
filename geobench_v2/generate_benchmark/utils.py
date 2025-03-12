@@ -158,7 +158,7 @@ def plot_sample_locations(
             ax.add_feature(cfeature.LAKES, facecolor="lightblue", alpha=0.5)
 
     # Get unique splits
-    splits = sampled_df[split_column].unique()
+    splits = ["train", "val", "test"]
     print(f"Found {len(splits)} dataset splits: {', '.join(map(str, splits))}")
 
     # Define colors for different splits (with defaults for train/val/test)

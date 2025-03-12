@@ -13,6 +13,7 @@ from geobench_v2.generate_benchmark.utils import plot_sample_locations
 
 from geobench_v2.datasets.flair2 import GeoBenchFLAIR2
 
+# TODO add automatic download of dataset to have a starting point for benchmark generation
 
 def generate_metadata_df(orig_dataset=None, save_dir=None):
     """"""
@@ -40,9 +41,30 @@ def generate_metadata_df(orig_dataset=None, save_dir=None):
         if i >= 4:
             break
 
-    import pdb
+    # from https://huggingface.co/datasets/IGNF/FLAIR#data-splits
+    train_ids = (
+        "D006", "D007", "D008", "D009", "D013", "D016", "D017", "D021", "D023", 
+        "D030", "D032", "D033", "D034", "D035", "D038", "D041", "D044", "D046", 
+        "D049", "D051", "D052", "D055", "D060", "D063", "D070", "D072", "D074", 
+        "D078", "D080", "D081", "D086", "D091"
+    )
+    val_ids = (
+        "D004", "D014", "D029", "D031", "D058", "D066", "D067", "D077"
+    )
+    test_ids = (
+        "D015", "D022", "D026", "D036", "D061", "D064", "D068", "D069", "D071", "D084"
+    )
+    # find match in the domain column which has values of id_year
+    metadata_df["split"] = (
+        metadata_df["domain"]
+        .apply(lambda x: x.split("_")[0])
+        .replace({train_id: "train" for train_id in train_ids})
+        .replace({val_id: "val" for val_id in val_ids})
+        .replace({test_id: "test" for test_id in test_ids})
+    )
 
-    pdb.set_trace()
+    metadata_df = metadata_df.reset_index().rename(columns={"index": "image_id"})
+
     # Add summary statistics
     print(f"\nTotal patches: {len(metadata_df)}")
     print(f"Split distribution:")
@@ -64,13 +86,8 @@ def main():
         default="geobenchV2/flair2",
         help="Directory to save the subset benchmark data",
     )
-    from huggingface_hub import HfFileSystem
 
-    fs = HfFileSystem()
-    out = fs.ls(repo_id="IGNF/FLAIR", repo_type="dataset", detail=False)
-    import pdb
-
-    pdb.set_trace()
+    
     args = parser.parse_args()
     os.makedirs(args.save_dir, exist_ok=True)
 
@@ -81,6 +98,8 @@ def main():
     metadata_df = generate_metadata_df(save_dir=args.save_dir)
     metadata_df.to_parquet(metadata_path)
 
+    import pdb
+    pdb.set_trace()
     plot_sample_locations(
         metadata_df,
         output_path=os.path.join(args.save_dir, "sample_locations.png"),

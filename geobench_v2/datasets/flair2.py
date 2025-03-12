@@ -5,6 +5,7 @@
 
 import os
 
+import pandas as pd
 import numpy as np
 import rasterio
 from typing import Sequence, ClassVar, Union
@@ -56,11 +57,12 @@ class GeoBenchFLAIR2(NonGeoDataset, DataUtilsMixin):
 
     dir_names: ClassVar[dict[str, dict[str, str]]] = {
         "train": {"images": "flair_aerial_train", "masks": "flair_labels_train"},
+        "val": {"images": "flair_aerial_train", "masks": "flair_labels_train"},
         "test": {"images": "flair_2_aerial_test", "masks": "flair_2_labels_test"},
     }
     globs: ClassVar[dict[str, str]] = {"images": "IMG_*.tif", "masks": "MSK_*.tif"}
 
-    splits = ("train", "test")
+    splits = ("train", "val", "test")
 
     dataset_band_config = DatasetBandRegistry.FLAIR2
 
@@ -104,63 +106,32 @@ class GeoBenchFLAIR2(NonGeoDataset, DataUtilsMixin):
         self.normalizer = MultiModalNormalizer(
             self.normalization_stats, self.band_order
         )
+        self.sample_df = pd.read_parquet(os.path.join(self.root, "geobench_metadata.parquet"))
+        self.samples = self.sample_df[self.sample_df["split"] == split].reset_index(drop=True)
 
-        self.samples = self._load_files()
 
-    def _load_files(self) -> list[dict[str, str]]:
-        """Return the paths of the files in the dataset.
-
-        Returns:
-            list of dicts containing paths for each pair of image, masks
-        """
-        images = sorted(
-            glob.glob(
-                os.path.join(
-                    self.root,
-                    self.dir_names[self.split]["images"],
-                    "**",
-                    self.globs["images"],
-                ),
-                recursive=True,
-            )
-        )
-
-        masks = sorted(
-            glob.glob(
-                os.path.join(
-                    self.root,
-                    self.dir_names[self.split]["masks"],
-                    "**",
-                    self.globs["masks"],
-                ),
-                recursive=True,
-            )
-        )
-
-        files = [dict(image=image, mask=mask) for image, mask in zip(images, masks)]
-
-        return files
-
-    def __getitem__(self, index: int) -> dict[str, Tensor]:
+    def __getitem__(self, idx: int) -> dict[str, Tensor]:
         """Return an index within the dataset.
 
         Args:
-            index: index to return
+            idx: index to return
 
         Returns:
             data and label at that index
         """
         sample: dict[str, Tensor] = {}
-        path = self.samples[index]["image"]
-        image = self.load_image(path)
+        row = self.metadata_df.iloc[idx]
+        image_path = os.path.join(self.root, self.dir_names[self.split]["images"], row["domain"], "img", f'{row["image_id"]}.tif')
+        mask_path = os.path.join(self.root, self.dir_names[self.split]["masks"], row["domain"], "msk", f'{row["image_id"].replace('IMG', 'MSK')}.tif')
+
+        image = self.load_image(image_path)
 
         image_dict = self.rearrange_bands(image, self.band_order)
 
         image_dict = self.normalizer(image_dict)
         sample.update(image_dict)
 
-        path = self.samples[index]["mask"]
-        mask = self.load_mask(path)
+        mask = self.load_mask(mask_path)
 
         sample["mask"] = mask
 
@@ -200,9 +171,8 @@ class GeoBenchFLAIR2(NonGeoDataset, DataUtilsMixin):
 
     def __len__(self) -> int:
         """Return length of the dataset."""
-        return len(self.samples)
+        return len(self.metadata_df)
 
-    # TODO add automatic download
 
     def plot(
         self,

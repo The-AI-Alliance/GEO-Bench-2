@@ -63,22 +63,6 @@ class GeoBenchFLAIR2DataModule(GeoBenchSegmentationDataModule):
             **kwargs,
         )
 
-    def setup(self, stage: str) -> None:
-        """Setup the dataset for training or evaluation."""
-        train_dataset = self.dataset_class(
-            split="train", band_order=self.band_order, **self.kwargs
-        )
-        # split into train and validation
-        generator = torch.Generator().manual_seed(0)
-        # random 80-20 split
-        self.train_dataset, self.val_dataset = random_split(
-            train_dataset, [1 - 0.2, 0.2], generator
-        )
-
-        self.test_dataset = self.dataset_class(
-            split="test", band_order=self.band_order, **self.kwargs
-        )
-
     def collect_metadata(self) -> None:
         """Collect metadata for the dataset."""
         pass
