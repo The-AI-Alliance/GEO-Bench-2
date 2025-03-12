@@ -47,9 +47,10 @@ def generate_metadata_df(ds: SpaceNet6) -> pd.DataFrame:
 
         with rasterio.open(path) as src:
             lng, lat = src.lnglat()
+            height_px, width_px = src.height, src.width
 
         metadata.append(
-            {"path": filename, "longitude": lng, "latitude": lat, "date": date}
+            {"path": filename, "longitude": lng, "latitude": lat, "date": date, "height_px": height_px, "width_px": width_px}
         )
 
     metadata_df = pd.DataFrame(metadata)
