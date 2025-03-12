@@ -74,13 +74,17 @@ class GeoBenchCloudSen12(NonGeoDataset, DataUtilsMixin):
         },
     }
 
-    taco_files = [
-        "cloudsen12-l1c.0000.part.taco",
-        "cloudsen12-l1c.0001.part.taco",
-        "cloudsen12-l1c.0002.part.taco",
-        "cloudsen12-l1c.0003.part.taco",
-        "cloudsen12-l1c.0004.part.taco",
-    ]
+    classes = ("clear", "thick cloud", "thin cloud", "cloud shadow")
+
+    # taco_files = [
+    #     "cloudsen12-l1c.0000.part.taco",
+    #     "cloudsen12-l1c.0001.part.taco",
+    #     "cloudsen12-l1c.0002.part.taco",
+    #     "cloudsen12-l1c.0003.part.taco",
+    #     "cloudsen12-l1c.0004.part.taco",
+    # ]
+
+    taco_name = "geobench_cloudsen12.taco"
 
     def __init__(
         self,
@@ -114,15 +118,8 @@ class GeoBenchCloudSen12(NonGeoDataset, DataUtilsMixin):
             self.normalization_stats, self.band_order
         )
 
-        self.metadata_df = tacoreader.load(
-            [os.path.join(root, f) for f in self.taco_files]
-        )
-        # only use the high quality labels and the 512x512 images and the split
-        self.metadata_df = self.metadata_df[
-            self.metadata_df["stac:raster_shape"].apply(lambda x: np.array_equal(x, np.array([512, 512])))
-            & (self.metadata_df["tortilla:data_split"] == split)
-            & (self.metadata_df["label_type"] == "high")
-        ].reset_index(drop=True)
+        self.metadata_df = tacoreader.load(self.taco_name)
+        self.metadata_df = self.metadata_df[self.metadata_df["tortilla:data_split"] == split].reset_index(drop=True)
 
 
     def __getitem__(self, idx: int) -> dict[str, Tensor]:
