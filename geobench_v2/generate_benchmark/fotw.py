@@ -23,6 +23,24 @@ import numpy as np
 
 TOTAL_N = 20000
 
+CC_BY_COUNTRIES = (
+    'austria',
+    'brazil',
+    'corsica',
+    'denmark',
+    'estonia',
+    'finland',
+    'france',
+    'india',
+    'kenya',
+    'luxembourg',
+    'netherlands',
+    'rwanda',
+    'slovakia',
+    'spain',
+    'vietnam',
+)
+
 def create_subset(
     ds: FieldsOfTheWorld, df: pd.DataFrame, save_dir: str, random_state: int = 42
 ) -> None:
@@ -477,13 +495,18 @@ def main():
     )
     args = parser.parse_args()
     os.makedirs(args.save_dir, exist_ok=True)
+
+    orig_dataset = FieldsOfTheWorld(root=args.root, download=False, countries=CC_BY_COUNTRIES)
     
     metadata_path = os.path.join(args.save_dir, "metadata.parquet")
-    if os.path.exists(metadata_path):
-        metadata_df = pd.read_parquet(metadata_path)
-    else:
-        metadata_df = generate_metadata_df(orig_dataset)
-        metadata_df.to_parquet(metadata_path)
+    # if os.path.exists(metadata_path):
+    #     metadata_df = pd.read_parquet(metadata_path)
+    # else:
+    metadata_df = generate_metadata_df(orig_dataset)
+    metadata_df.to_parquet(metadata_path)
+
+    # assert that only CC_BY_COUNTRIES are present
+    assert set(metadata_df["country"].unique()) == set(CC_BY_COUNTRIES)
 
     plot_country_distribution(
         metadata_df, 
@@ -491,7 +514,6 @@ def main():
         title="Fields of the World Dataset - Geographic Distribution"
     )
 
-    print(0)
     # generate_benchmark(orig_dataset, metadata_df, args.save_dir)
 
 
