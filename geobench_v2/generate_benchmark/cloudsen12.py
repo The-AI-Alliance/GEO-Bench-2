@@ -26,36 +26,66 @@ def create_subset(
     # based on the metadata_df create a subset of the dataset and copy it
     # with the same structure to the save_dir
     # basically create mini tacos based on the metadata_df
-    taco_files = [
-        "cloudsen12-l1c.0000.part.taco",
-        "cloudsen12-l1c.0001.part.taco",
-        "cloudsen12-l1c.0002.part.taco",
-        "cloudsen12-l1c.0003.part.taco",
-        "cloudsen12-l1c.0004.part.taco",
-    ]
-    paths = [os.path.join(root, f) for f in taco_files]
-    if not all([os.path.exists(p) for p in paths]):
-        snapshot_download(repo_id="tacofoundation/cloudsen12", local_dir=".", cache_dir=".", repo_type="dataset", pattern="cloudsen12-l1c.*.part.taco")
+    meta_dfs = []
+    taco_files: dict[str, list[str]] = {"l1c": [
+            "cloudsen12-l1c.0000.part.taco",
+            "cloudsen12-l1c.0001.part.taco",
+            "cloudsen12-l1c.0002.part.taco",
+            "cloudsen12-l1c.0003.part.taco",
+            "cloudsen12-l1c.0004.part.taco",
+        ],
+        "l2a": [
+            "cloudsen12-l2a.0000.part.taco",
+            "cloudsen12-l2a.0001.part.taco",
+            "cloudsen12-l2a.0002.part.taco",
+            "cloudsen12-l2a.0003.part.taco",
+            "cloudsen12-l2a.0004.part.taco",
+            "cloudsen12-l2a.0005.part.taco",
+        ],
+        # "extra": [
+        #     "cloudsen12-extra.0000.part.taco",
+        #     "cloudsen12-extra.0001.part.taco",
+        #     "cloudsen12-extra.0002.part.taco",
+        # ]
+        }
     
-    metadata_df = tacoreader.load(paths)
-    # only use the high quality labels and the 512x512 images and the split
-    metadata_df = metadata_df[
-        metadata_df["stac:raster_shape"].apply(lambda x: np.array_equal(x, np.array([512, 512])))
-        & (metadata_df["label_type"] == "high")
-    ]
+    for key, value in taco_files.items():
+        paths = [os.path.join(root, f) for f in value]
+        if not all([os.path.exists(p) for p in paths]):
+            snapshot_download(repo_id="tacofoundation/cloudsen12", local_dir=".", cache_dir=".", repo_type="dataset", pattern=f"cloudsen12-{key}.*.part.taco")
 
-    # store this taco subset as the geobench version
-    # tacoreader.compile(dataframe=metadata_df, output=os.path.join(save_dir, "geobench_cloudsen12.taco"), nworkers=4)
+        metadata_df = tacoreader.load(paths)
 
-    geo_df = metadata_df.to_geodataframe()
-    geobench_metadata = pd.DataFrame({
-        'lon': geo_df.geometry.x,
-        'lat': geo_df.geometry.y,
-        'split': geo_df['tortilla:data_split'],
-        'id': geo_df['tortilla:id'],
-    })
 
-    return geobench_metadata
+    # metadata_df = tacoreader.load(paths)
+
+    
+        # only use the high quality labels and the 512x512 images and the split
+        metadata_df = metadata_df[
+            metadata_df["stac:raster_shape"].apply(lambda x: np.array_equal(x, np.array([512, 512])))
+            & (metadata_df["label_type"] == "high")
+        ]
+
+    
+
+        tacoreader.compile(dataframe=metadata_df, output=os.path.join(save_dir, f"geobench_cloudsen12-{key}.taco"), nworkers=4)
+
+
+        geo_df = metadata_df.to_geodataframe()
+        geobench_metadata = pd.DataFrame({
+            'lon': geo_df.geometry.x,
+            'lat': geo_df.geometry.y,
+            'split': geo_df['tortilla:data_split'],
+            'id': geo_df['tortilla:id'],
+        })
+        geobench_metadata['sensor'] = key
+
+        meta_dfs.append(geobench_metadata)
+
+    full_metadata = pd.concat(meta_dfs)
+
+
+    return full_metadata
 
 
 def create_unit_test_subset() -> None:
