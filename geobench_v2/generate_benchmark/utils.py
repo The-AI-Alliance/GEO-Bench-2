@@ -10,6 +10,39 @@ import cartopy.crs as ccrs
 import cartopy.feature as cfeature
 
 
+def validate_metadata_with_geo(metadata_df: pd.DataFrame) -> None:
+    """Validate the metadata DataFrame for benchmark generation.
+
+    Args:
+        metadata_df: DataFrame with metadata columns
+
+    Raises:
+        AssertionError: If metadata is missing required columns
+    """
+    assert "split" in metadata_df.columns, "Metadata must contain 'split' column"
+    assert "lat" in metadata_df.columns, "Metadata must contain 'lat' column"
+    assert "lon" in metadata_df.columns, "Metadata must contain 'lon' column"
+    assert "crs" in metadata_df.columns, "Metadata must contain 'crs' column"
+    assert "sample_id" in metadata_df.columns, (
+        "Metadata must contain 'sample_id' column"
+    )
+
+
+def validate_metadata(metadata_df: pd.DataFrame) -> None:
+    """Validate the metadata DataFrame for benchmark generation, for datasets without geospatial information.
+
+    Args:
+        metadata_df: DataFrame with metadata columns
+
+    Raises:
+        AssertionError: If metadata is missing required columns
+    """
+    assert "split" in metadata_df.columns, "Metadata must contain 'split' column"
+    assert "sample_id" in metadata_df.columns, (
+        "Metadata must contain 'sample_id' column"
+    )
+
+
 def plot_sample_locations(
     metadata_df: pd.DataFrame,
     output_path: str = None,
@@ -37,9 +70,10 @@ def plot_sample_locations(
         metadata_df = metadata_df.sample(sample_size, random_state=42)
         print(f"Sampled {sample_size} points for plotting")
 
-
     if "latitude" in metadata_df.columns:
-        metadata_df.rename(columns={"latitude": "lat", "longitude": "long"}, inplace=True)
+        metadata_df.rename(
+            columns={"latitude": "lat", "longitude": "long"}, inplace=True
+        )
 
     # Determine the geographic extent of the data with buffer
     min_lon = metadata_df["lon"].min() - buffer_degrees

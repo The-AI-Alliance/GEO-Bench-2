@@ -14,9 +14,7 @@ import pandas as pd
 from geobench_v2.generate_benchmark.utils import plot_sample_locations
 
 
-def create_subset(
-    root: str, save_dir: str
-) -> None:
+def create_subset(root: str, save_dir: str) -> None:
     """Create a subset of CloudSen12 dataset.
 
     Args:
@@ -35,12 +33,20 @@ def create_subset(
     ]
     paths = [os.path.join(root, f) for f in taco_files]
     if not all([os.path.exists(p) for p in paths]):
-        snapshot_download(repo_id="tacofoundation/cloudsen12", local_dir=".", cache_dir=".", repo_type="dataset", pattern="cloudsen12-l1c.*.part.taco")
-    
+        snapshot_download(
+            repo_id="tacofoundation/cloudsen12",
+            local_dir=".",
+            cache_dir=".",
+            repo_type="dataset",
+            pattern="cloudsen12-l1c.*.part.taco",
+        )
+
     metadata_df = tacoreader.load(paths)
     # only use the high quality labels and the 512x512 images and the split
     metadata_df = metadata_df[
-        metadata_df["stac:raster_shape"].apply(lambda x: np.array_equal(x, np.array([512, 512])))
+        metadata_df["stac:raster_shape"].apply(
+            lambda x: np.array_equal(x, np.array([512, 512]))
+        )
         & (metadata_df["label_type"] == "high")
     ]
 
@@ -48,12 +54,14 @@ def create_subset(
     # tacoreader.compile(dataframe=metadata_df, output=os.path.join(save_dir, "geobench_cloudsen12.taco"), nworkers=4)
 
     geo_df = metadata_df.to_geodataframe()
-    geobench_metadata = pd.DataFrame({
-        'lon': geo_df.geometry.x,
-        'lat': geo_df.geometry.y,
-        'split': geo_df['tortilla:data_split'],
-        'id': geo_df['tortilla:id'],
-    })
+    geobench_metadata = pd.DataFrame(
+        {
+            "lon": geo_df.geometry.x,
+            "lat": geo_df.geometry.y,
+            "split": geo_df["tortilla:data_split"],
+            "id": geo_df["tortilla:id"],
+        }
+    )
 
     return geobench_metadata
 
@@ -72,7 +80,9 @@ def main():
         "--root", default="data", help="Root directory for CloudSen12 dataset"
     )
     parser.add_argument(
-        "--save_dir", default="geobenchV2/cloudsen12", help="Directory to save the subset"
+        "--save_dir",
+        default="geobenchV2/cloudsen12",
+        help="Directory to save the subset",
     )
     args = parser.parse_args()
 
@@ -84,7 +94,8 @@ def main():
     metadata_df.to_parquet(os.path.join(args.save_dir, "geobench_metadata.parquet"))
 
     plot_sample_locations(
-        metadata_df=metadata_df, output_path=os.path.join(args.save_dir, "sample_locations.png")
+        metadata_df=metadata_df,
+        output_path=os.path.join(args.save_dir, "sample_locations.png"),
     )
 
 

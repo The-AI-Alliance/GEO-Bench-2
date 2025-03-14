@@ -119,8 +119,9 @@ class GeoBenchCloudSen12(NonGeoDataset, DataUtilsMixin):
         )
 
         self.metadata_df = tacoreader.load(self.taco_name)
-        self.metadata_df = self.metadata_df[self.metadata_df["tortilla:data_split"] == split].reset_index(drop=True)
-
+        self.metadata_df = self.metadata_df[
+            self.metadata_df["tortilla:data_split"] == split
+        ].reset_index(drop=True)
 
     def __getitem__(self, idx: int) -> dict[str, Tensor]:
         """Return the sample_row at the given index.

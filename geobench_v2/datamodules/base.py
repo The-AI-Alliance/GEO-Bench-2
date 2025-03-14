@@ -17,6 +17,14 @@ from torch import Tensor
 from torch.utils.data import DataLoader, Dataset
 
 
+# TODO come up with an expected metadata file scheme
+# with common names etc. so a standardization
+# - datamodules have functions to create nice visualizations of data distribution etc
+# - datasets return an id that can be used to link back to all metadata available
+# - datasets return lat/lon, if available time, and wavelength information
+# - show how to allow for more elaborate analysis of predictions etc.
+
+
 class GeoBenchDataModule(LightningDataModule, ABC):
     """GeoBench DataModule."""
 
@@ -92,6 +100,29 @@ class GeoBenchDataModule(LightningDataModule, ABC):
         )
 
     @abstractmethod
+    def load_metadata(self) -> pd.DataFrame:
+        """Load metadata file.
+
+        Returns:
+            pandas DataFrame with metadata.
+        """
+        pass
+
+    @abstractmethod
+    def visualize_batch(
+        self, split: str = "train"
+    ) -> tuple[plt.Figure, dict[str, Tensor]]:
+        """Visualize a batch of data.
+
+        Args:
+            split: One of 'train', 'val', 'test'
+
+        Returns:
+            The matplotlib figure and the batch of data
+        """
+        pass
+
+    @abstractmethod
     def define_augmentations(self) -> None:
         """Define augmentations for the dataset and task."""
         pass
@@ -102,7 +133,11 @@ class GeoBenchDataModule(LightningDataModule, ABC):
         pass
 
     def train_dataloader(self) -> DataLoader:
-        """Return train dataloader."""
+        """Return train dataloader.
+
+        Returns:
+            Train Dataloader
+        """
         return DataLoader(
             self.train_dataset,
             batch_size=self.batch_size,
@@ -114,7 +149,11 @@ class GeoBenchDataModule(LightningDataModule, ABC):
         )
 
     def val_dataloader(self) -> DataLoader:
-        """Return validation dataloader."""
+        """Return validation dataloader.
+
+        Returns:
+            Validation Dataloader
+        """
         return DataLoader(
             self.val_dataset,
             batch_size=self.eval_batch_size,
@@ -126,7 +165,11 @@ class GeoBenchDataModule(LightningDataModule, ABC):
         )
 
     def test_dataloader(self) -> DataLoader:
-        """Return test dataloader."""
+        """Return test dataloader.
+
+        Returns:
+            Test Dataloader
+        """
         return DataLoader(
             self.test_dataset,
             batch_size=self.eval_batch_size,
@@ -206,21 +249,6 @@ class GeoBenchClassificationDataModule(GeoBenchDataModule):
             self.eval_transform = nn.Sequential(
                 K.Resize(size=self.img_size, align_corners=True)
             )
-
-    def visualize_batch(
-        self, split: str = "train"
-    ) -> tuple[plt.Figure, dict[str, Tensor]]:
-        """Visualize a batch of data.
-
-        Args:
-            split: One of 'train', 'val', 'test'
-
-        Returns:
-            The matplotlib figure and the batch of data
-        """
-        # subsample 8 examples from the batch
-        # plot image and mask
-        # add batch["image"] statistics to the figure
 
 
 class GeoBenchSegmentationDataModule(GeoBenchDataModule):

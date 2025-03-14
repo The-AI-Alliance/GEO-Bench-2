@@ -8,6 +8,11 @@ from typing import Any, Sequence
 
 from geobench_v2.datasets import GeoBenchPASTIS
 
+import pandas as pd
+from torch import Tensor
+import os
+import matplotlib.pyplot as plt
+
 import torch
 from .base import GeoBenchSegmentationDataModule
 import torch.nn as nn
@@ -86,6 +91,33 @@ class GeoBenchPASTISDataModule(GeoBenchSegmentationDataModule):
             **kwargs,
         )
 
+    def load_metadata(self) -> pd.DataFrame:
+        """Load metadata file.
+
+        Returns:
+            pandas DataFrame with metadata.
+        """
+        return pd.read_parquet(
+            os.path.join(self.kwargs["root"], "geobench_pastis.parquet")
+        )
+
+    def visualize_batch(
+        self, split: str = "train"
+    ) -> tuple[plt.Figure, dict[str, Tensor]]:
+        """Visualize a batch of data.
+
+        Args:
+            split: One of 'train', 'val', 'test'
+
+        Returns:
+            The matplotlib figure and the batch of data
+        """
+        pass
+
+    def define_augmentations(self) -> None:
+        """Define augmentations for the dataset and task."""
+        pass
+
     def visualize_geolocation_distribution(self) -> None:
-        """Visualize geolocation distribution."""
+        """Visualize the geolocation distribution of the dataset."""
         pass

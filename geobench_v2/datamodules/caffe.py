@@ -6,6 +6,11 @@
 from collections.abc import Callable
 from typing import Any, Sequence
 import kornia.augmentation as K
+import pandas as pd
+from torch import Tensor
+import os
+import matplotlib.pyplot as plt
+
 
 from geobench_v2.datasets.caffe import GeoBenchCaFFe
 
@@ -63,6 +68,33 @@ class GeoBenchCaFFeDataModule(GeoBenchSegmentationDataModule):
             pin_memory=pin_memory,
             **kwargs,
         )
+
+    def load_metadata(self) -> pd.DataFrame:
+        """Load metadata file.
+
+        Returns:
+            pandas DataFrame with metadata.
+        """
+        return pd.read_parquet(
+            os.path.join(self.kwargs["root"], "geobench_caffe.parquet")
+        )
+
+    def visualize_batch(
+        self, split: str = "train"
+    ) -> tuple[plt.Figure, dict[str, Tensor]]:
+        """Visualize a batch of data.
+
+        Args:
+            split: One of 'train', 'val', 'test'
+
+        Returns:
+            The matplotlib figure and the batch of data
+        """
+        pass
+
+    def define_augmentations(self) -> None:
+        """Define augmentations for the dataset and task."""
+        pass
 
     def visualize_geolocation_distribution(self) -> None:
         """Visualize the geolocation distribution of the dataset."""
