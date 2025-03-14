@@ -6,10 +6,11 @@
 from torchgeo.datasets import BigEarthNetV2
 from torch import Tensor
 from pathlib import Path
-from typing import Sequence
+from typing import Sequence, Type
 from .sensor_util import DatasetBandRegistry
 from .data_util import DataUtilsMixin, MultiModalNormalizer
 import torch
+import torch.nn as nn
 
 
 class GeoBenchBENV2(BigEarthNetV2, DataUtilsMixin):
@@ -83,6 +84,7 @@ class GeoBenchBENV2(BigEarthNetV2, DataUtilsMixin):
             "B03",
             "B02",
         ],
+        data_normalizer: Type[nn.Module] = MultiModalNormalizer,
         **kwargs,
     ) -> None:
         """Initialize Big Earth Net V2 Dataset.
@@ -94,6 +96,8 @@ class GeoBenchBENV2(BigEarthNetV2, DataUtilsMixin):
                 specify ['B04', 'B03', 'B02], the dataset would return the red, green, and blue bands.
                 This is useful for models that expect a certain band order, or
                 test the impact of band order on model performance.
+            data_normalizer: The data normalizer to apply to the data, defaults to :class:`data_util.MultiModalNormalizer`,
+                which applies z-score normalization to each band.
             **kwargs: Additional keyword arguments passed to ``BigEarthNetV2``
         """
         super().__init__(root=root, split=split, bands="all", **kwargs)
@@ -101,7 +105,7 @@ class GeoBenchBENV2(BigEarthNetV2, DataUtilsMixin):
         # Resolve band names at init time
         self.band_order = self.resolve_band_order(band_order)
 
-        self.normalizer = MultiModalNormalizer(
+        self.data_normalizer = data_normalizer(
             self.normalization_stats, self.band_order
         )
 
@@ -124,7 +128,7 @@ class GeoBenchBENV2(BigEarthNetV2, DataUtilsMixin):
 
         # Rearrange bands and normalize
         img = self.rearrange_bands(data, self.band_order)
-        img = self.normalizer(img)
+        img = self.data_normalizer(img)
         sample.update(img)
 
         # subselect_band_order

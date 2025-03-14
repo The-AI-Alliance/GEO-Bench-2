@@ -7,6 +7,8 @@ import torch
 from torch import Tensor
 from torchgeo.datasets import FieldsOfTheWorld
 from pathlib import Path
+from typing import Type
+import torch.nn as nn
 
 
 from typing import List, Union, Optional, Sequence
@@ -39,6 +41,7 @@ class GeoBenchFieldsOfTheWorld(FieldsOfTheWorld, DataUtilsMixin):
         root: Path,
         split: str,
         band_order: Sequence[str | float] = dataset_band_config.default_order,
+        data_normalizer: Type[nn.Module] = MultiModalNormalizer,
         **kwargs,
     ) -> None:
         """Initialize Fields of the World Dataset.
@@ -50,13 +53,15 @@ class GeoBenchFieldsOfTheWorld(FieldsOfTheWorld, DataUtilsMixin):
                 specify ['red', 'green', 'blue', 'nir', 'nir'], the dataset would return images with 5 channels
                 in that order. This is useful for models that expect a certain band order, or
                 test the impact of band order on model performance.
-            **kwargs: Additional keyword arguments passed to ``FieldsOfTheWorld``
+            data_normalizer: The data normalizer to apply to the data, defaults to :class:`data_util.MultiModalNormalizer`,
+                which applies z-score normalization to each band.
+            **kwargs: Additional keyword arguments passed to ``torchgeo.datasets.FieldsOfTheWorld``
         """
         super().__init__(root=root, split=split, **kwargs)
 
         self.band_order = self.resolve_band_order(band_order)
 
-        self.normalizer = MultiModalNormalizer(
+        self.data_normalizer = data_normalizer(
             self.normalization_stats, self.band_order
         )
 
@@ -79,7 +84,7 @@ class GeoBenchFieldsOfTheWorld(FieldsOfTheWorld, DataUtilsMixin):
 
         win_a = self.rearrange_bands(win_a, self.band_order)
 
-        win_a = self.normalizer(win_a)
+        win_a = self.data_normalizer(win_a)
 
         # win_b = self.rearrange_bands(win_b, self.band_order)
 

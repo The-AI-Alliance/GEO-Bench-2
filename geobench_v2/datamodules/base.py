@@ -132,11 +132,11 @@ class GeoBenchDataModule(LightningDataModule, ABC):
         """Visualize the geolocation distribution of the dataset."""
         pass
 
-    @abstractmethod
-    def visualize_target_distribution(self) -> None:
-        """Visualize the target distribution of the dataset."""
-        # for single vector targets this should be easy, but how to make this easier for pixel-wise targets, also store in metadata?
-        pass
+    # @abstractmethod
+    # def visualize_target_distribution(self) -> None:
+    #     """Visualize the target distribution of the dataset."""
+    #     # for single vector targets this should be easy, but how to make this easier for pixel-wise targets, also store in metadata?
+    #     pass
 
     def train_dataloader(self) -> DataLoader:
         """Return train dataloader.

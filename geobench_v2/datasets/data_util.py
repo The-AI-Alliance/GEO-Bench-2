@@ -6,6 +6,7 @@
 from abc import ABC, abstractmethod
 from typing import Union, Sequence, Optional
 import torch
+import torch.nn as nn
 from torch import Tensor
 import kornia.augmentation as K
 from .sensor_util import ModalityConfig, MultiModalConfig, DatasetBandRegistry
@@ -276,7 +277,7 @@ class DataUtilsMixin(ABC):
         return "\n".join(lines)
 
 
-class MultiModalNormalizer(torch.nn.Module):
+class MultiModalNormalizer(nn.Module):
     """Normalization module for single or multi-modal data."""
 
     def __init__(

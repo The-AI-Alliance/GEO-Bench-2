@@ -6,7 +6,8 @@
 from torch import Tensor
 from torchgeo.datasets import SpaceNet6
 from pathlib import Path
-from typing import Sequence
+from typing import Sequence, Type
+import torch.nn as nn
 
 from .sensor_util import DatasetBandRegistry
 from .data_util import DataUtilsMixin, MultiModalNormalizer
@@ -36,6 +37,7 @@ class GeoBenchSpaceNet6(SpaceNet6, DataUtilsMixin):
         root: Path,
         split: str,
         band_order: Sequence[str] = band_default_order,
+        data_normalizer: Type[nn.Module] = MultiModalNormalizer,
         **kwargs,
     ) -> None:
         """Initialize SpaceNet6 dataset.
@@ -47,7 +49,9 @@ class GeoBenchSpaceNet6(SpaceNet6, DataUtilsMixin):
                 specify ['red', 'green', 'blue', 'nir', 'nir'], the dataset would return images with 5 channels
                 in that order. This is useful for models that expect a certain band order, or
                 test the impact of band order on model performance.
-            **kwargs: Additional keyword arguments passed to ``SpaceNet6``
+            data_normalizer: The data normalizer to apply to the data, defaults to :class:`data_util.MultiModalNormalizer`,
+                which applies z-score normalization to each band.
+            **kwargs: Additional keyword arguments passed to ``torchgeo.datasets.SpaceNet6``
         """
         super().__init__(root=root, split=split, **kwargs)
 

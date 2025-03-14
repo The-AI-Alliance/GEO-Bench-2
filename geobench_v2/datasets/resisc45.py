@@ -7,7 +7,8 @@ import torch
 from torch import Tensor
 from torchgeo.datasets import RESISC45
 from pathlib import Path
-from typing import Sequence
+from typing import Sequence, Type
+import torch.nn as nn
 
 from .sensor_util import DatasetBandRegistry
 from .data_util import DataUtilsMixin, MultiModalNormalizer
@@ -36,6 +37,7 @@ class GeoBenchRESISC45(RESISC45, DataUtilsMixin):
         root: Path,
         split: str,
         band_order: Sequence["str"] = band_default_order,
+        data_normalizer: Type[nn.Module] = MultiModalNormalizer,
         **kwargs,
     ):
         """Initialize Resisc45 Dataset.
@@ -47,13 +49,15 @@ class GeoBenchRESISC45(RESISC45, DataUtilsMixin):
                 specify ['g', 'r', 'b', 'b], the dataset would return the green band first, then the red band,
                 and then the blue band twice. This is useful for models that expect a certain band order, or
                 test the impact of band order on model performance.
-            **kwargs: Additional keyword arguments passed to ``RESISC45``
+            data_normalizer: The data normalizer to apply to the data, defaults to :class:`data_util.MultiModalNormalizer`,
+                which applies z-score normalization to each band.
+            **kwargs: Additional keyword arguments passed to ``torchgeo.datasts.RESISC45``
         """
         super().__init__(root=root, split=split, **kwargs)
 
         self.band_order = self.resolve_band_order(band_order)
 
-        self.normalizer = MultiModalNormalizer(
+        self.data_normalizer = data_normalizer(
             self.normalization_stats, self.band_order
         )
 
@@ -71,7 +75,7 @@ class GeoBenchRESISC45(RESISC45, DataUtilsMixin):
 
         image_dict = self.rearrange_bands(image, self.band_order)
 
-        image_dict = self.normalizer(image_dict)
+        image_dict = self.data_normalizer(image_dict)
 
         sample.update(image_dict)
         sample["label"] = label
