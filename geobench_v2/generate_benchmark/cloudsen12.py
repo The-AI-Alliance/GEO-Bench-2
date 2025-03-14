@@ -42,11 +42,11 @@ def create_subset(
             "cloudsen12-l2a.0004.part.taco",
             "cloudsen12-l2a.0005.part.taco",
         ],
-        # "extra": [
-        #     "cloudsen12-extra.0000.part.taco",
-        #     "cloudsen12-extra.0001.part.taco",
-        #     "cloudsen12-extra.0002.part.taco",
-        # ]
+        "extra": [
+            "cloudsen12-extra.0000.part.taco",
+            "cloudsen12-extra.0001.part.taco",
+            "cloudsen12-extra.0002.part.taco",
+        ]
         }
     
     for key, value in taco_files.items():
@@ -56,34 +56,32 @@ def create_subset(
 
         metadata_df = tacoreader.load(paths)
 
-
-    # metadata_df = tacoreader.load(paths)
-
     
         # only use the high quality labels and the 512x512 images and the split
         metadata_df = metadata_df[
             metadata_df["stac:raster_shape"].apply(lambda x: np.array_equal(x, np.array([512, 512])))
-            & (metadata_df["label_type"] == "high")
+            # & (metadata_df["label_type"] == "high")
         ]
 
-    
+        metadata_df["type"] = key
 
-        tacoreader.compile(dataframe=metadata_df, output=os.path.join(save_dir, f"geobench_cloudsen12-{key}.taco"), nworkers=4)
+        meta_dfs.append(metadata_df)
 
-
-        geo_df = metadata_df.to_geodataframe()
-        geobench_metadata = pd.DataFrame({
-            'lon': geo_df.geometry.x,
-            'lat': geo_df.geometry.y,
-            'split': geo_df['tortilla:data_split'],
-            'id': geo_df['tortilla:id'],
-        })
-        geobench_metadata['sensor'] = key
-
-        meta_dfs.append(geobench_metadata)
 
     full_metadata = pd.concat(meta_dfs)
+    full_metadata.reset_index(drop=True, inplace=True)
+    import pdb; pdb.set_trace()
 
+    tacoreader.compile(dataframe=metadata_df, output=os.path.join(save_dir, f"geobench_cloudsen12-{key}.taco"), nworkers=4)
+
+    # geo_df = metadata_df.to_geodataframe()
+    # geobench_metadata = pd.DataFrame({
+    #     'lon': geo_df.geometry.x,
+    #     'lat': geo_df.geometry.y,
+    #     'split': geo_df['tortilla:data_split'],
+    #     'id': geo_df['tortilla:id'],
+    # })
+    # geobench_metadata['sensor'] = key
 
     return full_metadata
 
