@@ -1,3 +1,6 @@
+# Copyright (c) 2025 GeoBenchV2. All rights reserved.
+# Licensed under the Apache License 2.0.
+
 """Utility functions for handling satellite imagery datasets."""
 
 from dataclasses import dataclass
