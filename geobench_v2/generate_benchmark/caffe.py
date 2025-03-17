@@ -20,6 +20,8 @@ import cartopy.feature as cfeature
 from matplotlib.colors import LinearSegmentedColormap
 import numpy as np
 
+from geobench_v2.generate_benchmark.utils import plot_sample_locations, plot_enhanced_hemisphere_locations
+
 
 import os
 import re
@@ -445,6 +447,7 @@ def plot_samples_by_glacier(metadata_df: pd.DataFrame, output_path: str, dataset
                       min_lat - lat_buffer, max_lat + lat_buffer])
         
         # Add coastlines and borders
+        scale='110m'
         ax.add_feature(cfeature.COASTLINE, linewidth=0.5)
         ax.add_feature(cfeature.BORDERS, linewidth=0.5)
         ax.add_feature(cfeature.STATES, linewidth=0.3)
@@ -564,10 +567,13 @@ def main():
         extract_quality_factor
     )
 
-    plot_samples_by_glacier(
+    plot_enhanced_hemisphere_locations(
         metadata_df,
-        output_path=os.path.join(args.output_dir, "sample_locations.png"),
+        output_path=os.path.join(args.output_dir, "caffe_hemispheres.png"),
         dataset_name="CaFFe",
+        buffer_degrees=1.0,
+        s=5,  # Increase point size slightly for better visibility
+        alpha=0.7
     )
 
 
