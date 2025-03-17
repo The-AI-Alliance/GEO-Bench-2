@@ -168,6 +168,117 @@ class SensorBandRegistry:
         native_resolution=10,
     )
 
+    # https://modis.gsfc.nasa.gov/about/specifications.php
+    # https://modis.gsfc.nasa.gov/about/specifications.php
+    MODIS = ModalityConfig(
+        bands={
+            # Land/Cloud/Aerosols Boundaries, MODIS bands 1-2 are 250m resolution
+            "M01": BandConfig(
+                "red", ["band1", "red"], wavelength=0.645, resolution=250
+            ),
+            "M02": BandConfig(
+                "nir", ["band2", "near_infrared"], wavelength=0.8585, resolution=250
+            ),
+            # Land/Cloud/Aerosols Properties, MODIS bands 3-7 are 500m resolution
+            "M03": BandConfig(
+                "blue", ["band3", "blue"], wavelength=0.469, resolution=500
+            ),
+            "M04": BandConfig(
+                "green", ["band4", "green"], wavelength=0.555, resolution=500
+            ),
+            "M05": BandConfig(
+                "swir",
+                ["band5", "short_wave_infrared"],
+                wavelength=1.24,
+                resolution=500,
+            ),
+            "M06": BandConfig(
+                "swir2",
+                ["band6", "short_wave_infrared_2"],
+                wavelength=1.64,
+                resolution=500,
+            ),
+            "M07": BandConfig(
+                "swir3",
+                ["band7", "short_wave_infrared_3"],
+                wavelength=2.13,
+                resolution=500,
+            ),
+            # Ocean Color/Phytoplankton/Biogeochemistry, MODIS bands 8-36 are 1000m resolution
+            "M08": BandConfig(
+                "deep_blue", ["band8", "deep_blue"], wavelength=0.4125, resolution=1000
+            ),
+            "M09": BandConfig(
+                "blue_2", ["band9", "blue_2"], wavelength=0.443, resolution=1000
+            ),
+            "M10": BandConfig(
+                "blue_3", ["band10", "blue_3"], wavelength=0.488, resolution=1000
+            ),
+            "M11": BandConfig(
+                "green_2", ["band11", "green_2"], wavelength=0.531, resolution=1000
+            ),
+            "M12": BandConfig(
+                "green_3", ["band12", "green_3"], wavelength=0.551, resolution=1000
+            ),
+            "M13": BandConfig(
+                "red_2", ["band13", "red_2"], wavelength=0.667, resolution=1000
+            ),
+            "M14": BandConfig(
+                "red_3", ["band14", "red_3"], wavelength=0.678, resolution=1000
+            ),
+            "M15": BandConfig(
+                "red_edge", ["band15", "red_edge"], wavelength=0.748, resolution=1000
+            ),
+            "M16": BandConfig(
+                "nir_2",
+                ["band16", "near_infrared_2"],
+                wavelength=0.8695,
+                resolution=1000,
+            ),
+            # Atmospheric Water Vapor
+            "M17": BandConfig(
+                "water_vapor_1",
+                ["band17", "water_vapor_1"],
+                wavelength=0.905,
+                resolution=1000,
+            ),
+            "M18": BandConfig(
+                "water_vapor_2",
+                ["band18", "water_vapor_2"],
+                wavelength=0.936,
+                resolution=1000,
+            ),
+            "M19": BandConfig(
+                "water_vapor_3",
+                ["band19", "water_vapor_3"],
+                wavelength=0.94,
+                resolution=1000,
+            ),
+        },
+        default_order=[
+            "M01",
+            "M02",
+            "M03",
+            "M04",
+            "M05",
+            "M06",
+            "M07",
+            "M08",
+            "M09",
+            "M10",
+            "M11",
+            "M12",
+            "M13",
+            "M14",
+            "M15",
+            "M16",
+            "M17",
+            "M18",
+            "M19",
+        ],
+        native_resolution=500,
+    )
+
     @classmethod
     def get_modality_config(cls, modality: Union[str, SensorType]) -> ModalityConfig:
         """Get configuration for a specific modality."""
@@ -382,6 +493,55 @@ class DatasetBandRegistry:
             "B11",
             "B12",
         ],
+    )
+
+    FLOGA = MultiModalConfig(
+        modalities={
+            "s2": ModalityConfig(
+                bands={
+                    k: v
+                    for k, v in SensorBandRegistry.SENTINEL2.bands.items()
+                    if k in ["B02", "B03", "B04", "B08"] and v.resolution == 10
+                },
+                default_order=["B02", "B03", "B04", "B08"],
+                native_resolution=10,
+            ),
+            "modis": ModalityConfig(
+                bands={
+                    k: v
+                    for k, v in SensorBandRegistry.MODIS.bands.items()
+                    if k in ["M01", "M02", "M03", "M04", "M05", "M06", "M07"]
+                },
+                default_order=["M01", "M02", "M03", "M04", "M05", "M06", "M07"],
+                native_resolution=500,
+            ),
+        },
+        default_order=[
+            "B02",
+            "B03",
+            "B04",
+            "B08",
+            "M01",
+            "M02",
+            "M03",
+            "M04",
+            "M05",
+            "M06",
+            "M07",
+        ],
+        band_to_modality={
+            "B02": "s2",
+            "B03": "s2",
+            "B04": "s2",
+            "B08": "s2",
+            "M01": "modis",
+            "M02": "modis",
+            "M03": "modis",
+            "M04": "modis",
+            "M05": "modis",
+            "M06": "modis",
+            "M07": "modis",
+        },
     )
 
     @classmethod
