@@ -89,15 +89,19 @@ class GeoBenchDataModule(LightningDataModule, ABC):
         Args:
             stage: One of 'fit', 'validate', 'test', or 'predict'.
         """
-        self.train_dataset = self.dataset_class(
-            split="train", band_order=self.band_order, **self.kwargs
-        )
-        self.val_dataset = self.dataset_class(
-            split="val", band_order=self.band_order, **self.kwargs
-        )
-        self.test_dataset = self.dataset_class(
-            split="test", band_order=self.band_order, **self.kwargs
-        )
+        if stage in ['fit']:
+            self.train_dataset = self.dataset_class(
+                split="train", band_order=self.band_order, **self.kwargs
+            )
+        if stage in ['fit', 'validate']:
+            self.val_dataset = self.dataset_class(
+                split="val", band_order=self.band_order, **self.kwargs
+            )
+        if stage in ['test']:
+            self.test_dataset = self.dataset_class(
+                split="test", band_order=self.band_order, **self.kwargs
+            )
+  
 
     @abstractmethod
     def load_metadata(self) -> pd.DataFrame:
