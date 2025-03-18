@@ -14,6 +14,7 @@ import re
 from geobench_v2.generate_benchmark.utils import (
     plot_sample_locations,
     split_geospatial_tiles_into_patches,
+    show_samples_per_valid_ratio,
 )
 
 from typing import List, Tuple, Dict, Any, Optional, Union
@@ -120,7 +121,17 @@ def main():
         metadata_df.to_parquet(metadata_path)
 
     plot_sample_locations(
-        metadata_df, os.path.join(args.save_dir, "sample_locations.png")
+        metadata_df,
+        os.path.join(args.save_dir, "sample_locations.png"),
+        buffer_degrees=1.0,
+    )
+
+    path = "/mnt/rg_climate_benchmark/data/geobenchV2/SpaceNet6/patch_metadata.parquet"
+
+    # df contains a vali_ratio column, make a plot that on the xaxis has the valid_ratio in steps of 0.05 (0-1 range overall) and on the yaxis the number of patches
+    df = pd.read_parquet(path)
+    show_samples_per_valid_ratio(
+        df, os.path.join(args.save_dir, "valid_ratio.png"), dataset_name="SpaceNet6"
     )
 
     create_geobench_ds(

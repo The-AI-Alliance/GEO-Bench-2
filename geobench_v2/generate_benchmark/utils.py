@@ -8,6 +8,13 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import cartopy.crs as ccrs
 import cartopy.feature as cfeature
+from typing import Tuple, Optional, Dict, List
+import os
+import rasterio
+import numpy as np
+import re
+from rasterio.windows import Window
+from tqdm import tqdm
 
 
 def plot_sample_locations(
@@ -462,11 +469,10 @@ def split_geospatial_tiles_into_patches(
                     try:
                         img_data = img_src.read(window=window)
 
-                        valid_ratio = 1.0
                         if src_nodata is not None:
                             valid_ratio = np.sum(img_data != src_nodata) / img_data.size
-                            if valid_ratio < min_valid_data_ratio:
-                                continue
+                        else:
+                            valid_ratio = 1.0
 
                         mask_data = mask_full[
                             :,
@@ -475,9 +481,7 @@ def split_geospatial_tiles_into_patches(
                         ]
 
                         positive_ratio = np.sum(mask_data > 0) / mask_data.size
-                        if positive_ratio < min_positive_pixels_ratio:
-                            if np.random.random() > 0.1:
-                                continue
+
                     except Exception as e:
                         print(f"Error reading patch at ({row_start}, {col_start}): {e}")
                         continue
@@ -605,22 +609,22 @@ def split_geospatial_tiles_into_patches(
                     all_patch_metadata.append(patch_metadata)
                     patches_created += 1
 
-            if patches_created > 0:
-                visualize_dir = os.path.join(output_dir, "visualizations")
-                os.makedirs(visualize_dir, exist_ok=True)
-                vis_output_path = os.path.join(
-                    visualize_dir, f"{img_basename}_patches.png"
-                )
+            # if patches_created > 0:
+            #     visualize_dir = os.path.join(output_dir, "visualizations")
+            #     os.makedirs(visualize_dir, exist_ok=True)
+            #     vis_output_path = os.path.join(
+            #         visualize_dir, f"{img_basename}_patches.png"
+            #     )
 
-                visualize_current_patches(
-                    modality_tiles=modality_tiles,
-                    modality_patches=modality_patches,
-                    output_path=vis_output_path,
-                )
+            #     visualize_current_patches(
+            #         modality_tiles=modality_tiles,
+            #         modality_patches=modality_patches,
+            #         output_path=vis_output_path,
+            #     )
 
-            print(
-                f"Created {patches_created}/{total_patches} patches for {img_filename}"
-            )
+            # print(
+            #     f"Created {patches_created}/{total_patches} patches for {img_filename}"
+            # )
 
     patches_df = pd.DataFrame(all_patch_metadata)
 
@@ -648,3 +652,33 @@ def split_geospatial_tiles_into_patches(
         print("No patches were created. Check filtering criteria and input data.")
 
     return patches_df
+
+
+def show_samples_per_valid_ratio(
+    df: pd.DataFrame, output_path: str = None, dataset_name: str = "Dataset"
+):
+    """Show the number of samples (rows) that would remain in dataframe after filtering by valid_ratio."""
+    import matplotlib.pyplot as plt
+
+    # valid_ratios = df["valid_ratio"].unique()
+    valid_ratios = np.arange(0, 1.0, 0.05)
+
+    samples_per_valid_ratio = []
+
+    for valid_ratio in valid_ratios:
+        samples_per_valid_ratio.append(len(df[df["valid_ratio"] >= valid_ratio]))
+
+    fig, ax = plt.subplots()
+    ax.plot(valid_ratios, samples_per_valid_ratio, marker="o")
+    ax.set_xlabel("Minimum Valid Data Ratio")
+    ax.set_ylabel("Samples Remaining")
+    ax.set_title(
+        f"Samples in {dataset_name} Remaining After Filtering by Valid Data Ratio"
+    )
+
+    if output_path:
+        plt.savefig(output_path)
+    else:
+        plt.show()
+
+    plt.close()
