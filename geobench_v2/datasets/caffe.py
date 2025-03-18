@@ -39,7 +39,7 @@ class GeoBenchCaFFe(CaFFe, DataUtilsMixin):
         split: str,
         band_order: list["str"] = band_default_order,
         data_normalizer: Type[nn.Module] = MultiModalNormalizer,
-        **kwargs,
+        transforms: nn.Module | None = None,
     ) -> None:
         """Initialize CaFFe Dataset.
 
@@ -52,10 +52,12 @@ class GeoBenchCaFFe(CaFFe, DataUtilsMixin):
                 test the impact of band order on model performance.
             data_normalizer: The data normalizer to apply to the data, defaults to :class:`data_util.MultiModalNormalizer`,
                 which applies z-score normalization to each band.
-            **kwargs: Additional keyword arguments passed to ``CaFFe``
+            transforms:
         """
-        super().__init__(root=root, split=split, **kwargs)
+        super().__init__(root=root, split=split)
         # TODO allow input of blank channels
+
+        self.transforms = transforms
 
         self.band_order = self.resolve_band_order(band_order)
 

@@ -97,6 +97,7 @@ class GeoBenchPASTIS(PASTIS, DataUtilsMixin):
             "B02",
         ],
         data_normalizer: Type[nn.Module] = MultiModalNormalizer,
+        transforms: nn.Module | None = None,
         **kwargs,
     ) -> None:
         """Initialize PASTIS Dataset.
@@ -110,12 +111,13 @@ class GeoBenchPASTIS(PASTIS, DataUtilsMixin):
                 test the impact of band order on model performance.
             data_normalizer: The data normalizer to apply to the data, defaults to :class:`data_util.MultiModalNormalizer`,
                 which applies z-score normalization to each band.
+            transforms:
             **kwargs: Additional keyword arguments passed to ``torchgeo.datasts.PASTIS``
 
         Raises:
             AssertionError: If an invalid split is specified
         """
-        super().__init__(root=root, **kwargs)
+        super().__init__(root=root)
 
         assert split in self.valid_splits, (
             f"Invalid split {split}. Must be one of {self.valid_splits}"
@@ -158,6 +160,9 @@ class GeoBenchPASTIS(PASTIS, DataUtilsMixin):
             sample["mask"] = mask
             sample["boxes"] = boxes
             sample["label"] = labels
+
+        if self.transforms:
+            sample = self.transforms(sample)
 
         return sample
 

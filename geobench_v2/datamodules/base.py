@@ -89,19 +89,39 @@ class GeoBenchDataModule(LightningDataModule, ABC):
         Args:
             stage: One of 'fit', 'validate', 'test', or 'predict'.
         """
-        if stage in ['fit']:
+        self.train_transform, self.val_transform, self.test_transform = (
+            self.setup_image_size_transforms()
+        )
+
+        if stage in ["fit"]:
             self.train_dataset = self.dataset_class(
-                split="train", band_order=self.band_order, **self.kwargs
+                split="train",
+                band_order=self.band_order,
+                transforms=self.train_transform,
+                **self.kwargs,
             )
-        if stage in ['fit', 'validate']:
+        if stage in ["fit", "validate"]:
             self.val_dataset = self.dataset_class(
-                split="val", band_order=self.band_order, **self.kwargs
+                split="val",
+                band_order=self.band_order,
+                transforms=self.val_transform,
+                **self.kwargs,
             )
-        if stage in ['test']:
+        if stage in ["test"]:
             self.test_dataset = self.dataset_class(
-                split="test", band_order=self.band_order, **self.kwargs
+                split="test",
+                band_order=self.band_order,
+                transforms=self.test_transform,
+                **self.kwargs,
             )
-  
+
+    @abstractmethod
+    def setup_image_size_transforms(self) -> tuple[nn.Module, nn.Module, nn.Module]:
+        """Setup image resizing transforms for train, val, test.
+
+        Image resizing and normalization happens on dataset level on individual data samples.
+        """
+        pass
 
     @abstractmethod
     def load_metadata(self) -> pd.DataFrame:
@@ -128,7 +148,10 @@ class GeoBenchDataModule(LightningDataModule, ABC):
 
     @abstractmethod
     def define_augmentations(self) -> None:
-        """Define augmentations for the dataset and task."""
+        """Define augmentations for the dataset and task, that are applied on a batch of data.
+
+        Augmentations will be applied in `on_after_batch_transfer` in the LightningDataModule.
+        """
         pass
 
     @abstractmethod
@@ -190,6 +213,29 @@ class GeoBenchDataModule(LightningDataModule, ABC):
             drop_last=False,
         )
 
+    def on_after_batch_transfer(
+        self, batch: dict[str, Tensor], dataloader_idx: int
+    ) -> dict[str, Tensor]:
+        """Apply batch augmentations to the batch after it is transferred to the device.
+
+        Args:
+            batch: A batch of data that needs to be altered or augmented.
+            dataloader_idx: The index of the dataloader to which the batch belongs.
+
+        Returns:
+            A batch of data.
+        """
+        if self.trainer:
+            if self.trainer.training:
+                split = "train"
+            else:
+                split = "eval"
+
+            aug = self._valid_attribute(f"{split}_augmentations")
+            batch = aug(batch)
+
+        return batch
+
 
 class GeoBenchClassificationDataModule(GeoBenchDataModule):
     """GeoBench Classification DataModule.
@@ -247,18 +293,37 @@ class GeoBenchClassificationDataModule(GeoBenchDataModule):
         )
 
     def define_augmentations(self) -> None:
-        """Define data transform/augmentations for the dataset and task."""
+        """Define augmentations for the dataset and task, that are applied on a batch of data.
+
+        Augmentations will be applied in `on_after_batch_transfer` in the LightningDataModule.
+        """
         if self.train_augmentations is not None:
-            self.train_transform = nn.Sequential(
-                K.Resize(size=self.img_size, align_corners=True),
-                K.RandomHorizontalFlip(p=0.5),
-                K.RandomVerticalFlip(p=0.5),
+            self.train_augmentations = nn.Sequential(
+                K.RandomHorizontalFlip(p=0.5), K.RandomVerticalFlip(p=0.5)
             )
 
         if self.eval_augmentations is not None:
-            self.eval_transform = nn.Sequential(
-                K.Resize(size=self.img_size, align_corners=True)
-            )
+            self.eval_augmentations = nn.Identity()
+
+    def setup_image_size_transforms(self) -> tuple[nn.Module, nn.Module, nn.Module]:
+        """Setup image resizing transforms for train, val, test.
+
+        Image resizing and normalization happens on dataset level on individual data samples.
+        """
+        return (
+            K.AugmentationSequential(
+                K.Resize(size=(self.img_size, self.img_size), keepdim=True),
+                data_keys=None,
+            ),
+            K.AugmentationSequential(
+                K.Resize(size=(self.img_size, self.img_size), keepdim=True),
+                data_keys=None,
+            ),
+            K.AugmentationSequential(
+                K.Resize(size=(self.img_size, self.img_size), keepdim=True),
+                data_keys=None,
+            ),
+        )
 
 
 class GeoBenchSegmentationDataModule(GeoBenchDataModule):
@@ -317,18 +382,38 @@ class GeoBenchSegmentationDataModule(GeoBenchDataModule):
         )
 
     def define_augmentations(self) -> None:
-        """Define augmentations for the dataset and task."""
-        self.train_augmentations = K.AugmentationSequential(
-            K.Resize(size=self.img_size, align_corners=True),
-            K.RandomHorizontalFlip(p=0.5),
-            K.RandomVerticalFlip(p=0.5),
-            data_keys=["image", "mask"],
-        )
+        """Define augmentations for the dataset and task, that are applied on a batch of data.
 
-        self.eval_transform = K.AugmentationSequential(
-            # K.Normalize(mean=self.mean, std=self.std),
-            K.Resize(size=self.img_size, align_corners=True),
-            data_keys=["image", "mask"],
+        Augmentations will be applied in `on_after_batch_transfer` in the LightningDataModule.
+        """
+        if self.train_augmentations is not None:
+            self.train_augmentations = K.AugmentationSequential(
+                K.RandomHorizontalFlip(p=0.5),
+                K.RandomVerticalFlip(p=0.5),
+                data_keys=["image", "mask"],
+            )
+
+        if self.eval_augmentations is not None:
+            self.eval_augmentations = nn.Identity()
+
+    def setup_image_size_transforms(self) -> tuple[nn.Module, nn.Module, nn.Module]:
+        """Setup image resizing transforms for train, val, test.
+
+        Image resizing and normalization happens on dataset level on individual data samples.
+        """
+        return (
+            K.AugmentationSequential(
+                K.Resize(size=(self.img_size, self.img_size), keepdim=True),
+                data_keys=None,
+            ),
+            K.AugmentationSequential(
+                K.Resize(size=(self.img_size, self.img_size), keepdim=True),
+                data_keys=None,
+            ),
+            K.AugmentationSequential(
+                K.Resize(size=(self.img_size, self.img_size), keepdim=True),
+                data_keys=None,
+            ),
         )
 
 
@@ -387,15 +472,36 @@ class GeoBenchObjectDetectionDataModule(GeoBenchDataModule):
         )
 
     def define_augmentations(self) -> None:
-        """Define augmentations for the dataset and task."""
-        self.train_transform = K.AugmentationSequential(
-            K.Resize(size=self.img_size, align_corners=True),
-            K.RandomHorizontalFlip(p=0.5),
-            K.RandomVerticalFlip(p=0.5),
-            data_keys=["image", "bbox_xyxy", "label"],
-        )
+        """Define augmentations for the dataset and task, that are applied on a batch of data.
 
-        self.eval_transform = K.AugmentationSequential(
-            K.Resize(size=self.img_size, align_corners=True),
-            data_keys=["image", "bbox_xyxy", "label"],
+        Augmentations will be applied in `on_after_batch_transfer` in the LightningDataModule.
+        """
+        if self.train_augmentations is not None:
+            self.train_augmentations = K.AugmentationSequential(
+                K.RandomHorizontalFlip(p=0.5),
+                K.RandomVerticalFlip(p=0.5),
+                data_keys=["image", "bbox_xyxy", "label"],
+            )
+
+        if self.eval_augmentations is not None:
+            self.eval_augmentations = nn.Identity()
+
+    def setup_image_size_transforms(self) -> tuple[nn.Module, nn.Module, nn.Module]:
+        """Setup image resizing transforms for train, val, test.
+
+        Image resizing and normalization happens on dataset level on individual data samples.
+        """
+        return (
+            K.AugmentationSequential(
+                K.Resize(size=(self.img_size, self.img_size), keepdim=True),
+                data_keys=None,
+            ),
+            K.AugmentationSequential(
+                K.Resize(size=(self.img_size, self.img_size), keepdim=True),
+                data_keys=None,
+            ),
+            K.AugmentationSequential(
+                K.Resize(size=(self.img_size, self.img_size), keepdim=True),
+                data_keys=None,
+            ),
         )

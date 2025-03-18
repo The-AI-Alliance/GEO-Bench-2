@@ -82,10 +82,6 @@ class GeoBenchBENV2DataModule(GeoBenchClassificationDataModule):
         """
         pass
 
-    def define_augmentations(self) -> None:
-        """Define augmentations for the dataset and task."""
-        pass
-
     def visualize_geolocation_distribution(self) -> None:
         """Visualize the geolocation distribution of the dataset."""
         pass

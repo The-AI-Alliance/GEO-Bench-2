@@ -67,23 +67,6 @@ class GeoBenchFLAIR2DataModule(GeoBenchSegmentationDataModule):
             **kwargs,
         )
 
-    # TODO remove after split creation
-    def setup(self, stage: str) -> None:
-        """Setup the dataset for training or evaluation."""
-        train_dataset = self.dataset_class(
-            split="train", band_order=self.band_order, **self.kwargs
-        )
-        # split into train and validation
-        generator = torch.Generator().manual_seed(0)
-        # random 80-20 split
-        self.train_dataset, self.val_dataset = random_split(
-            train_dataset, [1 - 0.2, 0.2], generator
-        )
-
-        self.test_dataset = self.dataset_class(
-            split="test", band_order=self.band_order, **self.kwargs
-        )
-
     def load_metadata(self) -> pd.DataFrame:
         """Load metadata file.
 
@@ -105,10 +88,6 @@ class GeoBenchFLAIR2DataModule(GeoBenchSegmentationDataModule):
         Returns:
             The matplotlib figure and the batch of data
         """
-        pass
-
-    def define_augmentations(self) -> None:
-        """Define augmentations for the dataset and task."""
         pass
 
     def visualize_geolocation_distribution(self) -> None:

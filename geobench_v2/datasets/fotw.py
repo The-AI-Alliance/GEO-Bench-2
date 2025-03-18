@@ -36,13 +36,14 @@ class GeoBenchFieldsOfTheWorld(FieldsOfTheWorld, DataUtilsMixin):
         "stds": {"r": 3000.0, "g": 3000.0, "b": 3000.0, "nir": 3000.0},
     }
 
+    # TODO maybe add country argument?
     def __init__(
         self,
         root: Path,
         split: str,
         band_order: Sequence[str | float] = dataset_band_config.default_order,
         data_normalizer: Type[nn.Module] = MultiModalNormalizer,
-        **kwargs,
+        transforms: nn.Module | None = None,
     ) -> None:
         """Initialize Fields of the World Dataset.
 
@@ -55,9 +56,11 @@ class GeoBenchFieldsOfTheWorld(FieldsOfTheWorld, DataUtilsMixin):
                 test the impact of band order on model performance.
             data_normalizer: The data normalizer to apply to the data, defaults to :class:`data_util.MultiModalNormalizer`,
                 which applies z-score normalization to each band.
-            **kwargs: Additional keyword arguments passed to ``torchgeo.datasets.FieldsOfTheWorld``
+            transforms:
         """
-        super().__init__(root=root, split=split, **kwargs)
+        super().__init__(root=root, split=split)
+
+        self.transforms = transforms
 
         self.band_order = self.resolve_band_order(band_order)
 
@@ -98,5 +101,8 @@ class GeoBenchFieldsOfTheWorld(FieldsOfTheWorld, DataUtilsMixin):
         sample.update(win_a)
 
         sample["mask"] = mask
+
+        if self.transforms is not None:
+            sample = self.transforms(sample)
 
         return sample

@@ -93,6 +93,7 @@ class GeoBenchCloudSen12(NonGeoDataset, DataUtilsMixin):
         split="train",
         band_order: Sequence[float | str] = ["B04", "B03", "B02"],
         data_normalizer: Type[nn.Module] = MultiModalNormalizer,
+        transforms: nn.Module | None = None,
     ) -> None:
         """Initialize a CloudSen12 dataset instance.
 
@@ -103,12 +104,14 @@ class GeoBenchCloudSen12(NonGeoDataset, DataUtilsMixin):
                 specify ['r', 'g', 'b', 'nir'], the dataset would return images with 4 channels
             data_normalizer: The data normalizer to apply to the data, defaults to :class:`data_util.MultiModalNormalizer`,
                 which applies z-score normalization to each band.
+            transforms: Image resize transform on sample level
 
         Raises:
             AssertionError: If split is not in the splits
         """
-
         assert split in self.splits, f"split must be one of {self.splits}"
+
+        self.transforms = transforms
 
         self.root = root
         self.split = split
@@ -157,6 +160,9 @@ class GeoBenchCloudSen12(NonGeoDataset, DataUtilsMixin):
 
         sample.update(image_dict)
         sample.update({"mask": mask})
+
+        if self.transforms is not None:
+            sample = self.transforms(sample)
 
         return sample
 

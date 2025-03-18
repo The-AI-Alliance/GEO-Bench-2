@@ -38,6 +38,7 @@ class GeoBenchSpaceNet6(SpaceNet6, DataUtilsMixin):
         split: str,
         band_order: Sequence[str] = band_default_order,
         data_normalizer: Type[nn.Module] = MultiModalNormalizer,
+        transforms: nn.Module | None = None,
         **kwargs,
     ) -> None:
         """Initialize SpaceNet6 dataset.
@@ -51,10 +52,12 @@ class GeoBenchSpaceNet6(SpaceNet6, DataUtilsMixin):
                 test the impact of band order on model performance.
             data_normalizer: The data normalizer to apply to the data, defaults to :class:`data_util.MultiModalNormalizer`,
                 which applies z-score normalization to each band.
+            transforms:
             **kwargs: Additional keyword arguments passed to ``torchgeo.datasets.SpaceNet6``
         """
-        super().__init__(root=root, split=split, **kwargs)
+        super().__init__(root=root, split=split)
 
+        self.transforms = transforms
         self.band_order = self.resolve_band_order(band_order)
 
         self.normalizer = MultiModalNormalizer(
@@ -92,5 +95,8 @@ class GeoBenchSpaceNet6(SpaceNet6, DataUtilsMixin):
         # mask that we want to ignore in the loss function.
         if "mask" in sample:
             sample["mask"] += 1
+
+        if self.transforms is not None:
+            sample = self.transforms(sample)
 
         return sample

@@ -85,7 +85,7 @@ class GeoBenchBENV2(BigEarthNetV2, DataUtilsMixin):
             "B02",
         ],
         data_normalizer: Type[nn.Module] = MultiModalNormalizer,
-        **kwargs,
+        transforms: nn.Module | None = None,
     ) -> None:
         """Initialize Big Earth Net V2 Dataset.
 
@@ -98,9 +98,12 @@ class GeoBenchBENV2(BigEarthNetV2, DataUtilsMixin):
                 test the impact of band order on model performance.
             data_normalizer: The data normalizer to apply to the data, defaults to :class:`data_util.MultiModalNormalizer`,
                 which applies z-score normalization to each band.
+            transforms: Transforms to apply to the data
             **kwargs: Additional keyword arguments passed to ``BigEarthNetV2``
         """
-        super().__init__(root=root, split=split, bands="all", **kwargs)
+        super().__init__(root=root, split=split, bands="all")
+
+        self.transforms = transforms
 
         # Resolve band names at init time
         self.band_order = self.resolve_band_order(band_order)
@@ -131,9 +134,9 @@ class GeoBenchBENV2(BigEarthNetV2, DataUtilsMixin):
         img = self.data_normalizer(img)
         sample.update(img)
 
-        # subselect_band_order
+        if self.transforms is not None:
+            sample = self.transforms(sample)
 
-        sample["mask"] = self._load_map(index)
         sample["label"] = self._load_target(index)
 
         return sample

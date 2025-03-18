@@ -61,7 +61,7 @@ class GeoBenchFLAIR2(NonGeoDataset, DataUtilsMixin):
     }
     globs: ClassVar[dict[str, str]] = {"images": "IMG_*.tif", "masks": "MSK_*.tif"}
 
-    splits = ("train", "test")
+    splits = ("train", "val", "test")
 
     dataset_band_config = DatasetBandRegistry.FLAIR2
 
@@ -78,6 +78,7 @@ class GeoBenchFLAIR2(NonGeoDataset, DataUtilsMixin):
         split="train",
         band_order: Sequence[float | str] = ["r", "g", "b"],
         data_normalizer: Type[nn.Module] = MultiModalNormalizer,
+        transforms: nn.Module | None = None,
     ):
         """Initialize FLAIR 2 dataset.
 
@@ -88,11 +89,14 @@ class GeoBenchFLAIR2(NonGeoDataset, DataUtilsMixin):
                 specify ['r', 'g', 'b', 'nir'], the dataset would return images with 4 channels
             data_normalizer: The data normalizer to apply to the data, defaults to :class:`data_util.MultiModalNormalizer`,
                 which applies z-score normalization to each band.
+            transforms:
 
         Raises:
             AssertionError: If split is not in the splits
         """
         assert split in self.splits, f"split must be one of {self.splits}"
+
+        self.transforms = transforms
 
         self.root = root
         self.split = split
@@ -161,6 +165,9 @@ class GeoBenchFLAIR2(NonGeoDataset, DataUtilsMixin):
         mask = self.load_mask(path)
 
         sample["mask"] = mask
+
+        if self.transforms is not None:
+            sample = self.transforms(sample)
 
         return sample
 

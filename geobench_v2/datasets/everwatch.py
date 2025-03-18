@@ -42,7 +42,7 @@ class GeoBenchEverWatch(EverWatch, DataUtilsMixin):
         split: str,
         band_order: list[str] = band_default_order,
         data_normalizer: Type[nn.Module] = MultiModalNormalizer,
-        **kwargs,
+        transforms: nn.Module | None = None,
     ) -> None:
         """Initialize EverWatch dataset.
 
@@ -55,9 +55,11 @@ class GeoBenchEverWatch(EverWatch, DataUtilsMixin):
                 test the impact of band order on model performance.
             data_normalizer: The data normalizer to apply to the data, defaults to :class:`data_util.MultiModalNormalizer`,
                 which applies z-score normalization to each band.
-            **kwargs: Additional keyword arguments passed to ``torchgeo.datasets.EverWatch``
+            transforms:
         """
-        super().__init__(root=root, split=split, **kwargs)
+        super().__init__(root=root, split=split)
+
+        self.transforms = transforms
 
         self.band_order = self.resolve_band_order(band_order)
 
@@ -96,5 +98,11 @@ class GeoBenchEverWatch(EverWatch, DataUtilsMixin):
 
         sample["bbox_xyxy"] = boxes
         sample["label"] = labels
+
+        import pdb
+
+        pdb.set_trace()
+        if self.transforms is not None:
+            sample = self.transforms(sample)
 
         return sample

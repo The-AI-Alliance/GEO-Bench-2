@@ -80,4 +80,7 @@ class GeoBenchRESISC45(RESISC45, DataUtilsMixin):
         sample.update(image_dict)
         sample["label"] = label
 
+        if self.transforms is not None:
+            sample = self.transforms(sample)
+
         return sample

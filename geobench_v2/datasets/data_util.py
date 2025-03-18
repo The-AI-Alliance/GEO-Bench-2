@@ -322,11 +322,11 @@ class MultiModalNormalizer(DataNormalizer):
             band_order: Either a sequence of bands or dict mapping modalities to sequences
         """
         super().__init__(stats, band_order)
-        
+
         # Calculate mean and std tensors for each input key
         self.means = {}
         self.stds = {}
-        
+
         if isinstance(band_order, dict):
             for modality, bands in band_order.items():
                 means, stds = self._get_band_stats(bands)
@@ -337,12 +337,14 @@ class MultiModalNormalizer(DataNormalizer):
             self.means["image"] = means
             self.stds["image"] = stds
 
-    def _get_band_stats(self, bands: Sequence[Union[str, float]]) -> tuple[Tensor, Tensor]:
+    def _get_band_stats(
+        self, bands: Sequence[Union[str, float]]
+    ) -> tuple[Tensor, Tensor]:
         """Extract mean and std values for specified bands.
-        
+
         Args:
             bands: Sequence of band names or fill values
-            
+
         Returns:
             Tuple of (mean_tensor, std_tensor)
         """
@@ -354,7 +356,7 @@ class MultiModalNormalizer(DataNormalizer):
             else:
                 means.append(self.stats["means"][band])
                 stds.append(self.stats["stds"][band])
-        
+
         return torch.tensor(means), torch.tensor(stds)
 
     def forward(self, data: dict[str, Tensor]) -> dict[str, Tensor]:
@@ -374,7 +376,9 @@ class MultiModalNormalizer(DataNormalizer):
                 tensor = tensor.unsqueeze(0)
             normed[key] = normalize(tensor, self.means[key], self.stds[key])
         return {
-            key: normalize(tensor.unsqueeze(0), self.means[key], self.stds[key]).squeeze(0)
+            key: normalize(
+                tensor.unsqueeze(0), self.means[key], self.stds[key]
+            ).squeeze(0)
             for key, tensor in data.items()
         }
 
@@ -390,6 +394,8 @@ class MultiModalNormalizer(DataNormalizer):
             dictionary with unnormalized tensors using same keys
         """
         return {
-            key: denormalize(tensor.unsqueeze(0), self.means[key], self.stds[key]).squeeze(0)
+            key: denormalize(
+                tensor.unsqueeze(0), self.means[key], self.stds[key]
+            ).squeeze(0)
             for key, tensor in data.items()
         }
