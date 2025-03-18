@@ -67,7 +67,6 @@ class GeoBenchDataModule(LightningDataModule, ABC):
         self.kwargs = kwargs
         self.train_augmentations = train_augmentations
         self.eval_augmentations = eval_augmentations
-
         self.define_augmentations()
 
     def prepare_data(self) -> None:
@@ -81,15 +80,30 @@ class GeoBenchDataModule(LightningDataModule, ABC):
         Args:
             stage: One of 'fit', 'validate', 'test', or 'predict'.
         """
-        self.train_dataset = self.dataset_class(
-            split="train", band_order=self.band_order, **self.kwargs
-        )
-        self.val_dataset = self.dataset_class(
-            split="val", band_order=self.band_order, **self.kwargs
-        )
-        self.test_dataset = self.dataset_class(
-            split="test", band_order=self.band_order, **self.kwargs
-        )
+        if stage in ["fit"]:
+            self.train_dataset = self.dataset_class(
+                split="train", 
+                band_order=self.band_order, 
+                transforms=self.train_transform,
+                **self.kwargs
+            )
+        if stage in ["fit", "validate"]:
+            self.val_dataset = self.dataset_class(
+                split="val", 
+                band_order=self.band_order, 
+                transforms=self.eval_transform,
+                **self.kwargs
+            )
+        if stage in ["test"]:
+            self.test_dataset = self.dataset_class(
+                split="test", 
+                band_order=self.band_order, 
+                transforms=self.eval_transform,
+                **self.kwargs
+            )
+
+             
+            self.eval_transform 
 
     @abstractmethod
     def define_augmentations(self) -> None:
