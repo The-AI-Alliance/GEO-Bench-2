@@ -5,7 +5,8 @@ from geobench_v2.datamodules import GeoBenchCaFFeDataModule
 @pytest.fixture
 def data_root():
     """Path to test data directory."""
-    return "/mnt/rg_climate_benchmark/data/datasets_segmentation/Caffe"
+    # return "/mnt/rg_climate_benchmark/data/datasets_segmentation/Caffe"
+    return "/mnt/rg_climate_benchmark/data/geobenchV2/caffe"
 
 
 @pytest.fixture

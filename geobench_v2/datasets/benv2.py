@@ -74,6 +74,8 @@ class GeoBenchBENV2(BigEarthNetV2, DataUtilsMixin):
             "VH": 3000.0,
         },
     }
+    # TODO
+    # Sentinel 1 is actually VH and then VV
 
     def __init__(
         self,

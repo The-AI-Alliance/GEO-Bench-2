@@ -12,6 +12,7 @@ from PIL import Image
 from torch import Tensor
 from torchgeo.datasets import CaFFe
 from pathlib import Path
+import pandas as pd
 import torch.nn as nn
 
 from .sensor_util import DatasetBandRegistry
@@ -32,6 +33,8 @@ class GeoBenchCaFFe(CaFFe, DataUtilsMixin):
     band_default_order = ("gray",)
 
     normalization_stats = {"means": {"gray": 0.0}, "stds": {"gray": 255.0}}
+
+    mask_dirs = ("zones", "zones")
 
     def __init__(
         self,
@@ -55,8 +58,6 @@ class GeoBenchCaFFe(CaFFe, DataUtilsMixin):
             transforms:
         """
         super().__init__(root=root, split=split)
-        # TODO allow input of blank channels
-
         self.transforms = transforms
 
         self.band_order = self.resolve_band_order(band_order)
@@ -64,6 +65,13 @@ class GeoBenchCaFFe(CaFFe, DataUtilsMixin):
         self.data_normalizer = data_normalizer(
             self.normalization_stats, self.band_order
         )
+
+        self.metadata_df = pd.read_parquet(
+            os.path.join(self.root, self.data_dir, "geobench_caffe_metadata.parquet")
+        )
+        self.metadata_df = self.metadata_df[
+            self.metadata_df["split"] == self.split
+        ].reset_index(drop=True)
 
     def __getitem__(self, idx: int) -> dict[str, Tensor]:
         """Return the image and mask at the given index.
@@ -76,7 +84,9 @@ class GeoBenchCaFFe(CaFFe, DataUtilsMixin):
         """
         sample: dict[str, Tensor] = {}
         zones_filename = os.path.basename(self.fpaths[idx])
-        img_filename = zones_filename.replace("_zones_", "_")
+        sample_row = self.metadata_df.iloc[idx]
+        img_filename = sample_row["filename"]
+        zones_filename = img_filename.replace("__", "_zones__")
 
         def read_tensor(path: str) -> Tensor:
             return torch.from_numpy(np.array(Image.open(path)))
@@ -93,9 +103,7 @@ class GeoBenchCaFFe(CaFFe, DataUtilsMixin):
         sample.update(img_dict)
 
         zone_mask = read_tensor(
-            os.path.join(
-                self.root, self.data_dir, self.mask_dirs[1], self.split, zones_filename
-            )
+            os.path.join(self.root, self.data_dir, "zones", self.split, zones_filename)
         ).long()
 
         zone_mask = self.ordinal_map_zones[zone_mask]
@@ -106,3 +114,7 @@ class GeoBenchCaFFe(CaFFe, DataUtilsMixin):
             sample = self.transforms(sample)
 
         return sample
+
+    def __len__(self) -> int:
+        """Return the number of images in the dataset."""
+        return len(self.metadata_df)
