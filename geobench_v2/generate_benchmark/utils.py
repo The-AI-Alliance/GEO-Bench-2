@@ -10,6 +10,39 @@ import cartopy.crs as ccrs
 import cartopy.feature as cfeature
 
 
+def validate_metadata_with_geo(metadata_df: pd.DataFrame) -> None:
+    """Validate the metadata DataFrame for benchmark generation.
+
+    Args:
+        metadata_df: DataFrame with metadata columns
+
+    Raises:
+        AssertionError: If metadata is missing required columns
+    """
+    assert "split" in metadata_df.columns, "Metadata must contain 'split' column"
+    assert "lat" in metadata_df.columns, "Metadata must contain 'lat' column"
+    assert "lon" in metadata_df.columns, "Metadata must contain 'lon' column"
+    assert "crs" in metadata_df.columns, "Metadata must contain 'crs' column"
+    assert "sample_id" in metadata_df.columns, (
+        "Metadata must contain 'sample_id' column"
+    )
+
+
+def validate_metadata(metadata_df: pd.DataFrame) -> None:
+    """Validate the metadata DataFrame for benchmark generation, for datasets without geospatial information.
+
+    Args:
+        metadata_df: DataFrame with metadata columns
+
+    Raises:
+        AssertionError: If metadata is missing required columns
+    """
+    assert "split" in metadata_df.columns, "Metadata must contain 'split' column"
+    assert "sample_id" in metadata_df.columns, (
+        "Metadata must contain 'sample_id' column"
+    )
+
+
 def plot_sample_locations(
     metadata_df: pd.DataFrame,
     output_path: str = None,
@@ -90,7 +123,7 @@ def plot_sample_locations(
     ax.set_extent([min_lon, max_lon, min_lat, max_lat], crs=ccrs.PlateCarree())
 
     # Add map features
-    scale = "50m"
+    scale = "110m"
     ax.add_feature(cfeature.LAND.with_scale(scale), facecolor="lightgray")
     ax.add_feature(cfeature.OCEAN.with_scale(scale), facecolor="lightblue")
     ax.add_feature(cfeature.COASTLINE.with_scale(scale), linewidth=0.5)
