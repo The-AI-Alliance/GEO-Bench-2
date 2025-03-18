@@ -96,10 +96,10 @@ class GeoBenchDataModule(LightningDataModule, ABC):
         """Define augmentations for the dataset and task."""
         pass
 
-    @abstractmethod
-    def visualize_geolocation_distribution(self) -> None:
-        """Visualize the geolocation distribution of the dataset."""
-        pass
+    #@abstractmethod
+    #def visualize_geolocation_distribution(self) -> None:
+    #    """Visualize the geolocation distribution of the dataset."""
+    #    pass
 
     def train_dataloader(self) -> DataLoader:
         """Return train dataloader."""
