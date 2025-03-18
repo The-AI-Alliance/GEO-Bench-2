@@ -54,7 +54,7 @@ class TestBENV2DataModule:
     def test_sequence_band_order(self, data_root):
         """Test batch retrieval with sequence of bands."""
         dm = GeoBenchBENV2DataModule(
-            img_size=256,
+            img_size=74,
             batch_size=32,
             band_order=["VV", "B01", "B02", 1.5, "B03"],
             root=data_root,
@@ -65,15 +65,14 @@ class TestBENV2DataModule:
         # Check single tensor output
         assert "image" in batch
         assert batch["image"].shape[0] == dm.batch_size
-        assert batch["image"].shape[1] == 5  # Number of bands in sequence
+        assert batch["image"].shape[1] == 5
+        assert batch["image"].shape[2] == 74
+        assert batch["image"].shape[3] == 74
 
     def test_multimodal_band_order(self, data_root, multimodal_band_order):
         """Test batch retrieval with modality-specific band sequences."""
         dm = GeoBenchBENV2DataModule(
-            img_size=256,
-            batch_size=32,
-            band_order=multimodal_band_order,
-            root=data_root,
+            img_size=74, batch_size=32, band_order=multimodal_band_order, root=data_root
         )
         dm.setup("fit")
         batch = next(iter(dm.train_dataloader()))
@@ -83,3 +82,5 @@ class TestBENV2DataModule:
         assert "image_s1" in batch
         assert batch["image_s2"].shape[:2] == (dm.batch_size, 3)  # S2 bands
         assert batch["image_s1"].shape[:2] == (dm.batch_size, 3)  # S1 bands
+        assert batch["image_s2"].shape[2] == 74
+        assert batch["image_s2"].shape[3] == dm.img_size

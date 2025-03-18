@@ -42,7 +42,7 @@ class TestPASTISDataModule:
     def test_single_modality_band_order(self, data_root, s2_only_band_order):
         """Test batch retrieval with bands from a single modality."""
         dm = GeoBenchPASTISDataModule(
-            img_size=256, batch_size=32, band_order=s2_only_band_order, root=data_root
+            img_size=74, batch_size=32, band_order=s2_only_band_order, root=data_root
         )
         dm.setup("fit")
         batch = next(iter(dm.train_dataloader()))
@@ -54,13 +54,13 @@ class TestPASTISDataModule:
             s2_only_band_order
         )  # Number of bands in sequence
 
+        assert batch["image"].shape[2] == 74
+        assert batch["image"].shape[3] == dm.img_size
+
     def test_multimodal_band_order(self, data_root, multimodal_band_order):
         """Test batch retrieval with modality-specific band sequences."""
         dm = GeoBenchPASTISDataModule(
-            img_size=256,
-            batch_size=32,
-            band_order=multimodal_band_order,
-            root=data_root,
+            img_size=74, batch_size=32, band_order=multimodal_band_order, root=data_root
         )
         dm.setup("fit")
         batch = next(iter(dm.train_dataloader()))
@@ -75,12 +75,18 @@ class TestPASTISDataModule:
         # or [batch_size, bands, H, W] depending on how they're processed
         assert batch["image_s2"].shape[0] == dm.batch_size
         assert batch["image_s2"].shape[1] == len(multimodal_band_order["s2"])
+        assert batch["image_s2"].shape[2] == 74
+        assert batch["image_s2"].shape[3] == dm.img_size
 
         assert batch["image_s1_asc"].shape[0] == dm.batch_size
         assert batch["image_s1_asc"].shape[1] == len(multimodal_band_order["s1_asc"])
+        assert batch["image_s1_asc"].shape[2] == 74
+        assert batch["image_s1_asc"].shape[3] == dm.img_size
 
         assert batch["image_s1_desc"].shape[0] == dm.batch_size
         assert batch["image_s1_desc"].shape[1] == len(multimodal_band_order["s1_desc"])
+        assert batch["image_s1_desc"].shape[2] == 74
+        assert batch["image_s1_desc"].shape[3] == dm.img_size
 
     def test_invalid_mixed_band_order(self, data_root, invalid_mixed_band_order):
         """Test that validation rejects band sequences with mixed modalities."""
@@ -88,7 +94,7 @@ class TestPASTISDataModule:
             ValueError, match="bands in a sequence must all be from the same modality"
         ):
             dm = GeoBenchPASTISDataModule(
-                img_size=256,
+                img_size=74,
                 batch_size=32,
                 band_order=invalid_mixed_band_order,
                 root=data_root,
@@ -100,7 +106,7 @@ class TestPASTISDataModule:
     ):
         """Test batch retrieval with bands from a single S1 modality."""
         dm = GeoBenchPASTISDataModule(
-            img_size=256,
+            img_size=74,
             batch_size=32,
             band_order=s1_asc_only_band_order,
             root=data_root,
@@ -112,3 +118,4 @@ class TestPASTISDataModule:
         assert "image" in batch
         assert batch["image"].shape[0] == dm.batch_size
         assert batch["image"].shape[1] == len(s1_asc_only_band_order)
+        assert batch["image"].shape[2] == 74
