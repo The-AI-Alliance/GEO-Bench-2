@@ -11,31 +11,53 @@ import argparse
 import rasterio
 from tqdm import tqdm
 import re
-from geobench_v2.generate_benchmark.utils import plot_sample_locations
+from geobench_v2.generate_benchmark.utils import (
+    plot_sample_locations,
+    split_geospatial_tiles_into_patches,
+)
+
+from typing import List, Tuple, Dict, Any, Optional, Union
+import os
+import re
+import numpy as np
+import pandas as pd
+import rasterio
+from rasterio.windows import Window
+from pathlib import Path
+from tqdm import tqdm
 
 
-def create_subset(ds: SpaceNet6, metadata_df: pd.DataFrame, save_dir: str) -> None:
-    """Create a subset of SpaceNet6 dataset.
+def create_geobench_ds(
+    ds: SpaceNet6, modalities: list[str], metadata_df: pd.DataFrame, save_dir: str
+) -> None:
+    """Create a subset of SpaceNet6 dataset."""
+    os.makedirs(save_dir, exist_ok=True)
 
-    Args:
-        ds: SpaceNet6 dataset.
-        metadata_df: Metadata DataFrame.
-        save_dir: Directory to save the subset.
-    """
-    # based on the metadata_df create a subset of the dataset and copy it
-    # with the same structure to the save_dir
-    pass
+    modal_path_dict = {}
+    for modality in modalities:
+        os.makedirs(os.path.join(save_dir, modality), exist_ok=True)
+
+        ds.image = modality
+        images, masks = ds._list_files(ds.aois[0])
+        modal_path_dict[modality] = images
+
+    modal_path_dict["mask"] = masks
+
+    patch_size = (450, 450)
+    stride = (449, 449)
+
+    patches_df = split_geospatial_tiles_into_patches(
+        modal_path_dict=modal_path_dict,
+        output_dir=save_dir,
+        patch_size=patch_size,
+        stride=stride,
+        min_valid_data_ratio=0.7,
+        min_positive_pixels_ratio=0.01,
+    )
 
 
 def generate_metadata_df(ds: SpaceNet6) -> pd.DataFrame:
-    """Generate metadata DataFrame for SpaceNet6 dataset.
-
-    Args:
-        ds: SpaceNet6 dataset.
-    """
-    # metadata_file = os.path.join(ds.root, ds.dataset_id, "train", "train", "AOI_11_Rotterdam", "SummaryData", "SN6_Train_AOI_11_Rotterdam_Buildings.csv")
-
-    # metadata_df = gpd.read_file(metadata_file)
+    """Generate metadata DataFrame for SpaceNet6 dataset."""
     metadata: list[dict[str, str]] = []
     for path in tqdm(ds.images):
         filename = os.path.basename(path)
@@ -50,11 +72,17 @@ def generate_metadata_df(ds: SpaceNet6) -> pd.DataFrame:
             height_px, width_px = src.height, src.width
 
         metadata.append(
-            {"path": filename, "longitude": lng, "latitude": lat, "date": date, "height_px": height_px, "width_px": width_px}
+            {
+                "path": filename,
+                "longitude": lng,
+                "latitude": lat,
+                "date": date,
+                "height_px": height_px,
+                "width_px": width_px,
+            }
         )
 
     metadata_df = pd.DataFrame(metadata)
-
     metadata_df["split"] = "train"
 
     return metadata_df
@@ -62,8 +90,6 @@ def generate_metadata_df(ds: SpaceNet6) -> pd.DataFrame:
 
 def create_unit_test_subset() -> None:
     """Create a subset of SpaceNet6 dataset for GeoBench unit tests."""
-
-    # create random images etc that respect the structure of the dataset in minimal format
     pass
 
 
@@ -82,21 +108,23 @@ def main():
 
     metadata_path = os.path.join(args.save_dir, "geobench_metadata.parquet")
 
-    orig_dataset = SpaceNet6(root=args.root, download=False)
+    orig_dataset = SpaceNet6(root=args.root, download=False, image="SAR-Intensity")
 
     if not os.path.exists(args.save_dir):
         os.makedirs(args.save_dir)
 
-    # if os.path.exists(metadata_path):
-    #     metadata_df = pd.read_parquet(metadata_path)
-    # else:
-    metadata_df = generate_metadata_df(orig_dataset)
-    metadata_df.to_parquet(metadata_path)
+    if os.path.exists(metadata_path):
+        metadata_df = pd.read_parquet(metadata_path)
+    else:
+        metadata_df = generate_metadata_df(orig_dataset)
+        metadata_df.to_parquet(metadata_path)
 
     plot_sample_locations(
-        metadata_df,
-        output_path=os.path.join(args.save_dir, "sample_locations.png"),
-        buffer_degrees=0.2,
+        metadata_df, os.path.join(args.save_dir, "sample_locations.png")
+    )
+
+    create_geobench_ds(
+        orig_dataset, ["PS-RGBNIR", "SAR-Intensity"], metadata_df, args.save_dir
     )
 
 
