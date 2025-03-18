@@ -154,6 +154,8 @@ class GeoBenchPASTIS(PASTIS, DataUtilsMixin):
             sample["mask"] = mask
             sample["boxes"] = boxes
             sample["label"] = labels
+        if self.transforms:
+            sample = self.transforms(**sample)
 
         return sample
 

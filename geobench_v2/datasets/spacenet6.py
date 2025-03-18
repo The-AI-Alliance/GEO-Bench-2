@@ -88,5 +88,7 @@ class GeoBenchSpaceNet6(SpaceNet6, DataUtilsMixin):
         # mask that we want to ignore in the loss function.
         if "mask" in sample:
             sample["mask"] += 1
+        if self.transforms:
+            sample = self.transforms(**sample)
 
         return sample

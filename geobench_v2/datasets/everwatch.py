@@ -91,5 +91,7 @@ class GeoBenchEverWatch(EverWatch, DataUtilsMixin):
 
         sample["bbox_xyxy"] = boxes
         sample["label"] = labels
+        if self.transforms:
+            sample = self.transforms(**sample)
 
         return sample

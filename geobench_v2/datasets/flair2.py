@@ -15,6 +15,7 @@ from torchgeo.datasets.utils import percentile_normalization
 from matplotlib.figure import Figure
 import matplotlib.pyplot as plt
 import glob
+from collections.abc import Callable
 
 from .sensor_util import DatasetBandRegistry
 from .data_util import DataUtilsMixin, MultiModalNormalizer
@@ -76,7 +77,7 @@ class GeoBenchFLAIR2(NonGeoDataset, DataUtilsMixin):
         root,
         split="train",
         band_order: Sequence[float | str] = ["r", "g", "b"],
-        transforms=None,
+        transforms= Callable | None = None,
     ):
         """Initialize FLAIR 2 dataset.
 
@@ -160,6 +161,9 @@ class GeoBenchFLAIR2(NonGeoDataset, DataUtilsMixin):
         mask = self.load_mask(path)
 
         sample["mask"] = mask
+
+        if self.transforms:
+            sample = self.transforms(**sample)
 
         return sample
 

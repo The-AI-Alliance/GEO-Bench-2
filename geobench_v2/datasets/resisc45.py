@@ -74,6 +74,8 @@ class GeoBenchRESISC45(RESISC45, DataUtilsMixin):
         image_dict = self.normalizer(image_dict)
 
         sample.update(image_dict)
+        if self.transforms:
+            sample = self.transforms(**sample)
         sample["label"] = label
 
         return sample

@@ -94,4 +94,7 @@ class GeoBenchFieldsOfTheWorld(FieldsOfTheWorld, DataUtilsMixin):
 
         sample["mask"] = mask
 
+        if self.transforms:
+            sample = self.transforms(**sample)
+
         return sample

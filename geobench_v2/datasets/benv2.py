@@ -126,6 +126,9 @@ class GeoBenchBENV2(BigEarthNetV2, DataUtilsMixin):
         img = self.rearrange_bands(data, self.band_order)
         img = self.normalizer(img)
         sample.update(img)
+        
+        if self.transforms:
+            sample = self.transforms(**sample)
 
         # subselect_band_order
 

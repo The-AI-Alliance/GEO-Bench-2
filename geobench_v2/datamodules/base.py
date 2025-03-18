@@ -29,8 +29,8 @@ class GeoBenchDataModule(LightningDataModule, ABC):
         eval_batch_size: int = 64,
         num_workers: int = 0,
         collate_fn: Callable | None = None,
-        train_augmentations: nn.Module | None = None,
-        eval_augmentations: nn.Module | None = None,
+        train_augmentations: Callable | None | "default" = None,
+        eval_augmentations: Callable | None | "default" = None,
         pin_memory: bool = False,
         **kwargs: Any,
     ) -> None:
@@ -101,9 +101,7 @@ class GeoBenchDataModule(LightningDataModule, ABC):
                 transforms=self.eval_transform,
                 **self.kwargs
             )
-
              
-            self.eval_transform 
 
     @abstractmethod
     def define_augmentations(self) -> None:
@@ -168,8 +166,8 @@ class GeoBenchClassificationDataModule(GeoBenchDataModule):
         eval_batch_size: int = 64,
         num_workers: int = 0,
         collate_fn: Callable | None = None,
-        train_augmentations: nn.Module | None = None,
-        eval_augmentations: nn.Module | None = None,
+        train_augmentations: Callable | None | "default" = None,
+        eval_augmentations: Callable | None | "default" = None,
         pin_memory: bool = False,
         **kwargs: Any,
     ) -> None:
@@ -209,17 +207,25 @@ class GeoBenchClassificationDataModule(GeoBenchDataModule):
 
     def define_augmentations(self) -> None:
         """Define data transform/augmentations for the dataset and task."""
-        if self.train_augmentations is not None:
+        if self.train_augmentations == "default":
             self.train_transform = nn.Sequential(
                 K.Resize(size=self.img_size, align_corners=True),
                 K.RandomHorizontalFlip(p=0.5),
                 K.RandomVerticalFlip(p=0.5),
             )
+        elif self.train_augmentations is None:
+            self.train_transform = None
+        else:
+            self.train_transform = self.train_augmentations
 
-        if self.eval_augmentations is not None:
+        if self.eval_augmentations == "default":
             self.eval_transform = nn.Sequential(
                 K.Resize(size=self.img_size, align_corners=True)
             )
+        elif self.eval_augmentations is None:
+            self.eval_transform = None
+        else:
+            self.eval_transform = self.eval_augmentations
 
     def visualize_batch(
         self, split: str = "train"
@@ -253,8 +259,8 @@ class GeoBenchSegmentationDataModule(GeoBenchDataModule):
         eval_batch_size: int = 64,
         num_workers: int = 0,
         collate_fn: Callable | None = None,
-        train_augmentations: nn.Module | None = None,
-        eval_augmentations: nn.Module | None = None,
+        train_augmentations: Callable | None | "default" = None,
+        eval_augmentations: Callable | None | "default" = None,
         pin_memory: bool = False,
         **kwargs: Any,
     ) -> None:
@@ -294,18 +300,28 @@ class GeoBenchSegmentationDataModule(GeoBenchDataModule):
 
     def define_augmentations(self) -> None:
         """Define augmentations for the dataset and task."""
-        self.train_augmentations = K.AugmentationSequential(
-            K.Resize(size=self.img_size, align_corners=True),
-            K.RandomHorizontalFlip(p=0.5),
-            K.RandomVerticalFlip(p=0.5),
-            data_keys=["image", "mask"],
-        )
+        if self.train_augmentations == "default":
+            self.train_transform = K.AugmentationSequential(
+                K.Resize(size=self.img_size, align_corners=True),
+                K.RandomHorizontalFlip(p=0.5),
+                K.RandomVerticalFlip(p=0.5),
+                data_keys=["image", "mask"],
+            )
+        elif self.train_augmentations is None:
+            self.train_transform = None
+        else:
+            self.train_transform = self.train_augmentations
 
-        self.eval_transform = K.AugmentationSequential(
-            # K.Normalize(mean=self.mean, std=self.std),
-            K.Resize(size=self.img_size, align_corners=True),
-            data_keys=["image", "mask"],
-        )
+        if self.eval_augmentations == "default":
+            self.eval_transform = K.AugmentationSequential(
+                # K.Normalize(mean=self.mean, std=self.std),
+                K.Resize(size=self.img_size, align_corners=True),
+                data_keys=["image", "mask"],
+            )
+        elif self.eval_augmentations is None:
+            self.eval_transform = None
+        else:
+            self.eval_transform = self.eval_augmentations
 
 
 class GeoBenchObjectDetectionDataModule(GeoBenchDataModule):
@@ -324,8 +340,8 @@ class GeoBenchObjectDetectionDataModule(GeoBenchDataModule):
         eval_batch_size: int = 64,
         num_workers: int = 0,
         collate_fn: Callable | None = None,
-        train_augmentations: nn.Module | None = None,
-        eval_augmentations: nn.Module | None = None,
+        train_augmentations: Callable | None | "default" = None,
+        eval_augmentations: Callable | None | "default" = None,
         pin_memory: bool = False,
         **kwargs: Any,
     ) -> None:
@@ -364,14 +380,24 @@ class GeoBenchObjectDetectionDataModule(GeoBenchDataModule):
 
     def define_augmentations(self) -> None:
         """Define augmentations for the dataset and task."""
-        self.train_transform = K.AugmentationSequential(
-            K.Resize(size=self.img_size, align_corners=True),
-            K.RandomHorizontalFlip(p=0.5),
-            K.RandomVerticalFlip(p=0.5),
-            data_keys=["image", "bbox_xyxy", "label"],
-        )
+        if self.train_augmentations == "default":
+            self.train_transform = K.AugmentationSequential(
+                K.Resize(size=self.img_size, align_corners=True),
+                K.RandomHorizontalFlip(p=0.5),
+                K.RandomVerticalFlip(p=0.5),
+                data_keys=["image", "bbox_xyxy", "label"],
+            )
+        elif self.train_augmentations is None:
+            self.train_transform = None
+        else:
+            self.train_transform = self.train_augmentations
 
-        self.eval_transform = K.AugmentationSequential(
-            K.Resize(size=self.img_size, align_corners=True),
-            data_keys=["image", "bbox_xyxy", "label"],
-        )
+        if self.eval_augmentations == "default":
+            self.eval_transform = K.AugmentationSequential(
+                K.Resize(size=self.img_size, align_corners=True),
+                data_keys=["image", "bbox_xyxy", "label"],
+            )
+        elif self.eval_augmentations is None:
+            self.eval_transform = None
+        else:
+            self.eval_transform = self.eval_augmentations

@@ -97,6 +97,6 @@ class GeoBenchCaFFe(CaFFe, DataUtilsMixin):
         sample["mask"] = zone_mask
 
         if self.transforms:
-            sample = self.transforms(sample)
+            sample = self.transforms(**sample)
 
         return sample

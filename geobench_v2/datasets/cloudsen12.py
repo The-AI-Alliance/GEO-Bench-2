@@ -91,7 +91,7 @@ class GeoBenchCloudSen12(NonGeoDataset, DataUtilsMixin):
         root,
         split="train",
         band_order: Sequence[float | str] = ["B04", "B03", "B02"],
-        transforms=None,
+        transforms= Callable | None = None,
     ) -> None:
         """Initialize a CloudSen12 dataset instance.
 
@@ -154,6 +154,8 @@ class GeoBenchCloudSen12(NonGeoDataset, DataUtilsMixin):
 
         sample.update(image_dict)
         sample.update({"mask": mask})
+        if self.transforms:
+            sample = self.transforms(**sample)
 
         return sample
 

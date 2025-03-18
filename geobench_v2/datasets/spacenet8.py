@@ -76,7 +76,7 @@ class GeoBenchSpaceNet8(SpaceNet8):
         if "mask" in sample:
             sample["mask"] += 1
 
-        if self.transforms is not None:
-            sample = self.transforms(sample)
+        if self.transforms:
+            sample = self.transforms(**sample)
 
         return sample
