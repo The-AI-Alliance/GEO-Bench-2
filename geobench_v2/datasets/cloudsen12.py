@@ -126,14 +126,14 @@ class GeoBenchCloudSen12(NonGeoDataset, DataUtilsMixin):
         )
         self.l2a_metadata_df = self.l2a_metadata_df[
             self.l2a_metadata_df["tortilla:data_split"] == split
-        ].reset_index(drop=True)
+        ]
 
         self.l1c_metadata_df = tacoreader.load(
             os.path.join(self.root, self.taco_files["l1c"])
         )
         self.l1c_metadata_df = self.l1c_metadata_df[
             self.l1c_metadata_df["tortilla:data_split"] == split
-        ].reset_index(drop=True)
+        ]
 
         self.extra_metadata_df = tacoreader.load(
             os.path.join(self.root, self.taco_files["extra"])
@@ -157,9 +157,9 @@ class GeoBenchCloudSen12(NonGeoDataset, DataUtilsMixin):
         """
         sample: dict[str, Tensor] = {}
 
-        l2a_row = self.l2a_metadata_df.read(0)
-        l1c_row = self.l1c_metadata_df.read(0)
-        extra_row = self.extra_metadata_df.read(0)
+        l2a_row = self.l2a_metadata_df.read(idx)
+        l1c_row = self.l1c_metadata_df.read(idx)
+        extra_row = self.extra_metadata_df.read(idx)
 
         # if "l2a" in self.band_order:
 

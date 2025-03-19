@@ -60,24 +60,26 @@ def create_subset(root: str, save_dir: str) -> None:
             )
 
         metadata_df = tacoreader.load(paths)
-
-        # TODO for extra need to add the split information
-
-        # only use the high quality labels and the 512x512 images and the split
         metadata_df = metadata_df[
             metadata_df["stac:raster_shape"].apply(
                 lambda x: np.array_equal(x, np.array([512, 512]))
             )
             & (metadata_df["label_type"] == "high")
-        ]
-
-        metadata_df["type"] = key
-
+        ].reset_index(drop=True)
+        
         tacoreader.compile(
             dataframe=metadata_df,
             output=os.path.join(save_dir, f"geobench_cloudsen12-{key}.taco"),
             nworkers=4,
         )
+
+        test_taco = tacoreader.load(os.path.join(save_dir, f"geobench_cloudsen12-{key}.taco"))
+
+        for i in range(len(test_taco)):
+            sample = test_taco.read(i)
+
+        import pdb
+        pdb.set_trace()
 
         meta_dfs.append(metadata_df)
 
