@@ -14,9 +14,7 @@ import pandas as pd
 from geobench_v2.generate_benchmark.utils import plot_sample_locations
 
 
-def create_subset(
-    root: str, save_dir: str
-) -> None:
+def create_subset(root: str, save_dir: str) -> None:
     """Create a subset of CloudSen12 dataset.
 
     Args:
@@ -27,7 +25,8 @@ def create_subset(
     # with the same structure to the save_dir
     # basically create mini tacos based on the metadata_df
     meta_dfs = []
-    taco_files: dict[str, list[str]] = {"l1c": [
+    taco_files: dict[str, list[str]] = {
+        "l1c": [
             "cloudsen12-l1c.0000.part.taco",
             "cloudsen12-l1c.0001.part.taco",
             "cloudsen12-l1c.0002.part.taco",
@@ -46,42 +45,51 @@ def create_subset(
             "cloudsen12-extra.0000.part.taco",
             "cloudsen12-extra.0001.part.taco",
             "cloudsen12-extra.0002.part.taco",
-        ]
-        }
-    
+        ],
+    }
+
     for key, value in taco_files.items():
         paths = [os.path.join(root, f) for f in value]
         if not all([os.path.exists(p) for p in paths]):
-            snapshot_download(repo_id="tacofoundation/cloudsen12", local_dir=".", cache_dir=".", repo_type="dataset", pattern=f"cloudsen12-{key}.*.part.taco")
+            snapshot_download(
+                repo_id="tacofoundation/cloudsen12",
+                local_dir=".",
+                cache_dir=".",
+                repo_type="dataset",
+                pattern=f"cloudsen12-{key}.*.part.taco",
+            )
 
         metadata_df = tacoreader.load(paths)
 
-    
+        # TODO for extra need to add the split information
+
         # only use the high quality labels and the 512x512 images and the split
         metadata_df = metadata_df[
-            metadata_df["stac:raster_shape"].apply(lambda x: np.array_equal(x, np.array([512, 512])))
-            # & (metadata_df["label_type"] == "high")
+            metadata_df["stac:raster_shape"].apply(
+                lambda x: np.array_equal(x, np.array([512, 512]))
+            )
+            & (metadata_df["label_type"] == "high")
         ]
 
         metadata_df["type"] = key
 
-        meta_dfs.append(metadata_df)
+        tacoreader.compile(
+            dataframe=metadata_df,
+            output=os.path.join(save_dir, f"geobench_cloudsen12-{key}.taco"),
+            nworkers=4,
+        )
 
+        meta_dfs.append(metadata_df)
 
     full_metadata = pd.concat(meta_dfs)
     full_metadata.reset_index(drop=True, inplace=True)
-    import pdb; pdb.set_trace()
 
-    tacoreader.compile(dataframe=metadata_df, output=os.path.join(save_dir, f"geobench_cloudsen12-{key}.taco"), nworkers=4)
+    full_metadata.to_geodataframe(inplace=True)
 
-    # geo_df = metadata_df.to_geodataframe()
-    # geobench_metadata = pd.DataFrame({
-    #     'lon': geo_df.geometry.x,
-    #     'lat': geo_df.geometry.y,
-    #     'split': geo_df['tortilla:data_split'],
-    #     'id': geo_df['tortilla:id'],
-    # })
-    # geobench_metadata['sensor'] = key
+    # retrieve only relevant columns
+    import pdb
+
+    pdb.set_trace()
 
     return full_metadata
 
@@ -100,7 +108,9 @@ def main():
         "--root", default="data", help="Root directory for CloudSen12 dataset"
     )
     parser.add_argument(
-        "--save_dir", default="geobenchV2/cloudsen12", help="Directory to save the subset"
+        "--save_dir",
+        default="geobenchV2/cloudsen12",
+        help="Directory to save the subset",
     )
     args = parser.parse_args()
 
@@ -109,10 +119,13 @@ def main():
     # metadata_df = generate_metadata_df(orig_dataset)
     metadata_df = create_subset(args.root, save_dir=args.save_dir)
 
-    metadata_df.to_parquet(os.path.join(args.save_dir, "geobench_metadata.parquet"))
+    metadata_df.to_parquet(
+        os.path.join(args.save_dir, "geobench_cloudsen12_metadata.parquet")
+    )
 
     plot_sample_locations(
-        metadata_df=metadata_df, output_path=os.path.join(args.save_dir, "sample_locations.png")
+        metadata_df=metadata_df,
+        output_path=os.path.join(args.save_dir, "sample_locations.png"),
     )
 
 

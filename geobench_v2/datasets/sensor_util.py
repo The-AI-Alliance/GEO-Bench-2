@@ -1,3 +1,6 @@
+# Copyright (c) 2025 GeoBenchV2. All rights reserved.
+# Licensed under the Apache License 2.0.
+
 """Utility functions for handling satellite imagery datasets."""
 
 from dataclasses import dataclass
@@ -368,6 +371,7 @@ class DatasetBandRegistry:
     # CLOUDSEN12 has cloudsen12-l1c Sentinel2 data is actually just a single ModalityConfig
     CLOUDSEN12 = ModalityConfig(
         bands={**SensorBandRegistry.SENTINEL2.bands},
+        # band_to_modality={**SensorBandRegistry.SENTINEL2.band_to_modality},
         default_order=[
             "B01",
             "B02",

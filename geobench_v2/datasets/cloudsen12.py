@@ -8,8 +8,9 @@ import numpy as np
 import rasterio
 
 
-from typing import Sequence, ClassVar, Union
+from typing import Sequence, ClassVar, Union, Type
 import torch
+import torch.nn as nn
 from torch import Tensor
 from torchgeo.datasets import NonGeoDataset
 
@@ -76,13 +77,11 @@ class GeoBenchCloudSen12(NonGeoDataset, DataUtilsMixin):
 
     classes = ("clear", "thick cloud", "thin cloud", "cloud shadow")
 
-    # taco_files = [
-    #     "cloudsen12-l1c.0000.part.taco",
-    #     "cloudsen12-l1c.0001.part.taco",
-    #     "cloudsen12-l1c.0002.part.taco",
-    #     "cloudsen12-l1c.0003.part.taco",
-    #     "cloudsen12-l1c.0004.part.taco",
-    # ]
+    taco_files: dict[str, str] = {
+        "l1c": "geobench_cloudsen12-l1c.taco",
+        "l2a": "geobench_cloudsen12-l2a.taco",
+        "extra": "geobench_cloudsen12-extra.taco",
+    }
 
     taco_name = "geobench_cloudsen12.taco"
 
@@ -91,7 +90,8 @@ class GeoBenchCloudSen12(NonGeoDataset, DataUtilsMixin):
         root,
         split="train",
         band_order: Sequence[float | str] = ["B04", "B03", "B02"],
-        transforms=None,
+        data_normalizer: Type[nn.Module] = MultiModalNormalizer,
+        transforms: nn.Module | None = None,
     ) -> None:
         """Initialize a CloudSen12 dataset instance.
 
@@ -100,13 +100,16 @@ class GeoBenchCloudSen12(NonGeoDataset, DataUtilsMixin):
             split: The dataset split, supports 'train', 'test'
             band_order: The order of bands to return, defaults to ['r', 'g', 'b'], if one would
                 specify ['r', 'g', 'b', 'nir'], the dataset would return images with 4 channels
-            transforms: A composition of transforms to apply to the sample_row
+            data_normalizer: The data normalizer to apply to the data, defaults to :class:`data_util.MultiModalNormalizer`,
+                which applies z-score normalization to each band.
+            transforms: Image resize transform on sample level
 
         Raises:
             AssertionError: If split is not in the splits
         """
-
         assert split in self.splits, f"split must be one of {self.splits}"
+
+        self.transforms = transforms
 
         self.root = root
         self.split = split
@@ -114,13 +117,34 @@ class GeoBenchCloudSen12(NonGeoDataset, DataUtilsMixin):
 
         self.band_order = self.resolve_band_order(band_order)
 
-        self.normalizer = MultiModalNormalizer(
+        self.data_normalizer = data_normalizer(
             self.normalization_stats, self.band_order
         )
 
-        self.metadata_df = tacoreader.load(self.taco_name)
-        self.metadata_df = self.metadata_df[self.metadata_df["tortilla:data_split"] == split].reset_index(drop=True)
+        self.l2a_metadata_df = tacoreader.load(
+            os.path.join(self.root, self.taco_files["l2a"])
+        )
+        self.l2a_metadata_df = self.l2a_metadata_df[
+            self.l2a_metadata_df["tortilla:data_split"] == split
+        ].reset_index(drop=True)
 
+        self.l1c_metadata_df = tacoreader.load(
+            os.path.join(self.root, self.taco_files["l1c"])
+        )
+        self.l1c_metadata_df = self.l1c_metadata_df[
+            self.l1c_metadata_df["tortilla:data_split"] == split
+        ].reset_index(drop=True)
+
+        self.extra_metadata_df = tacoreader.load(
+            os.path.join(self.root, self.taco_files["extra"])
+        )
+        # self.extra_metadata_df = self.extra_metadata_df[
+        #     self.extra_metadata_df["tortilla:data_split"] == split
+        # ].reset_index(drop=True)
+
+        assert len(self.l2a_metadata_df) == len(self.l1c_metadata_df), (
+            f"Length of metadata dataframes must be equal, got {len(self.l2a_metadata_df)}, {len(self.l1c_metadata_df)}"
+        )
 
     def __getitem__(self, idx: int) -> dict[str, Tensor]:
         """Return the sample_row at the given index.
@@ -132,10 +156,15 @@ class GeoBenchCloudSen12(NonGeoDataset, DataUtilsMixin):
             dict containing the sample_row data
         """
         sample: dict[str, Tensor] = {}
-        sample_row = self.metadata_df.read(idx)
 
-        image_path: str = sample_row.read(0)
-        target_path: str = sample_row.read(1)
+        l2a_row = self.l2a_metadata_df.read(0)
+        l1c_row = self.l1c_metadata_df.read(0)
+        extra_row = self.extra_metadata_df.read(0)
+
+        # if "l2a" in self.band_order:
+
+        image_path: str = l2a_row.read(0)
+        target_path: str = l2a_row.read(1)
 
         with (
             rasterio.open(image_path) as image_src,
@@ -150,10 +179,13 @@ class GeoBenchCloudSen12(NonGeoDataset, DataUtilsMixin):
 
         image_dict = self.rearrange_bands(image, self.band_order)
 
-        image = self.normalizer(image_dict)
+        image = self.data_normalizer(image_dict)
 
         sample.update(image_dict)
         sample.update({"mask": mask})
+
+        if self.transforms is not None:
+            sample = self.transforms(sample)
 
         return sample
 
@@ -163,4 +195,4 @@ class GeoBenchCloudSen12(NonGeoDataset, DataUtilsMixin):
         Returns:
             The number of samples in the dataset
         """
-        return len(self.metadata_df)
+        return len(self.l2a_metadata_df)
