@@ -124,6 +124,25 @@ class GeoBenchPASTIS(PASTIS, DataUtilsMixin):
             self.normalization_stats, self.band_order
         )
 
+        import pandas as pd
+        self.metadata_df = pd.read_parquet("/mnt/rg_climate_benchmark/data/geobenchV2/pastis/geobench_metadata.parquet")
+        self.metadata_df = self.metadata_df[self.metadata_df["split"] == split].reset_index(drop=True)
+        self.metadata_df["ID_PATCH"] = self.metadata_df["ID_PATCH"].astype(str)
+
+        self.files_df = pd.DataFrame(self.files)
+        self.files_df["ID_PATCH"] = self.files_df["s2"].apply(lambda x: x.split("/")[-1].split("_")[-1].split(".")[0])
+
+        self.new_df = pd.merge(self.metadata_df, self.files_df, how="left", left_on="ID_PATCH", right_on="ID_PATCH").reset_index(drop=True)
+
+        # import pdb
+        # pdb.set_trace()
+
+        # print(0)
+
+    def __len__(self) -> int:
+        """Return the length of the dataset."""
+        return len(self.new_df)
+
     def __getitem__(self, index: int) -> dict[str, Tensor]:
         """Return an index within the dataset.
 
@@ -134,9 +153,10 @@ class GeoBenchPASTIS(PASTIS, DataUtilsMixin):
             data and label at that index
         """
         sample: dict[str, Tensor] = {}
-        image_s2 = self._load_image(index, "s2")
-        image_s1a = self._load_image(index, "s1a")
-        image_s1d = self._load_image(index, "s1d")
+        sample_row = self.new_df.iloc[index]
+        image_s2 = self._load_image(sample_row["s2"])
+        image_s1a = self._load_image(sample_row["s1a"])
+        image_s1d = self._load_image(sample_row["s1d"])
 
         # each of them is a time series, so we concatenate them along the channel dimension
         data = {"s2": image_s2, "s1_asc": image_s1a, "s1_desc": image_s1d}
@@ -147,31 +167,91 @@ class GeoBenchPASTIS(PASTIS, DataUtilsMixin):
         sample.update(img_dict)
 
         if self.mode == "semantic":
-            mask = self._load_semantic_targets(index)
+            mask = self._load_semantic_targets(sample_row["semantic"])
             sample["mask"] = mask
         elif self.mode == "instance":
-            mask, boxes, labels = self._load_instance_targets(index)
+            mask, boxes, labels = self._load_instance_targets(sample_row["semantic"], sample_row["instance"])
             sample["mask"] = mask
             sample["boxes"] = boxes
             sample["label"] = labels
 
+        sample["dates"] = sample_row["dates"].values()
+        sample["lon"] = sample_row["lon"]
+        sample["lat"] = sample_row["lat"]
         return sample
 
-    def _load_image(self, index: int, bands: str) -> Tensor:
+    def _load_image(self, path: str) -> Tensor:
         """Load a single time-series.
 
         Args:
-            index: index to return
-            bands: bands to internally load from torchgeo
+            path: path to the time-series
 
         Returns:
             the time-series
         """
-        path = self.files[index][bands]
         array = np.load(path)
-        tensor = torch.from_numpy(array)  # [T, C, H, W]
-        # TODO fix later, but atm only return the latest time step
+        tensor = torch.from_numpy(array)
         return tensor[-1]
+
+    def _load_semantic_targets(self, path: str) -> Tensor:
+        """Load the target mask for a single image.
+
+        Args:
+            path: path to the label
+
+        Returns:
+            the target mask
+        """
+        # See https://github.com/VSainteuf/pastis-benchmark/blob/main/code/dataloader.py#L201
+        # even though the mask file is 3 bands, we just select the first band
+        array = np.load(path)[0].astype(np.uint8)
+        tensor = torch.from_numpy(array).long()
+        return tensor
+
+    def _load_instance_targets(self, sem_path: str, instance_path) -> tuple[Tensor, Tensor, Tensor]:
+        """Load the instance segmentation targets for a single sample.
+
+        Args:
+            path: path to the label
+
+        Returns:
+            the instance segmentation mask, box, and label for each instance
+        """
+        mask_array = np.load(sem_path)[0]
+        instance_array = np.load(instance_path)
+
+        mask_tensor = torch.from_numpy(mask_array)
+        instance_tensor = torch.from_numpy(instance_array)
+
+        # Convert instance mask of N instances to N binary instance masks
+        instance_ids = torch.unique(instance_tensor)
+        # Exclude a mask for unknown/background
+        instance_ids = instance_ids[instance_ids != 0]
+        instance_ids = instance_ids[:, None, None]
+        masks: Tensor = instance_tensor == instance_ids
+
+        # Parse labels for each instance
+        labels_list = []
+        for mask in masks:
+            label = mask_tensor[mask]
+            label = torch.unique(label)[0]
+            labels_list.append(label)
+
+        # Get bounding boxes for each instance
+        boxes_list = []
+        for mask in masks:
+            pos = torch.where(mask)
+            xmin = torch.min(pos[1])
+            xmax = torch.max(pos[1])
+            ymin = torch.min(pos[0])
+            ymax = torch.max(pos[0])
+            boxes_list.append([xmin, ymin, xmax, ymax])
+
+        masks = masks.to(torch.uint8)
+        boxes = torch.tensor(boxes_list).to(torch.float)
+        labels = torch.tensor(labels_list).to(torch.long)
+
+        return masks, boxes, labels
 
     def validate_band_order(
         self,
