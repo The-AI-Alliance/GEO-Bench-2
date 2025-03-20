@@ -24,7 +24,8 @@ from geobench_v2.generate_benchmark.geospatial_split_utils import (
     checkerboard_split,
     geographic_buffer_split,
     geographic_distance_split,
-    visualize_distance_clusters
+    visualize_distance_clusters,
+    show_samples_per_valid_ratio
 )
 
 
@@ -160,6 +161,32 @@ def main():
 
     df = pd.read_parquet(path)
 
+    regions = [
+        {
+            'name': 'Louisiana, USA',
+            'bounds': {'min_lat': 29, 'max_lat': 33, 'min_lon': -94, 'max_lon': -89}
+        },
+        {
+            'name': 'Germany',
+            'bounds': {'min_lat': 47.5, 'max_lat': 54.5, 'min_lon': 6.5, 'max_lon': 14.5}
+        }
+    ]
+
+    # match region to each sample
+    df['region'] = 'unknown'  # Default value
+    
+    for region in regions:
+        bounds = region["bounds"]
+        df.loc[
+            (df["lat"] >= bounds["min_lat"])
+            & (df["lat"] <= bounds["max_lat"])
+            & (df["lon"] >= bounds["min_lon"])
+            & (df["lon"] <= bounds["max_lon"]),
+            "region",
+        ] = region["name"]
+
+    show_samples_per_valid_ratio(df, os.path.join(args.save_dir, "samples_per_valid_ratio.png"), dataset_name="SpaceNet8")
+
     distance_df = geographic_distance_split(
         df,
         n_clusters=8,
@@ -190,9 +217,9 @@ def main():
 
 
     plot_sample_locations(
-        df,
+        distance_df,
         output_path=os.path.join(args.save_dir, "sample_locations.png"),
-        buffer_degrees=2,
+        buffer_degrees=0.5,
     )
 
 

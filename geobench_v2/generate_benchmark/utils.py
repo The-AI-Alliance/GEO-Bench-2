@@ -129,7 +129,7 @@ def plot_sample_locations(
                 continue
             
             # Get color
-            color = {"train": "blue", "val": "green", "test": "red"}.get(split, "blue")
+            color = {"train": "blue", "val": "green", "validation": "green", "test": "red"}.get(split, "blue")
             
             # Plot points
             ax.scatter(

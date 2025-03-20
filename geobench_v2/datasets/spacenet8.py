@@ -17,6 +17,8 @@ class GeoBenchSpaceNet8(SpaceNet8, DataUtilsMixin):
     Allows:
     - Variable Band Selection
     - Return band wavelengths
+
+    3 classes: background, building or road (not flooded), building or road (flooded)
     """
 
     dataset_band_config = DatasetBandRegistry.SPACENET8
