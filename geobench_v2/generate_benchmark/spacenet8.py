@@ -49,8 +49,10 @@ def create_geobench_ds(
         output_dir=save_dir,
         patch_size=patch_size,
         stride=stride,
-        min_valid_data_ratio=0.7,
-        min_positive_pixels_ratio=0.01,
+        buffer_top=64,
+        buffer_bottom=64,
+        buffer_left=64,
+        buffer_right=64,
     )
     return patches_df
 
@@ -150,35 +152,12 @@ def main():
     if not os.path.exists(args.save_dir):
         os.makedirs(args.save_dir)
 
-    # from glob import glob
-
-   
-    # pre_event_paths = glob(os.path.join(args.root, "SN8_floods",  "train", "PRE-event", "*.tif"))
-    # post_event_paths = glob(os.path.join(args.root, "SN8_floods", "train", "POST-event", "*.tif"))
-    # # see if basenames are the same
-    # pre_event_basenames = [os.path.basename(path) for path in pre_event_paths]
-    # post_event_basenames = [os.path.basename(path) for path in post_event_paths]
-
-    # # find the difference
-    # pre_event_basenames = set(pre_event_basenames)
-    # post_event_basenames = set(post_event_basenames)
-
-    # # find length of difference and length of intersection
-    # diff = len(pre_event_basenames - post_event_basenames)
-    # intersection = len(pre_event_basenames.intersection(post_event_basenames))
-
-    # import pdb; pdb.set_trace()
-    # print(pre_event_basenames - post_event_basenames)
-    # assert set(pre_event_basenames) == set(post_event_basenames)
-
-    # if os.path.exists(metadata_path):
-    #     metadata_df = pd.read_parquet(metadata_path)
-    # else:
     metadata_df = generate_metadata_df(args.root)
     metadata_df.to_parquet(metadata_path)
 
-    create_geobench_ds(metadata_df, save_dir=args.save_dir)
+    # create_geobench_ds(metadata_df, save_dir=args.save_dir)
     path = "/mnt/rg_climate_benchmark/data/geobenchV2/spacenet8/patch_metadata.parquet"
+
     df = pd.read_parquet(path)
 
     distance_df = geographic_distance_split(
@@ -210,11 +189,11 @@ def main():
     )
 
 
-    # plot_sample_locations(
-    #     metadata_df,
-    #     output_path=os.path.join(args.save_dir, "sample_locations.png"),
-    #     buffer_degrees=2,
-    # )
+    plot_sample_locations(
+        df,
+        output_path=os.path.join(args.save_dir, "sample_locations.png"),
+        buffer_degrees=2,
+    )
 
 
 if __name__ == "__main__":

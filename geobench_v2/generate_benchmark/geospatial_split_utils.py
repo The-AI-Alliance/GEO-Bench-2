@@ -866,12 +866,30 @@ def split_geospatial_tiles_into_patches(
     output_dir: str,
     patch_size: tuple[int, int] = (512, 512),
     stride: tuple[int, int] | None = None,
-    min_valid_data_ratio: float = 0.7,
-    min_positive_pixels_ratio: float = 0.01,
     output_format: str = "tif",
     patch_id_prefix: str = "p",
+    buffer_top: int = 0,      # New parameter: buffer from top edge 
+    buffer_left: int = 0,     # New parameter: buffer from left edge
+    buffer_bottom: int = 0,   # New parameter: buffer from bottom edge
+    buffer_right: int = 0,    # New parameter: buffer from right edge
 ) -> pd.DataFrame:
-    """Split large geospatial image and mask pairs into smaller patches across multiple modalities."""
+    """Split large geospatial image and mask pairs into smaller patches across multiple modalities.
+    
+    Args:
+        modal_path_dict: Dictionary mapping modality names to lists of image paths
+        output_dir: Directory to save patches and metadata
+        patch_size: Size of the patches (height, width)
+        stride: Step size between patches (height, width)
+        output_format: Output file format (e.g., 'tif')
+        patch_id_prefix: Prefix for patch IDs
+        buffer_top: Number of pixels to skip from the top of the image
+        buffer_left: Number of pixels to skip from the left of the image
+        buffer_bottom: Number of pixels to skip from the bottom of the image
+        buffer_right: Number of pixels to skip from the right of the image
+    
+    Returns:
+        DataFrame containing metadata for all created patches
+    """
     import numpy as np
     from skimage.transform import resize
     
@@ -927,6 +945,16 @@ def split_geospatial_tiles_into_patches(
             src_nodata = img_src.nodata
             primary_shape = (src_height, src_width)
 
+            # Calculate effective dimensions accounting for buffers
+            effective_height = src_height - buffer_top - buffer_bottom
+            effective_width = src_width - buffer_left - buffer_right
+            
+            if effective_height <= 0 or effective_width <= 0:
+                print(f"Error: Image dimensions ({src_height}x{src_width}) are smaller than the combined buffers. Skipping.")
+                continue
+                
+            # print(f"Original dimensions: {src_height}x{src_width}, Effective area: {effective_height}x{effective_width}")
+
             try:
                 mask_full = np.zeros((1, src_height, src_width), dtype=np.uint8)
 
@@ -960,8 +988,9 @@ def split_geospatial_tiles_into_patches(
                 print(f"Warning: Error processing mask {mask_path}: {e}")
                 mask_full = np.zeros((1, src_height, src_width), dtype=np.uint8)
 
-            patches_per_dim_h = src_height // patch_size[0]
-            patches_per_dim_w = src_width // patch_size[1]
+            # Calculate number of patches based on effective area and stride
+            patches_per_dim_h = max(1, (effective_height - patch_size[0] + stride[0]) // stride[0])
+            patches_per_dim_w = max(1, (effective_width - patch_size[1] + stride[1]) // stride[1])
 
             total_patches = patches_per_dim_h * patches_per_dim_w
             patches_created = 0
@@ -980,7 +1009,7 @@ def split_geospatial_tiles_into_patches(
                             
                             # Check if resizing is needed
                             if modal_height != src_height or modal_width != src_width:
-                                print(f"Resizing {modality} from {modal_height}x{modal_width} to {src_height}x{src_width}")
+                                # print(f"Resizing {modality} from {modal_height}x{modal_width} to {src_height}x{src_width}")
                                 
                                 # Resize each band individually
                                 resized_bands = []
@@ -997,7 +1026,7 @@ def split_geospatial_tiles_into_patches(
                                 modal_data = np.stack(resized_bands, axis=0)
                                 
                             # Store the potentially resized data
-                            modality_tiles[modality] = modal_data.transpose(1, 2, 0)
+                            modality_tiles[modality] = modal_data
                             
                     except Exception as e:
                         print(f"Error opening or resizing {modality} source: {e}")
@@ -1005,20 +1034,26 @@ def split_geospatial_tiles_into_patches(
                         
             modality_tiles["mask"] = mask_full
 
+            # Apply buffered patching starting from buffer_top/buffer_left
             for i in range(patches_per_dim_h):
                 for j in range(patches_per_dim_w):
-                    row_start = i * stride[0]
-                    col_start = j * stride[1]
+                    # Apply buffer offset to starting positions
+                    row_start = buffer_top + i * stride[0]
+                    col_start = buffer_left + j * stride[1]
 
-                    if (
-                        row_start + patch_size[0] > src_height
-                        or col_start + patch_size[1] > src_width
-                    ):
-                        if row_start + patch_size[0] > src_height:
-                            row_start = max(0, src_height - patch_size[0])
-                        if col_start + patch_size[1] > src_width:
-                            col_start = max(0, src_width - patch_size[1])
-
+                    # Check boundary conditions - ensure we don't exceed the buffered region
+                    max_row = src_height - buffer_bottom - patch_size[0]
+                    max_col = src_width - buffer_right - patch_size[1]
+                    
+                    if row_start > max_row or col_start > max_col:
+                        continue
+                        
+                    # Ensure we don't go beyond image boundaries
+                    if row_start + patch_size[0] > src_height - buffer_bottom:
+                        row_start = max(buffer_top, src_height - buffer_bottom - patch_size[0])
+                    if col_start + patch_size[1] > src_width - buffer_right:
+                        col_start = max(buffer_left, src_width - buffer_right - patch_size[1])
+                        
                     window = Window(col_start, row_start, patch_size[1], patch_size[0])
 
                     try:
@@ -1040,10 +1075,6 @@ def split_geospatial_tiles_into_patches(
                     except Exception as e:
                         print(f"Error reading patch at ({row_start}, {col_start}): {e}")
                         continue
-
-                    # Check filtering criteria
-                    # if valid_ratio < min_valid_data_ratio or positive_ratio < min_positive_pixels_ratio:
-                    #     continue
 
                     patch_id = f"{patch_id_prefix}{i:03d}_{j:03d}"
 
@@ -1085,12 +1116,10 @@ def split_geospatial_tiles_into_patches(
                                 if modality_tiles[modality] is not None:
                                     # Extract patch from our pre-loaded and pre-resized data
                                     patch_data = modality_tiles[modality][
+                                        :,
                                         row_start:row_start + patch_size[0], 
                                         col_start:col_start + patch_size[1]
                                     ]
-                                    
-                                    # Transpose back to [C, H, W] format for rasterio
-                                    patch_data = patch_data.transpose(2, 0, 1)
                                     
                                     # Copy metadata from primary modality
                                     with rasterio.open(modal_img_paths[modality]) as src:
@@ -1188,24 +1217,27 @@ def split_geospatial_tiles_into_patches(
                     all_patch_metadata.append(patch_metadata)
                     patches_created += 1
 
-            if patches_created > 0:
-                visualize_dir = os.path.join(output_dir, "visualizations")
-                os.makedirs(visualize_dir, exist_ok=True)
-                vis_output_path = os.path.join(
-                    visualize_dir, f"{img_basename}_patches.png"
-                )
+            # if patches_created > 0:
+            #     visualize_dir = os.path.join(output_dir, "visualizations")
+            #     os.makedirs(visualize_dir, exist_ok=True)
+            #     vis_output_path = os.path.join(
+            #         visualize_dir, f"{img_basename}_patches.png"
+            #     )
 
-                visualize_current_patches(
-                    modality_tiles=modality_tiles,
-                    modality_patches=modality_patches,
-                    output_path=vis_output_path,
-                )
-                import pdb
-                pdb.set_trace()
+            #     visualize_current_patches(
+            #         modality_tiles=modality_tiles,
+            #         modality_patches=modality_patches,
+            #         output_path=vis_output_path,
+            #         buffer_top=buffer_top,
+            #         buffer_left=buffer_left,
+            #         buffer_bottom=buffer_bottom,
+            #         buffer_right=buffer_right
+            #     )
 
-            print(
-                f"Created {patches_created}/{total_patches} patches for {img_filename}"
-            )
+            #     # import pdb; pdb.set_trace()
+            # print(
+            #     f"Created {patches_created}/{total_patches} patches for {img_filename}"
+            # )
 
     patches_df = pd.DataFrame(all_patch_metadata)
 
@@ -1236,8 +1268,26 @@ def split_geospatial_tiles_into_patches(
 
 
 
-def visualize_current_patches(modality_tiles, modality_patches, output_path=None):
-    """Visualize the original images and their patches with one modality per row."""
+def visualize_current_patches(
+    modality_tiles, 
+    modality_patches, 
+    output_path=None,
+    buffer_top=0, 
+    buffer_left=0, 
+    buffer_bottom=0, 
+    buffer_right=0
+):
+    """Visualize the original images and their patches with one modality per row.
+    
+    Args:
+        modality_tiles: Dictionary of full-sized tiles for each modality
+        modality_patches: Dictionary of patches for each modality
+        output_path: Path to save the visualization (optional)
+        buffer_top: Top buffer offset (pixels to skip from top edge)
+        buffer_left: Left buffer offset (pixels to skip from left edge)
+        buffer_bottom: Bottom buffer offset (pixels to skip from bottom edge)
+        buffer_right: Right buffer offset (pixels to skip from right edge)
+    """
     modalities = list(modality_patches.keys())
     n_rows = len(modalities)
     n_cols = 5
@@ -1303,13 +1353,42 @@ def visualize_current_patches(modality_tiles, modality_patches, output_path=None
         # Create and store the first-column subplot
         ax_orig = fig.add_subplot(gs[row_idx, 0])
         ax_orig.imshow(orig_data, cmap=cmap)
-        ax_orig.set_title(f"Original {modality}")
+        
+        # Show buffer regions with semi-transparent overlays
+        if buffer_top > 0 or buffer_left > 0 or buffer_bottom > 0 or buffer_right > 0:
+            img_height, img_width = orig_data.shape[:2] if len(orig_data.shape) >= 2 else (orig_data.shape[0], orig_data.shape[0])
+            
+            # Draw shaded regions for buffers
+            if buffer_top > 0:
+                ax_orig.add_patch(Rectangle((0, 0), img_width, buffer_top, 
+                                           facecolor='gray', alpha=0.3, 
+                                           edgecolor=None))
+            if buffer_left > 0:
+                ax_orig.add_patch(Rectangle((0, 0), buffer_left, img_height, 
+                                           facecolor='gray', alpha=0.3, 
+                                           edgecolor=None))
+            if buffer_bottom > 0:
+                ax_orig.add_patch(Rectangle((0, img_height - buffer_bottom), img_width, buffer_bottom, 
+                                           facecolor='gray', alpha=0.3, 
+                                           edgecolor=None))
+            if buffer_right > 0:
+                ax_orig.add_patch(Rectangle((img_width - buffer_right, 0), buffer_right, img_height, 
+                                           facecolor='gray', alpha=0.3, 
+                                           edgecolor=None))
+            
+            # Add buffer info to title
+            ax_orig.set_title(f"Original {modality}\nBuffer: T{buffer_top}, L{buffer_left}, B{buffer_bottom}, R{buffer_right}")
+        else:
+            ax_orig.set_title(f"Original {modality}")
+            
         ax_orig.axis("off")
         
         # Store this axis for later reference
         first_col_axes[modality] = {
             'ax': ax_orig,
-            'data': orig_data
+            'data': orig_data,
+            'height': orig_data.shape[0] if hasattr(orig_data, 'shape') and len(orig_data.shape) >= 2 else 0,
+            'width': orig_data.shape[1] if hasattr(orig_data, 'shape') and len(orig_data.shape) >= 2 else 0
         }
         
         # Plot the patches
@@ -1355,8 +1434,9 @@ def visualize_current_patches(modality_tiles, modality_patches, output_path=None
                 rect_key = f"{modality}_{row}_{col}"
                 
                 if rect_key not in drawn_rectangles:
-                    x = col * patch_src.width
-                    y = row * patch_src.height
+                    # Apply the buffer offset to rectangle positions
+                    x = buffer_left + col * patch_src.width
+                    y = buffer_top + row * patch_src.height
                     width = patch_src.width
                     height = patch_src.height
 
