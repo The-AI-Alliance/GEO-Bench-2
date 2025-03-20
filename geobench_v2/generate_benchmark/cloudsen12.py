@@ -75,23 +75,12 @@ def create_subset(root: str, save_dir: str) -> None:
 
         test_taco = tacoreader.load(os.path.join(save_dir, f"geobench_cloudsen12-{key}.taco"))
 
-        for i in range(len(test_taco)):
-            sample = test_taco.read(i)
-
-        import pdb
-        pdb.set_trace()
-
         meta_dfs.append(metadata_df)
 
     full_metadata = pd.concat(meta_dfs)
     full_metadata.reset_index(drop=True, inplace=True)
 
-    full_metadata.to_geodataframe(inplace=True)
-
-    # retrieve only relevant columns
-    import pdb
-
-    pdb.set_trace()
+    # full_metadata.to_geodataframe(inplace=True)
 
     return full_metadata
 
