@@ -13,21 +13,49 @@ from tqdm import tqdm
 import re
 from geobench_v2.generate_benchmark.utils import plot_sample_locations
 
+from geobench_v2.generate_benchmark.utils import (
+    plot_sample_locations,
+)
 
-def create_subset(ds: SpaceNet8, metadata_df: pd.DataFrame, save_dir: str) -> None:
-    """Create a subset of SpaceNet8 dataset.
-
-    Args:
-        ds: SpaceNet8 dataset.
-        metadata_df: Metadata DataFrame.
-        save_dir: Directory to save the subset.
-    """
-    # based on the metadata_df create a subset of the dataset and copy it
-    # with the same structure to the save_dir
-    pass
+from geobench_v2.generate_benchmark.geospatial_split_utils import (
+    visualize_checkerboard_pattern,
+    split_geospatial_tiles_into_patches,
+    visualize_geospatial_split,
+    checkerboard_split,
+    geographic_buffer_split,
+    geographic_distance_split,
+    visualize_distance_clusters
+)
 
 
-def generate_metadata_df(ds: SpaceNet8) -> pd.DataFrame:
+def create_geobench_ds(
+    metadata_df: pd.DataFrame, save_dir: str
+) -> None:
+    """Create a subset of SpaceNet6 dataset."""
+    os.makedirs(save_dir, exist_ok=True)
+
+
+
+    modal_path_dict = {}
+    modal_path_dict["PRE-event"] = metadata_df["pre-path"].tolist()
+    modal_path_dict["POST-event"] = metadata_df["post-path"].tolist()
+    modal_path_dict["mask"] = metadata_df["label-path"].tolist()
+
+    patch_size = (512, 512)
+    stride = (511, 511)
+
+    patches_df = split_geospatial_tiles_into_patches(
+        modal_path_dict=modal_path_dict,
+        output_dir=save_dir,
+        patch_size=patch_size,
+        stride=stride,
+        min_valid_data_ratio=0.7,
+        min_positive_pixels_ratio=0.01,
+    )
+    return patches_df
+
+
+def generate_metadata_df(root_dir) -> pd.DataFrame:
     """Generate metadata DataFrame for SpaceNet8 dataset.
 
     Args:
@@ -35,22 +63,33 @@ def generate_metadata_df(ds: SpaceNet8) -> pd.DataFrame:
     """
     # metadata_file = os.path.join(ds.root, ds.dataset_id, "train", "train", "AOI_11_Rotterdam", "SummaryData", "SN6_Train_AOI_11_Rotterdam_Buildings.csv")
 
-    # metadata_df = gpd.read_file(metadata_file)
-    metadata: list[dict[str, str]] = []
-    for path in tqdm(ds.images):
-        filename = os.path.basename(path)
-        # parts = filename.split("_")
-        # date_match = re.match(r"(\d{4})(\d{2})(\d{2})(\d{6})", parts[6])
-        # if date_match:
-        #     year, month, day, _ = date_match.groups()
-        #     date = f"{year}-{month}-{day}"
+    paths = [
+        "/mnt/rg_climate_benchmark/data/datasets_segmentation/SpaceNet8/Germany_Training_Public_label_image_mapping.csv",
+        "/mnt/rg_climate_benchmark/data/datasets_segmentation/SpaceNet8/Louisiana-East_Training_Public_label_image_mapping.csv"
+    ]
 
-        with rasterio.open(path) as src:
+    df = pd.concat([pd.read_csv(path) for path in paths])
+
+    metadata: list[dict[str, str]] = []
+    for idx, row in tqdm(df.iterrows(), total=len(df)):
+        
+
+        pre_event_path = os.path.join(root_dir, "SN8_floods",  "train", "PRE-event", row["pre-event image"])
+        post_event_path = os.path.join(root_dir, "SN8_floods",  "train", "POST-event", row["post-event image 1"])
+        label_path = os.path.join(root_dir, "SN8_floods",  "train", "annotations", row["label"])
+
+        assert os.path.exists(pre_event_path)
+        assert os.path.exists(post_event_path)
+        assert os.path.exists(label_path)
+        
+
+        with rasterio.open(pre_event_path) as src:
             lng, lat = src.lnglat()
             height_px, width_px = src.height, src.width
         metadata.append(
-            {"path": filename, "longitude": lng, "latitude": lat, "height_px": height_px, "width_px": width_px}
+            {"pre-path": pre_event_path, "post-path": post_event_path, "label-path": label_path, "longitude": lng, "latitude": lat, "height_px": height_px, "width_px": width_px}
         )
+
 
     metadata_df = pd.DataFrame(metadata)
 
@@ -111,18 +150,71 @@ def main():
     if not os.path.exists(args.save_dir):
         os.makedirs(args.save_dir)
 
+    # from glob import glob
+
+   
+    # pre_event_paths = glob(os.path.join(args.root, "SN8_floods",  "train", "PRE-event", "*.tif"))
+    # post_event_paths = glob(os.path.join(args.root, "SN8_floods", "train", "POST-event", "*.tif"))
+    # # see if basenames are the same
+    # pre_event_basenames = [os.path.basename(path) for path in pre_event_paths]
+    # post_event_basenames = [os.path.basename(path) for path in post_event_paths]
+
+    # # find the difference
+    # pre_event_basenames = set(pre_event_basenames)
+    # post_event_basenames = set(post_event_basenames)
+
+    # # find length of difference and length of intersection
+    # diff = len(pre_event_basenames - post_event_basenames)
+    # intersection = len(pre_event_basenames.intersection(post_event_basenames))
+
+    # import pdb; pdb.set_trace()
+    # print(pre_event_basenames - post_event_basenames)
+    # assert set(pre_event_basenames) == set(post_event_basenames)
+
     # if os.path.exists(metadata_path):
     #     metadata_df = pd.read_parquet(metadata_path)
     # else:
-    metadata_df = generate_metadata_df(orig_dataset)
+    metadata_df = generate_metadata_df(args.root)
     metadata_df.to_parquet(metadata_path)
 
+    create_geobench_ds(metadata_df, save_dir=args.save_dir)
+    path = "/mnt/rg_climate_benchmark/data/geobenchV2/spacenet8/patch_metadata.parquet"
+    df = pd.read_parquet(path)
 
-    plot_sample_locations(
-        metadata_df,
-        output_path=os.path.join(args.save_dir, "sample_locations.png"),
-        buffer_degrees=2,
+    distance_df = geographic_distance_split(
+        df,
+        n_clusters=8,
+        random_state=42
     )
+
+    visualize_distance_clusters(
+        distance_df,
+        title='Distance Split',
+        output_path=os.path.join(args.save_dir, 'distance_split.png'),
+        buffer_degrees=0.05
+    )
+
+    checker_split_df = checkerboard_split(
+        df,
+        n_blocks_x=10,
+        n_blocks_y=10,
+        pattern="other",
+        random_state=42,
+    )
+
+    visualize_geospatial_split(
+        checker_split_df,
+        title='Checkerboard Split',
+        output_path=os.path.join(args.save_dir, 'checker_split.png'),
+        buffer_degrees=0.05
+    )
+
+
+    # plot_sample_locations(
+    #     metadata_df,
+    #     output_path=os.path.join(args.save_dir, "sample_locations.png"),
+    #     buffer_degrees=2,
+    # )
 
 
 if __name__ == "__main__":
