@@ -17,6 +17,15 @@ from geobench_v2.generate_benchmark.utils import (
     show_samples_per_valid_ratio,
 )
 
+from geobench_v2.generate_benchmark.geospatial_split_utils import (
+    visualize_checkerboard_pattern,
+    visualize_geospatial_split,
+    checkerboard_split,
+    geographic_buffer_split,
+    geographic_distance_split,
+    visualize_distance_clusters
+)
+
 from typing import List, Tuple, Dict, Any, Optional, Union
 import os
 import re
@@ -130,13 +139,38 @@ def main():
 
     # df contains a vali_ratio column, make a plot that on the xaxis has the valid_ratio in steps of 0.05 (0-1 range overall) and on the yaxis the number of patches
     df = pd.read_parquet(path)
-    show_samples_per_valid_ratio(
-        df, os.path.join(args.save_dir, "valid_ratio.png"), dataset_name="SpaceNet6"
+    # show_samples_per_valid_ratio(
+    #     df, os.path.join(args.save_dir, "valid_ratio.png"), dataset_name="SpaceNet6"
+    # )
+    
+    distance_df = geographic_distance_split(
+        df,
+        n_clusters=8,
+        random_state=42
     )
 
-    create_geobench_ds(
-        orig_dataset, ["PS-RGBNIR", "SAR-Intensity"], metadata_df, args.save_dir
+    visualize_distance_clusters(
+        distance_df,
+        title='Distance Split',
+        output_path=os.path.join(args.save_dir, 'distance_split.png'),
+        buffer_degrees=0.05
     )
+
+    checker_split_df = checkerboard_split(
+        df,
+        n_blocks_x=10,
+        n_blocks_y=10,
+        pattern="other",
+        random_state=42,
+    )
+
+    visualize_geospatial_split(
+        checker_split_df,
+        title='Checkerboard Split',
+        output_path=os.path.join(args.save_dir, 'checker_split.png'),
+        buffer_degrees=0.05
+    )
+    
 
 
 if __name__ == "__main__":
