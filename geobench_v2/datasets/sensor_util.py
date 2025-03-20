@@ -1,3 +1,6 @@
+# Copyright (c) 2025 GeoBenchV2. All rights reserved.
+# Licensed under the Apache License 2.0.
+
 """Utility functions for handling satellite imagery datasets."""
 
 from dataclasses import dataclass
@@ -363,6 +366,25 @@ class DatasetBandRegistry:
             "elevation": BandConfig("elevation", ["elevation"], wavelength=None),
         },
         default_order=["r", "g", "b", "nir", "elevation"],
+    )
+
+    # CLOUDSEN12 has cloudsen12-l1c Sentinel2 data is actually just a single ModalityConfig
+    CLOUDSEN12 = ModalityConfig(
+        bands={**SensorBandRegistry.SENTINEL2.bands},
+        default_order=[
+            "B01",
+            "B02",
+            "B03",
+            "B04",
+            "B05",
+            "B06",
+            "B07",
+            "B08",
+            "B8A",
+            "B09",
+            "B11",
+            "B12",
+        ],
     )
 
     @classmethod

@@ -7,8 +7,9 @@ from torch import Tensor
 from torchgeo.datasets import PASTIS
 from pathlib import Path
 import numpy as np
-from typing import Any, Sequence, Union
+from typing import Any, Sequence, Union, Type
 import torch
+import torch.nn as nn
 
 from .sensor_util import DatasetBandRegistry
 from .data_util import DataUtilsMixin, MultiModalNormalizer
@@ -95,6 +96,8 @@ class GeoBenchPASTIS(PASTIS, DataUtilsMixin):
             "B03",
             "B02",
         ],
+        data_normalizer: Type[nn.Module] = MultiModalNormalizer,
+        transforms: nn.Module | None = None,
         **kwargs,
     ) -> None:
         """Initialize PASTIS Dataset.
@@ -106,12 +109,15 @@ class GeoBenchPASTIS(PASTIS, DataUtilsMixin):
                 specify ['red', 'green', 'blue', 'nir', 'nir'], the dataset would return images with 5 channels
                 in that order. This is useful for models that expect a certain band order, or
                 test the impact of band order on model performance.
-            **kwargs: Additional keyword arguments passed to ``PASTIS``
+            data_normalizer: The data normalizer to apply to the data, defaults to :class:`data_util.MultiModalNormalizer`,
+                which applies z-score normalization to each band.
+            transforms:
+            **kwargs: Additional keyword arguments passed to ``torchgeo.datasts.PASTIS``
 
         Raises:
             AssertionError: If an invalid split is specified
         """
-        super().__init__(root=root, **kwargs)
+        super().__init__(root=root)
 
         assert split in self.valid_splits, (
             f"Invalid split {split}. Must be one of {self.valid_splits}"
@@ -120,7 +126,7 @@ class GeoBenchPASTIS(PASTIS, DataUtilsMixin):
 
         self.band_order = self.validate_band_order(band_order)
 
-        self.normalizer = MultiModalNormalizer(
+        self.data_normalizer = data_normalizer(
             self.normalization_stats, self.band_order
         )
 
@@ -162,7 +168,7 @@ class GeoBenchPASTIS(PASTIS, DataUtilsMixin):
         data = {"s2": image_s2, "s1_asc": image_s1a, "s1_desc": image_s1d}
         img_dict = self.rearrange_bands(data, self.band_order)
 
-        img_dict = self.normalizer(img_dict)
+        img_dict = self.data_normalizer(img_dict)
 
         sample.update(img_dict)
 
@@ -178,6 +184,10 @@ class GeoBenchPASTIS(PASTIS, DataUtilsMixin):
         sample["dates"] = sample_row["dates"].values()
         sample["lon"] = sample_row["lon"]
         sample["lat"] = sample_row["lat"]
+        
+        if self.transforms:
+            sample = self.transforms(sample)
+
         return sample
 
     def _load_image(self, path: str) -> Tensor:
