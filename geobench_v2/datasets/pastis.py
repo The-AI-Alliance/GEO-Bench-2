@@ -9,6 +9,8 @@ from pathlib import Path
 import numpy as np
 from typing import Any, Sequence, Union, Type
 import torch
+import json
+import pandas as pd
 import torch.nn as nn
 
 from .sensor_util import DatasetBandRegistry
@@ -97,6 +99,7 @@ class GeoBenchPASTIS(PASTIS, DataUtilsMixin):
             "B02",
         ],
         data_normalizer: Type[nn.Module] = MultiModalNormalizer,
+        num_time_steps: int = 1,
         transforms: nn.Module | None = None,
         **kwargs,
     ) -> None:
@@ -109,6 +112,10 @@ class GeoBenchPASTIS(PASTIS, DataUtilsMixin):
                 specify ['red', 'green', 'blue', 'nir', 'nir'], the dataset would return images with 5 channels
                 in that order. This is useful for models that expect a certain band order, or
                 test the impact of band order on model performance.
+            num_time_steps: The number of last time steps to return, defaults to 1, which returns the last time step.
+                if set to 10, the latest 10 time steps will be returned. If a time series has fewer time steps than
+                specified, it will be padded with zeros. A value of 1 will return a [C, H, W] tensor, while a value
+                of 10 will return a [T, C, H, W] tensor.
             data_normalizer: The data normalizer to apply to the data, defaults to :class:`data_util.MultiModalNormalizer`,
                 which applies z-score normalization to each band.
             transforms:
@@ -129,8 +136,10 @@ class GeoBenchPASTIS(PASTIS, DataUtilsMixin):
         self.data_normalizer = data_normalizer(
             self.normalization_stats, self.band_order
         )
+        self.transforms = transforms
+        self.num_time_steps = num_time_steps
 
-        import pandas as pd
+
         self.metadata_df = pd.read_parquet("/mnt/rg_climate_benchmark/data/geobenchV2/pastis/geobench_metadata.parquet")
         self.metadata_df = self.metadata_df[self.metadata_df["split"] == split].reset_index(drop=True)
         self.metadata_df["ID_PATCH"] = self.metadata_df["ID_PATCH"].astype(str)
@@ -140,10 +149,6 @@ class GeoBenchPASTIS(PASTIS, DataUtilsMixin):
 
         self.new_df = pd.merge(self.metadata_df, self.files_df, how="left", left_on="ID_PATCH", right_on="ID_PATCH").reset_index(drop=True)
 
-        # import pdb
-        # pdb.set_trace()
-
-        # print(0)
 
     def __len__(self) -> int:
         """Return the length of the dataset."""
@@ -181,10 +186,16 @@ class GeoBenchPASTIS(PASTIS, DataUtilsMixin):
             sample["boxes"] = boxes
             sample["label"] = labels
 
-        sample["dates"] = sample_row["dates"].values()
-        sample["lon"] = sample_row["lon"]
-        sample["lat"] = sample_row["lat"]
-        
+        # sample row dates-S2 is a formatted string like is a dictionary, extract the values
+        dates = list(json.loads(sample_row["dates-S2"].replace("'", '"')).values())
+        # sample["dates"] = sample_row["dates-S2"].values()[-self.num_time_steps:]
+        if len(dates) < self.num_time_steps:
+            sample["dates"] = [0] * (self.num_time_steps - len(dates)) + dates
+        else:
+            sample["dates"] = dates[-self.num_time_steps:]
+        sample["lon"] = sample_row["longitude"]
+        sample["lat"] = sample_row["latitude"]
+
         if self.transforms:
             sample = self.transforms(sample)
 
@@ -201,7 +212,19 @@ class GeoBenchPASTIS(PASTIS, DataUtilsMixin):
         """
         array = np.load(path)
         tensor = torch.from_numpy(array)
-        return tensor[-1]
+
+        if tensor.shape[0] < self.num_time_steps:
+            padding = torch.zeros(
+                self.num_time_steps - tensor.shape[0], *tensor.shape[1:]
+            )
+            tensor = torch.cat((padding, tensor), dim=0)
+        else:
+            tensor = tensor[-self.num_time_steps:]
+
+        if self.num_time_steps == 1:
+            tensor = tensor.squeeze(0)
+
+        return tensor
 
     def _load_semantic_targets(self, path: str) -> Tensor:
         """Load the target mask for a single image.
