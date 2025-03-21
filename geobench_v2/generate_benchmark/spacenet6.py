@@ -13,11 +13,16 @@ from tqdm import tqdm
 import re
 from geobench_v2.generate_benchmark.utils import (
     plot_sample_locations,
-    split_geospatial_tiles_into_patches,
-    show_samples_per_valid_ratio,
 )
+import tacotoolbox
+import tacoreader
+import glob
+import numpy as np
+
 
 from geobench_v2.generate_benchmark.geospatial_split_utils import (
+    show_samples_per_valid_ratio,
+    split_geospatial_tiles_into_patches,
     visualize_checkerboard_pattern,
     visualize_geospatial_split,
     checkerboard_split,
@@ -98,9 +103,79 @@ def generate_metadata_df(ds: SpaceNet6) -> pd.DataFrame:
     return metadata_df
 
 
-def create_unit_test_subset() -> None:
-    """Create a subset of SpaceNet6 dataset for GeoBench unit tests."""
-    pass
+def create_tortilla(root_dir, df, save_dir):
+    """Create a tortilla version of the dataset."""
+
+    # filter by valid_ratio, which is the percent of valid number of pixels in an image
+    # df = df[df["valid_ratio"] > 0.4]
+
+    tortilla_dir = os.path.join(save_dir, "tortilla")
+    os.makedirs(tortilla_dir, exist_ok=True)
+
+    for idx, row in tqdm(df.iterrows(), total=len(df), desc="Creating tortilla"):
+
+        modalities = ["PS-RGBNIR", "SAR-Intensity", "mask"]
+        modality_samples = []
+
+        for modality in modalities:
+            path = os.path.join(root_dir, row[modality+"_path"])
+            with rasterio.open(path) as src:
+                profile = src.profile
+
+            sample = tacotoolbox.tortilla.datamodel.Sample(
+                id=modality,
+                path=path,
+                file_format="GTiff",
+                data_split=row["split"],
+                stac_data={
+                    "crs": "EPSG:" + str(profile["crs"].to_epsg()),
+                    "geotransform": profile["transform"].to_gdal(),
+                    "raster_shape": (profile["height"], profile["width"]),
+                    "time_start": row["date"],
+                },
+                lon=row["lon"],
+                lat=row["lat"],
+                spacenet6_source_img_file=row["source_img_file"],
+                spacenet6_source_mask_file=row["source_mask_file"],
+                spacenet6_patch_id=row["patch_id"],
+            )
+
+            modality_samples.append(sample)
+
+        taco_samples = tacotoolbox.tortilla.datamodel.Samples(samples=modality_samples)
+        samples_path = os.path.join(tortilla_dir, f"sample_{idx}.tortilla")
+        tacotoolbox.tortilla.create(taco_samples, samples_path, quiet=True)
+
+    # merge tortillas into a single dataset
+    all_tortilla_files = sorted(glob.glob(os.path.join(tortilla_dir, "*.tortilla")))
+
+    samples = []
+
+    for idx, tortilla_file in tqdm(enumerate(all_tortilla_files), total=len(all_tortilla_files), desc="Building taco"):
+        sample_data = tacoreader.load(tortilla_file).iloc[0]
+
+        sample_tortilla = tacotoolbox.tortilla.datamodel.Sample(
+            id=os.path.basename(tortilla_file).split(".")[0],
+            path=tortilla_file,
+            file_format="TORTILLA",
+            stac_data={
+                "crs": sample_data["stac:crs"],
+                "geotransform": sample_data["stac:geotransform"],
+                "raster_shape": sample_data["stac:raster_shape"],
+                "time_start": sample_data["stac:time_start"],
+            },
+            data_split=sample_data["tortilla:data_split"],
+            lon=sample_data["lon"],
+            lat=sample_data["lat"],
+            spacenet6_source_img_file=sample_data["spacenet6_source_img_file"],
+            spacenet6_source_mask_file=sample_data["spacenet6_source_mask_file"],
+            spacenet6_patch_id=sample_data["spacenet6_patch_id"],
+        )
+        samples.append(sample_tortilla)
+
+    # create final taco file
+    final_samples = tacotoolbox.tortilla.datamodel.Samples(samples=samples)
+    tacotoolbox.tortilla.create(final_samples, os.path.join(save_dir, "SpaceNet6.tortilla"), quiet=True)
 
 
 def main():
@@ -137,31 +212,19 @@ def main():
 
     path = "/mnt/rg_climate_benchmark/data/geobenchV2/SpaceNet6/patch_metadata.parquet"
 
-    # df contains a vali_ratio column, make a plot that on the xaxis has the valid_ratio in steps of 0.05 (0-1 range overall) and on the yaxis the number of patches
     df = pd.read_parquet(path)
-    # show_samples_per_valid_ratio(
-    #     df, os.path.join(args.save_dir, "valid_ratio.png"), dataset_name="SpaceNet6"
-    # )
-    
-    distance_df = geographic_distance_split(
-        df,
-        n_clusters=8,
-        random_state=42
-    )
 
-    visualize_distance_clusters(
-        distance_df,
-        title='Distance Split',
-        output_path=os.path.join(args.save_dir, 'distance_split.png'),
-        buffer_degrees=0.05
-    )
+    # filter by valid ratio to remove some images with lots of no-data regions
+    df = df[df["valid_ratio"] > 0.4]
+
 
     checker_split_df = checkerboard_split(
         df,
-        n_blocks_x=10,
-        n_blocks_y=10,
-        pattern="other",
+        n_blocks_x=13,
+        n_blocks_y=13,
+        pattern="balanced",
         random_state=42,
+        ratio_tolerance=0.02
     )
 
     visualize_geospatial_split(
@@ -170,6 +233,8 @@ def main():
         output_path=os.path.join(args.save_dir, 'checker_split.png'),
         buffer_degrees=0.05
     )
+
+    create_tortilla(args.save_dir, checker_split_df, args.save_dir)
     
 
 

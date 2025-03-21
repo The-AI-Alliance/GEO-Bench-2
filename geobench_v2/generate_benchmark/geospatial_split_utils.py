@@ -182,12 +182,36 @@ def checkerboard_split(
     n_blocks_x: int = 5,
     n_blocks_y: int = 5,
     pattern: str = "checkerboard",
-    test_blocks_ratio: float = 0.1,
+    test_blocks_ratio: float = 0.2,
     val_blocks_ratio: float = 0.1,
+    target_test_ratio: float = 0.2,  # Target sample ratio for test set
+    target_val_ratio: float = 0.1,   # Target sample ratio for validation set
+    max_iterations: int = 50,        # Maximum iterations for ratio optimization
+    ratio_tolerance: float = 0.02,   # Acceptable deviation from target ratios
     crs: str = "EPSG:4326",
     random_state: int = 42
 ) -> pd.DataFrame:
-    """Split dataset into a checkerboard-like pattern to ensure spatial distribution."""
+    """Split dataset into a spatial pattern to ensure coherent geographic distribution.
+    
+    Args:
+        df: DataFrame containing latitude and longitude columns
+        lon_col: Name of the longitude column
+        lat_col: Name of the latitude column
+        n_blocks_x: Number of blocks along the x-axis
+        n_blocks_y: Number of blocks along the y-axis
+        pattern: Pattern type - one of "checkerboard", "random", "balanced"
+        test_blocks_ratio: Proportion of blocks for test set (when using "random")
+        val_blocks_ratio: Proportion of blocks for validation set (when using "random")
+        target_test_ratio: Target ratio of samples for test set (when using "balanced")
+        target_val_ratio: Target ratio of samples for validation set (when using "balanced")
+        max_iterations: Maximum number of iterations for ratio optimization
+        ratio_tolerance: Acceptable deviation from target ratios
+        crs: Coordinate reference system of the input coordinates
+        random_state: Random seed for reproducibility
+    
+    Returns:
+        DataFrame with additional columns: 'split', 'block_x', 'block_y', and 'block_id'
+    """
     gdf = dataframe_to_geodataframe(df, lon_col, lat_col, crs)
     
     minx, miny, maxx, maxy = gdf.total_bounds
@@ -205,6 +229,14 @@ def checkerboard_split(
     gdf['block_x'] = ((gdf.geometry.x - minx) / x_step).astype(int).clip(0, n_blocks_x - 1)
     gdf['block_y'] = ((gdf.geometry.y - miny) / y_step).astype(int).clip(0, n_blocks_y - 1)
     gdf['block_id'] = gdf['block_y'] * n_blocks_x + gdf['block_x']
+
+    # Count points per block for balancing
+    block_counts = gdf['block_id'].value_counts().to_dict()
+    n_blocks = n_blocks_x * n_blocks_y
+    blocks = np.arange(n_blocks)
+    
+    # Set random seed for reproducibility
+    np.random.seed(random_state)
     
     if pattern == 'checkerboard':
         block_matrix = np.zeros((n_blocks_y, n_blocks_x), dtype=int)
@@ -230,8 +262,140 @@ def checkerboard_split(
                 block_splits[block_id] = 'validation'
             else:
                 block_splits[block_id] = 'train'
+
+    elif pattern == 'balanced':
+        # Initialize with random assignment
+        np.random.shuffle(blocks)
+        
+        # Start with initial ratio-based assignment
+        n_total_samples = len(gdf)
+        n_test_samples_target = int(n_total_samples * target_test_ratio)
+        n_val_samples_target = int(n_total_samples * target_val_ratio)
+        
+        # Initialize block splits
+        block_splits = {}
+        for block_id in range(n_blocks):
+            block_splits[block_id] = 'train'  # Default all to train
+        
+        # Calculate initial block assignments based on ratios
+        assigned_blocks = []
+        test_blocks = []
+        val_blocks = []
+        test_samples = 0
+        val_samples = 0
+        remaining_blocks = blocks.copy()
+        
+        def get_initial_assignments():
+            nonlocal test_samples, val_samples, test_blocks, val_blocks, assigned_blocks, remaining_blocks
+            # First assign test blocks
+            remaining_blocks = list(set(blocks) - set(assigned_blocks))
+            np.random.shuffle(remaining_blocks)
+            
+            test_samples = 0
+            for block_id in remaining_blocks:
+                if test_samples < n_test_samples_target:
+                    block_count = block_counts.get(block_id, 0)
+                    test_samples += block_count
+                    test_blocks.append(block_id)
+                    assigned_blocks.append(block_id)
+                    block_splits[block_id] = 'test'
+                else:
+                    break
+            
+            # Then assign validation blocks
+            remaining_blocks = list(set(blocks) - set(assigned_blocks))
+            np.random.shuffle(remaining_blocks)
+            
+            val_samples = 0
+            for block_id in remaining_blocks:
+                if val_samples < n_val_samples_target:
+                    block_count = block_counts.get(block_id, 0)
+                    val_samples += block_count
+                    val_blocks.append(block_id)
+                    assigned_blocks.append(block_id)
+                    block_splits[block_id] = 'validation'
+                else:
+                    break
+            
+            # Rest are train
+            remaining_blocks = list(set(blocks) - set(assigned_blocks))
+            for block_id in remaining_blocks:
+                block_splits[block_id] = 'train'
+        
+        get_initial_assignments()
+        
+        # Calculate actual ratios achieved
+        test_ratio = test_samples / n_total_samples
+        val_ratio = val_samples / n_total_samples
+        
+        # Iteratively improve to get closer to target ratios
+        iteration = 0
+        while (abs(test_ratio - target_test_ratio) > ratio_tolerance or 
+               abs(val_ratio - target_val_ratio) > ratio_tolerance) and iteration < max_iterations:
+            
+            # If test set is too large, try moving smallest test block to train
+            if test_ratio > target_test_ratio + ratio_tolerance and test_blocks:
+                # Find test block with smallest sample count
+                test_block_counts = [(block, block_counts.get(block, 0)) for block in test_blocks]
+                sorted_blocks = sorted(test_block_counts, key=lambda x: x[1])
                 
-    else:
+                if sorted_blocks:
+                    block_to_move = sorted_blocks[0][0]
+                    test_samples -= block_counts.get(block_to_move, 0)
+                    test_blocks.remove(block_to_move)
+                    assigned_blocks.remove(block_to_move)
+                    block_splits[block_to_move] = 'train'
+            
+            # If test set is too small, try moving smallest train block to test
+            elif test_ratio < target_test_ratio - ratio_tolerance:
+                train_blocks = [b for b in blocks if block_splits.get(b) == 'train']
+                if train_blocks:
+                    train_block_counts = [(block, block_counts.get(block, 0)) for block in train_blocks]
+                    sorted_blocks = sorted(train_block_counts, key=lambda x: x[1])
+                    
+                    if sorted_blocks:
+                        block_to_move = sorted_blocks[0][0]
+                        test_samples += block_counts.get(block_to_move, 0)
+                        test_blocks.append(block_to_move)
+                        assigned_blocks.append(block_to_move)
+                        block_splits[block_to_move] = 'test'
+            
+            # If validation set is too large, try moving smallest val block to train
+            if val_ratio > target_val_ratio + ratio_tolerance and val_blocks:
+                # Find validation block with smallest sample count
+                val_block_counts = [(block, block_counts.get(block, 0)) for block in val_blocks]
+                sorted_blocks = sorted(val_block_counts, key=lambda x: x[1])
+                
+                if sorted_blocks:
+                    block_to_move = sorted_blocks[0][0]
+                    val_samples -= block_counts.get(block_to_move, 0)
+                    val_blocks.remove(block_to_move)
+                    assigned_blocks.remove(block_to_move)
+                    block_splits[block_to_move] = 'train'
+            
+            # If validation set is too small, try moving smallest train block to validation
+            elif val_ratio < target_val_ratio - ratio_tolerance:
+                train_blocks = [b for b in blocks if block_splits.get(b) == 'train']
+                if train_blocks:
+                    train_block_counts = [(block, block_counts.get(block, 0)) for block in train_blocks]
+                    sorted_blocks = sorted(train_block_counts, key=lambda x: x[1])
+                    
+                    if sorted_blocks:
+                        block_to_move = sorted_blocks[0][0]
+                        val_samples += block_counts.get(block_to_move, 0)
+                        val_blocks.append(block_to_move)
+                        assigned_blocks.append(block_to_move)
+                        block_splits[block_to_move] = 'validation'
+            
+            # Recalculate ratios
+            test_ratio = test_samples / n_total_samples
+            val_ratio = val_samples / n_total_samples
+            
+            iteration += 1
+
+            print(iteration)
+                
+    elif pattern=="random":
         blocks = np.arange(n_blocks_x * n_blocks_y)
         np.random.seed(random_state)
         np.random.shuffle(blocks)
@@ -251,6 +415,9 @@ def checkerboard_split(
                 block_splits[block_id] = 'validation'
             else:
                 block_splits[block_id] = 'train'
+
+    else:
+        raise ValueError(f"Unknown pattern '{pattern}'. Use 'checkerboard', 'random', or 'balanced'.")
     
     gdf['split'] = gdf['block_id'].map(block_splits).fillna('train')
     
@@ -421,6 +588,19 @@ def visualize_geospatial_split(
     ax.legend(handles=legend_elements, loc='best', title='Data Splits')
     
     ax.set_title(title, fontsize=14)
+
+    split_stats = df[split_col].value_counts()
+    stats_text = "Split Distribution:\n"
+    for split, count in split_stats.items():
+        pct = 100 * count / len(df)
+        stats_text += f"{split}: {count} ({pct:.1f}%)\n"
+    
+    plt.figtext(
+        0.01, 0.01,
+        stats_text,
+        bbox=dict(facecolor='white', alpha=0.8),
+        verticalalignment='bottom'
+    )
     
     plt.tight_layout()
     if output_path:
