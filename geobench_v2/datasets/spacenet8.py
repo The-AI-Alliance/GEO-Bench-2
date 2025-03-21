@@ -8,11 +8,16 @@ from torchgeo.datasets import SpaceNet8
 from pathlib import Path
 
 from .sensor_util import DatasetBandRegistry
-from .data_util import DataUtilsMixin, MultiModalNormalizer
 from .base import GeoBenchBaseDataset
+import torch.nn as nn
+import rasterio
+import numpy as np
+import torch
 
 
-class GeoBenchSpaceNet8(GeoBenchBaseDataset, DataUtilsMixin):
+
+
+class GeoBenchSpaceNet8(GeoBenchBaseDataset):
     """SpaceNet8 dataset with enhanced functionality.
 
     Allows:
@@ -25,9 +30,11 @@ class GeoBenchSpaceNet8(GeoBenchBaseDataset, DataUtilsMixin):
     dataset_band_config = DatasetBandRegistry.SPACENET8
 
     normalization_stats = {
-        "means": {"red": 0.0, "green": 0.0, "blue": 0.0, "nir": 0.0},
-        "stds": {"red": 3000.0, "green": 3000.0, "blue": 3000.0, "nir": 3000.0},
+        "means": {"r": 0.0, "g": 0.0, "b": 0.0, "n": 0.0},
+        "stds": {"r": 255.0, "g": 255.0, "b": 255.0, "n": 255.0},
     }
+
+    band_default_order = ("red", "green", "blue", "nir")
 
     paths = [
         "SpaceNet8.tortilla"
@@ -37,7 +44,8 @@ class GeoBenchSpaceNet8(GeoBenchBaseDataset, DataUtilsMixin):
         self,
         root: Path,
         split: str,
-        band_order: list[str] = ["red", "green", "blue", "nir"],
+        band_order: list[str] = band_default_order,
+        transforms: nn.Module = None,
         **kwargs,
     ) -> None:
         """Initialize SpaceNet8 dataset.
@@ -51,13 +59,8 @@ class GeoBenchSpaceNet8(GeoBenchBaseDataset, DataUtilsMixin):
                 test the impact of band order on model performance.
             **kwargs: Additional keyword arguments passed to ``SpaceNet6``
         """
-        super().__init__(root=root, split=split, **kwargs)
+        super().__init__(root=root, split=split, band_order=band_order, transforms=transforms)
         
-        self.band_order = self.resolve_band_order(band_order)
-
-        self.normalizer = MultiModalNormalizer(
-            self.normalization_stats, self.band_order
-        )
 
     def __getitem__(self, index: int) -> dict[str, Tensor]:
         """Return an index within the dataset.
@@ -69,22 +72,40 @@ class GeoBenchSpaceNet8(GeoBenchBaseDataset, DataUtilsMixin):
             data and label at that index
         """
         # image_path = self.images[index]
+        sample: dict[str, Tensor] = {}
         sample_row = self.data_df.read(index)
-        import pdb; pdb.set_trace()
-        img, tfm, raster_crs = self._load_image(image_path)
-        h, w = img.shape[1:]
+        pre_event_path = sample_row.read(0)
+        post_event_path = sample_row.read(1)
+        mask_path = sample_row.read(2)
+
+        with (
+            rasterio.open(pre_event_path) as pre_src,
+            rasterio.open(post_event_path) as post_src,
+            rasterio.open(mask_path) as mask_src,
+        ):
+            pre_image: np.ndarray = pre_src.read(out_dtype="float32")
+            post_image: np.ndarray = post_src.read(out_dtype="float32")
+            mask: np.ndarray = mask_src.read()
+
+        image_pre = torch.from_numpy(pre_image).float()
+        image_post = torch.from_numpy(post_image).float()
+        mask = torch.from_numpy(mask).long()
+
+        image_pre = self.rearrange_bands(image_pre, self.band_order)
+        image_pre = self.data_normalizer(image_pre)
+        image_post = self.rearrange_bands(image_post, self.band_order)
+        image_post = self.data_normalizer(image_post)
 
 
-        sample = {"image": img}
-
-        mask_path = self.masks[index]
-        mask = self._load_mask(mask_path, tfm, raster_crs, (h, w))
-        sample["mask"] = mask
-
+        sample["image_pre"] = image_pre["image"]
+        sample["image_post"] = image_post["image"]
         # We add 1 to the mask to map the current {background, building} labels to
         # the values {1, 2}. This is necessary because we add 0 padding to the
         # mask that we want to ignore in the loss function.
-        if "mask" in sample:
-            sample["mask"] += 1
+        sample["mask"] = mask + 1
+
+
+        if self.transforms is not None:
+            sample = self.transforms(sample)
 
         return sample
