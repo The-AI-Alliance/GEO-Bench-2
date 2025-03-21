@@ -6,8 +6,10 @@
 from abc import ABC, abstractmethod
 from typing import Union, Sequence, Optional
 import torch
+import torch.nn as nn
 from torch import Tensor
 import kornia.augmentation as K
+from kornia.enhance import normalize, denormalize
 from .sensor_util import ModalityConfig, MultiModalConfig, DatasetBandRegistry
 
 
@@ -276,8 +278,8 @@ class DataUtilsMixin(ABC):
         return "\n".join(lines)
 
 
-class MultiModalNormalizer(torch.nn.Module):
-    """Normalization module for single or multi-modal data."""
+class DataNormalizer(nn.Module, ABC):
+    """Base Class for Data Normalization."""
 
     def __init__(
         self,
@@ -292,44 +294,70 @@ class MultiModalNormalizer(torch.nn.Module):
         """
         super().__init__()
         self.stats = stats
-        self.normalizers = self._setup_normalizers(band_order)
+        self.band_order = band_order
 
-    def _setup_normalizers(
+    @abstractmethod
+    def forward(self, data: dict[str, Tensor]) -> dict[str, Tensor]:
+        """Normalize input tensors."""
+        pass
+
+    @abstractmethod
+    def unnormalize(self, data: dict[str, Tensor]) -> dict[str, Tensor]:
+        """Unnormalize input tensors."""
+        pass
+
+
+class MultiModalNormalizer(DataNormalizer):
+    """Normalization module for single or multi-modal data."""
+
+    def __init__(
         self,
+        stats: dict[str, dict[str, float]],
         band_order: Union[list[Union[str, float]], dict[str, list[Union[str, float]]]],
-    ) -> dict[str, K.Normalize]:
-        """Set up normalization transforms."""
+    ) -> None:
+        """Initialize normalizer.
+
+        Args:
+            stats: dictionary containing mean and std for each band
+            band_order: Either a sequence of bands or dict mapping modalities to sequences
+        """
+        super().__init__(stats, band_order)
+
+        # Calculate mean and std tensors for each input key
+        self.means = {}
+        self.stds = {}
+
         if isinstance(band_order, dict):
-            # Multi-modal case
-            normalizers = {}
             for modality, bands in band_order.items():
-                means, stds = [], []
-                for band in bands:
-                    if isinstance(band, (int, float)):
-                        means.append(0.0)
-                        stds.append(1.0)
-                    else:
-                        means.append(self.stats["means"][band])
-                        stds.append(self.stats["stds"][band])
-                normalizers[f"image_{modality}"] = K.Normalize(
-                    torch.tensor(means), torch.tensor(stds), keepdim=True
-                )
-            return normalizers
+                means, stds = self._get_band_stats(bands)
+                self.means[f"image_{modality}"] = means
+                self.stds[f"image_{modality}"] = stds
         else:
-            # Single tensor case
-            means, stds = [], []
-            for band in band_order:
-                if isinstance(band, (int, float)):
-                    means.append(0.0)
-                    stds.append(1.0)
-                else:
-                    means.append(self.stats["means"][band])
-                    stds.append(self.stats["stds"][band])
-            return {
-                "image": K.Normalize(
-                    torch.tensor(means), torch.tensor(stds), keepdim=True
-                )
-            }
+            means, stds = self._get_band_stats(band_order)
+            self.means["image"] = means
+            self.stds["image"] = stds
+
+    def _get_band_stats(
+        self, bands: Sequence[Union[str, float]]
+    ) -> tuple[Tensor, Tensor]:
+        """Extract mean and std values for specified bands.
+
+        Args:
+            bands: Sequence of band names or fill values
+
+        Returns:
+            Tuple of (mean_tensor, std_tensor)
+        """
+        means, stds = [], []
+        for band in bands:
+            if isinstance(band, (int, float)):
+                means.append(0.0)
+                stds.append(1.0)
+            else:
+                means.append(self.stats["means"][band])
+                stds.append(self.stats["stds"][band])
+
+        return torch.tensor(means), torch.tensor(stds)
 
     def forward(self, data: dict[str, Tensor]) -> dict[str, Tensor]:
         """Normalize input tensors.
@@ -342,4 +370,32 @@ class MultiModalNormalizer(torch.nn.Module):
         Returns:
             dictionary with normalized tensors using same keys
         """
-        return {key: self.normalizers[key](tensor) for key, tensor in data.items()}
+        normed: dict[str, Tensor] = {}
+        for key, tensor in data.items():
+            if tensor.dim() == 3:
+                tensor = tensor.unsqueeze(0)
+            normed[key] = normalize(tensor, self.means[key], self.stds[key])
+        return {
+            key: normalize(
+                tensor.unsqueeze(0), self.means[key], self.stds[key]
+            ).squeeze(0)
+            for key, tensor in data.items()
+        }
+
+    def unnormalize(self, data: dict[str, Tensor]) -> dict[str, Tensor]:
+        """Unnormalize input tensors.
+
+        Args:
+            data: dictionary mapping keys to tensors
+                 For single modality: {"image": tensor}
+                 For multi-modal: {"image_s1": tensor1, "image_s2": tensor2}
+
+        Returns:
+            dictionary with unnormalized tensors using same keys
+        """
+        return {
+            key: denormalize(
+                tensor.unsqueeze(0), self.means[key], self.stds[key]
+            ).squeeze(0)
+            for key, tensor in data.items()
+        }
