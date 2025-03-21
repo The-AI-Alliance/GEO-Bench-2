@@ -66,13 +66,6 @@ class GeoBenchSpaceNet6DataModule(GeoBenchSegmentationDataModule):
             **kwargs,
         )
 
-    # TODO remove after split creation
-    def setup(self, stage: str | None = None) -> None:
-        """Setup the dataset."""
-        self.train_dataset = self.dataset_class(
-            split="train", band_order=self.band_order, **self.kwargs
-        )
-
     def load_metadata(self) -> pd.DataFrame:
         """Load metadata file.
 

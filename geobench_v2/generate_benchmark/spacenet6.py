@@ -11,9 +11,7 @@ import argparse
 import rasterio
 from tqdm import tqdm
 import re
-from geobench_v2.generate_benchmark.utils import (
-    plot_sample_locations,
-)
+from geobench_v2.generate_benchmark.utils import plot_sample_locations
 import tacotoolbox
 import tacoreader
 import glob
@@ -28,7 +26,7 @@ from geobench_v2.generate_benchmark.geospatial_split_utils import (
     checkerboard_split,
     geographic_buffer_split,
     geographic_distance_split,
-    visualize_distance_clusters
+    visualize_distance_clusters,
 )
 
 from typing import List, Tuple, Dict, Any, Optional, Union
@@ -113,12 +111,11 @@ def create_tortilla(root_dir, df, save_dir):
     os.makedirs(tortilla_dir, exist_ok=True)
 
     for idx, row in tqdm(df.iterrows(), total=len(df), desc="Creating tortilla"):
-
         modalities = ["PS-RGBNIR", "SAR-Intensity", "mask"]
         modality_samples = []
 
         for modality in modalities:
-            path = os.path.join(root_dir, row[modality+"_path"])
+            path = os.path.join(root_dir, row[modality + "_path"])
             with rasterio.open(path) as src:
                 profile = src.profile
 
@@ -135,23 +132,27 @@ def create_tortilla(root_dir, df, save_dir):
                 },
                 lon=row["lon"],
                 lat=row["lat"],
-                spacenet6_source_img_file=row["source_img_file"],
-                spacenet6_source_mask_file=row["source_mask_file"],
-                spacenet6_patch_id=row["patch_id"],
+                source_img_file=row["source_img_file"],
+                source_mask_file=row["source_mask_file"],
+                patch_id=row["patch_id"],
             )
 
             modality_samples.append(sample)
 
         taco_samples = tacotoolbox.tortilla.datamodel.Samples(samples=modality_samples)
         samples_path = os.path.join(tortilla_dir, f"sample_{idx}.tortilla")
-        tacotoolbox.tortilla.create(taco_samples, samples_path, quiet=True)
+        tacotoolbox.tortilla.create(taco_samples, samples_path, quiet=True, nworkers=4)
 
     # merge tortillas into a single dataset
     all_tortilla_files = sorted(glob.glob(os.path.join(tortilla_dir, "*.tortilla")))
 
     samples = []
 
-    for idx, tortilla_file in tqdm(enumerate(all_tortilla_files), total=len(all_tortilla_files), desc="Building taco"):
+    for idx, tortilla_file in tqdm(
+        enumerate(all_tortilla_files),
+        total=len(all_tortilla_files),
+        desc="Building taco",
+    ):
         sample_data = tacoreader.load(tortilla_file).iloc[0]
 
         sample_tortilla = tacotoolbox.tortilla.datamodel.Sample(
@@ -167,15 +168,20 @@ def create_tortilla(root_dir, df, save_dir):
             data_split=sample_data["tortilla:data_split"],
             lon=sample_data["lon"],
             lat=sample_data["lat"],
-            spacenet6_source_img_file=sample_data["spacenet6_source_img_file"],
-            spacenet6_source_mask_file=sample_data["spacenet6_source_mask_file"],
-            spacenet6_patch_id=sample_data["spacenet6_patch_id"],
+            source_img_file=sample_data["source_img_file"],
+            source_mask_file=sample_data["source_mask_file"],
+            patch_id=sample_data["patch_id"],
         )
         samples.append(sample_tortilla)
 
     # create final taco file
     final_samples = tacotoolbox.tortilla.datamodel.Samples(samples=samples)
-    tacotoolbox.tortilla.create(final_samples, os.path.join(save_dir, "SpaceNet6.tortilla"), quiet=True)
+    tacotoolbox.tortilla.create(
+        final_samples,
+        os.path.join(save_dir, "SpaceNet6.tortilla"),
+        quiet=True,
+        nworkers=4,
+    )
 
 
 def main():
@@ -215,8 +221,7 @@ def main():
     df = pd.read_parquet(path)
 
     # filter by valid ratio to remove some images with lots of no-data regions
-    df = df[df["valid_ratio"] > 0.4]
-
+    df = df[df["valid_ratio"] > 0.4].reset_index(drop=True)
 
     checker_split_df = checkerboard_split(
         df,
@@ -224,18 +229,17 @@ def main():
         n_blocks_y=13,
         pattern="balanced",
         random_state=42,
-        ratio_tolerance=0.02
+        ratio_tolerance=0.02,
     )
 
     visualize_geospatial_split(
         checker_split_df,
-        title='Checkerboard Split',
-        output_path=os.path.join(args.save_dir, 'checker_split.png'),
-        buffer_degrees=0.05
+        title="Checkerboard Split",
+        output_path=os.path.join(args.save_dir, "checker_split.png"),
+        buffer_degrees=0.05,
     )
 
     create_tortilla(args.save_dir, checker_split_df, args.save_dir)
-    
 
 
 if __name__ == "__main__":

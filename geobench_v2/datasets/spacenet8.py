@@ -6,15 +6,15 @@
 from torch import Tensor
 from torchgeo.datasets import SpaceNet8
 from pathlib import Path
+from typing import Type
 
 from .sensor_util import DatasetBandRegistry
+from .data_util import MultiModalNormalizer
 from .base import GeoBenchBaseDataset
 import torch.nn as nn
 import rasterio
 import numpy as np
 import torch
-
-
 
 
 class GeoBenchSpaceNet8(GeoBenchBaseDataset):
@@ -25,6 +25,9 @@ class GeoBenchSpaceNet8(GeoBenchBaseDataset):
     - Return band wavelengths
 
     3 classes: background, building or road (not flooded), building or road (flooded)
+    0. ackground
+    # TODO
+    but maybe also 5 classes?
     """
 
     dataset_band_config = DatasetBandRegistry.SPACENET8
@@ -36,15 +39,14 @@ class GeoBenchSpaceNet8(GeoBenchBaseDataset):
 
     band_default_order = ("red", "green", "blue", "nir")
 
-    paths = [
-        "SpaceNet8.tortilla"
-    ]
+    paths = ["SpaceNet8.tortilla"]
 
     def __init__(
         self,
         root: Path,
         split: str,
         band_order: list[str] = band_default_order,
+        data_normalizer: Type[nn.Module] = MultiModalNormalizer,
         transforms: nn.Module = None,
         **kwargs,
     ) -> None:
@@ -57,10 +59,15 @@ class GeoBenchSpaceNet8(GeoBenchBaseDataset):
                 specify ['red', 'green', 'blue', 'nir', 'nir'], the dataset would return images with 5 channels
                 in that order. This is useful for models that expect a certain band order, or
                 test the impact of band order on model performance.
-            **kwargs: Additional keyword arguments passed to ``SpaceNet6``
+            **kwargs: Additional keyword arguments passed to ``SpaceNet8``
         """
-        super().__init__(root=root, split=split, band_order=band_order, transforms=transforms)
-        
+        super().__init__(
+            root=root,
+            split=split,
+            band_order=band_order,
+            data_normalizer=data_normalizer,
+            transforms=transforms,
+        )
 
     def __getitem__(self, index: int) -> dict[str, Tensor]:
         """Return an index within the dataset.
@@ -71,9 +78,10 @@ class GeoBenchSpaceNet8(GeoBenchBaseDataset):
         Returns:
             data and label at that index
         """
-        # image_path = self.images[index]
         sample: dict[str, Tensor] = {}
+
         sample_row = self.data_df.read(index)
+
         pre_event_path = sample_row.read(0)
         post_event_path = sample_row.read(1)
         mask_path = sample_row.read(2)
@@ -96,14 +104,12 @@ class GeoBenchSpaceNet8(GeoBenchBaseDataset):
         image_post = self.rearrange_bands(image_post, self.band_order)
         image_post = self.data_normalizer(image_post)
 
-
         sample["image_pre"] = image_pre["image"]
         sample["image_post"] = image_post["image"]
         # We add 1 to the mask to map the current {background, building} labels to
         # the values {1, 2}. This is necessary because we add 0 padding to the
         # mask that we want to ignore in the loss function.
         sample["mask"] = mask + 1
-
 
         if self.transforms is not None:
             sample = self.transforms(sample)

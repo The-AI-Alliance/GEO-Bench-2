@@ -11,7 +11,6 @@ import os
 from torch import Tensor
 
 
-
 from geobench_v2.datasets import GeoBenchSpaceNet8
 
 from .base import GeoBenchSegmentationDataModule
