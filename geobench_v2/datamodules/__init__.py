@@ -12,6 +12,7 @@ from .spacenet8 import GeoBenchSpaceNet8DataModule
 from .benv2 import GeoBenchBENV2DataModule
 from .everwatch import GeoBenchEverWatchDataModule
 from .flair2 import GeoBenchFLAIR2DataModule
+from .cloudsen12 import GeoBenchCloudSen12DataModule
 
 __all__ = (
     "GeoBenchCaFFeDataModule",
@@ -23,4 +24,5 @@ __all__ = (
     "GeoBenchBENV2DataModule",
     "GeoBenchEverWatchDataModule",
     "GeoBenchFLAIR2DataModule",
+    "GeoBenchCloudSen12DataModule",
 )

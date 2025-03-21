@@ -12,6 +12,9 @@ import rasterio
 from tqdm import tqdm
 import re
 from geobench_v2.generate_benchmark.utils import plot_sample_locations
+import tacotoolbox
+import tacoreader
+import glob
 
 from geobench_v2.generate_benchmark.utils import (
     plot_sample_locations,
@@ -126,11 +129,80 @@ def generate_metadata_df(root_dir) -> pd.DataFrame:
     return metadata_df
 
 
-def create_unit_test_subset() -> None:
-    """Create a subset of SpaceNet8 dataset for GeoBench unit tests."""
+def create_tortilla(root_dir, df, save_dir):
+    """Create a tortilla version of the dataset."""
 
-    # create random images etc that respect the structure of the dataset in minimal format
-    pass
+    tortilla_dir = os.path.join(save_dir, "tortilla")
+    os.makedirs(tortilla_dir, exist_ok=True)
+
+    for idx, row in tqdm(df.iterrows(), total=len(df), desc="Creating tortilla"):
+
+        modalities = ["PRE-event", "POST-event", "mask"]
+        modality_samples = []
+
+        for modality in modalities:
+            path = os.path.join(root_dir, row[modality+"_path"])
+            with rasterio.open(path) as src:
+                profile = src.profile
+
+            sample = tacotoolbox.tortilla.datamodel.Sample(
+                id=modality,
+                path=path,
+                file_format="GTiff",
+                data_split=row["split"],
+                stac_data={
+                    "crs": "EPSG:" + str(profile["crs"].to_epsg()),
+                    "geotransform": profile["transform"].to_gdal(),
+                    "raster_shape": (profile["height"], profile["width"]),
+                    "time_start": 0,
+                },
+                lon=row["lon"],
+                lat=row["lat"],
+                spacenet8_source_img_file=row["source_img_file"],
+                spacenet8_source_mask_file=row["source_mask_file"],
+                spacenet8_patch_id=row["patch_id"],
+                spacenet8_region=row["region"],
+            )
+
+            modality_samples.append(sample)
+
+        taco_samples = tacotoolbox.tortilla.datamodel.Samples(samples=modality_samples)
+        samples_path = os.path.join(tortilla_dir, f"sample_{idx}.tortilla")
+        tacotoolbox.tortilla.create(taco_samples, samples_path, quiet=True)
+
+    # merge tortillas into a single dataset
+    all_tortilla_files = sorted(glob.glob(os.path.join(tortilla_dir, "*.tortilla")))
+
+    samples = []
+
+    for idx, tortilla_file in tqdm(enumerate(all_tortilla_files), total=len(all_tortilla_files), desc="Building taco"):
+        sample_data = tacoreader.load(tortilla_file).iloc[0]
+
+        sample_tortilla = tacotoolbox.tortilla.datamodel.Sample(
+            id=os.path.basename(tortilla_file).split(".")[0],
+            path=tortilla_file,
+            file_format="TORTILLA",
+            stac_data={
+                "crs": sample_data["stac:crs"],
+                "geotransform": sample_data["stac:geotransform"],
+                "raster_shape": sample_data["stac:raster_shape"],
+                "time_start": sample_data["stac:time_start"],
+            },
+            data_split=sample_data["tortilla:data_split"],
+            lon=sample_data["lon"],
+            lat=sample_data["lat"],
+            spacenet8_source_img_file=sample_data["spacenet8_source_img_file"],
+            spacenet8_source_mask_file=sample_data["spacenet8_source_mask_file"],
+            spacenet8_patch_id=sample_data["spacenet8_patch_id"],
+            spacenet8_region=sample_data["spacenet8_region"],
+        )
+        samples.append(sample_tortilla)
+
+    # create final taco file
+    final_samples = tacotoolbox.tortilla.datamodel.Samples(samples=samples)
+    tacotoolbox.tortilla.create(final_samples, os.path.join(save_dir, "SpaceNet8.tortilla"), quiet=True)
+        
+        
 
 
 def main():
@@ -185,42 +257,48 @@ def main():
             "region",
         ] = region["name"]
 
-    show_samples_per_valid_ratio(df, os.path.join(args.save_dir, "samples_per_valid_ratio.png"), dataset_name="SpaceNet8")
+    # show_samples_per_valid_ratio(df, os.path.join(args.save_dir, "samples_per_valid_ratio.png"), dataset_name="SpaceNet8")
 
-    distance_df = geographic_distance_split(
+    df_with_assigned_split = geographic_distance_split(
         df,
         n_clusters=8,
         random_state=42
     )
 
     visualize_distance_clusters(
-        distance_df,
+        df_with_assigned_split,
         title='Distance Split',
         output_path=os.path.join(args.save_dir, 'distance_split.png'),
         buffer_degrees=0.05
     )
 
-    checker_split_df = checkerboard_split(
-        df,
-        n_blocks_x=10,
-        n_blocks_y=10,
-        pattern="other",
-        random_state=42,
-    )
-
-    visualize_geospatial_split(
-        checker_split_df,
-        title='Checkerboard Split',
-        output_path=os.path.join(args.save_dir, 'checker_split.png'),
-        buffer_degrees=0.05
-    )
+    create_tortilla(args.save_dir, df_with_assigned_split, args.save_dir)
 
 
-    plot_sample_locations(
-        distance_df,
-        output_path=os.path.join(args.save_dir, "sample_locations.png"),
-        buffer_degrees=0.5,
-    )
+
+    # create taco version of the dataset
+
+    # checker_split_df = checkerboard_split(
+    #     df,
+    #     n_blocks_x=10,
+    #     n_blocks_y=10,
+    #     pattern="other",
+    #     random_state=42,
+    # )
+
+    # visualize_geospatial_split(
+    #     checker_split_df,
+    #     title='Checkerboard Split',
+    #     output_path=os.path.join(args.save_dir, 'checker_split.png'),
+    #     buffer_degrees=0.05
+    # )
+
+
+    # plot_sample_locations(
+    #     distance_df,
+    #     output_path=os.path.join(args.save_dir, "sample_locations.png"),
+    #     buffer_degrees=0.5,
+    # )
 
 
 if __name__ == "__main__":

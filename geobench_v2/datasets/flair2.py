@@ -7,8 +7,9 @@ import os
 
 import numpy as np
 import rasterio
-from typing import Sequence, ClassVar, Union
+from typing import Sequence, ClassVar, Union, Type
 import torch
+import torch.nn as nn
 from torch import Tensor
 from torchgeo.datasets import NonGeoDataset
 from torchgeo.datasets.utils import percentile_normalization
@@ -60,7 +61,7 @@ class GeoBenchFLAIR2(NonGeoDataset, DataUtilsMixin):
     }
     globs: ClassVar[dict[str, str]] = {"images": "IMG_*.tif", "masks": "MSK_*.tif"}
 
-    splits = ("train", "test")
+    splits = ("train", "val", "test")
 
     dataset_band_config = DatasetBandRegistry.FLAIR2
 
@@ -76,7 +77,8 @@ class GeoBenchFLAIR2(NonGeoDataset, DataUtilsMixin):
         root,
         split="train",
         band_order: Sequence[float | str] = ["r", "g", "b"],
-        transforms=None,
+        data_normalizer: Type[nn.Module] = MultiModalNormalizer,
+        transforms: nn.Module | None = None,
     ):
         """Initialize FLAIR 2 dataset.
 
@@ -85,20 +87,23 @@ class GeoBenchFLAIR2(NonGeoDataset, DataUtilsMixin):
             split: The dataset split, supports 'train', 'test'
             band_order: The order of bands to return, defaults to ['r', 'g', 'b'], if one would
                 specify ['r', 'g', 'b', 'nir'], the dataset would return images with 4 channels
-            transforms: A composition of transforms to apply to the sample
+            data_normalizer: The data normalizer to apply to the data, defaults to :class:`data_util.MultiModalNormalizer`,
+                which applies z-score normalization to each band.
+            transforms:
 
         Raises:
             AssertionError: If split is not in the splits
         """
         assert split in self.splits, f"split must be one of {self.splits}"
 
-        self.root = root
         self.transforms = transforms
+
+        self.root = root
         self.split = split
 
         self.band_order = self.resolve_band_order(band_order)
 
-        self.normalizer = MultiModalNormalizer(
+        self.data_normalizer = data_normalizer(
             self.normalization_stats, self.band_order
         )
 
@@ -153,13 +158,16 @@ class GeoBenchFLAIR2(NonGeoDataset, DataUtilsMixin):
 
         image_dict = self.rearrange_bands(image, self.band_order)
 
-        image_dict = self.normalizer(image_dict)
+        image_dict = self.data_normalizer(image_dict)
         sample.update(image_dict)
 
         path = self.samples[index]["mask"]
         mask = self.load_mask(path)
 
         sample["mask"] = mask
+
+        if self.transforms is not None:
+            sample = self.transforms(sample)
 
         return sample
 

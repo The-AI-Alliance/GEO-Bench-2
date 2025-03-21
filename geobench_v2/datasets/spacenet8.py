@@ -9,9 +9,10 @@ from pathlib import Path
 
 from .sensor_util import DatasetBandRegistry
 from .data_util import DataUtilsMixin, MultiModalNormalizer
+from .base import GeoBenchBaseDataset
 
 
-class GeoBenchSpaceNet8(SpaceNet8, DataUtilsMixin):
+class GeoBenchSpaceNet8(GeoBenchBaseDataset, DataUtilsMixin):
     """SpaceNet8 dataset with enhanced functionality.
 
     Allows:
@@ -27,6 +28,10 @@ class GeoBenchSpaceNet8(SpaceNet8, DataUtilsMixin):
         "means": {"red": 0.0, "green": 0.0, "blue": 0.0, "nir": 0.0},
         "stds": {"red": 3000.0, "green": 3000.0, "blue": 3000.0, "nir": 3000.0},
     }
+
+    paths = [
+        "SpaceNet8.tortilla"
+    ]
 
     def __init__(
         self,
@@ -63,7 +68,9 @@ class GeoBenchSpaceNet8(SpaceNet8, DataUtilsMixin):
         Returns:
             data and label at that index
         """
-        image_path = self.images[index]
+        # image_path = self.images[index]
+        sample_row = self.data_df.read(index)
+        import pdb; pdb.set_trace()
         img, tfm, raster_crs = self._load_image(image_path)
         h, w = img.shape[1:]
 

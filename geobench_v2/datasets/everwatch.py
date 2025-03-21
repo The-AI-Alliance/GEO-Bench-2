@@ -5,9 +5,11 @@
 
 import os
 
+from typing import Type
 from torchgeo.datasets import EverWatch
 import numpy as np
 from PIL import Image
+import torch.nn as nn
 from torch import Tensor
 import torch
 from pathlib import Path
@@ -39,7 +41,8 @@ class GeoBenchEverWatch(EverWatch, DataUtilsMixin):
         root: Path,
         split: str,
         band_order: list[str] = band_default_order,
-        **kwargs,
+        data_normalizer: Type[nn.Module] = MultiModalNormalizer,
+        transforms: nn.Module | None = None,
     ) -> None:
         """Initialize EverWatch dataset.
 
@@ -50,13 +53,17 @@ class GeoBenchEverWatch(EverWatch, DataUtilsMixin):
                 specify ['red', 'green', 'blue', 'blue'], the dataset would return images with 4 channels
                 in that order. This is useful for models that expect a certain band order, or
                 test the impact of band order on model performance.
-            **kwargs: Additional keyword arguments passed to ``EverWatch``
+            data_normalizer: The data normalizer to apply to the data, defaults to :class:`data_util.MultiModalNormalizer`,
+                which applies z-score normalization to each band.
+            transforms:
         """
-        super().__init__(root=root, split=split, **kwargs)
+        super().__init__(root=root, split=split)
+
+        self.transforms = transforms
 
         self.band_order = self.resolve_band_order(band_order)
 
-        self.normalizer = MultiModalNormalizer(
+        self.data_normalizer = data_normalizer(
             self.normalization_stats, self.band_order
         )
 
@@ -81,7 +88,7 @@ class GeoBenchEverWatch(EverWatch, DataUtilsMixin):
 
         image_dict = self.rearrange_bands(image, self.band_order)
 
-        image_dict = self.normalizer(image_dict)
+        image_dict = self.data_normalizer(image_dict)
 
         sample.update(image_dict)
 
@@ -91,5 +98,11 @@ class GeoBenchEverWatch(EverWatch, DataUtilsMixin):
 
         sample["bbox_xyxy"] = boxes
         sample["label"] = labels
+
+        import pdb
+
+        pdb.set_trace()
+        if self.transforms is not None:
+            sample = self.transforms(sample)
 
         return sample
