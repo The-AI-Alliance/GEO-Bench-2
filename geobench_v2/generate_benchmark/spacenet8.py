@@ -16,9 +16,7 @@ import tacotoolbox
 import tacoreader
 import glob
 
-from geobench_v2.generate_benchmark.utils import (
-    plot_sample_locations,
-)
+from geobench_v2.generate_benchmark.utils import plot_sample_locations
 
 from geobench_v2.generate_benchmark.geospatial_split_utils import (
     visualize_checkerboard_pattern,
@@ -28,17 +26,13 @@ from geobench_v2.generate_benchmark.geospatial_split_utils import (
     geographic_buffer_split,
     geographic_distance_split,
     visualize_distance_clusters,
-    show_samples_per_valid_ratio
+    show_samples_per_valid_ratio,
 )
 
 
-def create_geobench_ds(
-    metadata_df: pd.DataFrame, save_dir: str
-) -> None:
+def create_geobench_ds(metadata_df: pd.DataFrame, save_dir: str) -> None:
     """Create a subset of SpaceNet6 dataset."""
     os.makedirs(save_dir, exist_ok=True)
-
-
 
     modal_path_dict = {}
     modal_path_dict["PRE-event"] = metadata_df["pre-path"].tolist()
@@ -71,31 +65,41 @@ def generate_metadata_df(root_dir) -> pd.DataFrame:
 
     paths = [
         "/mnt/rg_climate_benchmark/data/datasets_segmentation/SpaceNet8/Germany_Training_Public_label_image_mapping.csv",
-        "/mnt/rg_climate_benchmark/data/datasets_segmentation/SpaceNet8/Louisiana-East_Training_Public_label_image_mapping.csv"
+        "/mnt/rg_climate_benchmark/data/datasets_segmentation/SpaceNet8/Louisiana-East_Training_Public_label_image_mapping.csv",
     ]
 
     df = pd.concat([pd.read_csv(path) for path in paths])
 
     metadata: list[dict[str, str]] = []
     for idx, row in tqdm(df.iterrows(), total=len(df)):
-        
-
-        pre_event_path = os.path.join(root_dir, "SN8_floods",  "train", "PRE-event", row["pre-event image"])
-        post_event_path = os.path.join(root_dir, "SN8_floods",  "train", "POST-event", row["post-event image 1"])
-        label_path = os.path.join(root_dir, "SN8_floods",  "train", "annotations", row["label"])
+        pre_event_path = os.path.join(
+            root_dir, "SN8_floods", "train", "PRE-event", row["pre-event image"]
+        )
+        post_event_path = os.path.join(
+            root_dir, "SN8_floods", "train", "POST-event", row["post-event image 1"]
+        )
+        label_path = os.path.join(
+            root_dir, "SN8_floods", "train", "annotations", row["label"]
+        )
 
         assert os.path.exists(pre_event_path)
         assert os.path.exists(post_event_path)
         assert os.path.exists(label_path)
-        
 
         with rasterio.open(pre_event_path) as src:
             lng, lat = src.lnglat()
             height_px, width_px = src.height, src.width
         metadata.append(
-            {"pre-path": pre_event_path, "post-path": post_event_path, "label-path": label_path, "longitude": lng, "latitude": lat, "height_px": height_px, "width_px": width_px}
+            {
+                "pre-path": pre_event_path,
+                "post-path": post_event_path,
+                "label-path": label_path,
+                "longitude": lng,
+                "latitude": lat,
+                "height_px": height_px,
+                "width_px": width_px,
+            }
         )
-
 
     metadata_df = pd.DataFrame(metadata)
 
@@ -103,18 +107,23 @@ def generate_metadata_df(root_dir) -> pd.DataFrame:
 
     regions = [
         {
-            'name': 'Louisiana, USA',
-            'bounds': {'min_lat': 29, 'max_lat': 33, 'min_lon': -94, 'max_lon': -89}
+            "name": "Louisiana, USA",
+            "bounds": {"min_lat": 29, "max_lat": 33, "min_lon": -94, "max_lon": -89},
         },
         {
-            'name': 'Germany',
-            'bounds': {'min_lat': 47.5, 'max_lat': 54.5, 'min_lon': 6.5, 'max_lon': 14.5}
-        }
+            "name": "Germany",
+            "bounds": {
+                "min_lat": 47.5,
+                "max_lat": 54.5,
+                "min_lon": 6.5,
+                "max_lon": 14.5,
+            },
+        },
     ]
 
     # match region to each sample
-    metadata_df['region'] = 'unknown'  # Default value
-    
+    metadata_df["region"] = "unknown"  # Default value
+
     for region in regions:
         bounds = region["bounds"]
         metadata_df.loc[
@@ -124,7 +133,6 @@ def generate_metadata_df(root_dir) -> pd.DataFrame:
             & (metadata_df["longitude"] <= bounds["max_lon"]),
             "region",
         ] = region["name"]
-
 
     return metadata_df
 
@@ -136,12 +144,11 @@ def create_tortilla(root_dir, df, save_dir):
     os.makedirs(tortilla_dir, exist_ok=True)
 
     for idx, row in tqdm(df.iterrows(), total=len(df), desc="Creating tortilla"):
-
         modalities = ["PRE-event", "POST-event", "mask"]
         modality_samples = []
 
         for modality in modalities:
-            path = os.path.join(root_dir, row[modality+"_path"])
+            path = os.path.join(root_dir, row[modality + "_path"])
             with rasterio.open(path) as src:
                 profile = src.profile
 
@@ -158,10 +165,10 @@ def create_tortilla(root_dir, df, save_dir):
                 },
                 lon=row["lon"],
                 lat=row["lat"],
-                spacenet8_source_img_file=row["source_img_file"],
-                spacenet8_source_mask_file=row["source_mask_file"],
-                spacenet8_patch_id=row["patch_id"],
-                spacenet8_region=row["region"],
+                source_img_file=row["source_img_file"],
+                source_mask_file=row["source_mask_file"],
+                patch_id=row["patch_id"],
+                region=row["region"],
             )
 
             modality_samples.append(sample)
@@ -175,7 +182,11 @@ def create_tortilla(root_dir, df, save_dir):
 
     samples = []
 
-    for idx, tortilla_file in tqdm(enumerate(all_tortilla_files), total=len(all_tortilla_files), desc="Building taco"):
+    for idx, tortilla_file in tqdm(
+        enumerate(all_tortilla_files),
+        total=len(all_tortilla_files),
+        desc="Building taco",
+    ):
         sample_data = tacoreader.load(tortilla_file).iloc[0]
 
         sample_tortilla = tacotoolbox.tortilla.datamodel.Sample(
@@ -191,18 +202,18 @@ def create_tortilla(root_dir, df, save_dir):
             data_split=sample_data["tortilla:data_split"],
             lon=sample_data["lon"],
             lat=sample_data["lat"],
-            spacenet8_source_img_file=sample_data["spacenet8_source_img_file"],
-            spacenet8_source_mask_file=sample_data["spacenet8_source_mask_file"],
-            spacenet8_patch_id=sample_data["spacenet8_patch_id"],
-            spacenet8_region=sample_data["spacenet8_region"],
+            source_img_file=sample_data["source_img_file"],
+            source_mask_file=sample_data["source_mask_file"],
+            patch_id=sample_data["patch_id"],
+            region=sample_data["region"],
         )
         samples.append(sample_tortilla)
 
     # create final taco file
     final_samples = tacotoolbox.tortilla.datamodel.Samples(samples=samples)
-    tacotoolbox.tortilla.create(final_samples, os.path.join(save_dir, "SpaceNet8.tortilla"), quiet=True)
-        
-        
+    tacotoolbox.tortilla.create(
+        final_samples, os.path.join(save_dir, "SpaceNet8.tortilla"), quiet=True
+    )
 
 
 def main():
@@ -235,18 +246,23 @@ def main():
 
     regions = [
         {
-            'name': 'Louisiana, USA',
-            'bounds': {'min_lat': 29, 'max_lat': 33, 'min_lon': -94, 'max_lon': -89}
+            "name": "Louisiana, USA",
+            "bounds": {"min_lat": 29, "max_lat": 33, "min_lon": -94, "max_lon": -89},
         },
         {
-            'name': 'Germany',
-            'bounds': {'min_lat': 47.5, 'max_lat': 54.5, 'min_lon': 6.5, 'max_lon': 14.5}
-        }
+            "name": "Germany",
+            "bounds": {
+                "min_lat": 47.5,
+                "max_lat": 54.5,
+                "min_lon": 6.5,
+                "max_lon": 14.5,
+            },
+        },
     ]
 
     # match region to each sample
-    df['region'] = 'unknown'  # Default value
-    
+    df["region"] = "unknown"  # Default value
+
     for region in regions:
         bounds = region["bounds"]
         df.loc[
@@ -260,21 +276,17 @@ def main():
     # show_samples_per_valid_ratio(df, os.path.join(args.save_dir, "samples_per_valid_ratio.png"), dataset_name="SpaceNet8")
 
     df_with_assigned_split = geographic_distance_split(
-        df,
-        n_clusters=8,
-        random_state=42
+        df, n_clusters=8, random_state=42
     )
 
     visualize_distance_clusters(
         df_with_assigned_split,
-        title='Distance Split',
-        output_path=os.path.join(args.save_dir, 'distance_split.png'),
-        buffer_degrees=0.05
+        title="Distance Split",
+        output_path=os.path.join(args.save_dir, "distance_split.png"),
+        buffer_degrees=0.05,
     )
 
     create_tortilla(args.save_dir, df_with_assigned_split, args.save_dir)
-
-
 
     # create taco version of the dataset
 
@@ -292,7 +304,6 @@ def main():
     #     output_path=os.path.join(args.save_dir, 'checker_split.png'),
     #     buffer_degrees=0.05
     # )
-
 
     # plot_sample_locations(
     #     distance_df,

@@ -5,6 +5,7 @@
 
 import torch.nn as nn
 from torch import Tensor
+from typing import Type
 import rasterio
 from torchgeo.datasets import NonGeoDataset
 import tacoreader
@@ -26,13 +27,15 @@ class GeoBenchBaseDataset(NonGeoDataset, DataUtilsMixin):
         root: str,
         split: str,
         band_order: list[str],
+        data_normalizer: Type[nn.Module] = MultiModalNormalizer,
         transforms: nn.Module = None,
     ) -> None:
         """Initialize the dataset.
         Args:
             root: Root directory where the dataset can be found
             split: The dataset split, supports 'train', 'val', 'test'
-            band_order
+            band_order:
+            data_normalizer
             transform: A composition of transformations to apply to the data
         """
         super().__init__()
@@ -42,11 +45,13 @@ class GeoBenchBaseDataset(NonGeoDataset, DataUtilsMixin):
         self.transforms = transforms
 
         self.data_df = tacoreader.load([os.path.join(root, f) for f in self.paths])
-        self.data_df = self.data_df[self.data_df["tortilla:data_split"] == split].reset_index(drop=True)
+        self.data_df = self.data_df[
+            self.data_df["tortilla:data_split"] == split
+        ].reset_index(drop=True)
 
         self.band_order = self.resolve_band_order(band_order)
 
-        self.data_normalizer = MultiModalNormalizer(
+        self.data_normalizer = data_normalizer(
             self.normalization_stats, self.band_order
         )
 
@@ -74,7 +79,7 @@ class GeoBenchBaseDataset(NonGeoDataset, DataUtilsMixin):
 
         Args:
             path: Path to the TIFF file
-        
+
         Return
             The image tensor
         """
