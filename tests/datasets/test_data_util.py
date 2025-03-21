@@ -294,12 +294,7 @@ class TestAllSensors:
             ValueError, match="Empty band sequence provided for modality s1"
         ):
             all_sensors_dataset.rearrange_bands(
-                all_sensors_data,
-                {
-                    "s2": ["B02", "B03"],
-                    "s1": [],  # Empty sequence should raise error
-                    "rgb": ["r"],
-                },
+                all_sensors_data, {"s2": ["B02", "B03"], "s1": [], "rgb": ["r"]}
             )
 
 
@@ -414,3 +409,80 @@ class TestMultiModalNormalizer:
 
         assert torch.allclose(result["image_s2"], expected_s2, rtol=1e-5)
         assert torch.allclose(result["image_s1"], expected_s1, rtol=1e-5)
+
+    def test_multimodal_unnormalize(self, normalization_stats):
+        """Test that unnormalization is the inverse of normalization for unbatched data."""
+        # Create test data for two modalities (unbatched: C×H×W)
+        s2_data = torch.zeros(3, 8, 8)
+        s1_data = torch.zeros(3, 8, 8)
+
+        # B02, B03, fill values for S2
+        s2_data[0, :, :] = 500.0  # B02: mean-std
+        s2_data[1, :, :] = 600.0  # B03: mean-std
+        s2_data[2, :, :] = 0.0  # fill value
+
+        # Second sample at mean values
+        second_s2 = torch.zeros(3, 8, 8)
+        second_s2[0, :, :] = 1000.0  # B02: mean
+        second_s2[1, :, :] = 1200.0  # B03: mean
+        second_s2[2, :, :] = 0.0  # fill value
+
+        # Third sample at mean+std
+        third_s2 = torch.zeros(3, 8, 8)
+        third_s2[0, :, :] = 1500.0  # B02: mean+std
+        third_s2[1, :, :] = 1800.0  # B03: mean+std
+        third_s2[2, :, :] = 0.0  # fill value
+
+        # VV, VH, fill values for S1
+        s1_data[0, :, :] = -15.0  # VV: mean-std
+        s1_data[1, :, :] = -18.0  # VH: mean-std
+        s1_data[2, :, :] = -999.0  # fill value
+
+        # Second sample at mean
+        second_s1 = torch.zeros(3, 8, 8)
+        second_s1[0, :, :] = -10.0  # VV: mean
+        second_s1[1, :, :] = -15.0  # VH: mean
+        second_s1[2, :, :] = -999.0  # fill value
+
+        # Third sample at mean+std
+        third_s1 = torch.zeros(3, 8, 8)
+        third_s1[0, :, :] = -5.0  # VV: mean+std
+        third_s1[1, :, :] = -12.0  # VH: mean+std
+        third_s1[2, :, :] = -999.0  # fill value
+
+        band_order = {"s2": ["B02", "B03", 0.0], "s1": ["VV", "VH", -999.0]}
+        normalizer = MultiModalNormalizer(normalization_stats, band_order)
+
+        # Test the first set of samples (mean-std)
+        original_s2_data = s2_data.clone()
+        original_s1_data = s1_data.clone()
+
+        # Normalize the data (unbatched)
+        normalized = normalizer({"image_s2": s2_data, "image_s1": s1_data})
+        unnormalized = normalizer.unnormalize(normalized)
+
+        # Check that unnormalized data is equal to original data
+        assert torch.allclose(unnormalized["image_s2"], original_s2_data, rtol=1e-5)
+        assert torch.allclose(unnormalized["image_s1"], original_s1_data, rtol=1e-5)
+
+        # Test the second set of samples (mean values)
+        original_second_s2 = second_s2.clone()
+        original_second_s1 = second_s1.clone()
+
+        # Normalize
+        normalized2 = normalizer({"image_s2": second_s2, "image_s1": second_s1})
+        unnormalized2 = normalizer.unnormalize(normalized2)
+
+        # Check unnormalized values match original
+        assert torch.allclose(unnormalized2["image_s2"], original_second_s2, rtol=1e-5)
+        assert torch.allclose(unnormalized2["image_s1"], original_second_s1, rtol=1e-5)
+
+        # Test the third set of samples (mean+std)
+        original_third_s2 = third_s2.clone()
+        original_third_s1 = third_s1.clone()
+
+        # Normalize
+        normalized3 = normalizer({"image_s2": third_s2, "image_s1": third_s1})
+        unnormalized3 = normalizer.unnormalize(normalized3)
+        assert torch.allclose(unnormalized3["image_s2"], original_third_s2, rtol=1e-5)
+        assert torch.allclose(unnormalized3["image_s1"], original_third_s1, rtol=1e-5)

@@ -8,8 +8,9 @@ import numpy as np
 import rasterio
 
 
-from typing import Sequence, ClassVar, Union
+from typing import Sequence, ClassVar, Union, Type
 import torch
+import torch.nn as nn
 from torch import Tensor
 from torchgeo.datasets import NonGeoDataset
 
@@ -91,7 +92,8 @@ class GeoBenchCloudSen12(NonGeoDataset, DataUtilsMixin):
         root,
         split="train",
         band_order: Sequence[float | str] = ["B04", "B03", "B02"],
-        transforms=None,
+        data_normalizer: Type[nn.Module] = MultiModalNormalizer,
+        transforms: nn.Module | None = None,
     ) -> None:
         """Initialize a CloudSen12 dataset instance.
 
@@ -100,13 +102,16 @@ class GeoBenchCloudSen12(NonGeoDataset, DataUtilsMixin):
             split: The dataset split, supports 'train', 'test'
             band_order: The order of bands to return, defaults to ['r', 'g', 'b'], if one would
                 specify ['r', 'g', 'b', 'nir'], the dataset would return images with 4 channels
-            transforms: A composition of transforms to apply to the sample_row
+            data_normalizer: The data normalizer to apply to the data, defaults to :class:`data_util.MultiModalNormalizer`,
+                which applies z-score normalization to each band.
+            transforms: Image resize transform on sample level
 
         Raises:
             AssertionError: If split is not in the splits
         """
-
         assert split in self.splits, f"split must be one of {self.splits}"
+
+        self.transforms = transforms
 
         self.root = root
         self.split = split
@@ -114,13 +119,14 @@ class GeoBenchCloudSen12(NonGeoDataset, DataUtilsMixin):
 
         self.band_order = self.resolve_band_order(band_order)
 
-        self.normalizer = MultiModalNormalizer(
+        self.data_normalizer = data_normalizer(
             self.normalization_stats, self.band_order
         )
 
         self.metadata_df = tacoreader.load(self.taco_name)
-        self.metadata_df = self.metadata_df[self.metadata_df["tortilla:data_split"] == split].reset_index(drop=True)
-
+        self.metadata_df = self.metadata_df[
+            self.metadata_df["tortilla:data_split"] == split
+        ].reset_index(drop=True)
 
     def __getitem__(self, idx: int) -> dict[str, Tensor]:
         """Return the sample_row at the given index.
@@ -150,10 +156,13 @@ class GeoBenchCloudSen12(NonGeoDataset, DataUtilsMixin):
 
         image_dict = self.rearrange_bands(image, self.band_order)
 
-        image = self.normalizer(image_dict)
+        image = self.data_normalizer(image_dict)
 
         sample.update(image_dict)
         sample.update({"mask": mask})
+
+        if self.transforms is not None:
+            sample = self.transforms(sample)
 
         return sample
 
