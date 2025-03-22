@@ -9,14 +9,24 @@ import os
 import argparse
 import pyproj
 
-from geobench_v2.generate_benchmark.utils import plot_sample_locations
+from geobench_v2.generate_benchmark.utils import (
+    plot_sample_locations,
+    validate_metadata_with_geo,
+)
 
 from geobench_v2.datasets.flair2 import GeoBenchFLAIR2
 
 # TODO add automatic download of dataset to have a starting point for benchmark generation
 
-def generate_metadata_df(orig_dataset=None, save_dir=None):
-    """"""
+def generate_metadata_df(save_dir: str) -> pd.DataFrame:
+    """Generate Metadata DataFrame for FLAIR2 dataset.
+
+    Args:
+        save_dir: Directory to save the metadata file
+
+    Returns:
+        Metadata DataFrame for flair2
+    """
     metadata_link = "https://huggingface.co/datasets/IGNF/FLAIR/resolve/main/aux-data/flair_aerial_metadata.json"
     download_url(metadata_link, save_dir)
     metadata_df = pd.read_json(metadata_link, orient="index")
@@ -97,6 +107,8 @@ def main():
     else:
         metadata_df = generate_metadata_df(save_dir=args.save_dir)
         metadata_df.to_parquet(metadata_path)
+
+    validate_metadata_with_geo(metadata_df)
 
     plot_sample_locations(
         metadata_df,

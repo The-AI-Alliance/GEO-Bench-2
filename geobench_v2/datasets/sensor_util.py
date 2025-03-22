@@ -1,3 +1,6 @@
+# Copyright (c) 2025 GeoBenchV2. All rights reserved.
+# Licensed under the Apache License 2.0.
+
 """Utility functions for handling satellite imagery datasets."""
 
 from dataclasses import dataclass
@@ -352,7 +355,33 @@ class DatasetBandRegistry:
         bands=SensorBandRegistry.RGB.bands, default_order=["r", "g", "b"]
     )
 
-    SPACENET6 = ModalityConfig(
+    # spacenet 6 is multimodal with rgbn and sar intensity bands (HH, HV,VH, and VV)
+    SPACENET6 = MultiModalConfig(
+        modalities={
+            "rgbn": SensorBandRegistry.RGBN,
+            "sar": ModalityConfig(
+                bands={
+                    "hh": BandConfig("hh", ["HH"], wavelength=0.056),
+                    "hv": BandConfig("hv", ["HV"], wavelength=0.056),
+                    "vv": BandConfig("vv", ["VV"], wavelength=0.056),
+                    "vh": BandConfig("vh", ["VH"], wavelength=0.056),
+                },
+                default_order=["hh", "hv", "vv", "vh"],
+            ),
+        },
+        default_order=["r", "g", "b", "nir", "hh", "hv", "vv", "vh"],
+        band_to_modality={
+            "r": "rgbn",
+            "g": "rgbn",
+            "b": "rgbn",
+            "nir": "rgbn",
+            "hh": "sar",
+            "hv": "sar",
+            "vv": "sar",
+            "vh": "sar",
+        },
+    )
+    SPACENET8 = ModalityConfig(
         bands=SensorBandRegistry.RGBN.bands, default_order=["r", "g", "b", "nir"]
     )
 
@@ -363,6 +392,25 @@ class DatasetBandRegistry:
             "elevation": BandConfig("elevation", ["elevation"], wavelength=None),
         },
         default_order=["r", "g", "b", "nir", "elevation"],
+    )
+
+    # CLOUDSEN12 has cloudsen12-l1c Sentinel2 data is actually just a single ModalityConfig
+    CLOUDSEN12 = ModalityConfig(
+        bands={**SensorBandRegistry.SENTINEL2.bands},
+        default_order=[
+            "B01",
+            "B02",
+            "B03",
+            "B04",
+            "B05",
+            "B06",
+            "B07",
+            "B08",
+            "B8A",
+            "B09",
+            "B11",
+            "B12",
+        ],
     )
 
     @classmethod
