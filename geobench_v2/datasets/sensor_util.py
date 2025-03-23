@@ -573,6 +573,24 @@ class DatasetBandRegistry:
         },
     )
 
+    KURO_SIWO = MultiModalConfig(
+        modalities={
+            "sar": ModalityConfig(
+                bands={
+                    "vv": BandConfig("vv", ["VV"], wavelength=0.056),
+                    "vh": BandConfig("vh", ["VH"], wavelength=0.056),
+                },
+                default_order=["vv", "vh"],
+            ),
+            "dem": ModalityConfig(
+                bands={"dem": BandConfig("dem", ["elevation", "dem"], wavelength=None)},
+                default_order=["dem"],
+            ),
+        },
+        default_order=["vv", "vh", "dem"],
+        band_to_modality={"vv": "sar", "vh": "sar", "dem": "dem"},
+    )
+
     @classmethod
     def get_dataset_config(
         cls, dataset_name: str

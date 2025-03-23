@@ -374,7 +374,12 @@ class MultiModalNormalizer(DataNormalizer):
         for key, tensor in data.items():
             if tensor.dim() == 3:
                 tensor = tensor.unsqueeze(0)
-            normed[key] = normalize(tensor, self.means[key], self.stds[key])
+            try:
+                normed[key] = normalize(tensor, self.means[key], self.stds[key])
+            except:
+                import pdb
+
+                pdb.set_trace()
         return {
             key: normalize(
                 tensor.unsqueeze(0), self.means[key], self.stds[key]

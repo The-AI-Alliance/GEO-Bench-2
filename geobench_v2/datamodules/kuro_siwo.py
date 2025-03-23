@@ -1,3 +1,8 @@
+# Copyright (c) 2025 GeoBenchV2. All rights reserved.
+# Licensed under the Apache License 2.0.
+
+"""KuroSiwo DataModule."""
+
 from collections.abc import Callable
 from typing import Any, Sequence
 
@@ -6,21 +11,21 @@ from torch import Tensor
 import os
 import matplotlib.pyplot as plt
 
-from geobench_v2.datasets import GeoBenchSpaceNet6
+from geobench_v2.datasets import GeoBenchKuroSiwo
 
 from .base import GeoBenchSegmentationDataModule
 import torch.nn as nn
 
 
-class GeoBenchSpaceNet6DataModule(GeoBenchSegmentationDataModule):
-    """GeoBench SpaceNet6 Data Module."""
+class GeoBenchKuroSiwoDataModule(GeoBenchSegmentationDataModule):
+    """GeoBench KuroSiwo Data Module."""
 
     #
 
     def __init__(
         self,
         img_size: int,
-        band_order: Sequence[float | str] = GeoBenchSpaceNet6.band_default_order,
+        band_order: Sequence[float | str] = GeoBenchKuroSiwo.band_default_order,
         batch_size: int = 32,
         eval_batch_size: int = 64,
         num_workers: int = 0,
@@ -30,7 +35,7 @@ class GeoBenchSpaceNet6DataModule(GeoBenchSegmentationDataModule):
         pin_memory: bool = False,
         **kwargs: Any,
     ) -> None:
-        """Initialize GeoBench SpaceNet6 dataset module.
+        """Initialize GeoBench KuroSiwo dataset module.
 
         Args:
             img_size: Image size
@@ -48,7 +53,7 @@ class GeoBenchSpaceNet6DataModule(GeoBenchSegmentationDataModule):
             **kwargs: Additional keyword arguments for the dataset class
         """
         super().__init__(
-            dataset_class=GeoBenchSpaceNet6,
+            dataset_class=GeoBenchKuroSiwo,
             img_size=img_size,
             band_order=band_order,
             batch_size=batch_size,
@@ -68,7 +73,7 @@ class GeoBenchSpaceNet6DataModule(GeoBenchSegmentationDataModule):
             pandas DataFrame with metadata.
         """
         return pd.read_parquet(
-            os.path.join(self.kwargs["root"], "geobench_spacenet6.parquet")
+            os.path.join(self.kwargs["root"], "geobench_kuro_siwo.parquet")
         )
 
     def visualize_batch(
