@@ -397,6 +397,7 @@ class DatasetBandRegistry:
     # CLOUDSEN12 has cloudsen12-l1c Sentinel2 data is actually just a single ModalityConfig
     CLOUDSEN12 = ModalityConfig(
         bands={**SensorBandRegistry.SENTINEL2.bands},
+        # band_to_modality={**SensorBandRegistry.SENTINEL2.band_to_modality},
         default_order=[
             "B01",
             "B02",
