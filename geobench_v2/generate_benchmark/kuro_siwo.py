@@ -3,6 +3,10 @@
 
 """Generate Benchmark version of SpaceNet8 dataset."""
 
+import argparse
+
+
+
 import geopandas as gpd
 import tacotoolbox
 import rasterio as rio
@@ -19,6 +23,9 @@ from tqdm import tqdm
 import numpy as np
 from torchgeo.datasets.utils import percentile_normalization
 from mpl_toolkits.axes_grid1 import make_axes_locatable
+
+from geobench_v2.generate_benchmark.utils import plot_sample_locations
+
 
 # Constants
 OUTPUT_FOLDER = pathlib.Path(
@@ -387,28 +394,31 @@ def main():
 
     metadata_path = os.path.join(args.save_dir, "geobench_kuro_siwo.parquet")
 
-    # Create output directory
-    OUTPUT_FOLDER.mkdir(exist_ok=True)
+    metadata_df = pd.read_parquet(metadata_path)
 
-    # Setup data and splits
-    split_mapper = create_split_mapper()
-    extracted_data = extract_grid_data(GRID_DATA_PATH)
+    plot_sample_locations(metadata_df, os.path.join(args.save_dir, "sample_locations.png"), split_column="tortilla:data_split", dataset_name="Kuro Siwo")
 
-    # Create dataframe and assign splits
-    df = pd.DataFrame(extracted_data)
-    df["split"] = df["event_id"].apply(lambda x: split_mapper[x])
-    df.to_csv("full_df.csv", index=False)
-    process_grid_samples(df)
+    # # Create output directory
+    # OUTPUT_FOLDER.mkdir(exist_ok=True)
 
-    merge_tortilla_files()
+    # # Setup data and splits
+    # split_mapper = create_split_mapper()
+    # extracted_data = extract_grid_data(GRID_DATA_PATH)
 
-    # Visualize a sample
-    visualize_sample(FINAL_TACO_PATH)
+    # # Create dataframe and assign splits
+    # df = pd.DataFrame(extracted_data)
+    # df["split"] = df["event_id"].apply(lambda x: split_mapper[x])
+    # df.to_csv("full_df.csv", index=False)
+    # process_grid_samples(df)
+
+    # merge_tortilla_files()
+
+    # # Visualize a sample
+    # visualize_sample(FINAL_TACO_PATH)
 
     # import os
     # import pandas as pd
     # import tacoreader
-
     # data_df = tacoreader.load([os.path.join(args.save_dir, f) for f in self.paths])
 
     # geo_df = data_df.to_geodataframe()
@@ -422,6 +432,8 @@ def main():
     # pandas_df = pd.DataFrame(geo_df)
     # import pdb; pdb.set_trace()
     # pandas_df.to_parquet(os.path.join(args.save_dir, "geobench_kuro_siwo.parquet"))
+
+
 
 
 if __name__ == "__main__":

@@ -127,7 +127,7 @@ def plot_sample_locations(
     splits = metadata_df[split_column].unique()
     print(f"Found {len(splits)} dataset splits: {', '.join(map(str, splits))}")
 
-    split_colors = {"train": "blue", "val": "green", "test": "red"}
+    split_colors = {"train": "blue", "val": "green", "validation": "green", "test": "red"}
 
     legend_elements = []
 
