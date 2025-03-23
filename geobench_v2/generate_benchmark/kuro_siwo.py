@@ -6,7 +6,6 @@
 import argparse
 
 
-
 import geopandas as gpd
 import tacotoolbox
 import rasterio as rio
@@ -396,7 +395,12 @@ def main():
 
     metadata_df = pd.read_parquet(metadata_path)
 
-    plot_sample_locations(metadata_df, os.path.join(args.save_dir, "sample_locations.png"), split_column="tortilla:data_split", dataset_name="Kuro Siwo")
+    plot_sample_locations(
+        metadata_df,
+        os.path.join(args.save_dir, "sample_locations.png"),
+        split_column="tortilla:data_split",
+        dataset_name="Kuro Siwo",
+    )
 
     # # Create output directory
     # OUTPUT_FOLDER.mkdir(exist_ok=True)
@@ -432,8 +436,6 @@ def main():
     # pandas_df = pd.DataFrame(geo_df)
     # import pdb; pdb.set_trace()
     # pandas_df.to_parquet(os.path.join(args.save_dir, "geobench_kuro_siwo.parquet"))
-
-
 
 
 if __name__ == "__main__":

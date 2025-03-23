@@ -19,7 +19,15 @@ import torch
 
 
 class GeoBenchKuroSiwo(GeoBenchBaseDataset):
-    """Kuro Siwo Flood Change Detection Dataset."""
+    """Kuro Siwo Flood Change Detection Dataset.
+
+    Classes:
+    0. NO-Water
+    1. Permanent Water
+    2. Flood
+    3. No-Data
+
+    """
 
     dataset_band_config = DatasetBandRegistry.KURO_SIWO
 
