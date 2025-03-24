@@ -1,30 +1,34 @@
 # Copyright (c) 2025 GeoBenchV2. All rights reserved.
 # Licensed under the Apache License 2.0.
 
-"""GeoBench BigEarthNetV2 DataModule."""
+"""Cloud12Sen DataModule."""
 
 from collections.abc import Callable
 from typing import Any, Sequence
+
 import pandas as pd
 from torch import Tensor
-import matplotlib.pyplot as plt
 import os
+import matplotlib.pyplot as plt
 
+import torch
 
-from geobench_v2.datasets import GeoBenchBENV2
-import kornia.augmentation as K
+from geobench_v2.datasets import GeoBenchCloudSen12
 
-from .base import GeoBenchClassificationDataModule
+from .base import GeoBenchSegmentationDataModule
 import torch.nn as nn
+from torch.utils.data import random_split
 
 
-class GeoBenchBENV2DataModule(GeoBenchClassificationDataModule):
-    """GeoBench BigEarthNetV2 Data Module."""
+class GeoBenchCloudSen12DataModule(GeoBenchSegmentationDataModule):
+    """GeoBench CloudSen12 Data Module."""
 
     def __init__(
         self,
         img_size: int,
-        band_order: Sequence[float | str] = GeoBenchBENV2.band_default_order,
+        band_order: Sequence[
+            float | str
+        ] = GeoBenchCloudSen12.dataset_band_config.default_order,
         batch_size: int = 32,
         eval_batch_size: int = 64,
         num_workers: int = 0,
@@ -34,19 +38,26 @@ class GeoBenchBENV2DataModule(GeoBenchClassificationDataModule):
         pin_memory: bool = False,
         **kwargs: Any,
     ) -> None:
-        """Initialize GeoBench BigEarthNetV2 dataset module.
+        """Initialize GeoBench CloudSen12 DataModule.
 
         Args:
             img_size: Image size
-            batch_size: Batch size
+            batch_size: Batch size during training
             eval_batch_size: Evaluation batch size
             num_workers: Number of workers
             collate_fn: Collate function
+            train_augmentations: Transforms/Augmentations to apply during training, they will be applied
+                at the sample level and should include normalization. See :method:`define_augmentations`
+                for the default transformation.
+            eval_augmentations: Transforms/Augmentations to apply during evaluation, they will be applied
+                at the sample level and should include normalization. See :method:`define_augmentations`
+                for the default transformation.
             pin_memory: Pin memory
             **kwargs: Additional keyword arguments
+                :class:`~geobench_v2.datasets.flair2.GeoBenchCloudSen12`.
         """
         super().__init__(
-            dataset_class=GeoBenchBENV2,
+            dataset_class=GeoBenchCloudSen12,
             img_size=img_size,
             band_order=band_order,
             batch_size=batch_size,
@@ -66,7 +77,7 @@ class GeoBenchBENV2DataModule(GeoBenchClassificationDataModule):
             pandas DataFrame with metadata.
         """
         return pd.read_parquet(
-            os.path.join(self.kwargs["root"], "geobench_benv2.parquet")
+            os.path.join(self.kwargs["root"], "geobench_cloudsen12.parquet")
         )
 
     def visualize_batch(

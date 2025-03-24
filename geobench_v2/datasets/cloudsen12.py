@@ -1,0 +1,198 @@
+# Copyright (c) 2025 GeoBenchV2. All rights reserved.
+# Licensed under the Apache License 2.0.
+
+"""Cloud12Sen Dataset."""
+
+import os
+import numpy as np
+import rasterio
+
+
+from typing import Sequence, ClassVar, Union, Type
+import torch
+import torch.nn as nn
+from torch import Tensor
+from torchgeo.datasets import NonGeoDataset
+
+from .sensor_util import DatasetBandRegistry
+from .data_util import DataUtilsMixin, MultiModalNormalizer
+import tacoreader
+import numpy as np
+
+
+class GeoBenchCloudSen12(NonGeoDataset, DataUtilsMixin):
+    """Implementation of CloudSen12 dataset Sentinel 2 L1C.
+
+
+    CloudSen12 is a dataset for cloud segmentation that provides humanly annotated Sentinel-2 L1C imagery.
+
+    The dataset contains four semantic segmentation classes:
+
+    0. clear: Pixels without cloud and cloud shadow contamination.
+    1. thick cloud: Opaque clouds that block all reflected light from Earth's surface.
+    2. thin cloud: Semitransparent clouds that alter the surface spectral signal but still allow recognition of the background.
+    3. cloud shadow: Dark pixels where light is occluded by thick or thin clouds.
+
+    If you use this dataset in your research, please cite the following paper:
+
+    * link
+    """
+
+    classes = ("clear", "thick cloud", "thin cloud", "cloud shadow")
+
+    splits = ("train", "val", "test")
+
+    dataset_band_config = DatasetBandRegistry.CLOUDSEN12
+
+    normalization_stats = {
+        "means": {
+            "B01": 0.0,
+            "B02": 0.0,
+            "B03": 0.0,
+            "B04": 0.0,
+            "B05": 0.0,
+            "B06": 0.0,
+            "B07": 0.0,
+            "B08": 0.0,
+            "B8A": 0.0,
+            "B09": 0.0,
+            "B11": 0.0,
+            "B12": 0.0,
+        },
+        "stds": {
+            "B01": 1.0,
+            "B02": 1.0,
+            "B03": 1.0,
+            "B04": 1.0,
+            "B05": 1.0,
+            "B06": 1.0,
+            "B07": 1.0,
+            "B08": 1.0,
+            "B8A": 1.0,
+            "B09": 1.0,
+            "B11": 1.0,
+            "B12": 1.0,
+        },
+    }
+
+    classes = ("clear", "thick cloud", "thin cloud", "cloud shadow")
+
+    taco_files: dict[str, str] = {
+        "l1c": "geobench_cloudsen12-l1c.taco",
+        "l2a": "geobench_cloudsen12-l2a.taco",
+        "extra": "geobench_cloudsen12-extra.taco",
+    }
+
+    taco_name = "geobench_cloudsen12.taco"
+
+    def __init__(
+        self,
+        root,
+        split="train",
+        band_order: Sequence[float | str] = ["B04", "B03", "B02"],
+        data_normalizer: Type[nn.Module] = MultiModalNormalizer,
+        transforms: nn.Module | None = None,
+    ) -> None:
+        """Initialize a CloudSen12 dataset instance.
+
+        Args:
+            root: Path to the dataset root directory
+            split: The dataset split, supports 'train', 'test'
+            band_order: The order of bands to return, defaults to ['r', 'g', 'b'], if one would
+                specify ['r', 'g', 'b', 'nir'], the dataset would return images with 4 channels
+            data_normalizer: The data normalizer to apply to the data, defaults to :class:`data_util.MultiModalNormalizer`,
+                which applies z-score normalization to each band.
+            transforms: Image resize transform on sample level
+
+        Raises:
+            AssertionError: If split is not in the splits
+        """
+        assert split in self.splits, f"split must be one of {self.splits}"
+
+        self.transforms = transforms
+
+        self.root = root
+        self.split = split
+        self.transforms = transforms
+
+        self.band_order = self.resolve_band_order(band_order)
+
+        self.data_normalizer = data_normalizer(
+            self.normalization_stats, self.band_order
+        )
+
+        self.l2a_metadata_df = tacoreader.load(
+            os.path.join(self.root, self.taco_files["l2a"])
+        )
+        self.l2a_metadata_df = self.l2a_metadata_df[
+            self.l2a_metadata_df["tortilla:data_split"] == split
+        ]
+
+        self.l1c_metadata_df = tacoreader.load(
+            os.path.join(self.root, self.taco_files["l1c"])
+        )
+        self.l1c_metadata_df = self.l1c_metadata_df[
+            self.l1c_metadata_df["tortilla:data_split"] == split
+        ]
+
+        self.extra_metadata_df = tacoreader.load(
+            os.path.join(self.root, self.taco_files["extra"])
+        )
+        # self.extra_metadata_df = self.extra_metadata_df[
+        #     self.extra_metadata_df["tortilla:data_split"] == split
+        # ].reset_index(drop=True)
+
+        assert len(self.l2a_metadata_df) == len(self.l1c_metadata_df), (
+            f"Length of metadata dataframes must be equal, got {len(self.l2a_metadata_df)}, {len(self.l1c_metadata_df)}"
+        )
+
+    def __getitem__(self, idx: int) -> dict[str, Tensor]:
+        """Return the sample_row at the given index.
+
+        Args:
+            idx: Index of the sample_row to return
+
+        Returns:
+            dict containing the sample_row data
+        """
+        sample: dict[str, Tensor] = {}
+
+        l2a_row = self.l2a_metadata_df.read(idx)
+        l1c_row = self.l1c_metadata_df.read(idx)
+        extra_row = self.extra_metadata_df.read(idx)
+
+        # if "l2a" in self.band_order:
+
+        image_path: str = l2a_row.read(0)
+        target_path: str = l2a_row.read(1)
+
+        with (
+            rasterio.open(image_path) as image_src,
+            rasterio.open(target_path) as target_src,
+        ):
+            # TODO check
+            image_data: np.ndarray = image_src.read(out_dtype="float32")
+            target_data: np.ndarray = target_src.read()
+
+        image = torch.from_numpy(image_data).float()
+        mask = torch.from_numpy(target_data).long()
+
+        image_dict = self.rearrange_bands(image, self.band_order)
+
+        image = self.data_normalizer(image_dict)
+
+        sample.update(image_dict)
+        sample.update({"mask": mask})
+
+        if self.transforms is not None:
+            sample = self.transforms(sample)
+
+        return sample
+
+    def __len__(self) -> int:
+        """Return the number of samples in the dataset.
+
+        Returns:
+            The number of samples in the dataset
+        """
+        return len(self.l2a_metadata_df)

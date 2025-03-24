@@ -1,19 +1,30 @@
 # Copyright (c) 2025 GeoBenchV2. All rights reserved.
 # Licensed under the Apache License 2.0.
 
-"""Big Earth Net V2 Dataset."""
+# Adapted from torchgeo dataset loader from tortilla format
+# https://github.com/microsoft/torchgeo/blob/main/torchgeo/datasets/bigearthnet.py
 
-from torchgeo.datasets import BigEarthNetV2
+"""BigEarthNet V2 Dataset."""
+
 from torch import Tensor
+from torchgeo.datasets import SpaceNet6
 from pathlib import Path
-from typing import Sequence
+from typing import Sequence, Type
+import torch.nn as nn
+
 from .sensor_util import DatasetBandRegistry
-from .data_util import DataUtilsMixin, MultiModalNormalizer
+from .base import GeoBenchBaseDataset
+from .data_util import MultiModalNormalizer
+import torch.nn as nn
+import rasterio
+import numpy as np
 import torch
 
+from rasterio.enums import Resampling
 
-class GeoBenchBENV2(BigEarthNetV2, DataUtilsMixin):
-    """Big Earth Net V2 Dataset with enhanced functionality.
+
+class GeoBenchBENV2(GeoBenchBaseDataset):
+    """BigEarthNet V2 Dataset with enhanced functionality.
 
     Allows:
     - Variable Band Selection
@@ -39,7 +50,7 @@ class GeoBenchBENV2(BigEarthNetV2, DataUtilsMixin):
 
     dataset_band_config = DatasetBandRegistry.BENV2
 
-    normalization_stats = {
+    normalization_stats: dict[str, dict[str, float]] = {
         "means": {
             "B01": 0.0,
             "B02": 0.0,
@@ -53,8 +64,8 @@ class GeoBenchBENV2(BigEarthNetV2, DataUtilsMixin):
             "B09": 0.0,
             "B11": 0.0,
             "B12": 0.0,
-            "VV": 0.0,
             "VH": 0.0,
+            "VV": 0.0,
         },
         "stds": {
             "B01": 3000.0,
@@ -69,21 +80,49 @@ class GeoBenchBENV2(BigEarthNetV2, DataUtilsMixin):
             "B09": 3000.0,
             "B11": 3000.0,
             "B12": 3000.0,
-            "VV": 3000.0,
             "VH": 3000.0,
+            "VV": 3000.0,
         },
     }
+
+    paths: Sequence[str] = (
+        "FullBenV2.0000.part.tortilla",
+        "FullBenV2.0001.part.tortilla",
+        "FullBenV2.0002.part.tortilla",
+    )
+
+    label_names: Sequence[str] = (
+        "Urban fabric",
+        "Industrial or commercial units",
+        "Arable land",
+        "Permanent crops",
+        "Pastures",
+        "Complex cultivation patterns",
+        "Land principally occupied by agriculture, with significant areas of"
+        " natural vegetation",
+        "Agro-forestry areas",
+        "Broad-leaved forest",
+        "Coniferous forest",
+        "Mixed forest",
+        "Natural grassland and sparsely vegetated areas",
+        "Moors, heathland and sclerophyllous vegetation",
+        "Transitional woodland, shrub",
+        "Beaches, dunes, sands",
+        "Inland wetlands",
+        "Coastal wetlands",
+        "Inland waters",
+        "Marine waters",
+    )
+
+    num_classes: int = len(label_names)
 
     def __init__(
         self,
         root: Path,
         split: str,
-        band_order: Sequence[float | str] | dict[str, Sequence[float | str]] = [
-            "B04",
-            "B03",
-            "B02",
-        ],
-        **kwargs,
+        band_order: dict[str, Sequence[float | str]] = ["B04", "B03", "B02"],
+        data_normalizer: Type[nn.Module] = MultiModalNormalizer,
+        transforms: nn.Module | None = None,
     ) -> None:
         """Initialize Big Earth Net V2 Dataset.
 
@@ -94,16 +133,20 @@ class GeoBenchBENV2(BigEarthNetV2, DataUtilsMixin):
                 specify ['B04', 'B03', 'B02], the dataset would return the red, green, and blue bands.
                 This is useful for models that expect a certain band order, or
                 test the impact of band order on model performance.
+            data_normalizer: The data normalizer to apply to the data, defaults to :class:`data_util.MultiModalNormalizer`,
+                which applies z-score normalization to each band.
+            transforms: Transforms to apply to the data
             **kwargs: Additional keyword arguments passed to ``BigEarthNetV2``
         """
-        super().__init__(root=root, split=split, bands="all", **kwargs)
-
-        # Resolve band names at init time
-        self.band_order = self.resolve_band_order(band_order)
-
-        self.normalizer = MultiModalNormalizer(
-            self.normalization_stats, self.band_order
+        super().__init__(
+            root=root,
+            split=split,
+            band_order=band_order,
+            data_normalizer=data_normalizer,
+            transforms=transforms,
         )
+
+        self.class2idx = {c: i for i, c in enumerate(self.label_names)}
 
     def __getitem__(self, index: int) -> dict[str, Tensor]:
         """Return an index within the dataset.
@@ -116,20 +159,64 @@ class GeoBenchBENV2(BigEarthNetV2, DataUtilsMixin):
         """
         sample: dict[str, Tensor] = {}
 
-        # Load modalities separately
-        data = {
-            "s1": self._load_image(index, "s1"),
-            "s2": self._load_image(index, "s2"),
-        }
+        sample_row = self.data_df.read(index)
+
+        # order is VH, VV
+        s1_paths = [sample_row.read(i) for i in range(0, 2)]
+        s2_paths = [sample_row.read(i) for i in range(2, 14)]
+
+        data: dict[str, Tensor] = {}
+
+        if "s1" in self.band_order:
+            data["s1"] = self._load_image(s1_paths)
+        if "s2" in self.band_order:
+            data["s2"] = self._load_image(s2_paths)
 
         # Rearrange bands and normalize
         img = self.rearrange_bands(data, self.band_order)
-        img = self.normalizer(img)
+        img = self.data_normalizer(img)
         sample.update(img)
 
-        # subselect_band_order
+        if self.transforms is not None:
+            sample = self.transforms(sample)
 
-        sample["mask"] = self._load_map(index)
-        sample["label"] = self._load_target(index)
+        sample["label"] = self._load_target(sample_row.iloc[0]["labels"])
 
         return sample
+
+    def _load_target(self, label_names: list[str]) -> Tensor:
+        """Load the target mask for a single image.
+
+        Args:
+            label_names: list of labels
+
+        Returns:
+            the target label
+        """
+        indices = [self.class2idx[label_names] for label_names in label_names]
+
+        image_target = torch.zeros(self.num_classes, dtype=torch.long)
+        image_target[indices] = 1
+        return image_target
+
+    def _load_image(self, paths: list[str]) -> Tensor:
+        """Load the image for a single image.
+
+        Args:
+            paths: list of paths to the images
+
+        Returns:
+            the image
+        """
+        images = []
+        for path in paths:
+            with rasterio.open(path) as dataset:
+                array = dataset.read(
+                    indexes=1,
+                    out_shape=(120, 120),
+                    out_dtype="int32",
+                    resampling=Resampling.bilinear,
+                )
+                images.append(array)
+
+        return torch.from_numpy(np.stack(images, axis=0)).float()
