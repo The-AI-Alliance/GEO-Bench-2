@@ -22,26 +22,32 @@ import cartopy.feature as cfeature
 from matplotlib.lines import Line2D
 import numpy as np
 
+import rasterio
+import tacotoolbox
+import tacoreader
+import glob
+
 
 TOTAL_N = 20000
 
 CC_BY_COUNTRIES = (
-    'austria',
-    'brazil',
-    'corsica',
-    'denmark',
-    'estonia',
-    'finland',
-    'france',
-    'india',
-    'kenya',
-    'luxembourg',
-    'netherlands',
-    'rwanda',
-    'slovakia',
-    'spain',
-    'vietnam',
+    "austria",
+    "brazil",
+    "corsica",
+    "denmark",
+    "estonia",
+    "finland",
+    "france",
+    "india",
+    "kenya",
+    "luxembourg",
+    "netherlands",
+    "rwanda",
+    "slovakia",
+    "spain",
+    "vietnam",
 )
+
 
 def create_subset(
     ds: FieldsOfTheWorld, df: pd.DataFrame, save_dir: str, random_state: int = 42
@@ -150,11 +156,13 @@ def copy_subset_files(ds, subset: pd.DataFrame, save_dir: str) -> None:
 def generate_metadata_df(ds: FieldsOfTheWorld) -> pd.DataFrame:
     """Generate metadata DataFrame for Fields of the World Benchmark.
 
+    Includes relative filepaths to window_a, window_b, instance mask, and semantic_3class mask.
+
     Args:
         ds: Fields of the World dataset.
 
     Returns:
-        Metadata DataFrame.
+        Metadata DataFrame with file paths.
     """
     overall_df = pd.DataFrame()
     selected_countries = ds.countries
@@ -172,6 +180,42 @@ def generate_metadata_df(ds: FieldsOfTheWorld) -> pd.DataFrame:
         country_df["lon"] = country_df["geometry_obj"].apply(lambda g: g.centroid.x)
         country_df["lat"] = country_df["geometry_obj"].apply(lambda g: g.centroid.y)
 
+        # relative filepaths for tortialla creation
+        country_df["win_a_path"] = country_df["aoi_id"].apply(
+            lambda aoi: os.path.join(country, "s2_images", "window_a", f"{aoi}.tif")
+        )
+        country_df["win_b_path"] = country_df["aoi_id"].apply(
+            lambda aoi: os.path.join(country, "s2_images", "window_b", f"{aoi}.tif")
+        )
+        country_df["instance_mask_path"] = country_df["aoi_id"].apply(
+            lambda aoi: os.path.join(country, "label_masks", "instance", f"{aoi}.tif")
+        )
+        country_df["semantic_2class_mask_path"] = country_df["aoi_id"].apply(
+            lambda aoi: os.path.join(
+                country, "label_masks", "semantic_2class", f"{aoi}.tif"
+            )
+        )
+        country_df["semantic_3class_mask_path"] = country_df["aoi_id"].apply(
+            lambda aoi: os.path.join(
+                country, "label_masks", "semantic_3class", f"{aoi}.tif"
+            )
+        )
+
+        # sanity check to see if the files exist
+        country_df["win_a_exists"] = country_df["win_a_path"].apply(
+            lambda path: os.path.exists(os.path.join(ds.root, path))
+        )
+        country_df["win_b_exists"] = country_df["win_b_path"].apply(
+            lambda path: os.path.exists(os.path.join(ds.root, path))
+        )
+        country_df["instance_mask_exists"] = country_df["instance_mask_path"].apply(
+            lambda path: os.path.exists(os.path.join(ds.root, path))
+        )
+        country_df["semantic_3class_mask_exists"] = country_df[
+            "semantic_3class_mask_path"
+        ].apply(lambda path: os.path.exists(os.path.join(ds.root, path)))
+
+        # Drop intermediate geometry objects
         country_df.drop(columns=["geometry", "geometry_obj"], inplace=True)
 
         country_df["country"] = country
@@ -180,8 +224,23 @@ def generate_metadata_df(ds: FieldsOfTheWorld) -> pd.DataFrame:
 
     overall_df["aoi_id"] = overall_df["aoi_id"].astype(str)
 
-    # country of india has some samples that are 'none' for the split, so drop them
-    overall_df = overall_df[overall_df["split"] != "none"]
+    # Drop samples with 'none' split or missing essential files
+    overall_df = overall_df[
+        (overall_df["split"] != "none")
+        & (overall_df["win_a_exists"])
+        & (overall_df["win_b_exists"])
+    ]
+
+    # Drop the existence check columns after filtering
+    overall_df = overall_df.drop(
+        columns=[
+            "win_a_exists",
+            "win_b_exists",
+            "instance_mask_exists",
+            "semantic_3class_mask_exists",
+        ]
+    ).reset_index(drop=True)
+
     return overall_df
 
 
@@ -564,6 +623,84 @@ def plot_country_distribution(
         plt.show()
 
 
+def create_tortilla(root_dir, df, save_dir):
+    """Create a tortilla version of the dataset."""
+
+    df["split"] = df["split"].replace("val", "validation")
+    tortilla_dir = os.path.join(save_dir, "tortilla")
+    os.makedirs(tortilla_dir, exist_ok=True)
+
+    for idx, row in tqdm(df.iterrows(), total=len(df), desc="Creating tortilla"):
+        modalities = ["win_a", "win_b", "instance_mask", "semantic_3class_mask"]
+        modality_samples = []
+
+        for modality in modalities:
+            path = os.path.join(root_dir, row[modality + "_path"])
+            with rasterio.open(path) as src:
+                profile = src.profile
+
+            sample = tacotoolbox.tortilla.datamodel.Sample(
+                id=modality,
+                path=path,
+                file_format="GTiff",
+                data_split=row["split"],
+                stac_data={
+                    "crs": "EPSG:" + str(profile["crs"].to_epsg()),
+                    "geotransform": profile["transform"].to_gdal(),
+                    "raster_shape": (profile["height"], profile["width"]),
+                    "time_start": row["year_of_collection"],
+                },
+                lon=row["lon"],
+                lat=row["lat"],
+                aoi_id=row["aoi_id"],
+                country=row["country"],
+            )
+
+            modality_samples.append(sample)
+
+        taco_samples = tacotoolbox.tortilla.datamodel.Samples(samples=modality_samples)
+        samples_path = os.path.join(tortilla_dir, f"sample_{idx}.tortilla")
+        tacotoolbox.tortilla.create(taco_samples, samples_path, quiet=True, nworkers=4)
+
+    # merge tortillas into a single dataset
+    all_tortilla_files = sorted(glob.glob(os.path.join(tortilla_dir, "*.tortilla")))
+
+    samples = []
+
+    for idx, tortilla_file in tqdm(
+        enumerate(all_tortilla_files),
+        total=len(all_tortilla_files),
+        desc="Building taco",
+    ):
+        sample_data = tacoreader.load(tortilla_file).iloc[0]
+
+        sample_tortilla = tacotoolbox.tortilla.datamodel.Sample(
+            id=os.path.basename(tortilla_file).split(".")[0],
+            path=tortilla_file,
+            file_format="TORTILLA",
+            stac_data={
+                "crs": sample_data["stac:crs"],
+                "geotransform": sample_data["stac:geotransform"],
+                "raster_shape": sample_data["stac:raster_shape"],
+                "time_start": sample_data["stac:time_start"],
+            },
+            data_split=sample_data["tortilla:data_split"],
+            lon=sample_data["lon"],
+            lat=sample_data["lat"],
+            aoi_id=sample_data["aoi_id"],
+            country=sample_data["country"],
+        )
+        samples.append(sample_tortilla)
+
+    # create final taco file
+    final_samples = tacotoolbox.tortilla.datamodel.Samples(samples=samples)
+    tacotoolbox.tortilla.create(
+        final_samples,
+        os.path.join(save_dir, "FullFOTW.tortilla"),
+        quiet=True,
+        nworkers=4,
+    )
+
 
 def main():
     """Generate Fields of the World Benchmark."""
@@ -579,19 +716,23 @@ def main():
     args = parser.parse_args()
     os.makedirs(args.save_dir, exist_ok=True)
 
-    orig_dataset = FieldsOfTheWorld(root=args.root, download=False, countries=CC_BY_COUNTRIES)
-    
+    orig_dataset = FieldsOfTheWorld(
+        root=args.root, download=False, countries=CC_BY_COUNTRIES
+    )
+
     metadata_path = os.path.join(args.save_dir, "metadata.parquet")
-    # if os.path.exists(metadata_path):
-    #     metadata_df = pd.read_parquet(metadata_path)
-    # else:
-    metadata_df = generate_metadata_df(orig_dataset)
-    metadata_df.to_parquet(metadata_path)
+    if os.path.exists(metadata_path):
+        metadata_df = pd.read_parquet(metadata_path)
+    else:
+        metadata_df = generate_metadata_df(orig_dataset)
+        metadata_df.to_parquet(metadata_path)
 
     # assert that only CC_BY_COUNTRIES are present
     assert set(metadata_df["country"].unique()) == set(CC_BY_COUNTRIES)
 
-    validate_metadata_with_geo(metadata_df)
+    # validate_metadata_with_geo(metadata_df)
+
+    create_tortilla(args.root, metadata_df, args.save_dir)
 
     plot_country_distribution(
         metadata_df,
