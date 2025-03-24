@@ -48,7 +48,7 @@ def plot_sample_locations(
     output_path: str = None,
     buffer_degrees: float = 5.0,
     split_column: str = "split",
-    sample_fraction: float = 0.8,
+    sample_fraction: float = 1.0,  # Reduced default to 10%
     alpha: float = 0.5,
     s: float = 0.5,
     dataset_name: str = "BigEarthNetV2",
