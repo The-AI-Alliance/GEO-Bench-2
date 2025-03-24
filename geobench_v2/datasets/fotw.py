@@ -3,20 +3,22 @@
 
 """Fields of the World Dataset."""
 
-import torch
 from torch import Tensor
-from torchgeo.datasets import FieldsOfTheWorld
+from torchgeo.datasets import SpaceNet6
 from pathlib import Path
-from typing import Type
+from typing import Sequence, Type, Literal
 import torch.nn as nn
 
-
-from typing import List, Union, Optional, Sequence
 from .sensor_util import DatasetBandRegistry
-from .data_util import DataUtilsMixin, MultiModalNormalizer
+from .base import GeoBenchBaseDataset
+from .data_util import MultiModalNormalizer
+import torch.nn as nn
+import rasterio
+import numpy as np
+import torch
 
 
-class GeoBenchFieldsOfTheWorld(FieldsOfTheWorld, DataUtilsMixin):
+class GeoBenchFieldsOfTheWorld(GeoBenchBaseDataset):
     """Fields of the World Dataset with enhanced functionality.
 
     Allows:
@@ -35,6 +37,12 @@ class GeoBenchFieldsOfTheWorld(FieldsOfTheWorld, DataUtilsMixin):
         "means": {"r": 0.0, "g": 0.0, "b": 0.0, "nir": 0.0},
         "stds": {"r": 3000.0, "g": 3000.0, "b": 3000.0, "nir": 3000.0},
     }
+    paths = [
+        "FullFOTW.0000.part.tortilla",
+        "FullFOTW.0001.part.tortilla",
+        "FullFOTW.0002.part.tortilla",
+        "FullFOTW.0003.part.tortilla",
+    ]
 
     # TODO maybe add country argument?
     def __init__(
@@ -43,6 +51,7 @@ class GeoBenchFieldsOfTheWorld(FieldsOfTheWorld, DataUtilsMixin):
         split: str,
         band_order: Sequence[str | float] = dataset_band_config.default_order,
         data_normalizer: Type[nn.Module] = MultiModalNormalizer,
+        label_type: Literal["instance_seg", "semantic_seg"] = "semantic_seg",
         transforms: nn.Module | None = None,
     ) -> None:
         """Initialize Fields of the World Dataset.
@@ -58,15 +67,15 @@ class GeoBenchFieldsOfTheWorld(FieldsOfTheWorld, DataUtilsMixin):
                 which applies z-score normalization to each band.
             transforms:
         """
-        super().__init__(root=root, split=split)
-
-        self.transforms = transforms
-
-        self.band_order = self.resolve_band_order(band_order)
-
-        self.data_normalizer = data_normalizer(
-            self.normalization_stats, self.band_order
+        super().__init__(
+            root=root,
+            split=split,
+            band_order=band_order,
+            data_normalizer=data_normalizer,
+            transforms=transforms,
         )
+
+        self.label_type = label_type
 
     def __getitem__(self, idx: int) -> dict[str, Tensor]:
         """Return the image and mask at the given index.
@@ -78,25 +87,36 @@ class GeoBenchFieldsOfTheWorld(FieldsOfTheWorld, DataUtilsMixin):
             dict: a dict containing the image and mask
         """
         sample: dict[str, Tensor] = {}
-        win_a_fn = self.files[idx]["win_a"]
-        win_b_fn = self.files[idx]["win_b"]
-        mask_fn = self.files[idx]["mask"]
 
-        win_a = self._load_image(win_a_fn)
-        # win_b = self._load_image(win_b_fn)
+        sample: dict[str, Tensor] = {}
 
+        sample_row = self.data_df.read(idx)
+
+        win_a_path = sample_row.read(0)
+        win_b_path = sample_row.read(1)
+
+        mask_path = (
+            sample_row.read(2)
+            if self.label_type == "instance_seg"
+            else sample_row.read(3)
+        )
+
+        with (
+            rasterio.open(win_a_path) as win_a_src,
+            rasterio.open(win_b_path) as win_b_src,
+            rasterio.open(mask_path) as mask_src,
+        ):
+            win_a = win_a_src.read()
+            win_b = win_b_src.read()
+            mask = mask_src.read(1)
+
+        win_a = torch.from_numpy(win_a).float()
+        win_b = torch.from_numpy(win_b).float()
+        mask = torch.from_numpy(mask).long()
+
+        # TODO how to handle window a and b?
         win_a = self.rearrange_bands(win_a, self.band_order)
-
         win_a = self.data_normalizer(win_a)
-
-        # win_b = self.rearrange_bands(win_b, self.band_order)
-
-        # win_b = self.normalizer(win_b)
-
-        # TODO return concat or return two separate images or just one?
-        # image = torch.cat((win_a, win_b), dim=0)
-
-        mask = self._load_target(mask_fn)
 
         sample.update(win_a)
 
