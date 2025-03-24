@@ -5,14 +5,21 @@
 
 import os
 
+from typing import Sequence, Type
 import numpy as np
 import torch
 from PIL import Image
 from torch import Tensor
 from torchgeo.datasets import CaFFe
+from pathlib import Path
+import pandas as pd
+import torch.nn as nn
+
+from .sensor_util import DatasetBandRegistry
+from .data_util import DataUtilsMixin, MultiModalNormalizer
 
 
-class GeoBenchCaFFe(CaFFe):
+class GeoBenchCaFFe(CaFFe, DataUtilsMixin):
     """CaFFe Dataset with enhanced functionality.
 
     Allows:
@@ -20,10 +27,22 @@ class GeoBenchCaFFe(CaFFe):
     - Return band wavelengths
     """
 
-    band_default_order = {"gray": 0}
+    dataset_band_config = DatasetBandRegistry.CAFFE
+    # TODO update sensor type with wavelength and resolution
 
-    def _init_(
-        self, root: str, split: str, band_order: list["str"] = ["gray"], **kwargs
+    band_default_order = ("gray",)
+
+    normalization_stats = {"means": {"gray": 0.0}, "stds": {"gray": 255.0}}
+
+    mask_dirs = ("zones", "zones")
+
+    def __init__(
+        self,
+        root: Path,
+        split: str,
+        band_order: list["str"] = band_default_order,
+        data_normalizer: Type[nn.Module] = MultiModalNormalizer,
+        transforms: nn.Module | None = None,
     ) -> None:
         """Initialize CaFFe Dataset.
 
@@ -34,15 +53,25 @@ class GeoBenchCaFFe(CaFFe):
                 specify ['gray', 'gray', 'gray], the dataset would return the gray band three times.
                 This is useful for models that expect a certain band order, or
                 test the impact of band order on model performance.
-            **kwargs: Additional keyword arguments passed to ``CaFFe``
+            data_normalizer: The data normalizer to apply to the data, defaults to :class:`data_util.MultiModalNormalizer`,
+                which applies z-score normalization to each band.
+            transforms:
         """
-        super().__init__(root=root, split=split, **kwargs)
-        # TODO allow input of blank channels
-        assert all(band in self.band_default_order.keys() for band in band_order), (
-            f"Invalid bands in {band_order}. Must be among {list(self.band_default_order.keys())}"
+        super().__init__(root=root, split=split)
+        self.transforms = transforms
+
+        self.band_order = self.resolve_band_order(band_order)
+
+        self.data_normalizer = data_normalizer(
+            self.normalization_stats, self.band_order
         )
 
-        self.band_order = band_order
+        self.metadata_df = pd.read_parquet(
+            os.path.join(self.root, self.data_dir, "geobench_caffe_metadata.parquet")
+        )
+        self.metadata_df = self.metadata_df[
+            self.metadata_df["split"] == self.split
+        ].reset_index(drop=True)
 
     def __getitem__(self, idx: int) -> dict[str, Tensor]:
         """Return the image and mask at the given index.
@@ -53,8 +82,11 @@ class GeoBenchCaFFe(CaFFe):
         Returns:
             dict: a dict containing the image and mask
         """
+        sample: dict[str, Tensor] = {}
         zones_filename = os.path.basename(self.fpaths[idx])
-        img_filename = zones_filename.replace("_zones_", "_")
+        sample_row = self.metadata_df.iloc[idx]
+        img_filename = sample_row["filename"]
+        zones_filename = img_filename.replace("__", "_zones__")
 
         def read_tensor(path: str) -> Tensor:
             return torch.from_numpy(np.array(Image.open(path)))
@@ -64,22 +96,25 @@ class GeoBenchCaFFe(CaFFe):
         )
         img = read_tensor(img_path).unsqueeze(0).float()
 
-        # adapt img according to band_order
-        img = torch.stack(
-            [img[self.band_default_order[band]] for band in self.band_order]
-        )
+        img_dict = self.rearrange_bands(img, self.band_order)
+
+        img_dict = self.data_normalizer(img_dict)
+
+        sample.update(img_dict)
 
         zone_mask = read_tensor(
-            os.path.join(
-                self.root, self.data_dir, self.mask_dirs[1], self.split, zones_filename
-            )
+            os.path.join(self.root, self.data_dir, "zones", self.split, zones_filename)
         ).long()
 
         zone_mask = self.ordinal_map_zones[zone_mask]
 
-        sample = {"image": img, "mask": zone_mask}
+        sample["mask"] = zone_mask
 
         if self.transforms:
             sample = self.transforms(sample)
 
         return sample
+
+    def __len__(self) -> int:
+        """Return the number of images in the dataset."""
+        return len(self.metadata_df)

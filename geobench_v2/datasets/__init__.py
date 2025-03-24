@@ -8,6 +8,11 @@ from .fotw import GeoBenchFieldsOfTheWorld
 from .pastis import GeoBenchPASTIS
 from .resisc45 import GeoBenchRESISC45
 from .spacenet6 import GeoBenchSpaceNet6
+from .spacenet8 import GeoBenchSpaceNet8
+from .benv2 import GeoBenchBENV2
+from .everwatch import GeoBenchEverWatch
+from .flair2 import GeoBenchFLAIR2
+from .cloudsen12 import GeoBenchCloudSen12
 
 __all__ = (
     "GeoBenchCaFFe",
@@ -15,4 +20,9 @@ __all__ = (
     "GeoBenchPASTIS",
     "GeoBenchRESISC45",
     "GeoBenchSpaceNet6",
+    "GeoBenchSpaceNet8",
+    "GeoBenchBENV2",
+    "GeoBenchEverWatch",
+    "GeoBenchFlair2",
+    "GeoBenchCloudSen12",
 )
