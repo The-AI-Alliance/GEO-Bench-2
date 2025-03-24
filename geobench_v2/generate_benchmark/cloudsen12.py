@@ -66,14 +66,16 @@ def create_subset(root: str, save_dir: str) -> None:
             )
             & (metadata_df["label_type"] == "high")
         ].reset_index(drop=True)
-        
+
         tacoreader.compile(
             dataframe=metadata_df,
             output=os.path.join(save_dir, f"geobench_cloudsen12-{key}.taco"),
             nworkers=4,
         )
 
-        test_taco = tacoreader.load(os.path.join(save_dir, f"geobench_cloudsen12-{key}.taco"))
+        test_taco = tacoreader.load(
+            os.path.join(save_dir, f"geobench_cloudsen12-{key}.taco")
+        )
 
         meta_dfs.append(metadata_df)
 
