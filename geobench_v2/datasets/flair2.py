@@ -74,6 +74,9 @@ class GeoBenchFLAIR2(GeoBenchBaseDataset):
         "FullFlair2.0000.part.tortilla",
         "FullFlair2.0001.part.tortilla",
         "FullFlair2.0002.part.tortilla",
+        "FullFlair2.0003.part.tortilla",
+        "FullFlair2.0004.part.tortilla",
+        "FullFlair2.0005.part.tortilla",
     )
 
     def __init__(
@@ -106,7 +109,6 @@ class GeoBenchFLAIR2(GeoBenchBaseDataset):
             transforms=transforms,
         )
 
-
     def __getitem__(self, idx: int) -> dict[str, Tensor]:
         """Return an index within the dataset.
 
@@ -118,15 +120,27 @@ class GeoBenchFLAIR2(GeoBenchBaseDataset):
         """
         sample: dict[str, Tensor] = {}
 
-        sample_row = self.data_df.read(index)
+        sample_row = self.data_df.read(idx)
 
+        aerial_path = sample_row.read(0)
+        mask_path = sample_row.read(1)
+
+        with rasterio.open(aerial_path) as f:
+            image = f.read()
+        image = torch.from_numpy(image).float()
+
+        with rasterio.open(mask_path) as f:
+            mask = f.read(1)
+        mask = torch.from_numpy(mask).long()
+        # replace values > 13 with 13 as "other" class
+        mask[mask > 13] = 13
+        # shift the classes to start from 0
+        mask -= 1
 
         image_dict = self.rearrange_bands(image, self.band_order)
 
         image_dict = self.data_normalizer(image_dict)
         sample.update(image_dict)
-
-        mask = self.load_mask(mask_path)
 
         sample["mask"] = mask
 
@@ -134,36 +148,3 @@ class GeoBenchFLAIR2(GeoBenchBaseDataset):
             sample = self.transforms(sample)
 
         return sample
-
-    def load_image(self, path: str) -> Tensor:
-        """Load an image from a file.
-
-        Args:
-            path: path to the image file
-
-        Returns:
-            the image as a tensor
-        """
-        with rasterio.open(path) as f:
-            x = f.read()
-        x = torch.from_numpy(x).to(torch.float32)
-        return x
-
-    def load_mask(self, path: str) -> Tensor:
-        """Load a mask from a file.
-
-        Args:
-            path: path to the mask file
-
-        Returns:
-            the mask as a tensor
-        """
-        with rasterio.open(path) as f:
-            x = f.read(1)
-        # TODO replace values > 13 with 13 as "other" class
-        x[x > 13] = 13
-        # shift the classes to start from 0
-        x -= 1
-        x = torch.from_numpy(x).to(torch.long)
-        return x
-

@@ -36,30 +36,31 @@ def create_subset(ds: BigEarthNetV2, metadata_df: pd.DataFrame, save_dir: str) -
     # with the same structure to the save_dir
     pass
 
+
 def extract_date_from_patch_id(patch_id: str) -> str:
     """Extract the date from a BigEarthNet patch ID.
-    
+
     Args:
         patch_id: BigEarthNet patch ID string
-        
+
     Returns:
         Date string in ISO format (YYYY-MM-DD)
     """
     # The date is in the third segment of the patch ID with format YYYYMMDD
-    segments = patch_id.split('_')
+    segments = patch_id.split("_")
     if len(segments) < 3:
         return None
-    
+
     # Extract the date portion from the timestamp (first 8 characters)
     timestamp = segments[2]
     if len(timestamp) < 8 or not timestamp[:8].isdigit():
         return None
-    
+
     # Convert YYYYMMDD to YYYY-MM-DD
     year = timestamp[:4]
     month = timestamp[4:6]
     day = timestamp[6:8]
-    
+
     return f"{year}-{month}-{day}"
 
 
@@ -97,7 +98,13 @@ def process_row(args: tuple) -> dict[str, Any]:
             lon, lat = src.lnglat()
             return {"patch_id": patch_id, "lon": lon, "lat": lat, "date": date}
     except Exception as e:
-        return {"patch_id": patch_id, "lon": None, "lat": None, "error": str(e), "date": date}
+        return {
+            "patch_id": patch_id,
+            "lon": None,
+            "lat": None,
+            "error": str(e),
+            "date": date,
+        }
 
 
 def generate_metadata_df(root_dir, num_workers: int = 8) -> pd.DataFrame:
@@ -145,12 +152,14 @@ def create_tortilla(root_dir, metadata_df, save_dir):
     tortilla_dir = os.path.join(save_dir, "tortilla")
     os.makedirs(tortilla_dir, exist_ok=True)
 
-    for idx, row in tqdm(metadata_df.iterrows(), total=len(metadata_df), desc="Creating tortilla"):
+    for idx, row in tqdm(
+        metadata_df.iterrows(), total=len(metadata_df), desc="Creating tortilla"
+    ):
         modality_samples = []
 
         # S1 band modalities
         s1_bands = ["VH", "VV"]
-        
+
         patch_id = row["s1_name"]
         patch_dir = "_".join(patch_id.split("_")[0:-3])
 
@@ -158,7 +167,20 @@ def create_tortilla(root_dir, metadata_df, save_dir):
         s1_paths = [os.path.join(s1_dir, f"{patch_id}_{band}.tif") for band in s1_bands]
 
         # S2 band modalities
-        s2_bands = ["B01", "B02", "B03", "B04", "B05", "B06", "B07", "B08", "B8A", "B09", "B11", "B12"]
+        s2_bands = [
+            "B01",
+            "B02",
+            "B03",
+            "B04",
+            "B05",
+            "B06",
+            "B07",
+            "B08",
+            "B8A",
+            "B09",
+            "B11",
+            "B12",
+        ]
 
         patch_id = row["patch_id"]
         patch_dir = "_".join(patch_id.split("_")[0:-2])
@@ -200,7 +222,6 @@ def create_tortilla(root_dir, metadata_df, save_dir):
         samples_path = os.path.join(tortilla_dir, f"sample_{idx}.tortilla")
         tacotoolbox.tortilla.create(taco_samples, samples_path, quiet=True)
 
-
     # merge tortillas into a single dataset
     all_tortilla_files = sorted(glob.glob(os.path.join(tortilla_dir, "*.tortilla")))
 
@@ -231,7 +252,7 @@ def create_tortilla(root_dir, metadata_df, save_dir):
             contains_seasonal_snow=sample_data["contains_seasonal_snow"],
             contains_cloud_or_shadow=sample_data["contains_cloud_or_shadow"],
             labels=sample_data["labels"],
-            patch_id=sample_data["patch_id"]
+            patch_id=sample_data["patch_id"],
         )
         samples.append(sample_tortilla)
 
