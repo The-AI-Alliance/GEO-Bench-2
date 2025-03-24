@@ -15,6 +15,8 @@ import torch
 from pathlib import Path
 import kornia.augmentation as K
 import torch.nn.functional as F
+import pandas as pd
+
 
 from .sensor_util import DatasetBandRegistry
 from .data_util import DataUtilsMixin, MultiModalNormalizer
@@ -35,6 +37,8 @@ class GeoBenchEverWatch(EverWatch, DataUtilsMixin):
         "means": {"r": 0.0, "g": 0.0, "b": 0.0},
         "stds": {"r": 255.0, "g": 255.0, "b": 255.0},
     }
+
+    classes = EverWatch.classes
 
     def __init__(
         self,
@@ -57,7 +61,8 @@ class GeoBenchEverWatch(EverWatch, DataUtilsMixin):
                 which applies z-score normalization to each band.
             transforms:
         """
-        super().__init__(root=root, split=split)
+        self.root = root
+        self.split = split
 
         self.transforms = transforms
 
@@ -66,6 +71,20 @@ class GeoBenchEverWatch(EverWatch, DataUtilsMixin):
         self.data_normalizer = data_normalizer(
             self.normalization_stats, self.band_order
         )
+
+        self.annot_df = pd.read_csv(os.path.join(self.root, "annotations.csv"))
+
+        # remove all entries where xmin == xmax or ymin == ymax
+        self.annot_df = self.annot_df[
+            (self.annot_df["xmin"] != self.annot_df["xmax"])
+            & (self.annot_df["ymin"] != self.annot_df["ymax"])
+        ].reset_index(drop=True)
+
+        # group per image path to get all annotations for one sample
+        self.annot_df["sample_index"] = pd.factorize(self.annot_df["image_path"])[0]
+        self.annot_df = self.annot_df.set_index(["sample_index", self.annot_df.index])
+
+        self.class2idx: dict[str, int] = {c: i for i, c in enumerate(self.classes)}
 
     def __getitem__(self, index: int) -> dict[str, Tensor]:
         """Return an index within the dataset.
@@ -80,17 +99,13 @@ class GeoBenchEverWatch(EverWatch, DataUtilsMixin):
 
         sample_df = self.annot_df.loc[index]
 
-        img_path = os.path.join(self.root, self.dir, sample_df["image_path"].iloc[0])
+        img_path = os.path.join(self.root, "images", sample_df["image_path"].iloc[0])
 
         image = self._load_image(img_path).float()
-        # some images deviate by single pixel
-        image = K.Resize((1500, 1500), keepdim=True)(image)
 
         image_dict = self.rearrange_bands(image, self.band_order)
 
         image_dict = self.data_normalizer(image_dict)
-
-        sample.update(image_dict)
 
         sample.update(image_dict)
 
@@ -99,9 +114,6 @@ class GeoBenchEverWatch(EverWatch, DataUtilsMixin):
         sample["bbox_xyxy"] = boxes
         sample["label"] = labels
 
-        import pdb
-
-        pdb.set_trace()
         if self.transforms is not None:
             sample = self.transforms(sample)
 
