@@ -72,7 +72,6 @@ class DataUtilsMixin(ABC):
                 if isinstance(band_spec, (int, float)):
                     resolved_bands.append(band_spec)
                     continue
-
                 # First check if it's already a canonical name
                 if band_spec in self.dataset_band_config.band_to_modality:
                     resolved_bands.append(band_spec)

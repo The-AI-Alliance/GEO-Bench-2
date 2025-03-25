@@ -77,13 +77,11 @@ class GeoBenchCloudSen12(NonGeoDataset, DataUtilsMixin):
 
     classes = ("clear", "thick cloud", "thin cloud", "cloud shadow")
 
-    # taco_files = [
-    #     "cloudsen12-l1c.0000.part.taco",
-    #     "cloudsen12-l1c.0001.part.taco",
-    #     "cloudsen12-l1c.0002.part.taco",
-    #     "cloudsen12-l1c.0003.part.taco",
-    #     "cloudsen12-l1c.0004.part.taco",
-    # ]
+    taco_files: dict[str, str] = {
+        "l1c": "geobench_cloudsen12-l1c.taco",
+        "l2a": "geobench_cloudsen12-l2a.taco",
+        "extra": "geobench_cloudsen12-extra.taco",
+    }
 
     taco_name = "geobench_cloudsen12.taco"
 
@@ -123,10 +121,30 @@ class GeoBenchCloudSen12(NonGeoDataset, DataUtilsMixin):
             self.normalization_stats, self.band_order
         )
 
-        self.metadata_df = tacoreader.load(self.taco_name)
-        self.metadata_df = self.metadata_df[
-            self.metadata_df["tortilla:data_split"] == split
-        ].reset_index(drop=True)
+        self.l2a_metadata_df = tacoreader.load(
+            os.path.join(self.root, self.taco_files["l2a"])
+        )
+        self.l2a_metadata_df = self.l2a_metadata_df[
+            self.l2a_metadata_df["tortilla:data_split"] == split
+        ]
+
+        self.l1c_metadata_df = tacoreader.load(
+            os.path.join(self.root, self.taco_files["l1c"])
+        )
+        self.l1c_metadata_df = self.l1c_metadata_df[
+            self.l1c_metadata_df["tortilla:data_split"] == split
+        ]
+
+        self.extra_metadata_df = tacoreader.load(
+            os.path.join(self.root, self.taco_files["extra"])
+        )
+        # self.extra_metadata_df = self.extra_metadata_df[
+        #     self.extra_metadata_df["tortilla:data_split"] == split
+        # ].reset_index(drop=True)
+
+        assert len(self.l2a_metadata_df) == len(self.l1c_metadata_df), (
+            f"Length of metadata dataframes must be equal, got {len(self.l2a_metadata_df)}, {len(self.l1c_metadata_df)}"
+        )
 
     def __getitem__(self, idx: int) -> dict[str, Tensor]:
         """Return the sample_row at the given index.
@@ -138,10 +156,15 @@ class GeoBenchCloudSen12(NonGeoDataset, DataUtilsMixin):
             dict containing the sample_row data
         """
         sample: dict[str, Tensor] = {}
-        sample_row = self.metadata_df.read(idx)
 
-        image_path: str = sample_row.read(0)
-        target_path: str = sample_row.read(1)
+        l2a_row = self.l2a_metadata_df.read(idx)
+        l1c_row = self.l1c_metadata_df.read(idx)
+        extra_row = self.extra_metadata_df.read(idx)
+
+        # if "l2a" in self.band_order:
+
+        image_path: str = l2a_row.read(0)
+        target_path: str = l2a_row.read(1)
 
         with (
             rasterio.open(image_path) as image_src,
@@ -172,4 +195,4 @@ class GeoBenchCloudSen12(NonGeoDataset, DataUtilsMixin):
         Returns:
             The number of samples in the dataset
         """
-        return len(self.metadata_df)
+        return len(self.l2a_metadata_df)

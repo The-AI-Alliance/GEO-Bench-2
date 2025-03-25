@@ -10,7 +10,8 @@ from geobench_v2.datamodules import GeoBenchCloudSen12DataModule
 @pytest.fixture
 def data_root():
     """Path to test data directory."""
-    return "/mnt/rg_climate_benchmark/data/datasets_segmentation/cloudsen12"
+    # return "/mnt/rg_climate_benchmark/data/datasets_segmentation/cloudsen12"
+    return "/mnt/rg_climate_benchmark/data/geobenchV2/cloudsen12"
 
 
 @pytest.fixture

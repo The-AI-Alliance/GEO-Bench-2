@@ -15,7 +15,7 @@ def plot_sample_locations(
     output_path: str = None,
     buffer_degrees: float = 5.0,
     split_column: str = "split",
-    sample_fraction: float = 0.8,
+    sample_fraction: float = 1.0,  # Reduced default to 10%
     alpha: float = 0.5,
     s: float = 0.5,
     dataset_name: str = "BigEarthNetV2",
@@ -68,11 +68,11 @@ def plot_sample_locations(
         central_lon = (min_lon + max_lon) / 2
         central_lat = (min_lat + max_lat) / 2
 
-        if lat_extent > 60: 
+        if lat_extent > 60:
             projection = ccrs.AlbersEqualArea(
                 central_longitude=central_lon, central_latitude=central_lat
             )
-        else:  
+        else:
             projection = ccrs.LambertConformal(
                 central_longitude=central_lon, central_latitude=central_lat
             )
@@ -94,11 +94,7 @@ def plot_sample_locations(
     splits = metadata_df[split_column].unique()
     print(f"Found {len(splits)} dataset splits: {', '.join(map(str, splits))}")
 
-    split_colors = {
-        "train": "blue",
-        "val": "green",
-        "test": "red",
-    }
+    split_colors = {"train": "blue", "val": "green", "test": "red"}
 
     legend_elements = []
 
@@ -189,11 +185,7 @@ def plot_enhanced_hemisphere_locations(
     ax_north_east = fig.add_subplot(gs[0, 1], projection=ccrs.PlateCarree())
     ax_south = fig.add_subplot(gs[1, :], projection=ccrs.PlateCarree())
 
-    split_colors = {
-        "train": "blue",
-        "val": "green",
-        "test": "red",
-    }
+    split_colors = {"train": "blue", "val": "green", "test": "red"}
     if len(north_west_df) > 0:
         _plot_region(
             ax_north_west,
@@ -271,9 +263,7 @@ def _plot_region(ax, df, split_column, split_colors, buffer_degrees, s, alpha, t
     for split in df[split_column].unique():
         split_data = df[df[split_column] == split]
         if len(split_data) > 0:
-            color = split_colors.get(
-                split, "purple"
-            ) 
+            color = split_colors.get(split, "purple")
 
             ax.scatter(
                 split_data["lon"],

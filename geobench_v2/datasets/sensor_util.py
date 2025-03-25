@@ -355,7 +355,33 @@ class DatasetBandRegistry:
         bands=SensorBandRegistry.RGB.bands, default_order=["r", "g", "b"]
     )
 
-    SPACENET6 = ModalityConfig(
+    # spacenet 6 is multimodal with rgbn and sar intensity bands (HH, HV,VH, and VV)
+    SPACENET6 = MultiModalConfig(
+        modalities={
+            "rgbn": SensorBandRegistry.RGBN,
+            "sar": ModalityConfig(
+                bands={
+                    "hh": BandConfig("hh", ["HH"], wavelength=0.056),
+                    "hv": BandConfig("hv", ["HV"], wavelength=0.056),
+                    "vv": BandConfig("vv", ["VV"], wavelength=0.056),
+                    "vh": BandConfig("vh", ["VH"], wavelength=0.056),
+                },
+                default_order=["hh", "hv", "vv", "vh"],
+            ),
+        },
+        default_order=["r", "g", "b", "nir", "hh", "hv", "vv", "vh"],
+        band_to_modality={
+            "r": "rgbn",
+            "g": "rgbn",
+            "b": "rgbn",
+            "nir": "rgbn",
+            "hh": "sar",
+            "hv": "sar",
+            "vv": "sar",
+            "vh": "sar",
+        },
+    )
+    SPACENET8 = ModalityConfig(
         bands=SensorBandRegistry.RGBN.bands, default_order=["r", "g", "b", "nir"]
     )
 
@@ -371,6 +397,7 @@ class DatasetBandRegistry:
     # CLOUDSEN12 has cloudsen12-l1c Sentinel2 data is actually just a single ModalityConfig
     CLOUDSEN12 = ModalityConfig(
         bands={**SensorBandRegistry.SENTINEL2.bands},
+        # band_to_modality={**SensorBandRegistry.SENTINEL2.band_to_modality},
         default_order=[
             "B01",
             "B02",
