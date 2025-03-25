@@ -5,7 +5,7 @@ from geobench_v2.datamodules import GeoBenchPASTISDataModule
 @pytest.fixture
 def data_root():
     """Path to test data directory."""
-    return "/mnt/rg_climate_benchmark/data/datasets_segmentation/pastis_r"
+    return "/mnt/rg_climate_benchmark/data/geobenchV2/pastis"
 
 
 @pytest.fixture
@@ -69,6 +69,7 @@ class TestPASTISDataModule:
         assert "image_s2" in batch
         assert "image_s1_asc" in batch
         assert "image_s1_desc" in batch
+        assert "mask" in batch
 
         # TODO handle correctly both cases
         # Check dimensions - remember these are time-series shapes [batch_size, bands, time_steps, H, W]
@@ -119,7 +120,6 @@ class TestPASTISDataModule:
         assert batch["image"].shape[0] == dm.batch_size
         assert batch["image"].shape[1] == len(s1_asc_only_band_order)
         assert batch["image"].shape[2] == 74
-
 
     def test_time_series(self, data_root, multimodal_band_order):
         """Test batch retrieval with time series."""

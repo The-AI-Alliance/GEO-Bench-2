@@ -360,57 +360,59 @@ class MultiModalNormalizer(DataNormalizer):
 
     def _normalize_tensor(self, tensor: Tensor, mean: Tensor, std: Tensor) -> Tensor:
         """Normalize a tensor along the channel dimension, handling different shapes.
-        
+
         Args:
             tensor: Input tensor of shape [C, H, W] or [T, C, H, W]
             mean: Mean values for each channel
             std: Standard deviation values for each channel
-            
+
         Returns:
             Normalized tensor with same shape as input
         """
         orig_shape = tensor.shape
         orig_dim = tensor.dim()
-        
+
         if orig_dim == 3:  # [C, H, W]
             mean_reshaped = mean.view(-1, 1, 1)
             std_reshaped = std.view(-1, 1, 1)
             return (tensor - mean_reshaped) / (std_reshaped + 1e-6)
-        
+
         elif orig_dim == 4:  # [T, C, H, W]
             mean_reshaped = mean.view(1, -1, 1, 1)
             std_reshaped = std.view(1, -1, 1, 1)
             return (tensor - mean_reshaped) / (std_reshaped + 1e-6)
-            
+
         else:
             raise ValueError(f"Expected tensor with 3 or 4 dimensions, got {orig_dim}")
 
     def _denormalize_tensor(self, tensor: Tensor, mean: Tensor, std: Tensor) -> Tensor:
         """Denormalize a tensor along the channel dimension, handling different shapes.
-        
+
         Args:
             tensor: Input tensor of shape [C, H, W] or [T, C, H, W]
             mean: Mean values for each channel
             std: Standard deviation values for each channel
-            
+
         Returns:
             Denormalized tensor with same shape as input
         """
         orig_shape = tensor.shape
         orig_dim = tensor.dim()
-        
+
         if orig_dim == 3:  # [C, H, W]
             mean_reshaped = mean.view(-1, 1, 1)
             std_reshaped = std.view(-1, 1, 1)
             return tensor * (std_reshaped + 1e-6) + mean_reshaped
-        
+
         elif orig_dim == 4:  # [T, C, H, W]
             mean_reshaped = mean.view(1, -1, 1, 1)
             std_reshaped = std.view(1, -1, 1, 1)
             return tensor * (std_reshaped + 1e-6) + mean_reshaped
-            
+
         else:
-            raise ValueError(f"Expected tensor with 3 or 4 dimensions, got {orig_dim} and {orig_shape}")
+            raise ValueError(
+                f"Expected tensor with 3 or 4 dimensions, got {orig_dim} and {orig_shape}"
+            )
 
     def forward(self, data: dict[str, Tensor]) -> dict[str, Tensor]:
         """Normalize input tensors of shape [C, H, W] or [T, C, H, W].
@@ -425,8 +427,10 @@ class MultiModalNormalizer(DataNormalizer):
         """
         result = {}
         for key, tensor in data.items():
-            result[key] = self._normalize_tensor(tensor, self.means[key], self.stds[key])
- 
+            result[key] = self._normalize_tensor(
+                tensor, self.means[key], self.stds[key]
+            )
+
         return result
 
     def unnormalize(self, data: dict[str, Tensor]) -> dict[str, Tensor]:
@@ -442,6 +446,8 @@ class MultiModalNormalizer(DataNormalizer):
         """
         result = {}
         for key, tensor in data.items():
-            result[key] = self._denormalize_tensor(tensor, self.means[key], self.stds[key])
-                
+            result[key] = self._denormalize_tensor(
+                tensor, self.means[key], self.stds[key]
+            )
+
         return result
