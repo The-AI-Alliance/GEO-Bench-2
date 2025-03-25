@@ -72,7 +72,6 @@ class DataUtilsMixin(ABC):
                 if isinstance(band_spec, (int, float)):
                     resolved_bands.append(band_spec)
                     continue
-
                 # First check if it's already a canonical name
                 if band_spec in self.dataset_band_config.band_to_modality:
                     resolved_bands.append(band_spec)
@@ -359,48 +358,96 @@ class MultiModalNormalizer(DataNormalizer):
 
         return torch.tensor(means), torch.tensor(stds)
 
-    def forward(self, data: dict[str, Tensor]) -> dict[str, Tensor]:
-        """Normalize input tensors.
+    def _normalize_tensor(self, tensor: Tensor, mean: Tensor, std: Tensor) -> Tensor:
+        """Normalize a tensor along the channel dimension, handling different shapes.
 
         Args:
-            data: dictionary mapping keys to tensors
+            tensor: Input tensor of shape [C, H, W] or [T, C, H, W]
+            mean: Mean values for each channel
+            std: Standard deviation values for each channel
+
+        Returns:
+            Normalized tensor with same shape as input
+        """
+        orig_shape = tensor.shape
+        orig_dim = tensor.dim()
+
+        if orig_dim == 3:  # [C, H, W]
+            mean_reshaped = mean.view(-1, 1, 1)
+            std_reshaped = std.view(-1, 1, 1)
+            return (tensor - mean_reshaped) / (std_reshaped + 1e-6)
+
+        elif orig_dim == 4:  # [T, C, H, W]
+            mean_reshaped = mean.view(1, -1, 1, 1)
+            std_reshaped = std.view(1, -1, 1, 1)
+            return (tensor - mean_reshaped) / (std_reshaped + 1e-6)
+
+        else:
+            raise ValueError(f"Expected tensor with 3 or 4 dimensions, got {orig_dim}")
+
+    def _denormalize_tensor(self, tensor: Tensor, mean: Tensor, std: Tensor) -> Tensor:
+        """Denormalize a tensor along the channel dimension, handling different shapes.
+
+        Args:
+            tensor: Input tensor of shape [C, H, W] or [T, C, H, W]
+            mean: Mean values for each channel
+            std: Standard deviation values for each channel
+
+        Returns:
+            Denormalized tensor with same shape as input
+        """
+        orig_shape = tensor.shape
+        orig_dim = tensor.dim()
+
+        if orig_dim == 3:  # [C, H, W]
+            mean_reshaped = mean.view(-1, 1, 1)
+            std_reshaped = std.view(-1, 1, 1)
+            return tensor * (std_reshaped + 1e-6) + mean_reshaped
+
+        elif orig_dim == 4:  # [T, C, H, W]
+            mean_reshaped = mean.view(1, -1, 1, 1)
+            std_reshaped = std.view(1, -1, 1, 1)
+            return tensor * (std_reshaped + 1e-6) + mean_reshaped
+
+        else:
+            raise ValueError(
+                f"Expected tensor with 3 or 4 dimensions, got {orig_dim} and {orig_shape}"
+            )
+
+    def forward(self, data: dict[str, Tensor]) -> dict[str, Tensor]:
+        """Normalize input tensors of shape [C, H, W] or [T, C, H, W].
+
+        Args:
+            data: Dictionary mapping keys to tensors
                  For single modality: {"image": tensor}
                  For multi-modal: {"image_s1": tensor1, "image_s2": tensor2}
 
         Returns:
-            dictionary with normalized tensors using same keys
+            Dictionary with normalized tensors using same keys
         """
-        normed: dict[str, Tensor] = {}
+        result = {}
         for key, tensor in data.items():
-            if tensor.dim() == 3:
-                tensor = tensor.unsqueeze(0)
-            try:
-                normed[key] = normalize(tensor, self.means[key], self.stds[key])
-            except:
-                import pdb
+            result[key] = self._normalize_tensor(
+                tensor, self.means[key], self.stds[key]
+            )
 
-                pdb.set_trace()
-        return {
-            key: normalize(
-                tensor.unsqueeze(0), self.means[key], self.stds[key]
-            ).squeeze(0)
-            for key, tensor in data.items()
-        }
+        return result
 
     def unnormalize(self, data: dict[str, Tensor]) -> dict[str, Tensor]:
-        """Unnormalize input tensors.
+        """Unnormalize input tensors of shape [C, H, W] or [T, C, H, W].
 
         Args:
-            data: dictionary mapping keys to tensors
+            data: Dictionary mapping keys to tensors
                  For single modality: {"image": tensor}
                  For multi-modal: {"image_s1": tensor1, "image_s2": tensor2}
 
         Returns:
-            dictionary with unnormalized tensors using same keys
+            Dictionary with unnormalized tensors using same keys
         """
-        return {
-            key: denormalize(
-                tensor.unsqueeze(0), self.means[key], self.stds[key]
-            ).squeeze(0)
-            for key, tensor in data.items()
-        }
+        result = {}
+        for key, tensor in data.items():
+            result[key] = self._denormalize_tensor(
+                tensor, self.means[key], self.stds[key]
+            )
+
+        return result

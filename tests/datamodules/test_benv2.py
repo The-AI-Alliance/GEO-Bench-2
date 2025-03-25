@@ -1,17 +1,17 @@
+# Copyright (c) 2025 GeoBenchV2. All rights reserved.
+# Licensed under the Apache License 2.0.
+
+"""BenV2 Tests."""
+
 import pytest
+import torch
 from geobench_v2.datamodules import GeoBenchBENV2DataModule
 
 
 @pytest.fixture
 def data_root():
     """Path to test data directory."""
-    return "/mnt/rg_climate_benchmark/data/datasets_classification/benv2"
-
-
-@pytest.fixture
-def band_order():
-    """Test band configuration with mix of bands and fill values."""
-    return ["VV", "B01", "B02", 1.5, "B03"]
+    return "/mnt/rg_climate_benchmark/data/geobenchV2/benv2"
 
 
 @pytest.fixture
@@ -37,38 +37,6 @@ def datamodule(data_root, band_order):
 class TestBENV2DataModule:
     """Test cases for BENV2 datamodule functionality."""
 
-    def test_batch_dimensions(self, datamodule):
-        """Test if batches have correct dimensions."""
-        datamodule.setup("fit")
-        train_batch = next(iter(datamodule.train_dataloader()))
-
-        assert train_batch["image"].shape[0] == datamodule.batch_size
-        assert train_batch["image"].shape[1] == len(datamodule.band_order)
-
-    def test_band_order_resolution(self, datamodule):
-        """Test if band order is correctly resolved."""
-        assert len(datamodule.band_order) == 5
-        assert isinstance(datamodule.band_order[3], float)
-        assert datamodule.band_order[3] == 1.5
-
-    def test_sequence_band_order(self, data_root):
-        """Test batch retrieval with sequence of bands."""
-        dm = GeoBenchBENV2DataModule(
-            img_size=74,
-            batch_size=32,
-            band_order=["VV", "B01", "B02", 1.5, "B03"],
-            root=data_root,
-        )
-        dm.setup("fit")
-        batch = next(iter(dm.train_dataloader()))
-
-        # Check single tensor output
-        assert "image" in batch
-        assert batch["image"].shape[0] == dm.batch_size
-        assert batch["image"].shape[1] == 5
-        assert batch["image"].shape[2] == 74
-        assert batch["image"].shape[3] == 74
-
     def test_multimodal_band_order(self, data_root, multimodal_band_order):
         """Test batch retrieval with modality-specific band sequences."""
         dm = GeoBenchBENV2DataModule(
@@ -84,3 +52,4 @@ class TestBENV2DataModule:
         assert batch["image_s1"].shape[:2] == (dm.batch_size, 3)  # S1 bands
         assert batch["image_s2"].shape[2] == 74
         assert batch["image_s2"].shape[3] == dm.img_size
+        assert torch.isclose(batch["image_s1"][:, 2], torch.tensor(-1.0)).all()

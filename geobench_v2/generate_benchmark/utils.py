@@ -10,45 +10,12 @@ import cartopy.crs as ccrs
 import cartopy.feature as cfeature
 
 
-def validate_metadata_with_geo(metadata_df: pd.DataFrame) -> None:
-    """Validate the metadata DataFrame for benchmark generation.
-
-    Args:
-        metadata_df: DataFrame with metadata columns
-
-    Raises:
-        AssertionError: If metadata is missing required columns
-    """
-    assert "split" in metadata_df.columns, "Metadata must contain 'split' column"
-    assert "lat" in metadata_df.columns, "Metadata must contain 'lat' column"
-    assert "lon" in metadata_df.columns, "Metadata must contain 'lon' column"
-    assert "crs" in metadata_df.columns, "Metadata must contain 'crs' column"
-    assert "sample_id" in metadata_df.columns, (
-        "Metadata must contain 'sample_id' column"
-    )
-
-
-def validate_metadata(metadata_df: pd.DataFrame) -> None:
-    """Validate the metadata DataFrame for benchmark generation, for datasets without geospatial information.
-
-    Args:
-        metadata_df: DataFrame with metadata columns
-
-    Raises:
-        AssertionError: If metadata is missing required columns
-    """
-    assert "split" in metadata_df.columns, "Metadata must contain 'split' column"
-    assert "sample_id" in metadata_df.columns, (
-        "Metadata must contain 'sample_id' column"
-    )
-
-
 def plot_sample_locations(
     metadata_df: pd.DataFrame,
     output_path: str = None,
     buffer_degrees: float = 5.0,
     split_column: str = "split",
-    sample_fraction: float = 0.8,
+    sample_fraction: float = 1.0,  # Reduced default to 10%
     alpha: float = 0.5,
     s: float = 0.5,
     dataset_name: str = "BigEarthNetV2",
