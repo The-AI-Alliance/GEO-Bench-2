@@ -41,56 +41,34 @@ from pathlib import Path
 from tqdm import tqdm
 
 
-def create_geobench_ds(
-    ds: TreeSatAI, modalities: list[str], metadata_df: pd.DataFrame, save_dir: str
-) -> None:
-    """Create a subset of TreeSatAI dataset."""
-    os.makedirs(save_dir, exist_ok=True)
-
-    modal_path_dict = {}
-    for modality in modalities:
-        os.makedirs(os.path.join(save_dir, modality), exist_ok=True)
-
-        ds.image = modality
-        images, masks = ds._list_files(ds.aois[0])
-        modal_path_dict[modality] = images
-
-    modal_path_dict["mask"] = masks
-
-    patch_size = (450, 450)
-    stride = (449, 449)
-
-    patches_df = split_geospatial_tiles_into_patches(
-        modal_path_dict=modal_path_dict,
-        output_dir=save_dir,
-        patch_size=patch_size,
-        stride=stride,
-        min_valid_data_ratio=0.7,
-        min_positive_pixels_ratio=0.01,
-    )
-
-
 def generate_metadata_df(root: str) -> pd.DataFrame:
     """Generate metadata DataFrame for TreeSatAI dataset."""
 
     df = pd.DataFrame()
-    path = os.path.join(root, f'train_filenames.lst')
+    path = os.path.join(root, f"train_filenames.lst")
     with open(path) as f:
-        train_files = f.read().strip().split('\n')
+        train_files = f.read().strip().split("\n")
 
-    path = os.path.join(root, f'test_filenames.lst')
+    path = os.path.join(root, f"test_filenames.lst")
     with open(path) as f:
-        test_files = f.read().strip().split('\n')
+        test_files = f.read().strip().split("\n")
 
-    df['path'] = train_files + test_files
-    df['split'] = ['train'] * len(train_files) + ['test'] * len(test_files)
+    df["path"] = train_files + test_files
+    df["split"] = ["train"] * len(train_files) + ["test"] * len(test_files)
 
+    df["IMG_ID"] = df["path"].apply(lambda x: x.strip(".tif"))
 
-    path = os.path.join(root, 'labels', 'TreeSatBA_v9_60m_multi_labels.json')
+    path = os.path.join(root, "geojson", "bb_60m.GeoJSON")
+
+    gdf = gpd.read_file(path)
+
+    df = df.merge(gdf, on="IMG_ID")
+
+    df.drop(columns="geometry", inplace=True)
+
+    path = os.path.join(root, "labels", "TreeSatBA_v9_60m_multi_labels.json")
     with open(path) as f:
         labels = json.load(f)
-
-
 
     def extract_labels(path):
         row_labels: list[list[str, float]] = labels[path]
@@ -103,34 +81,38 @@ def generate_metadata_df(root: str) -> pd.DataFrame:
     df["aerial_path"] = df["path"].apply(lambda x: os.path.join("aerial", "60m", x))
     df["s1_path"] = df["path"].apply(lambda x: os.path.join("s1", "60m", x))
     df["s2_path"] = df["path"].apply(lambda x: os.path.join("s2", "60m", x))
-    df["sentinel-ts_path"] = df["path"].apply(lambda x: os.path.join("sentinel-ts", x.replace(".tif", ".h5")))
+
+    # sentinel 2 ts paths are different
+    # find all paths in dir
+    ts_paths = glob.glob(os.path.join(root, "sentinel-ts", "*.h5"))
+    ts_paths = [os.path.basename(path) for path in ts_paths]
+    ts_img_ids = [path.strip(".h5")[:-5] for path in ts_paths]
+    ts_path_df = pd.DataFrame({"IMG_ID": ts_img_ids, "sentinel-ts_path": ts_paths})
+    ts_path_df["sentinel-ts_path"] = ts_path_df["sentinel-ts_path"].apply(
+        lambda x: os.path.join("sentinel-ts", x)
+    )
+    df = df.merge(ts_path_df, on="IMG_ID", how="left")
 
     aerial_path = df["aerial_path"].iloc[0]
+
     def extract_lat_lng(aerial_path):
         with rasterio.open(os.path.join(root, aerial_path)) as src:
             lng, lat = src.lnglat()
         return lng, lat
-    
+
     df["lon"], df["lat"] = zip(*df["aerial_path"].apply(extract_lat_lng))
 
     return df
 
 
-
 def create_tortilla(root_dir, df, save_dir):
     """Create a tortilla version of the dataset."""
-
-    # filter by valid_ratio, which is the percent of valid number of pixels in an image
-    # df = df[df["valid_ratio"] > 0.4]
 
     tortilla_dir = os.path.join(save_dir, "tortilla")
     os.makedirs(tortilla_dir, exist_ok=True)
 
-    import pdb
-    pdb.set_trace()
-
     for idx, row in tqdm(df.iterrows(), total=len(df), desc="Creating tortilla"):
-        modalities = ["aerial", "s1", "s2", "sentinel-ts", "labels"]
+        modalities = ["aerial", "s1", "s2"]  # "sentinel-ts"]
         modality_samples = []
 
         for modality in modalities:
@@ -140,25 +122,20 @@ def create_tortilla(root_dir, df, save_dir):
                 with rasterio.open(os.path.join(root_dir, row["aerial_path"])) as src:
                     profile = src.profile
 
-                # # create samples for sen1_acs_data, sen1_des_data, sen2_data 
+                # # create samples for sen1_acs_data, sen1_des_data, sen2_data
                 sample = tacotoolbox.tortilla.datamodel.Sample(
                     id=modality,
                     path=path,
                     file_format="HDF5",
                     data_split=row["split"],
-                    stac_data={
-                        "crs": "EPSG:" + str(profile["crs"].to_epsg()),
-                        "geotransform": None,
-                        "geotransform": profile["transform"].to_gdal(),
-                        "time_start": row["date"],
-                    },
+                    year=row["YEAR"],
                     lon=row["lon"],
                     lat=row["lat"],
                     species_labels=row["species"],
                     dist_labels=row["dist"],
                     source_path=row["path"],
                 )
-            else:  
+            else:
                 with rasterio.open(path) as src:
                     profile = src.profile
 
@@ -171,13 +148,15 @@ def create_tortilla(root_dir, df, save_dir):
                         "crs": "EPSG:" + str(profile["crs"].to_epsg()),
                         "geotransform": profile["transform"].to_gdal(),
                         "raster_shape": (profile["height"], profile["width"]),
-                        "time_start": row["date"],
+                        "time_start": row["YEAR"],
                     },
+                    year=row["YEAR"],
                     lon=row["lon"],
                     lat=row["lat"],
                     species_labels=row["species"],
                     dist_labels=row["dist"],
                     source_path=row["path"],
+                    ts_path=row["sentinel-ts_path"],
                 )
 
             modality_samples.append(sample)
@@ -208,12 +187,14 @@ def create_tortilla(root_dir, df, save_dir):
                 "raster_shape": sample_data["stac:raster_shape"],
                 "time_start": sample_data["stac:time_start"],
             },
+            year=sample_data["year"],
             data_split=sample_data["tortilla:data_split"],
             lon=sample_data["lon"],
             lat=sample_data["lat"],
-            species_labels=sample_data["species"],
-            dist_labels=sample_data["dist"],
-            source_path=sample_data["path"]
+            species_labels=sample_data["species_labels"],
+            dist_labels=sample_data["dist_labels"],
+            source_path=sample_data["source_path"],
+            ts_path=sample_data["ts_path"],
         )
         samples.append(sample_tortilla)
 
@@ -242,7 +223,6 @@ def main():
 
     metadata_path = os.path.join(args.save_dir, "geobench_treesatai.parquet")
 
-
     if not os.path.exists(args.save_dir):
         os.makedirs(args.save_dir)
 
@@ -252,11 +232,11 @@ def main():
         metadata_df = generate_metadata_df(args.root)
         metadata_df.to_parquet(metadata_path)
 
-    plot_sample_locations(
-        metadata_df,
-        os.path.join(args.save_dir, "sample_locations.png"),
-        dataset_name="TreeSatAI",
-    )
+    # plot_sample_locations(
+    #     metadata_df,
+    #     os.path.join(args.save_dir, "sample_locations.png"),
+    #     dataset_name="TreeSatAI",
+    # )
 
     metadata_df.drop(columns="split", inplace=True)
 
@@ -265,14 +245,21 @@ def main():
         n_blocks_x=10,
         n_blocks_y=10,
         pattern="balanced",
-        random_state=42
+        random_state=42,
     )
 
     visualize_geospatial_split(
         checker_split_df,
         output_path=os.path.join(args.save_dir, "checkerboard_split.png"),
     )
-    # create_tortilla(args.save_dir, metadata_df, args.save_dir)
+
+    create_tortilla(args.root, checker_split_df, args.save_dir)
+
+    taco = tacoreader.load(
+        "/mnt/rg_climate_benchmark/data/geobenchV2/treesatai/TreeSatAI.tortilla"
+    )
+
+    sample = taco.read(0)
 
 
 if __name__ == "__main__":

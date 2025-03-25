@@ -3,7 +3,6 @@
 
 """TreesatAI dataset."""
 
-
 from torch import Tensor
 from pathlib import Path
 from typing import Sequence, Type
