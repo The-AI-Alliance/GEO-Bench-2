@@ -13,6 +13,8 @@ from .benv2 import GeoBenchBENV2
 from .everwatch import GeoBenchEverWatch
 from .flair2 import GeoBenchFLAIR2
 from .cloudsen12 import GeoBenchCloudSen12
+from .floga import GeoBenchFLOGA
+from .kuro_siwo import GeoBenchKuroSiwo
 
 __all__ = (
     "GeoBenchCaFFe",
@@ -25,4 +27,6 @@ __all__ = (
     "GeoBenchEverWatch",
     "GeoBenchFlair2",
     "GeoBenchCloudSen12",
+    "GeoBenchFLOGA",
+    "GeoBenchKuroSiwo",
 )

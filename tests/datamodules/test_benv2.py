@@ -1,4 +1,10 @@
+# Copyright (c) 2025 GeoBenchV2. All rights reserved.
+# Licensed under the Apache License 2.0.
+
+"""BenV2 Tests."""
+
 import pytest
+import torch
 from geobench_v2.datamodules import GeoBenchBENV2DataModule
 
 
@@ -46,5 +52,4 @@ class TestBENV2DataModule:
         assert batch["image_s1"].shape[:2] == (dm.batch_size, 3)  # S1 bands
         assert batch["image_s2"].shape[2] == 74
         assert batch["image_s2"].shape[3] == dm.img_size
-
-        assert (batch["image_s1"][:, 2] == -1).all()
+        assert torch.isclose(batch["image_s1"][:, 2], torch.tensor(-1.0)).all()
