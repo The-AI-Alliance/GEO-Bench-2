@@ -1,7 +1,7 @@
 # Copyright (c) 2025 GeoBenchV2. All rights reserved.
 # Licensed under the Apache License 2.0.
 
-"""SpaceNet6 dataset."""
+"""Biomassters dataset."""
 
 from torch import Tensor
 from pathlib import Path
@@ -175,6 +175,10 @@ class GeoBenchBioMassters(GeoBenchBaseDataset):
                 img = torch.from_numpy(img)
                 s1_data.append(img)
             s1_data = torch.stack(s1_data)
+
+            # for single time step only return [C, H, W]
+            if self.num_time_steps == 1:
+                s1_data = s1_data[0]
             img_dict["s1"] = s1_data
 
         if "s2" in self.band_order:

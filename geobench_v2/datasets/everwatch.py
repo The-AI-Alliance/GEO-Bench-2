@@ -39,14 +39,14 @@ class GeoBenchEverWatch(EverWatch, DataUtilsMixin):
     }
 
     classes = classes = (
-        'White Ibis',
-        'Great Egret',
-        'Great Blue Heron',
-        'Snowy Egret',
-        'Wood Stork',
-        'Roseate Spoonbill',
-        'Anhinga',
-        'Unknown White'
+        "White Ibis",
+        "Great Egret",
+        "Great Blue Heron",
+        "Snowy Egret",
+        "Wood Stork",
+        "Roseate Spoonbill",
+        "Anhinga",
+        "Unknown White",
     )
 
     def __init__(
