@@ -1,3 +1,9 @@
+# Copyright (c) 2025 GeoBenchV2. All rights reserved.
+# Licensed under the Apache License 2.0.
+
+
+"""SpaceNet6 Datamodule."""
+
 from collections.abc import Callable
 from typing import Any, Sequence
 

@@ -592,6 +592,106 @@ class DatasetBandRegistry:
         band_to_modality={"vv": "sar", "vh": "sar", "dem": "dem"},
     )
 
+    # treesat ai contains aerial, s1 and s2 imgery
+    TREESATAI = MultiModalConfig(
+        modalities={
+            "aerial": ModalityConfig(
+                bands={
+                    "nir": BandConfig("nir", ["IR", "NIR"], wavelength=None),
+                    "g": BandConfig("g", ["G", "green", "GREEN"], wavelength=None),
+                    "b": BandConfig("b", ["B", "blue", "BLUE"], wavelength=None),
+                    "r": BandConfig("r", ["R", "red", "RED"], wavelength=None),
+                },
+                default_order=["nir", "g", "b", "r"],
+            ),
+            "s1": ModalityConfig(
+                bands={
+                    "vv": BandConfig("vv", ["VV", "vv"], wavelength=None),
+                    "vh": BandConfig("vh", ["VH", "vh"], wavelength=None),
+                    "vv/vh": BandConfig("vv/vh", ["VV/VH", "vv/vh"], wavelength=None),
+                },
+                default_order=["vv", "vh", "vv/vh"],
+            ),
+            "s2": ModalityConfig(
+                bands={
+                    band: config
+                    for band, config in SensorBandRegistry.SENTINEL2.bands.items()
+                    if band
+                    in [
+                        "B02",
+                        "B03",
+                        "B04",
+                        "B08",
+                        "B05",
+                        "B06",
+                        "B07",
+                        "B8A",
+                        "B11",
+                        "B12",
+                        "B01",
+                        "B09",
+                    ]
+                },
+                default_order=[
+                    "B02",
+                    "B03",
+                    "B04",
+                    "B08",
+                    "B05",
+                    "B06",
+                    "B07",
+                    "B8A",
+                    "B11",
+                    "B12",
+                    "B01",
+                    "B09",
+                ],
+            ),
+        },
+        default_order=[
+            "nir",
+            "g",
+            "b",
+            "r",
+            "vv",
+            "vh",
+            "vv/vh",
+            "B02",
+            "B03",
+            "B04",
+            "B08",
+            "B05",
+            "B06",
+            "B07",
+            "B8A",
+            "B11",
+            "B12",
+            "B01",
+            "B09",
+        ],
+        band_to_modality={
+            "nir": "aerial",
+            "g": "aerial",
+            "b": "aerial",
+            "r": "aerial",
+            "vv": "s1",
+            "vh": "s1",
+            "vv/vh": "s1",
+            "B02": "s2",
+            "B03": "s2",
+            "B04": "s2",
+            "B08": "s2",
+            "B05": "s2",
+            "B06": "s2",
+            "B07": "s2",
+            "B8A": "s2",
+            "B11": "s2",
+            "B12": "s2",
+            "B01": "s2",
+            "B09": "s2",
+        },
+    )
+
     @classmethod
     def get_dataset_config(
         cls, dataset_name: str
