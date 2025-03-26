@@ -592,6 +592,94 @@ class DatasetBandRegistry:
         band_to_modality={"vv": "sar", "vh": "sar", "dem": "dem"},
     )
 
+    # biomassters has s1 bands vv and vh ascending and descending and sentinel 2 except 1, 9, 10
+    BIOMASSTERS = MultiModalConfig(
+        modalities={
+            "s1": ModalityConfig(
+                bands={
+                    "VV_asc": BandConfig(
+                        "vv_ascending",
+                        ["co_pol_asc", "vv_asc"],
+                        wavelength=0.056,
+                        resolution=10,
+                    ),
+                    "VH_asc": BandConfig(
+                        "vh_ascending",
+                        ["cross_pol_asc", "vh_asc"],
+                        wavelength=0.056,
+                        resolution=10,
+                    ),
+                    "VV_desc": BandConfig(
+                        "vv_descending",
+                        ["co_pol_desc", "vv_desc"],
+                        wavelength=0.056,
+                        resolution=10,
+                    ),
+                    "VH_desc": BandConfig(
+                        "vh_descending",
+                        ["cross_pol_desc", "vv_desc"],
+                        wavelength=0.056,
+                        resolution=10,
+                    ),
+                },
+                default_order=["VV_asc", "VH_asc", "VV_desc", "VH_desc"],
+                native_resolution=10,
+            ),
+            "s2": ModalityConfig(
+                bands={
+                    k: v
+                    for k, v in SensorBandRegistry.SENTINEL2.bands.items()
+                    if k not in ["B01", "B09", "B10"]
+                },
+                default_order=[
+                    "B02",
+                    "B03",
+                    "B04",
+                    "B05",
+                    "B06",
+                    "B07",
+                    "B08",
+                    "B8A",
+                    "B11",
+                    "B12",
+                ],
+                native_resolution=10,
+            ),
+        },
+        default_order=[
+            "VV_asc",
+            "VH_asc",
+            "VV_desc",
+            "VH_desc",
+            "B02",
+            "B03",
+            "B04",
+            "B05",
+            "B06",
+            "B07",
+            "B08",
+            "B8A",
+            "B11",
+            "B12",
+        ],
+        band_to_modality={
+            "VV_asc": "s1",
+            "VH_asc": "s1",
+            "VV_desc": "s1",
+            "VH_desc": "s1",
+            "B02": "s2",
+            "B03": "s2",
+            "B04": "s2",
+            "B05": "s2",
+            "B06": "s2",
+            "B07": "s2",
+            "B08": "s2",
+            "B8A": "s2",
+            "B11": "s2",
+            "B12": "s2",
+        },
+    )
+
     @classmethod
     def get_dataset_config(
         cls, dataset_name: str
