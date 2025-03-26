@@ -61,7 +61,41 @@ class GeoBenchBioMassters(GeoBenchBaseDataset):
         },
     }
 
-    paths = ["BioMassters.tortilla"]
+    band_default_order = (
+        "VV_asc",
+        "VH_asc",
+        "VV_desc",
+        "VH_desc",
+        "B02",
+        "B03",
+        "B04",
+        "B05",
+        "B06",
+        "B07",
+        "B08",
+        "B8A",
+        "B11",
+        "B12",
+    )
+
+    paths = [
+        "BioMassters.0000.part.tortilla",
+        "BioMassters.0001.part.tortilla",
+        "BioMassters.0002.part.tortilla",
+        "BioMassters.0003.part.tortilla",
+        "BioMassters.0004.part.tortilla",
+        "BioMassters.0005.part.tortilla",
+        "BioMassters.0006.part.tortilla",
+        "BioMassters.0007.part.tortilla",
+        "BioMassters.0008.part.tortilla",
+        "BioMassters.0009.part.tortilla",
+        "BioMassters.0010.part.tortilla",
+        "BioMassters.0011.part.tortilla",
+        "BioMassters.0012.part.tortilla",
+        "BioMassters.0013.part.tortilla",
+        "BioMassters.0014.part.tortilla",
+        "BioMassters.0015.part.tortilla",
+    ]
 
     def __init__(
         self,
@@ -107,11 +141,17 @@ class GeoBenchBioMassters(GeoBenchBaseDataset):
         )
         self.num_time_steps = num_time_steps
 
-    def __getitem__(self, index: int) -> dict[str, Tensor]:
+        # data does not have georeferencing information, yet is a Gtiff, that the tacoreader can only read with rasterio
+        import warnings
+        from rasterio.errors import NotGeoreferencedWarning
+
+        warnings.filterwarnings("ignore", category=NotGeoreferencedWarning)
+
+    def __getitem__(self, idx: int) -> dict[str, Tensor]:
         """Return an index within the dataset.
 
         Args:
-            index: index to return
+            idx: index to return
 
         Returns:
             data and label at that index
@@ -121,18 +161,58 @@ class GeoBenchBioMassters(GeoBenchBaseDataset):
         where T is the number of time steps.
         """
         sample: dict[str, Tensor] = {}
-        sample_row = self.metadata_df.iloc[index]
+        sample_row = self.data_df.read(idx)
+
+        img_dict: dict[str, Tensor] = {}
 
         if "s1" in self.band_order:
-            pass
+            sample_s1_row = sample_row[sample_row["modality"] == "S1"]
+            s1_data = []
+            for i in sample_s1_row.index[: self.num_time_steps]:
+                s1_step = sample_row.read(i)
+                with rasterio.open(s1_step) as src:
+                    img = src.read()
+                img = torch.from_numpy(img)
+                s1_data.append(img)
+            s1_data = torch.stack(s1_data)
+            img_dict["s1"] = s1_data
 
         if "s2" in self.band_order:
-            pass
+            sample_s1_row = sample_row[sample_row["modality"] == "S1"]
+            s2_data = []
+            for i in sample_s1_row.index[: self.num_time_steps]:
+                s2_step = sample_row.read(i)
+                with rasterio.open(s2_step) as src:
+                    img = src.read()
+                img = torch.from_numpy(img)
 
+                s2_data.append(img)
+
+            s2_data = torch.stack(s2_data)
+
+            if s2_data.shape[0] < self.num_time_steps:
+                padding = torch.zeros(
+                    self.num_time_steps - s2_data.shape[0], *img.shape[1:]
+                )
+                s2_data = torch.cat((padding, s2_data), dim=0)
+
+            # for single time step only return [C, H, W]
+            if self.num_time_steps == 1:
+                s2_data = s2_data[0]
+
+            img_dict["s2"] = s2_data
+
+        img_dict = self.rearrange_bands(img_dict, self.band_order)
+        img_dict = self.data_normalizer(img_dict)
+
+        sample.update(img_dict)
+
+        # last entry is the agb label
         agb_path = sample_row.read(-1)
 
-        agb = Image.open(label_path)
-        agb = torch.from_numpy(np.array(agb))
+        with rasterio.open(agb_path) as src:
+            agb = src.read()
+        agb = torch.from_numpy(agb).float()
         sample["mask"] = agb
 
         if self.transforms is not None:
