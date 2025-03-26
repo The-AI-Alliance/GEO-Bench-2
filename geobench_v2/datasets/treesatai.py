@@ -1,0 +1,264 @@
+# Copyright (c) 2025 GeoBenchV2. All rights reserved.
+# Licensed under the Apache License 2.0.
+
+"""TreesatAI dataset."""
+
+from torch import Tensor
+from pathlib import Path
+from typing import Sequence, Type
+import torch.nn as nn
+
+from .sensor_util import DatasetBandRegistry
+from .base import GeoBenchBaseDataset
+from .data_util import MultiModalNormalizer
+import torch.nn as nn
+import rasterio
+import numpy as np
+import h5py
+import torch
+import os
+
+
+class GeoBenchTreeSatAI(GeoBenchBaseDataset):
+    """TreeSatAI dataset with enhanced functionality.
+
+    Multi-label classification dataset, should we also support standard classification
+    based on majority label?
+
+    If you use this dataset, please cite:
+
+    *
+    *
+    """
+
+    paths = ["TreeSatAI.tortilla"]
+
+    dataset_band_config = DatasetBandRegistry.TREESATAI
+
+    normalization_stats = {
+        "means": {
+            "nir": 0.0,
+            "g": 0.0,
+            "b": 0.0,
+            "r": 0.0,
+            "vv": 0.0,
+            "vh": 0.0,
+            "vv/vh": 0.0,
+            "B02": 0.0,
+            "B03": 0.0,
+            "B04": 0.0,
+            "B08": 0.0,
+            "B05": 0.0,
+            "B06": 0.0,
+            "B07": 0.0,
+            "B8A": 0.0,
+            "B11": 0.0,
+            "B12": 0.0,
+            "B01": 0.0,
+            "B09": 0.0,
+        },
+        "stds": {
+            "nir": 255.0,
+            "g": 255.0,
+            "b": 255.0,
+            "r": 255.0,
+            "vv": 1.0,
+            "vh": 1.0,
+            "vv/vh": 1.0,
+            "B02": 1000.0,
+            "B03": 1000.0,
+            "B04": 1000.0,
+            "B08": 1000.0,
+            "B05": 1000.0,
+            "B06": 1000.0,
+            "B07": 1000.0,
+            "B8A": 1000.0,
+            "B11": 1000.0,
+            "B12": 1000.0,
+            "B01": 1000.0,
+            "B09": 1000.0,
+        },
+    }
+
+    band_default_order = {
+        "aerial": ["r", "g", "b", "nir"],
+        "s2": [
+            "B02",
+            "B03",
+            "B04",
+            "B08",
+            "B05",
+            "B06",
+            "B07",
+            "B8A",
+            "B11",
+            "B12",
+            "B01",
+            "B09",
+        ],
+        "s1": ["VV", "VH", "vv/vh"],
+    }
+
+    classes: Sequence[str] = (
+        "Abies",
+        "Acer",
+        "Alnus",
+        "Betula",
+        "Cleared",
+        "Fagus",
+        "Fraxinus",
+        "Larix",
+        "Picea",
+        "Pinus",
+        "Populus",
+        "Prunus",
+        "Pseudotsuga",
+        "Quercus",
+        "Tilia",
+    )
+
+    def __init__(
+        self,
+        root: Path,
+        split: str,
+        band_order: dict[str, Sequence[str]] = {"aerial": ["r", "g", "b"]},
+        data_normalizer: Type[nn.Module] = MultiModalNormalizer,
+        transforms: nn.Module | None = None,
+        include_ts: bool = False,
+        num_time_steps: int = None,
+        **kwargs,
+    ) -> None:
+        """Initialize TreeSatAI dataset.
+
+        Args:
+            root: Path to the dataset root directory
+            split: The dataset split, supports 'train', 'val', 'test'
+            band_order: The order of bands to return, defaults to ['red', 'green', 'blue', 'nir'], if one would
+                specify ['red', 'green', 'blue', 'nir', 'nir'], the dataset would return images with 5 channels
+                in that order. This is useful for models that expect a certain band order, or
+                test the impact of band order on model performance.
+            data_normalizer: The data normalizer to apply to the data, defaults to :class:`data_util.MultiModalNormalizer`,
+                which applies z-score normalization to each band.
+            transforms:
+            include_ts: whether or not to return the time series in data loading
+            num_time_steps: number of last time steps to return in the ts data
+            **kwargs: Additional keyword arguments passed to ``torchgeo.datasets.TreeSatAI``
+        """
+        super().__init__(
+            root=root,
+            split=split,
+            band_order=band_order,
+            data_normalizer=data_normalizer,
+            transforms=transforms,
+        )
+
+        self.include_ts = include_ts
+        self.num_time_steps = num_time_steps
+
+        if include_ts:
+            if num_time_steps is None:
+                raise ValueError(
+                    "num_time_steps must be specified if include_ts is True"
+                )
+
+    def __getitem__(self, index: int) -> dict[str, Tensor]:
+        """Return an index within the dataset.
+
+        Args:
+            index: index to return
+
+        Returns:
+            data and label at that index
+        """
+        sample: dict[str, Tensor] = {}
+
+        sample_row = self.data_df.read(index)
+
+        img_dict: dict[str, Tensor] = {}
+
+        if "aerial" in self.band_order:
+            aerial_path = sample_row.read(0)
+            with rasterio.open(aerial_path) as src:
+                aerial_data = src.read().astype(np.float32)
+            aerial_data = torch.from_numpy(aerial_data)
+            img_dict["aerial"] = aerial_data
+        if "s1" in self.band_order:
+            s1_path = sample_row.read(1)
+            with rasterio.open(s1_path) as src:
+                s1_data = src.read().astype(np.float32)
+            s1_data = torch.from_numpy(s1_data)
+            img_dict["s1"] = s1_data
+        if "s2" in self.band_order:
+            s2_path = sample_row.read(2)
+            with rasterio.open(s2_path) as src:
+                s2_data = src.read().astype(np.float32)
+            s2_data = torch.from_numpy(s2_data)
+            img_dict["s2"] = s2_data
+
+        img_dict = self.rearrange_bands(img_dict, self.band_order)
+
+        img_dict = self.data_normalizer(img_dict)
+
+        sample.update(img_dict)
+        sample["label"] = self._format_label(
+            sample_row.iloc[0]["species_labels"], sample_row.iloc[0]["dist_labels"]
+        )
+
+        if self.transforms is not None:
+            sample = self.transforms(sample)
+
+        if self.include_ts:
+            with h5py.File(
+                os.path.join(self.root, sample_row.iloc[0]["ts_path"]), "r"
+            ) as h5file:
+                sen_1_asc_data = h5file["sen-1-asc-data"][
+                    :
+                ]  # Tx2x6x6, Channels: VV, VH
+                sen_1_asc_products = h5file["sen-1-asc-products"][:]
+                sen_1_des_data = h5file["sen-1-des-data"][
+                    :
+                ]  # Tx2x6x6, Channels: VV, VH
+                sen_1_des_products = h5file["sen-1-des-products"][:]
+                sen_2_data = h5file["sen-2-data"][
+                    :
+                ]  # Tx10x6x6 B02,B03,B04,B05,B06,B07,B08,B8A,B11,B12
+                sen_2_products = h5file["sen-2-products"][:]
+                sen_2_masks = h5file["sen-2-masks"][
+                    :
+                ]  # (Tx2x6x6), Channels: snow probability, cloud probability
+
+            if "s1" in self.band_order:
+                sample["image_s1_asc_ts"] = torch.from_numpy(sen_1_asc_data)[
+                    -self.num_time_steps :
+                ]
+                sample["image_s1_des_ts"] = torch.from_numpy(sen_1_des_data)[
+                    -self.num_time_steps :
+                ]
+            if "s2" in self.band_order:
+                sample["image_s2_ts"] = torch.from_numpy(sen_2_data)[
+                    -self.num_time_steps :
+                ]
+
+        return sample
+
+    def _format_label(
+        self, class_labels: list[str], dist_labels: list[float]
+    ) -> Tensor:
+        """Format label list to Tensor
+
+        Args:
+            class_labels: list of label class names
+            dist_labels: list of label distribution values
+
+        Returns:
+            label tensor
+        """
+        label = torch.zeros(len(self.classes))
+        for name in class_labels:
+            try:
+                label[self.classes.index(name)] = 1
+            except:
+                import pdb
+
+                pdb.set_trace()
+        return label

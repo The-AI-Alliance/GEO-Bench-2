@@ -15,6 +15,7 @@ from .flair2 import GeoBenchFLAIR2
 from .cloudsen12 import GeoBenchCloudSen12
 from .floga import GeoBenchFLOGA
 from .kuro_siwo import GeoBenchKuroSiwo
+from .treesatai import GeoBenchTreeSatAI
 from .biomassters import GeoBenchBioMassters
 
 __all__ = (
@@ -30,5 +31,6 @@ __all__ = (
     "GeoBenchCloudSen12",
     "GeoBenchFLOGA",
     "GeoBenchKuroSiwo",
+    "GeoBenchTreeSatAI",
     "GeoBenchBioMassters",
 )

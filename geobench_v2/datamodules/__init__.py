@@ -15,6 +15,7 @@ from .flair2 import GeoBenchFLAIR2DataModule
 from .cloudsen12 import GeoBenchCloudSen12DataModule
 from .floga import GeoBenchFLOGADataModule
 from .kuro_siwo import GeoBenchKuroSiwoDataModule
+from .treesatai import GeoBenchTreeSatAIDataModule
 from .biomassters import GeoBenchBioMasstersDataModule
 
 __all__ = (
@@ -30,5 +31,6 @@ __all__ = (
     "GeoBenchCloudSen12DataModule",
     "GeoBenchFLOGADataModule",
     "GeoBenchKuroSiwoDataModule",
+    "GeoBenchTreeSatAIDataModule",
     "GeoBenchBioMasstersDataModule",
 )
