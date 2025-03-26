@@ -17,6 +17,7 @@ from .floga import GeoBenchFLOGA
 from .kuro_siwo import GeoBenchKuroSiwo
 from .treesatai import GeoBenchTreeSatAI
 from .biomassters import GeoBenchBioMassters
+from .mados import GeoBenchMADOS
 
 __all__ = (
     "GeoBenchCaFFe",
@@ -33,4 +34,5 @@ __all__ = (
     "GeoBenchKuroSiwo",
     "GeoBenchTreeSatAI",
     "GeoBenchBioMassters",
+    "GeoBenchMADOS",
 )

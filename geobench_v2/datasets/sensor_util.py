@@ -592,7 +592,6 @@ class DatasetBandRegistry:
         band_to_modality={"vv": "sar", "vh": "sar", "dem": "dem"},
     )
 
-
     BIOMASSTERS = MultiModalConfig(
         modalities={
             "s1": ModalityConfig(
@@ -679,7 +678,7 @@ class DatasetBandRegistry:
             "B12": "s2",
         },
     )
-    
+
     TREESATAI = MultiModalConfig(
         modalities={
             "aerial": ModalityConfig(
@@ -777,6 +776,28 @@ class DatasetBandRegistry:
             "B01": "s2",
             "B09": "s2",
         },
+    )
+
+    MADOS = ModalityConfig(
+        bands={
+            band: config
+            for band, config in SensorBandRegistry.SENTINEL2.bands.items()
+            if band not in ["B09", "B10"]
+        },
+        default_order=[
+            "B01",
+            "B02",
+            "B03",
+            "B04",
+            "B05",
+            "B06",
+            "B07",
+            "B08",
+            "B8A",
+            "B11",
+            "B12",
+        ],
+        native_resolution=10,
     )
 
     @classmethod
