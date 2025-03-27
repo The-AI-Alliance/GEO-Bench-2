@@ -40,7 +40,6 @@ def generate_metadata_df(root: str) -> pd.DataFrame:
     samples_df = pd.read_csv(os.path.join(root, "samples.csv"))
     samples_df = samples_df[samples_df["version"] == 2.0].reset_index(drop=True)
 
-    # Iterate over all samples to extract image sizes and annotation counts
     image_metadata = []
     for idx, row in tqdm(
         samples_df.iterrows(), total=len(samples_df), desc="Extracting image metadata"
@@ -48,9 +47,7 @@ def generate_metadata_df(root: str) -> pd.DataFrame:
         image_path = os.path.join(root, row["image_path"])
         annotation_path = os.path.join(root, row["annotation_path"])
 
-        # Get image dimensions
-        with Image.open(image_path) as img:
-            width, height = img.size
+        
 
         # Load annotations to count objects
         annotations = []
@@ -61,7 +58,6 @@ def generate_metadata_df(root: str) -> pd.DataFrame:
                     if (
                         len(parts) >= 9
                     ):  # Format: x1 y1 x2 y2 x3 y3 x4 y4 class_name difficult
-                        # Extract the coordinates of the oriented bounding box
                         x1, y1 = float(parts[0]), float(parts[1])
                         x2, y2 = float(parts[2]), float(parts[3])
                         x3, y3 = float(parts[4]), float(parts[5])
@@ -69,7 +65,6 @@ def generate_metadata_df(root: str) -> pd.DataFrame:
                         class_name = parts[8]
                         difficult = int(parts[9]) if len(parts) > 9 else 0
 
-                        # Store annotation with all corner points
                         annotations.append(
                             {
                                 "points": [(x1, y1), (x2, y2), (x3, y3), (x4, y4)],
@@ -78,7 +73,7 @@ def generate_metadata_df(root: str) -> pd.DataFrame:
                             }
                         )
 
-        # Store metadata
+        width, height = row["width"], row["height"]
         image_metadata.append(
             {
                 "image_path": row["image_path"],
@@ -89,7 +84,7 @@ def generate_metadata_df(root: str) -> pd.DataFrame:
                 "num_annotations": len(annotations),
                 "annotation_density": len(annotations)
                 / (width * height)
-                * 1e6,  # Annotations per million pixels
+                * 1e6, 
                 "aspect_ratio": width / height,
                 "annotations": annotations,
             }
@@ -97,16 +92,13 @@ def generate_metadata_df(root: str) -> pd.DataFrame:
 
     metadata_df = pd.DataFrame(image_metadata)
 
-    # New processing strategy with adaptive stride
     patch_size = 1024  # Standard window size
 
-    # Generate expanded metadata with sliding window approach
     expanded_records = []
     
     for idx, row in tqdm(metadata_df.iterrows(), total=len(metadata_df), desc="Generating sliding window patches"):
         width, height = row["width"], row["height"]
         
-        # Calculate annotation density metrics
         annotation_density = row["annotation_density"]  # Annotations per million pixels
         annotation_count = row["num_annotations"]
         
@@ -116,10 +108,8 @@ def generate_metadata_df(root: str) -> pd.DataFrame:
         HIGH_COUNT_THRESHOLD = 20    # Total number of annotations
         
         # Decide whether to use sliding window or simple resize
-        # New condition: Check if image has high annotation density or count
         if max(width, height) <= patch_size and annotation_density < MEDIUM_DENSITY_THRESHOLD and annotation_count < HIGH_COUNT_THRESHOLD:
             # Small image with low/medium annotation density - just use as is (will be resized later)
-            # [existing code for small images unchanged]
             record = row.to_dict()
             record["patch_id"] = 0
             record["patch_coords"] = [0, 0, width, height]
@@ -154,7 +144,6 @@ def generate_metadata_df(root: str) -> pd.DataFrame:
                 annotation_density < HIGH_DENSITY_THRESHOLD and 
                 annotation_count < HIGH_COUNT_THRESHOLD):
                 # Image just slightly larger than patch_size with moderate annotation density
-                # [existing code for slightly larger images unchanged]
                 # If annotations are all concentrated in one area, just take one patch there
                 if row["num_annotations"] > 0:
                     # Calculate centroid of all annotations
@@ -191,8 +180,6 @@ def generate_metadata_df(root: str) -> pd.DataFrame:
                     window_positions = [(x1, y1)]
             elif (width_ratio < 1.8 and height_ratio < 1.8 and 
                   (annotation_density >= HIGH_DENSITY_THRESHOLD or annotation_count >= HIGH_COUNT_THRESHOLD)):
-                # NEW CASE: Small-to-medium image with high annotation density
-                # Use 512x512 patches with minimal overlap
                 
                 # For dense annotations on smaller images, use a grid of 512x512 patches
                 small_patch_size = 512
@@ -244,7 +231,6 @@ def generate_metadata_df(root: str) -> pd.DataFrame:
                 patch_size = small_patch_size
             else:
                 # For larger images or moderate annotation density, use adaptive stride based on image size
-                # [existing code for larger images unchanged]
                 if max(width_ratio, height_ratio) < 2:
                     # Images less than 2x patch size - use minimal overlap (20%)
                     stride_factor = 0.9
@@ -262,7 +248,6 @@ def generate_metadata_df(root: str) -> pd.DataFrame:
                 num_windows_y = max(1, int(np.ceil((height - patch_size) / stride)) + 1)
                 
                 # For very large images with many windows, ensure we have enough coverage at the edges
-                # [existing window positions code unchanged]
                 if num_windows_x > 3 or num_windows_y > 3:
                     # For the last column/row, ensure we reach the edge
                     window_positions = []
@@ -289,7 +274,6 @@ def generate_metadata_df(root: str) -> pd.DataFrame:
                             window_positions.append((x1, y1))
             
             # Process each window position
-            # [existing window processing code unchanged]
             patches_with_annotations = 0
             window_records = []
             
@@ -352,7 +336,6 @@ def generate_metadata_df(root: str) -> pd.DataFrame:
                             patch_ann["visibility"] = visibility
                             window_annotations.append(patch_ann)
                 
-                # Record window data
                 record = row.copy().to_dict()
                 record["patch_id"] = idx
                 record["patch_coords"] = [x1, y1, x2, y2]
@@ -369,7 +352,6 @@ def generate_metadata_df(root: str) -> pd.DataFrame:
                     patches_with_annotations += 1
             
             # Remove redundant windows if we have enough with annotations
-            # [existing window selection code unchanged]
             if patches_with_annotations >= 2:
                 # Sort windows by annotation count (descending)
                 window_records.sort(key=lambda x: x[1], reverse=True)
