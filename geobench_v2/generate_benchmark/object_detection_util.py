@@ -9,9 +9,7 @@ import argparse
 from pathlib import Path
 
 
-def resize_object_detection_dataset(
-    image_dir, annotations_df, output_dir, target_size=512
-):
+def process_everwatch_dataset(image_dir, annotations_df, output_dir, target_size=512):
     """Resize all images in the dataset to a target size and adapt annotations.
 
     Args:
@@ -99,3 +97,448 @@ def resize_object_detection_dataset(
         f"Created {len(resized_df)} annotations across {len(resized_df['image_path'].unique())} images"
     )
     return resized_df
+
+def process_dotav2_dataset(df, input_dir, output_dir, target_size=512, num_workers=8):
+    """Process DOTAV2 dataset according to the determined strategies with parallel processing.
+
+    Args:
+        df: DataFrame with processing strategy information
+        input_dir: Path to original dataset
+        output_dir: Path to save processed dataset
+        target_size: Target patch size (default: 512)
+        num_workers: Number of parallel workers (default: 8)
+    """
+    import concurrent.futures
+    from tqdm.auto import tqdm
+    import os
+    from PIL import Image
+    import pandas as pd
+    
+    # Create output directories
+    for split in df["split"].unique():
+        os.makedirs(os.path.join(output_dir, split, "images"), exist_ok=True)
+        os.makedirs(os.path.join(output_dir, split, "annotations"), exist_ok=True)
+
+    # Define the worker function to process a single row
+    def process_row(row_tuple):
+        idx, row = row_tuple
+        try:
+            # Load the original image
+            img_path = os.path.join(input_dir, row["image_path"])
+            img = Image.open(img_path)
+
+            # Extract the base filename without extension
+            base_filename = os.path.splitext(os.path.basename(row["image_path"]))[0]
+
+            # Generate the unique patch identifier
+            if row["strategy"] == "resize":
+                output_filename = f"{base_filename}.png"
+            else:
+                output_filename = f"{base_filename}_patch{row['patch_id']:02d}.png"
+
+            # Create output paths
+            output_img_path = os.path.join(
+                output_dir, row["split"], "images", output_filename
+            )
+            output_label_path = os.path.join(
+                output_dir,
+                row["split"],
+                "annotations",
+                f"{os.path.splitext(output_filename)[0]}.txt",
+            )
+
+            # Extract and process the patch
+            x1, y1, x2, y2 = row["patch_coords"]
+            patch_img = img.crop((x1, y1, x2, y2))
+
+            # Get original size before resizing
+            orig_width, orig_height = patch_img.size
+
+            # Resize to target size
+            patch_img = patch_img.resize(
+                (target_size, target_size), Image.Resampling.LANCZOS
+            )
+
+            # Save the image
+            patch_img.save(output_img_path, format="PNG", optimize=True)
+
+            # Save the annotations in the original DOTAV2 format
+            with open(output_label_path, "w") as f:
+                for ann in row["patch_annotations"]:
+                    class_name = ann["class_name"]
+                    difficult = ann.get("difficult", 0)
+
+                    # Convert relative coordinates back to target size coordinates
+                    target_points = []
+                    for px_rel, py_rel in ann["points"]:
+                        # Convert to absolute pixel coordinates in target size
+                        px_abs = px_rel * target_size
+                        py_abs = py_rel * target_size
+                        target_points.append((px_abs, py_abs))
+
+                    # Write in DOTAV2 format: x1 y1 x2 y2 x3 y3 x4 y4 class_name difficult
+                    coord_str = " ".join([f"{px:.1f} {py:.1f}" for px, py in target_points])
+                    f.write(f"{coord_str} {class_name} {difficult}\n")
+
+            # Return the processed record
+            return {
+                "original_image": row["image_path"],
+                "processed_image": os.path.join(row["split"], "images", output_filename),
+                "processed_label": os.path.join(
+                    row["split"],
+                    "annotations",
+                    f"{os.path.splitext(output_filename)[0]}.txt",
+                ),
+                "strategy": row["strategy"],
+                "patch_id": row["patch_id"],
+                "annotation_count": row.get("patch_annotation_count", 0),
+                "split": row["split"],
+                "original_width": row["width"],
+                "original_height": row["height"],
+                "patch_width": x2 - x1,
+                "patch_height": y2 - y1,
+                "scale_factor_x": target_size / (x2 - x1),
+                "scale_factor_y": target_size / (y2 - y1),
+            }
+        except Exception as e:
+            print(f"Error processing row {idx}: {str(e)}")
+            return None
+
+    # Process images in parallel with progress reporting
+    total_items = len(df)
+    processed_records = []
+    
+    print(f"Processing {total_items} images with {num_workers} workers...")
+    
+    # Create a ThreadPoolExecutor for parallel processing
+    with concurrent.futures.ThreadPoolExecutor(max_workers=num_workers) as executor:
+        # Submit all tasks
+        futures = {executor.submit(process_row, (idx, row)): idx for idx, row in df.iterrows()}
+        
+        # Create a progress bar that updates as futures complete
+        with tqdm(total=total_items, desc="Processing images") as pbar:
+            for future in concurrent.futures.as_completed(futures):
+                result = future.result()
+                if result is not None:
+                    processed_records.append(result)
+                pbar.update(1)
+    
+    # Create processed metadata
+    processed_df = pd.DataFrame(processed_records)
+    processed_df.to_csv(os.path.join(output_dir, "processed_metadata.csv"), index=False)
+
+    print(f"Processed {len(processed_df)} images/patches:")
+    print(f"  Train: {len(processed_df[processed_df['split'] == 'train'])}")
+    print(f"  Val: {len(processed_df[processed_df['split'] == 'val'])}")
+    print(f"  Test: {len(processed_df[processed_df['split'] == 'test'])} (if present)")
+
+    return processed_df
+
+
+def visualize_processing_results(df, input_dir, output_dir, num_samples=20, seed=42):
+    """
+    Visualize the processing results by showing before and after images with bounding boxes.
+
+    Args:
+        df: DataFrame with processing metadata
+        input_dir: Root directory of the original dataset
+        output_dir: Directory where processed images are saved
+        num_samples: Number of random samples to visualize
+        seed: Random seed for reproducibility
+    """
+    import matplotlib.pyplot as plt
+    import matplotlib.patches as patches
+    import random
+    import numpy as np
+    from PIL import Image, ImageDraw, ImageFont
+    import os
+    import shutil
+
+    # Set random seed for reproducibility
+    random.seed(seed)
+    np.random.seed(seed)
+
+    # Create visualization directory
+    vis_dir = os.path.join(output_dir, "visualizations")
+    if os.path.exists(vis_dir):
+        shutil.rmtree(vis_dir)
+    os.makedirs(vis_dir, exist_ok=True)
+
+    # Group by original image to ensure we're showing all patches from the same original
+    image_groups = df.groupby("original_image")
+
+    # Get a list of all unique original images
+    unique_images = list(image_groups.groups.keys())
+
+    # Select random images to visualize, prioritizing images with multiple patches
+    multi_patch_images = [
+        img for img in unique_images if len(image_groups.get_group(img)) > 1
+    ]
+    single_patch_images = [
+        img for img in unique_images if len(image_groups.get_group(img)) == 1
+    ]
+
+    # Try to include some multi-patch and some single-patch examples
+    num_multi = min(num_samples // 2, len(multi_patch_images))
+    num_single = min(num_samples - num_multi, len(single_patch_images))
+
+    selected_multi = (
+        random.sample(multi_patch_images, num_multi) if multi_patch_images else []
+    )
+    selected_single = (
+        random.sample(single_patch_images, num_single) if single_patch_images else []
+    )
+
+    # If we need more samples, fill from the other category
+    remaining = num_samples - (num_multi + num_single)
+    if remaining > 0:
+        if len(multi_patch_images) > num_multi:
+            remaining_multi = random.sample(
+                [img for img in multi_patch_images if img not in selected_multi],
+                min(remaining, len(multi_patch_images) - num_multi),
+            )
+            selected_multi.extend(remaining_multi)
+            remaining -= len(remaining_multi)
+
+        if remaining > 0 and len(single_patch_images) > num_single:
+            remaining_single = random.sample(
+                [img for img in single_patch_images if img not in selected_single],
+                min(remaining, len(single_patch_images) - num_single),
+            )
+            selected_single.extend(remaining_single)
+
+    selected_images = selected_multi + selected_single
+
+    # Define colors for different class labels (for visualization variety)
+    class_colors = {
+        "small-vehicle": (255, 0, 0),  # Red
+        "large-vehicle": (0, 255, 0),  # Green
+        "ship": (0, 0, 255),  # Blue
+        "plane": (255, 255, 0),  # Yellow
+        "storage-tank": (255, 0, 255),  # Magenta
+        "harbor": (0, 255, 255),  # Cyan
+        "bridge": (128, 0, 0),  # Dark Red
+        "helicopter": (0, 128, 0),  # Dark Green
+        "soccer-ball-field": (0, 0, 128),  # Dark Blue
+        "swimming-pool": (128, 128, 0),  # Olive
+        "roundabout": (128, 0, 128),  # Purple
+        "tennis-court": (0, 128, 128),  # Teal
+        "baseball-diamond": (128, 128, 128),  # Gray
+        "ground-track-field": (64, 0, 0),  # Brown
+        "basketball-court": (0, 64, 0),  # Forest Green
+        "container-crane": (0, 0, 64),  # Navy
+    }
+
+    # Default color for classes not in the dictionary
+    default_color = (200, 200, 200)  # Light gray
+
+    # Process selected images
+    for i, orig_img_path in enumerate(selected_images):
+        print(f"Visualizing example {i + 1}/{len(selected_images)}: {orig_img_path}")
+
+        # Get all patches for this original image
+        patches_df = image_groups.get_group(orig_img_path)
+
+        # Load the original image
+        orig_img_full_path = os.path.join(input_dir, orig_img_path)
+        original_image = Image.open(orig_img_full_path).convert("RGB")
+
+        # Get first record for original image info
+        first_record = patches_df.iloc[0]
+
+        # Load original annotations
+        annotation_path = os.path.join(
+            input_dir,
+            first_record["original_image"]
+            .replace("/images/", "/annotations/version2.0/")
+            .replace(".png", ".txt"),
+        )
+
+        # Draw original bounding boxes
+        orig_img_with_boxes = original_image.copy()
+        draw = ImageDraw.Draw(orig_img_with_boxes)
+
+        if os.path.exists(annotation_path):
+            with open(annotation_path, "r") as f:
+                for line in f:
+                    parts = line.strip().split()
+                    if len(parts) >= 9:
+                        # Extract bbox coordinates and class
+                        x1, y1 = float(parts[0]), float(parts[1])
+                        x2, y2 = float(parts[2]), float(parts[3])
+                        x3, y3 = float(parts[4]), float(parts[5])
+                        x4, y4 = float(parts[6]), float(parts[7])
+                        class_name = parts[8]
+
+                        # Get color for this class
+                        color = class_colors.get(class_name, default_color)
+
+                        # Draw polygon
+                        draw.polygon(
+                            [(x1, y1), (x2, y2), (x3, y3), (x4, y4)],
+                            outline=color,
+                            width=3,
+                        )
+
+                        # Draw class label near the top-left point
+                        text_position = (min(x1, x2, x3, x4), min(y1, y2, y3, y4) - 10)
+                        draw.text(text_position, class_name, fill=color)
+
+        # Create a visualization image that will contain both original and processed images
+        num_patches = len(patches_df)
+
+        # Determine layout based on number of patches
+        if num_patches <= 1:
+            # Side by side: original and 1 patch
+            vis_width = original_image.width + 512 + 30  # Add padding
+            vis_height = max(original_image.height, 512) + 20
+            grid_cols = 2
+            grid_rows = 1
+        elif num_patches <= 4:
+            # Original on left, 2x2 grid of patches on right
+            patch_display_size = 512  # Each patch size for display
+            vis_width = original_image.width + (2 * patch_display_size) + 40
+            vis_height = max(original_image.height, 2 * patch_display_size + 30)
+            grid_cols = 3  # Original + 2 columns of patches
+            grid_rows = 2  # Up to 2 rows of patches
+        else:
+            # Original on top, patches in grid below
+            patch_display_size = 384  # Smaller size for many patches
+            grid_cols = min(4, num_patches)
+            grid_rows = (
+                num_patches + grid_cols - 1
+            ) // grid_cols + 1  # +1 for original
+            vis_width = max(original_image.width, grid_cols * patch_display_size + 30)
+            vis_height = (
+                original_image.height + ((grid_rows - 1) * patch_display_size) + 40
+            )
+
+        # Create the visualization canvas
+        vis_img = Image.new("RGB", (vis_width, vis_height), (240, 240, 240))
+
+        # Add the original image
+        if num_patches <= 4:
+            # Original on left for small number of patches
+            vis_img.paste(orig_img_with_boxes, (10, 10))
+
+            # Add title for original image
+            draw = ImageDraw.Draw(vis_img)
+            draw.text(
+                (10, 5), f"Original: {os.path.basename(orig_img_path)}", fill=(0, 0, 0)
+            )
+
+            # Add patches on right side
+            if num_patches <= 1:
+                # Single patch - place on right
+                patch_x = original_image.width + 20
+                patch_y = 10
+            else:
+                # Multiple patches in grid on right
+                patch_display_size = 512
+                start_x = original_image.width + 20
+                start_y = 10
+                col_spacing = patch_display_size + 10
+                row_spacing = patch_display_size + 10
+        else:
+            # Original on top for many patches
+            orig_width = min(vis_width - 20, original_image.width)
+            orig_height = int(
+                original_image.height * (orig_width / original_image.width)
+            )
+            orig_img_with_boxes = orig_img_with_boxes.resize(
+                (orig_width, orig_height), Image.Resampling.LANCZOS
+            )
+            vis_img.paste(orig_img_with_boxes, (10, 10))
+
+            # Add title for original image
+            draw = ImageDraw.Draw(vis_img)
+            draw.text(
+                (10, 5), f"Original: {os.path.basename(orig_img_path)}", fill=(0, 0, 0)
+            )
+
+            # Add patches in grid below
+            patch_display_size = 384
+            start_x = 10
+            start_y = orig_height + 30
+            col_spacing = patch_display_size + 10
+            row_spacing = patch_display_size + 10
+
+        # Add each processed patch
+        for j, (_, patch_row) in enumerate(patches_df.iterrows()):
+            # Determine patch position based on layout
+            if num_patches <= 1:
+                patch_x = original_image.width + 20
+                patch_y = 10
+            elif num_patches <= 4:
+                patch_x = start_x + (j % 2) * col_spacing
+                patch_y = start_y + (j // 2) * row_spacing
+            else:
+                patch_x = start_x + (j % grid_cols) * col_spacing
+                patch_y = start_y + (j // grid_cols) * row_spacing
+
+            # Load the processed patch
+            processed_img_path = os.path.join(output_dir, patch_row["processed_image"])
+            if not os.path.exists(processed_img_path):
+                print(f"Warning: Processed image not found: {processed_img_path}")
+                continue
+
+            processed_img = Image.open(processed_img_path).convert("RGB")
+
+            # Get patch annotations
+            processed_label_path = os.path.join(
+                output_dir, patch_row["processed_label"]
+            )
+
+            # Draw annotations on processed patch
+            if os.path.exists(processed_label_path):
+                draw = ImageDraw.Draw(processed_img)
+                with open(processed_label_path, "r") as f:
+                    for line in f:
+                        parts = line.strip().split()
+                        if len(parts) >= 9:
+                            # Extract polygon coordinates and class
+                            x1, y1 = float(parts[0]), float(parts[1])
+                            x2, y2 = float(parts[2]), float(parts[3])
+                            x3, y3 = float(parts[4]), float(parts[5])
+                            x4, y4 = float(parts[6]), float(parts[7])
+                            class_name = parts[8]
+
+                            # Get color for this class
+                            color = class_colors.get(class_name, default_color)
+
+                            # Draw polygon
+                            draw.polygon(
+                                [(x1, y1), (x2, y2), (x3, y3), (x4, y4)],
+                                outline=color,
+                                width=3,
+                            )
+
+                            # Draw class label near the top-left point
+                            text_position = (
+                                min(x1, x2, x3, x4),
+                                min(y1, y2, y3, y4) - 10,
+                            )
+                            draw.text(text_position, class_name, fill=color)
+
+            # Resize patch for visualization if needed
+            display_patch_size = patch_display_size if num_patches > 1 else 512
+            if processed_img.width != display_patch_size:
+                processed_img = processed_img.resize(
+                    (display_patch_size, display_patch_size), Image.Resampling.LANCZOS
+                )
+
+            # Add patch to visualization
+            vis_img.paste(processed_img, (patch_x, patch_y))
+
+            # Add patch title
+            draw = ImageDraw.Draw(vis_img)
+            patch_title = f"Patch {patch_row['patch_id']} ({patch_row['strategy']})"
+            draw.text((patch_x, patch_y - 15), patch_title, fill=(0, 0, 0))
+
+        # Save the visualization
+        vis_filename = f"visualization_{i + 1:02d}_{os.path.basename(orig_img_path).replace('.png', '.jpg')}"
+        vis_path = os.path.join(vis_dir, vis_filename)
+        vis_img.save(vis_path, quality=90)
+
+    print(f"Saved {len(selected_images)} visualizations to {vis_dir}")
+    return vis_dir

@@ -7,28 +7,9 @@ import pandas as pd
 import os
 import argparse
 from geobench_v2.generate_benchmark.object_detection_util import (
-    process_dataset,
-    verify_patching,
-    compare_resize,
-    resize_object_detection_dataset,
+    process_everwatch_dataset,
 )
 import numpy as np
-
-
-def create_subset(metadata_df: pd.DataFrame, save_dir: str) -> None:
-    """Create a subset of EverWatch dataset.
-
-    Args:
-        ds: EverWatch dataset.
-        metadata_df: Metadata DataFrame.
-        save_dir: Directory to save the subset.
-    """
-    # based on the metadata_df create a subset of the dataset and copy it
-    # with the same structure to the save_dir
-    # TODO
-    # image comes in large tiles of 1500x1500 pixels, pass window size of potentially 750x750 and stride of 750 and resize to 512x512?
-    # only train/test split so need to create a validation split but no geospatial metadata available, separate train and test csv file
-    pass
 
 
 def generate_metadata_df(root: str) -> pd.DataFrame:
@@ -228,9 +209,7 @@ def main():
     metadata_df.to_parquet(path)
 
     # metadata_df = metadata_df.iloc[:10]
-    resize_object_detection_dataset(
-        args.root, metadata_df, args.save_dir, target_size=512
-    )
+    process_everwatch_dataset(args.root, metadata_df, args.save_dir, target_size=512)
 
 
 if __name__ == "__main__":

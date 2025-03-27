@@ -1918,3 +1918,223 @@ def show_samples_per_valid_ratio(
         plt.show()
 
     plt.close()
+
+
+def create_geospatial_temporal_split(metadata_df: pd.DataFrame, 
+                                    train_ratio=0.7, 
+                                    val_ratio=0.1, 
+                                    test_ratio=0.2, 
+                                    geo_exclusive_ratio=0.3,
+                                    temporal_ratio=0.7,
+                                    random_seed=42):
+    """Create a train/validation/test split with both geospatial and temporal constraints.
+    
+    This function creates a split that combines:
+    1. Geographic exclusivity - some areas appear only in one split
+    2. Temporal progression - other areas have their time series split chronologically
+    
+    Args:
+        metadata_df: DataFrame containing DynamicEarthNet metadata
+        train_ratio: Proportion of data for training set (default: 0.7)
+        val_ratio: Proportion of data for validation set (default: 0.1)
+        test_ratio: Proportion of data for test set (default: 0.2)
+        geo_exclusive_ratio: Ratio of areas to assign exclusively to one split (default: 0.3)
+        temporal_ratio: Ratio of areas to split temporally (default: 0.7)
+        random_seed: Random seed for reproducibility (default: 42)
+        
+    Returns:
+        DataFrame with an additional 'split' column indicating the assigned split
+    """
+    # Ensure the ratios sum to 1.0
+    assert abs(train_ratio + val_ratio + test_ratio - 1.0) < 1e-10, "Split ratios must sum to 1.0"
+    assert abs(geo_exclusive_ratio + temporal_ratio - 1.0) < 1e-10, "Geographic and temporal ratios must sum to 1.0"
+    
+    # Create a copy of the dataframe to avoid modifying the original
+    df = metadata_df.copy()
+    
+    # Initialize random number generator for reproducibility
+    np.random.seed(random_seed)
+    
+    print(f"Creating enhanced geospatial-temporal split with {train_ratio:.1%}/{val_ratio:.1%}/{test_ratio:.1%} ratios")
+    print(f"Using {geo_exclusive_ratio:.1%} areas for geographic exclusivity and {temporal_ratio:.1%} for temporal splits")
+    
+    # Group by area_id to get unique regions
+    unique_areas = df['area_id'].unique()
+    np.random.shuffle(unique_areas)  # Randomize order for fair assignment
+    
+    print(f"Found {len(unique_areas)} unique geographic areas")
+    
+    # Calculate how many areas to assign to each split strategy
+    n_geo_exclusive_areas = int(len(unique_areas) * geo_exclusive_ratio)
+    n_temporal_areas = len(unique_areas) - n_geo_exclusive_areas
+    
+    # Split geo-exclusive areas according to target ratios
+    geo_train_areas = int(n_geo_exclusive_areas * (train_ratio / (train_ratio + val_ratio + test_ratio)))
+    geo_val_areas = int(n_geo_exclusive_areas * (val_ratio / (train_ratio + val_ratio + test_ratio)))
+    geo_test_areas = n_geo_exclusive_areas - geo_train_areas - geo_val_areas
+    
+    # Assign areas to their respective groups
+    geo_exclusive_areas = unique_areas[:n_geo_exclusive_areas]
+    temporal_areas = unique_areas[n_geo_exclusive_areas:]
+    
+    train_geo_areas = geo_exclusive_areas[:geo_train_areas]
+    val_geo_areas = geo_exclusive_areas[geo_train_areas:geo_train_areas+geo_val_areas]
+    test_geo_areas = geo_exclusive_areas[geo_train_areas+geo_val_areas:]
+    
+    print(f"Geographic exclusivity: {len(train_geo_areas)} train, {len(val_geo_areas)} val, {len(test_geo_areas)} test areas")
+    print(f"Temporal split: {len(temporal_areas)} areas")
+    
+    # Create empty lists to store the indices for each split
+    train_indices = []
+    val_indices = []
+    test_indices = []
+    
+    # Store statistics for reporting
+    area_stats = []
+    
+    # PART 1: Process geographically exclusive areas
+    # These areas will have all their samples in one split
+    
+    # First, assign geographic-exclusive areas
+    for area_id in tqdm(geo_exclusive_areas, desc="Processing geographically exclusive areas"):
+        area_df = df[df['area_id'] == area_id].copy()
+        
+        # Determine which split this area belongs to
+        if area_id in train_geo_areas:
+            split = 'train'
+            train_indices.extend(area_df.index.tolist())
+        elif area_id in val_geo_areas:
+            split = 'val'
+            val_indices.extend(area_df.index.tolist())
+        else:
+            split = 'test'
+            test_indices.extend(area_df.index.tolist())
+            
+        # Record statistics
+        area_stats.append({
+            'area_id': area_id,
+            'split_type': 'geographic',
+            'split': split,
+            'total_periods': len(area_df['year_month'].unique()),
+            'train_periods': len(area_df['year_month'].unique()) if split == 'train' else 0,
+            'val_periods': len(area_df['year_month'].unique()) if split == 'val' else 0,
+            'test_periods': len(area_df['year_month'].unique()) if split == 'test' else 0,
+            'train_samples': len(area_df) if split == 'train' else 0,
+            'val_samples': len(area_df) if split == 'val' else 0,
+            'test_samples': len(area_df) if split == 'test' else 0,
+            'total_samples': len(area_df)
+        })
+    
+    # PART 2: Process areas for temporal splitting
+    # These areas will have their time series split chronologically
+    
+    for area_id in tqdm(temporal_areas, desc="Processing temporal split areas"):
+        # Get data for this area only
+        area_df = df[df['area_id'] == area_id].copy()
+        
+        # Get unique year_month values for this area and sort chronologically
+        time_periods = sorted(area_df['year_month'].unique())
+        total_periods = len(time_periods)
+        
+        # Calculate split boundaries based on ratios
+        train_end = int(np.floor(total_periods * train_ratio))
+        val_end = train_end + int(np.floor(total_periods * val_ratio))
+        
+        # Split time periods into train/val/test
+        train_periods = time_periods[:train_end]
+        val_periods = time_periods[train_end:val_end]
+        test_periods = time_periods[val_end:]
+        
+        # Create masks for each split
+        train_mask = area_df['year_month'].isin(train_periods)
+        val_mask = area_df['year_month'].isin(val_periods)
+        test_mask = area_df['year_month'].isin(test_periods)
+        
+        # Get indices for each split
+        train_indices.extend(area_df.index[train_mask].tolist())
+        val_indices.extend(area_df.index[val_mask].tolist())
+        test_indices.extend(area_df.index[test_mask].tolist())
+        
+        # Record statistics for this area
+        area_stats.append({
+            'area_id': area_id,
+            'split_type': 'temporal',
+            'split': 'mixed',
+            'total_periods': total_periods,
+            'train_periods': len(train_periods),
+            'val_periods': len(val_periods),
+            'test_periods': len(test_periods),
+            'train_samples': train_mask.sum(),
+            'val_samples': val_mask.sum(),
+            'test_samples': test_mask.sum(),
+            'total_samples': len(area_df)
+        })
+    
+    # Create a new 'split' column and assign values based on indices
+    df['split'] = 'unknown'  # Default value
+    df.loc[train_indices, 'split'] = 'train'
+    df.loc[val_indices, 'split'] = 'val'
+    df.loc[test_indices, 'split'] = 'test'
+    
+    # Calculate overall statistics
+    total_samples = len(df)
+    train_count = len(train_indices)
+    val_count = len(val_indices)
+    test_count = len(test_indices)
+    
+    print(f"\nOverall Split Statistics:")
+    print(f"  Train: {train_count} samples ({train_count/total_samples:.1%})")
+    print(f"  Validation: {val_count} samples ({val_count/total_samples:.1%})")
+    print(f"  Test: {test_count} samples ({test_count/total_samples:.1%})")
+    
+    # Create a pandas DataFrame with area statistics for more detailed analysis
+    stats_df = pd.DataFrame(area_stats)
+    
+    # Report geographic exclusivity statistics
+    geo_stats = stats_df[stats_df['split_type'] == 'geographic']
+    print(f"\nGeographically Exclusive Areas:")
+    print(f"  Train: {len(geo_stats[geo_stats['split'] == 'train'])} areas")
+    print(f"  Validation: {len(geo_stats[geo_stats['split'] == 'val'])} areas")
+    print(f"  Test: {len(geo_stats[geo_stats['split'] == 'test'])} areas")
+    
+    # Report temporal split statistics
+    temp_stats = stats_df[stats_df['split_type'] == 'temporal']
+    train_periods_total = temp_stats['train_periods'].sum()
+    val_periods_total = temp_stats['val_periods'].sum()
+    test_periods_total = temp_stats['test_periods'].sum()
+    total_periods_all = temp_stats['total_periods'].sum()
+    
+    print(f"\nTemporal Distribution (for temporally split areas):")
+    print(f"  Train: {train_periods_total} periods ({train_periods_total/total_periods_all:.1%})")
+    print(f"  Validation: {val_periods_total} periods ({val_periods_total/total_periods_all:.1%})")
+    print(f"  Test: {test_periods_total} periods ({test_periods_total/total_periods_all:.1%})")
+    
+    # Verify geographic diversity
+    train_areas = df[df['split'] == 'train']['area_id'].nunique()
+    val_areas = df[df['split'] == 'val']['area_id'].nunique()
+    test_areas = df[df['split'] == 'test']['area_id'].nunique()
+    
+    print(f"\nGeographic Coverage:")
+    print(f"  Train: {train_areas}/{len(unique_areas)} areas ({train_areas/len(unique_areas):.1%})")
+    print(f"  Validation: {val_areas}/{len(unique_areas)} areas ({val_areas/len(unique_areas):.1%})")
+    print(f"  Test: {test_areas}/{len(unique_areas)} areas ({test_areas/len(unique_areas):.1%})")
+    
+    # Check for any samples without an assigned split
+    unknown_count = (df['split'] == 'unknown').sum()
+    if unknown_count > 0:
+        print(f"\nWARNING: {unknown_count} samples ({unknown_count/total_samples:.1%}) were not assigned to any split!")
+    
+    # Create a simple visualization of the split - both geographic and temporal
+    print("\nSplit Type by Area:")
+    for split_type in ['geographic', 'temporal']:
+        if split_type == 'geographic':
+            print(f"\nGeographically Exclusive Areas:")
+            for split in ['train', 'val', 'test']:
+                areas = stats_df[(stats_df['split_type'] == 'geographic') & (stats_df['split'] == split)]['area_id'].tolist()
+                print(f"  {split}: {areas}")
+        else:
+            print(f"\nTemporally Split Areas:")
+            areas = stats_df[stats_df['split_type'] == 'temporal']['area_id'].tolist()
+            print(f"  {areas}")
+    
+    return df
