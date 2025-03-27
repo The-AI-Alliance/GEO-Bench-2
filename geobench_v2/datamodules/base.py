@@ -37,8 +37,8 @@ class GeoBenchDataModule(LightningDataModule, ABC):
         eval_batch_size: int = 64,
         num_workers: int = 0,
         collate_fn: Callable | None = None,
-        train_augmentations: nn.Module | None = None,
-        eval_augmentations: nn.Module | None = None,
+        train_augmentations: Callable | None | str = "default",
+        eval_augmentations: Callable | None | str = "default",
         pin_memory: bool = False,
         **kwargs: Any,
     ) -> None:
@@ -63,6 +63,10 @@ class GeoBenchDataModule(LightningDataModule, ABC):
             **kwargs: Additional keyword arguments passed to ``dataset_class``
         """
         super().__init__()
+        if isinstance(train_augmentations, str): 
+            assert train_augmentations=="default", "Please provide one of the follow for eval_augmentations: Callable or None or 'default'"
+        if isinstance(eval_augmentations, str): 
+            assert eval_augmentations=="default", "Please provide one of the follow for eval_augmentations: Callable or None or 'default'"
 
         self.dataset_class = dataset_class
         self.img_size = img_size
@@ -233,8 +237,36 @@ class GeoBenchDataModule(LightningDataModule, ABC):
 
             aug = self._valid_attribute(f"{split}_augmentations")
             batch = aug(batch)
-
         return batch
+
+    def _valid_attribute(self, args) -> Any:
+        """Find a valid attribute with length > 0.
+
+        Args:
+            args: One or more names of attributes to check.
+
+        Returns:
+            The first valid attribute found.
+
+        Raises:
+            RuntimeError: If no attribute is defined, or has length 0.
+        """
+        for arg in args:
+            obj = getattr(self, arg)
+
+            if obj is None:
+                continue
+
+            if not obj:
+                msg = f'{self.__class__.__name__}.{arg} has length 0.'
+                print(msg)
+                raise RuntimeError
+
+            return obj
+
+        msg = f'{self.__class__.__name__}.setup must define one of {args}.'
+        print(msg)
+        raise RuntimeError
 
 
 class GeoBenchClassificationDataModule(GeoBenchDataModule):
@@ -253,8 +285,8 @@ class GeoBenchClassificationDataModule(GeoBenchDataModule):
         eval_batch_size: int = 64,
         num_workers: int = 0,
         collate_fn: Callable | None = None,
-        train_augmentations: nn.Module | None = None,
-        eval_augmentations: nn.Module | None = None,
+        train_augmentations: Callable | None | str = "default",
+        eval_augmentations: Callable | None | str = "default",
         pin_memory: bool = False,
         **kwargs: Any,
     ) -> None:
@@ -297,13 +329,20 @@ class GeoBenchClassificationDataModule(GeoBenchDataModule):
 
         Augmentations will be applied in `on_after_batch_transfer` in the LightningDataModule.
         """
-        if self.train_augmentations is not None:
+        if self.train_augmentations == "default":
             self.train_augmentations = nn.Sequential(
-                K.RandomHorizontalFlip(p=0.5), K.RandomVerticalFlip(p=0.5)
-            )
+                K.RandomHorizontalFlip(p=0.5),
+                K.RandomVerticalFlip(p=0.5),
+                data_keys=None,
+                keepdim=True,
 
-        if self.eval_augmentations is not None:
+            )
+        elif self.train_augmentations is None:
+            self.train_augmentations = nn.Identity()
+
+        if (self.eval_augmentations == "default") or (self.eval_augmentations is None):
             self.eval_augmentations = nn.Identity()
+
 
     def setup_image_size_transforms(self) -> tuple[nn.Module, nn.Module, nn.Module]:
         """Setup image resizing transforms for train, val, test.
@@ -325,6 +364,32 @@ class GeoBenchClassificationDataModule(GeoBenchDataModule):
             ),
         )
 
+    def load_metadata(self) -> pd.DataFrame:
+        """Load metadata file.
+
+        Returns:
+            pandas DataFrame with metadata.
+        """
+        pass
+
+    def visualize_batch(
+        self, split: str = "train"
+    ) -> tuple[plt.Figure, dict[str, Tensor]]:
+        """Visualize a batch of data.
+
+        Args:
+            split: One of 'train', 'val', 'test'
+
+        Returns:
+            The matplotlib figure and the batch of data
+        """
+        pass
+
+    def visualize_geolocation_distribution(self) -> None:
+        """Visualize the geolocation distribution of the dataset."""
+        pass
+
+
 
 class GeoBenchSegmentationDataModule(GeoBenchDataModule):
     """GeoBench Segmentation DataModule.
@@ -342,8 +407,8 @@ class GeoBenchSegmentationDataModule(GeoBenchDataModule):
         eval_batch_size: int = 64,
         num_workers: int = 0,
         collate_fn: Callable | None = None,
-        train_augmentations: nn.Module | None = None,
-        eval_augmentations: nn.Module | None = None,
+        train_augmentations: Callable | None | str = "default",
+        eval_augmentations: Callable | None | str = "default",
         pin_memory: bool = False,
         **kwargs: Any,
     ) -> None:
@@ -386,15 +451,20 @@ class GeoBenchSegmentationDataModule(GeoBenchDataModule):
 
         Augmentations will be applied in `on_after_batch_transfer` in the LightningDataModule.
         """
-        if self.train_augmentations is not None:
+        if self.train_augmentations == "default":
             self.train_augmentations = K.AugmentationSequential(
                 K.RandomHorizontalFlip(p=0.5),
                 K.RandomVerticalFlip(p=0.5),
-                data_keys=["image", "mask"],
+                #data_keys=["image", "mask"],
+                data_keys=None,
+                keepdim=True,
             )
+        elif self.train_augmentations is None:
+            self.train_augmentations = nn.Identity()
 
-        if self.eval_augmentations is not None:
+        if (self.eval_augmentations == "default") or (self.eval_augmentations is None):
             self.eval_augmentations = nn.Identity()
+
 
     def setup_image_size_transforms(self) -> tuple[nn.Module, nn.Module, nn.Module]:
         """Setup image resizing transforms for train, val, test.
@@ -416,6 +486,31 @@ class GeoBenchSegmentationDataModule(GeoBenchDataModule):
             ),
         )
 
+    def load_metadata(self) -> pd.DataFrame:
+        """Load metadata file.
+
+        Returns:
+            pandas DataFrame with metadata.
+        """
+        pass
+
+    def visualize_batch(
+        self, split: str = "train"
+    ) -> tuple[plt.Figure, dict[str, Tensor]]:
+        """Visualize a batch of data.
+
+        Args:
+            split: One of 'train', 'val', 'test'
+
+        Returns:
+            The matplotlib figure and the batch of data
+        """
+        pass
+
+    def visualize_geolocation_distribution(self) -> None:
+        """Visualize the geolocation distribution of the dataset."""
+        pass
+
 
 class GeoBenchObjectDetectionDataModule(GeoBenchDataModule):
     """GeoBench Object Detection DataModule.
@@ -433,8 +528,8 @@ class GeoBenchObjectDetectionDataModule(GeoBenchDataModule):
         eval_batch_size: int = 64,
         num_workers: int = 0,
         collate_fn: Callable | None = None,
-        train_augmentations: nn.Module | None = None,
-        eval_augmentations: nn.Module | None = None,
+        train_augmentations: Callable | None | str = "default",
+        eval_augmentations: Callable | None | str = "default",
         pin_memory: bool = False,
         **kwargs: Any,
     ) -> None:
@@ -476,14 +571,18 @@ class GeoBenchObjectDetectionDataModule(GeoBenchDataModule):
 
         Augmentations will be applied in `on_after_batch_transfer` in the LightningDataModule.
         """
-        if self.train_augmentations is not None:
+        if self.train_augmentations == "default":
             self.train_augmentations = K.AugmentationSequential(
                 K.RandomHorizontalFlip(p=0.5),
                 K.RandomVerticalFlip(p=0.5),
                 data_keys=["image", "bbox_xyxy", "label"],
-            )
+                keepdim=True,
 
-        if self.eval_augmentations is not None:
+            )
+        elif self.train_augmentations is None:
+            self.train_augmentations = nn.Identity()
+
+        if (self.eval_augmentations == "default") or (self.eval_augmentations is None):
             self.eval_augmentations = nn.Identity()
 
     def setup_image_size_transforms(self) -> tuple[nn.Module, nn.Module, nn.Module]:
@@ -505,3 +604,29 @@ class GeoBenchObjectDetectionDataModule(GeoBenchDataModule):
                 data_keys=None,
             ),
         )
+
+    def load_metadata(self) -> pd.DataFrame:
+        """Load metadata file.
+
+        Returns:
+            pandas DataFrame with metadata.
+        """
+        pass
+
+    def visualize_batch(
+        self, split: str = "train"
+    ) -> tuple[plt.Figure, dict[str, Tensor]]:
+        """Visualize a batch of data.
+
+        Args:
+            split: One of 'train', 'val', 'test'
+
+        Returns:
+            The matplotlib figure and the batch of data
+        """
+        pass
+
+    def visualize_geolocation_distribution(self) -> None:
+        """Visualize the geolocation distribution of the dataset."""
+        pass
+

@@ -162,7 +162,7 @@ class GeoBenchPASTIS(PASTIS, DataUtilsMixin):
             sample["label"] = labels
 
         if self.transforms:
-            sample = self.transforms(sample)
+            sample = self.transforms(sample)    
 
         return sample
 

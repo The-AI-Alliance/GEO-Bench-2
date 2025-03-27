@@ -14,6 +14,10 @@ from .everwatch import GeoBenchEverWatchDataModule
 from .flair2 import GeoBenchFLAIR2DataModule
 from .cloudsen12 import GeoBenchCloudSen12DataModule
 
+
+from .base import (GeoBenchClassificationDataModule, GeoBenchSegmentationDataModule, 
+                    GeoBenchObjectDetectionDataModule, GeoBenchDataModule)
+
 __all__ = (
     "GeoBenchCaFFeDataModule",
     "GeoBenchFieldsOfTheWorldDataModule",
@@ -25,4 +29,8 @@ __all__ = (
     "GeoBenchEverWatchDataModule",
     "GeoBenchFLAIR2DataModule",
     "GeoBenchCloudSen12DataModule",
+    "GeoBenchClassificationDataModule",
+    "GeoBenchSegmentationDataModule",
+    "GeoBenchObjectDetectionDataModule",
+    "GeoBenchDataModule"
 )

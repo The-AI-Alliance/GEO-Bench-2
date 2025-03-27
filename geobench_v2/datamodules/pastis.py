@@ -49,7 +49,7 @@ class GeoBenchPASTISDataModule(GeoBenchSegmentationDataModule):
     def __init__(
         self,
         img_size: int,
-        band_order: Sequence[float | str] = GeoBenchPASTIS.band_default_order,
+        band_order: Sequence[float | str] = ["B04", "B03","B02"],
         batch_size: int = 32,
         eval_batch_size: int = 64,
         num_workers: int = 0,
