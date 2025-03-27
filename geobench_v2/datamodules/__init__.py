@@ -19,6 +19,10 @@ from .treesatai import GeoBenchTreeSatAIDataModule
 from .mados import GeoBenchMADOSDataModule
 from .biomassters import GeoBenchBioMasstersDataModule
 
+
+from .base import (GeoBenchClassificationDataModule, GeoBenchSegmentationDataModule, 
+                    GeoBenchObjectDetectionDataModule, GeoBenchDataModule)
+
 __all__ = (
     "GeoBenchCaFFeDataModule",
     "GeoBenchFieldsOfTheWorldDataModule",
@@ -30,6 +34,10 @@ __all__ = (
     "GeoBenchEverWatchDataModule",
     "GeoBenchFLAIR2DataModule",
     "GeoBenchCloudSen12DataModule",
+    "GeoBenchClassificationDataModule",
+    "GeoBenchSegmentationDataModule",
+    "GeoBenchObjectDetectionDataModule",
+    "GeoBenchDataModule"
     "GeoBenchFLOGADataModule",
     "GeoBenchKuroSiwoDataModule",
     "GeoBenchTreeSatAIDataModule",

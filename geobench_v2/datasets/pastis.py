@@ -207,7 +207,7 @@ class GeoBenchPASTIS(PASTIS, DataUtilsMixin):
         sample["lat"] = torch.tensor([sample_row["latitude"]])
 
         if self.transforms:
-            sample = self.transforms(sample)
+            sample = self.transforms(sample)    
 
         return sample
 

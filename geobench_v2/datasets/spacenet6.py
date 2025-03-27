@@ -34,7 +34,7 @@ class GeoBenchSpaceNet6(GeoBenchBaseDataset):
 
     dataset_band_config = DatasetBandRegistry.SPACENET6
 
-    band_default_order = ("r", "g", "b", "n", "hh", "hv", "vv", "vh")
+    band_default_order = ("r", "g", "b", "nir", "hh", "hv", "vv", "vh")
 
     normalization_stats = {
         "means": {
