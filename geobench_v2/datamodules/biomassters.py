@@ -1,32 +1,31 @@
 # Copyright (c) 2025 GeoBenchV2. All rights reserved.
 # Licensed under the Apache License 2.0.
 
-
-"""SpaceNet6 Datamodule."""
+"""Biomassters DataModule."""
 
 from collections.abc import Callable
 from typing import Any, Sequence
+
+from geobench_v2.datasets import GeoBenchBioMassters
 
 import pandas as pd
 from torch import Tensor
 import os
 import matplotlib.pyplot as plt
 
-from geobench_v2.datasets import GeoBenchSpaceNet6
-
+import torch
 from .base import GeoBenchSegmentationDataModule
 import torch.nn as nn
+from torch import Tensor
 
 
-class GeoBenchSpaceNet6DataModule(GeoBenchSegmentationDataModule):
-    """GeoBench SpaceNet6 Data Module."""
-
-    #
+class GeoBenchBioMasstersDataModule(GeoBenchSegmentationDataModule):
+    """GeoBench BioMassters Data Module."""
 
     def __init__(
         self,
         img_size: int,
-        band_order: Sequence[float | str] = GeoBenchSpaceNet6.band_default_order,
+        band_order: Sequence[float | str] = GeoBenchBioMassters.band_default_order,
         batch_size: int = 32,
         eval_batch_size: int = 64,
         num_workers: int = 0,
@@ -36,25 +35,19 @@ class GeoBenchSpaceNet6DataModule(GeoBenchSegmentationDataModule):
         pin_memory: bool = False,
         **kwargs: Any,
     ) -> None:
-        """Initialize GeoBench SpaceNet6 dataset module.
+        """Initialize GeoBench BioMassters DataModule.
 
         Args:
             img_size: Image size
-            batch_size: Batch size during training
+            batch_size: Batch size
             eval_batch_size: Evaluation batch size
             num_workers: Number of workers
             collate_fn: Collate function
-            train_augmentations: Transforms/Augmentations to apply during training, they will be applied
-                at the sample level and should include normalization. See :method:`define_augmentations`
-                for the default transformation.
-            eval_augmentations: Transforms/Augmentations to apply during evaluation, they will be applied
-                at the sample level and should include normalization. See :method:`define_augmentations`
-                for the default transformation.
             pin_memory: Pin memory
-            **kwargs: Additional keyword arguments for the dataset class
+            **kwargs: Additional keyword arguments
         """
         super().__init__(
-            dataset_class=GeoBenchSpaceNet6,
+            dataset_class=GeoBenchBioMassters,
             img_size=img_size,
             band_order=band_order,
             batch_size=batch_size,
@@ -74,7 +67,7 @@ class GeoBenchSpaceNet6DataModule(GeoBenchSegmentationDataModule):
             pandas DataFrame with metadata.
         """
         return pd.read_parquet(
-            os.path.join(self.kwargs["root"], "geobench_spacenet6.parquet")
+            os.path.join(self.kwargs["root"], "geobench_biomassters.parquet")
         )
 
     def visualize_batch(

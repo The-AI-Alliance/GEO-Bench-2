@@ -13,6 +13,11 @@ from .benv2 import GeoBenchBENV2DataModule
 from .everwatch import GeoBenchEverWatchDataModule
 from .flair2 import GeoBenchFLAIR2DataModule
 from .cloudsen12 import GeoBenchCloudSen12DataModule
+from .floga import GeoBenchFLOGADataModule
+from .kuro_siwo import GeoBenchKuroSiwoDataModule
+from .treesatai import GeoBenchTreeSatAIDataModule
+from .mados import GeoBenchMADOSDataModule
+from .biomassters import GeoBenchBioMasstersDataModule
 
 
 from .base import (GeoBenchClassificationDataModule, GeoBenchSegmentationDataModule, 
@@ -33,4 +38,9 @@ __all__ = (
     "GeoBenchSegmentationDataModule",
     "GeoBenchObjectDetectionDataModule",
     "GeoBenchDataModule"
+    "GeoBenchFLOGADataModule",
+    "GeoBenchKuroSiwoDataModule",
+    "GeoBenchTreeSatAIDataModule",
+    "GeoBenchBioMasstersDataModule",
+    "GeoBenchMADOSDataModule",
 )

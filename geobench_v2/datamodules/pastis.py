@@ -44,8 +44,6 @@ from torch import Tensor
 class GeoBenchPASTISDataModule(GeoBenchSegmentationDataModule):
     """GeoBench PASIS Data Module."""
 
-    #
-
     def __init__(
         self,
         img_size: int,

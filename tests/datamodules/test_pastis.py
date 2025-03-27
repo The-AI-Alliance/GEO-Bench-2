@@ -5,7 +5,7 @@ from geobench_v2.datamodules import GeoBenchPASTISDataModule
 @pytest.fixture
 def data_root():
     """Path to test data directory."""
-    return "/mnt/rg_climate_benchmark/data/datasets_segmentation/pastis_r"
+    return "/mnt/rg_climate_benchmark/data/geobenchV2/pastis"
 
 
 @pytest.fixture
@@ -69,6 +69,7 @@ class TestPASTISDataModule:
         assert "image_s2" in batch
         assert "image_s1_asc" in batch
         assert "image_s1_desc" in batch
+        assert "mask" in batch
 
         # TODO handle correctly both cases
         # Check dimensions - remember these are time-series shapes [batch_size, bands, time_steps, H, W]
@@ -119,3 +120,23 @@ class TestPASTISDataModule:
         assert batch["image"].shape[0] == dm.batch_size
         assert batch["image"].shape[1] == len(s1_asc_only_band_order)
         assert batch["image"].shape[2] == 74
+
+    def test_time_series(self, data_root, multimodal_band_order):
+        """Test batch retrieval with time series."""
+        num_time_steps = 9
+        dm = GeoBenchPASTISDataModule(
+            img_size=74,
+            batch_size=32,
+            num_time_steps=num_time_steps,
+            band_order=multimodal_band_order,
+            root=data_root,
+        )
+        dm.setup("fit")
+        batch = next(iter(dm.train_dataloader()))
+
+        # Check single tensor output - only S2 bands
+        assert batch["image_s2"].shape[0] == dm.batch_size
+        assert batch["image_s2"].shape[1] == num_time_steps
+        assert batch["image_s2"].shape[2] == len(multimodal_band_order["s2"])
+        assert batch["image_s2"].shape[3] == 74
+        assert batch["image_s2"].shape[4] == dm.img_size

@@ -9,7 +9,6 @@ import argparse
 from pathlib import Path
 
 
-
 def resize_object_detection_dataset(
     image_dir, annotations_df, output_dir, target_size=512
 ):
@@ -37,7 +36,7 @@ def resize_object_detection_dataset(
             # Open the image with PIL with error handling for truncated files
             from PIL import ImageFile
 
-            ImageFile.LOAD_TRUNCATED_IMAGES = True 
+            ImageFile.LOAD_TRUNCATED_IMAGES = True
 
             img = Image.open(image_path)
             # Force load to identify potential issues early
@@ -100,4 +99,3 @@ def resize_object_detection_dataset(
         f"Created {len(resized_df)} annotations across {len(resized_df['image_path'].unique())} images"
     )
     return resized_df
-
