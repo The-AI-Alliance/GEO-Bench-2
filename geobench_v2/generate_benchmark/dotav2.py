@@ -16,6 +16,23 @@ from tqdm import tqdm
 
 Image.MAX_IMAGE_PIXELS = None
 
+# For eliminating near-duplicate patches:
+
+# Increase stride factors (0.8 → 0.9) for less overlap in slightly larger images
+# Make the special case condition more aggressive (width_ratio < 1.3 instead of 1.5)
+# For better handling of dense annotation images:
+
+# Lower HIGH_DENSITY_THRESHOLD (120 → 80) to trigger the dense annotation case more often
+# Increase width_ratio < 1.8 to something like 2.0 to capture more medium-sized images
+# For maximizing annotation coverage:
+
+# Lower visibility threshold (0.5 → 0.4) to include more partially visible annotations
+# Adjust points_inside >= 3 to points_inside >= 2 for more forgiving inclusion
+# For reducing redundant patches:
+
+# Add a filter after window generation to remove highly similar patches (comparing overlap areas)
+# Add a max_patches parameter to limit patches per image regardless of size
+
 
 def generate_metadata_df(root: str) -> pd.DataFrame:
     """Generate Metadata DataFrame for DOTAV2 dataset with improved processing strategy."""
@@ -23,17 +40,12 @@ def generate_metadata_df(root: str) -> pd.DataFrame:
     samples_df = pd.read_csv(os.path.join(root, "samples.csv"))
     samples_df = samples_df[samples_df["version"] == 2.0].reset_index(drop=True)
 
-    # Iterate over all samples to extract image sizes and annotation counts
     image_metadata = []
     for idx, row in tqdm(
         samples_df.iterrows(), total=len(samples_df), desc="Extracting image metadata"
     ):
         image_path = os.path.join(root, row["image_path"])
         annotation_path = os.path.join(root, row["annotation_path"])
-
-        # Get image dimensions
-        with Image.open(image_path) as img:
-            width, height = img.size
 
         # Load annotations to count objects
         annotations = []
@@ -44,7 +56,6 @@ def generate_metadata_df(root: str) -> pd.DataFrame:
                     if (
                         len(parts) >= 9
                     ):  # Format: x1 y1 x2 y2 x3 y3 x4 y4 class_name difficult
-                        # Extract the coordinates of the oriented bounding box
                         x1, y1 = float(parts[0]), float(parts[1])
                         x2, y2 = float(parts[2]), float(parts[3])
                         x3, y3 = float(parts[4]), float(parts[5])
@@ -52,7 +63,6 @@ def generate_metadata_df(root: str) -> pd.DataFrame:
                         class_name = parts[8]
                         difficult = int(parts[9]) if len(parts) > 9 else 0
 
-                        # Store annotation with all corner points
                         annotations.append(
                             {
                                 "points": [(x1, y1), (x2, y2), (x3, y3), (x4, y4)],
@@ -61,7 +71,7 @@ def generate_metadata_df(root: str) -> pd.DataFrame:
                             }
                         )
 
-        # Store metadata
+        width, height = row["width"], row["height"]
         image_metadata.append(
             {
                 "image_path": row["image_path"],
@@ -70,9 +80,7 @@ def generate_metadata_df(root: str) -> pd.DataFrame:
                 "width": width,
                 "height": height,
                 "num_annotations": len(annotations),
-                "annotation_density": len(annotations)
-                / (width * height)
-                * 1e6,  # Annotations per million pixels
+                "annotation_density": len(annotations) / (width * height) * 1e6,
                 "aspect_ratio": width / height,
                 "annotations": annotations,
             }
@@ -80,10 +88,8 @@ def generate_metadata_df(root: str) -> pd.DataFrame:
 
     metadata_df = pd.DataFrame(image_metadata)
 
-    # New processing strategy with adaptive stride
     patch_size = 1024  # Standard window size
 
-    # Generate expanded metadata with sliding window approach
     expanded_records = []
 
     for idx, row in tqdm(
@@ -93,10 +99,21 @@ def generate_metadata_df(root: str) -> pd.DataFrame:
     ):
         width, height = row["width"], row["height"]
 
+        annotation_density = row["annotation_density"]  # Annotations per million pixels
+        annotation_count = row["num_annotations"]
+
+        # Define density thresholds
+        HIGH_DENSITY_THRESHOLD = 80  # Annotations per million pixels
+        MEDIUM_DENSITY_THRESHOLD = 30  # Annotations per million pixels
+        HIGH_COUNT_THRESHOLD = 20  # Total number of annotations
+
         # Decide whether to use sliding window or simple resize
-        if max(width, height) <= patch_size:
-            # Small image - just use as is (will be resized later)
-            # [existing code for small images remains unchanged]
+        if (
+            max(width, height) <= patch_size
+            and annotation_density < MEDIUM_DENSITY_THRESHOLD
+            and annotation_count < HIGH_COUNT_THRESHOLD
+        ):
+            # Small image with low/medium annotation density - just use as is (will be resized later)
             record = row.to_dict()
             record["patch_id"] = 0
             record["patch_coords"] = [0, 0, width, height]
@@ -119,19 +136,27 @@ def generate_metadata_df(root: str) -> pd.DataFrame:
             record["patch_annotation_count"] = len(patch_annotations)
             expanded_records.append(record)
         else:
+            # Either:
+            # 1. Image is larger than patch_size, OR
+            # 2. Image has high annotation density/count
+
             # Calculate width/height ratios relative to patch size
             width_ratio = width / patch_size
             height_ratio = height / patch_size
 
-            # For images just slightly larger than patch_size, use special handling
-            # This solves the issue with nearly identical patches
-            if width_ratio < 1.5 and height_ratio < 1.5:
-                # Image just slightly larger than patch_size in both dimensions
-                # Use at most 4 patches strategically placed at corners
-
+            # For images just slightly larger than patch_size or with high annotation density,
+            # use special handling
+            if (
+                width_ratio < 1.5
+                and height_ratio < 1.5
+                and annotation_density < HIGH_DENSITY_THRESHOLD
+                and annotation_count < HIGH_COUNT_THRESHOLD
+            ):
+                # Image just slightly larger than patch_size with moderate annotation density
                 # If annotations are all concentrated in one area, just take one patch there
                 if row["num_annotations"] > 0:
                     # Calculate centroid of all annotations
+                    # [existing centroid calculation code]
                     all_points = [
                         point for ann in row["annotations"] for point in ann["points"]
                     ]
@@ -171,19 +196,102 @@ def generate_metadata_df(root: str) -> pd.DataFrame:
                     x1 = max(0, (width - patch_size) // 2)
                     y1 = max(0, (height - patch_size) // 2)
                     window_positions = [(x1, y1)]
-            else:
-                # For larger images, use adaptive stride based on image size
-                # Reduce overlap for slightly larger images, increase for much larger ones
+            elif (
+                width_ratio < 1.8
+                and height_ratio < 1.8
+                and (
+                    annotation_density >= HIGH_DENSITY_THRESHOLD
+                    or annotation_count >= HIGH_COUNT_THRESHOLD
+                )
+            ):
+                # For dense annotations on smaller images, use a grid of 512x512 patches
+                small_patch_size = 512
 
+                # Calculate grid size based on image dimensions
+                grid_width = max(1, (width + small_patch_size - 1) // small_patch_size)
+                grid_height = max(
+                    1, (height + small_patch_size - 1) // small_patch_size
+                )
+
+                # Calculate patch positions with minimal overlap
+                window_positions = []
+
+                # Special case: If we need a 2x2 grid but the image is just slightly larger than
+                # 2*small_patch_size, use strategic positions instead of a strict grid
+                if (
+                    grid_width <= 2
+                    and grid_height <= 2
+                    and width < 2.1 * small_patch_size
+                    and height < 2.1 * small_patch_size
+                ):
+                    # Use strategic positions at the corners
+                    window_positions = [
+                        (0, 0),  # Top-left
+                        (max(0, width - small_patch_size), 0),  # Top-right
+                        (0, max(0, height - small_patch_size)),  # Bottom-left
+                        (
+                            max(0, width - small_patch_size),
+                            max(0, height - small_patch_size),
+                        ),  # Bottom-right
+                    ]
+                else:
+                    # Use standard grid approach
+                    for y_idx in range(grid_height):
+                        for x_idx in range(grid_width):
+                            # Calculate positions with evenly distributed patches
+                            x_stride = (
+                                max(
+                                    1,
+                                    (width - small_patch_size)
+                                    // max(1, grid_width - 1),
+                                )
+                                if grid_width > 1
+                                else 0
+                            )
+                            y_stride = (
+                                max(
+                                    1,
+                                    (height - small_patch_size)
+                                    // max(1, grid_height - 1),
+                                )
+                                if grid_height > 1
+                                else 0
+                            )
+
+                            # Position the patch
+                            if grid_width == 1:
+                                x1 = max(
+                                    0, (width - small_patch_size) // 2
+                                )  # Center horizontally
+                            elif x_idx == grid_width - 1:
+                                x1 = max(0, width - small_patch_size)  # Rightmost patch
+                            else:
+                                x1 = min(width - small_patch_size, x_idx * x_stride)
+
+                            if grid_height == 1:
+                                y1 = max(
+                                    0, (height - small_patch_size) // 2
+                                )  # Center vertically
+                            elif y_idx == grid_height - 1:
+                                y1 = max(0, height - small_patch_size)  # Bottom patch
+                            else:
+                                y1 = min(height - small_patch_size, y_idx * y_stride)
+
+                            window_positions.append((x1, y1))
+
+                # Override the patch size for this special case
+                patch_size = small_patch_size
+            else:
+                # For larger images or moderate annotation density, use adaptive stride based on image size
                 if max(width_ratio, height_ratio) < 2:
                     # Images less than 2x patch size - use minimal overlap (20%)
-                    stride_factor = 0.8
+                    stride_factor = 0.9
                 elif max(width_ratio, height_ratio) < 3:
                     # Images 2x-3x patch size - use moderate overlap (33%)
-                    stride_factor = 0.67
+                    stride_factor = 0.8
                 else:
                     # Very large images - keep the original 50% overlap
-                    stride_factor = 0.5
+                    stride_factor = 0.75
 
                 stride = int(patch_size * stride_factor)
 
@@ -231,7 +339,6 @@ def generate_metadata_df(root: str) -> pd.DataFrame:
                 for ann in row["annotations"]:
                     points = ann["points"]
 
-                    # [existing annotation filtering logic remains unchanged]
                     # Calculate the bounding box of the oriented box
                     min_x = min(p[0] for p in points)
                     max_x = max(p[0] for p in points)
@@ -285,7 +392,6 @@ def generate_metadata_df(root: str) -> pd.DataFrame:
                             patch_ann["visibility"] = visibility
                             window_annotations.append(patch_ann)
 
-                # Record window data
                 record = row.copy().to_dict()
                 record["patch_id"] = idx
                 record["patch_coords"] = [x1, y1, x2, y2]
@@ -302,7 +408,6 @@ def generate_metadata_df(root: str) -> pd.DataFrame:
                     patches_with_annotations += 1
 
             # Remove redundant windows if we have enough with annotations
-            # This helps reduce near-duplicate patches
             if patches_with_annotations >= 2:
                 # Sort windows by annotation count (descending)
                 window_records.sort(key=lambda x: x[1], reverse=True)
@@ -373,18 +478,16 @@ def main():
     metadata_df.to_parquet(path)
 
     processed_df = process_dotav2_dataset(
-        metadata_df[0:100], args.root, args.save_dir, target_size=512
+        metadata_df, args.root, args.save_dir, target_size=512
+    )
+
+    processed_df.to_parquet(
+        os.path.join(args.save_dir, "geobench_dotav2_processed.parquet")
     )
 
     vis_dir = visualize_processing_results(
         processed_df, args.root, args.save_dir, num_samples=25
     )
-
-    import pdb
-
-    pdb.set_trace()
-
-    print(0)
 
 
 if __name__ == "__main__":

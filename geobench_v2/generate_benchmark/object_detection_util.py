@@ -98,6 +98,7 @@ def process_everwatch_dataset(image_dir, annotations_df, output_dir, target_size
     )
     return resized_df
 
+
 def process_dotav2_dataset(df, input_dir, output_dir, target_size=512, num_workers=8):
     """Process DOTAV2 dataset according to the determined strategies with parallel processing.
 
@@ -118,7 +119,7 @@ def process_dotav2_dataset(df, input_dir, output_dir, target_size=512, num_worke
     # datsat only has train/val split
     # rename val to test and shift validation samples from remaining train
     df.loc[df["split"] == "val", "split"] = "test"
-    
+
     # train should be 70% of the total dataset and val 10% of the total dataset
     total_samples = len(df)
     train_samples = int(0.7 * total_samples)
@@ -180,12 +181,16 @@ def process_dotav2_dataset(df, input_dir, output_dir, target_size=512, num_worke
                         target_points.append((px_abs, py_abs))
 
                     # DOTAV2 format: x1 y1 x2 y2 x3 y3 x4 y4 class_name difficult
-                    coord_str = " ".join([f"{px:.1f} {py:.1f}" for px, py in target_points])
+                    coord_str = " ".join(
+                        [f"{px:.1f} {py:.1f}" for px, py in target_points]
+                    )
                     f.write(f"{coord_str} {class_name} {difficult}\n")
 
             return {
                 "original_image": row["image_path"],
-                "processed_image": os.path.join(row["split"], "images", output_filename),
+                "processed_image": os.path.join(
+                    row["split"], "images", output_filename
+                ),
                 "processed_label": os.path.join(
                     row["split"],
                     "annotations",
@@ -208,18 +213,20 @@ def process_dotav2_dataset(df, input_dir, output_dir, target_size=512, num_worke
 
     total_items = len(df)
     processed_records = []
-    
+
     print(f"Processing {total_items} images with {num_workers} workers...")
-    
+
     with concurrent.futures.ThreadPoolExecutor(max_workers=num_workers) as executor:
-        futures = {executor.submit(process_row, (idx, row)): idx for idx, row in df.iterrows()}
+        futures = {
+            executor.submit(process_row, (idx, row)): idx for idx, row in df.iterrows()
+        }
         with tqdm(total=total_items, desc="Processing images") as pbar:
             for future in concurrent.futures.as_completed(futures):
                 result = future.result()
                 if result is not None:
                     processed_records.append(result)
                 pbar.update(1)
-    
+
     processed_df = pd.DataFrame(processed_records)
     processed_df.to_csv(os.path.join(output_dir, "processed_metadata.csv"), index=False)
 
