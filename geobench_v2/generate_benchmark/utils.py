@@ -300,3 +300,204 @@ def _plot_region(ax, df, split_column, split_colors, buffer_degrees, s, alpha, t
     gl.top_labels = False
     gl.right_labels = False
     ax.set_title(title, fontsize=12)
+
+
+import os
+import numpy as np
+import rasterio
+import matplotlib.pyplot as plt
+from torchgeo.datasets.utils import percentile_normalization
+from matplotlib.colors import ListedColormap
+
+
+def visualize_dynamic_earthnet_sample(
+    root_dir, df, sample_idx, output_path=None, figsize=(12, 16), resize_factor=None
+):
+    """
+    Visualize a sample from the DynamicEarthNet dataset with a 4x2 grid layout:
+    - Rows 1-2: 4 random Planet timesteps
+    - Row 3: 1 Planet timestep and Label
+    - Row 4: Sentinel-1 and Sentinel-2
+
+    Args:
+        root_dir: Root directory of the dataset
+        df: DataFrame containing metadata
+        sample_idx: Sample index to visualize
+        output_path: Path to save the visualization
+        figsize: Figure size as (width, height)
+        resize_factor: Factor to resize images for faster plotting
+    """
+    import numpy as np
+    import rasterio
+    from matplotlib.colors import ListedColormap
+    from skimage.transform import resize as sk_resize
+
+    sample_df = df[df["sample_idx"] == sample_idx].reset_index(drop=True)
+
+    if len(sample_df) >= 5:
+        planet_samples = sample_df.sample(n=5)
+    else:
+        planet_samples = sample_df
+
+    fig, axes = plt.subplots(4, 2, figsize=figsize)
+
+    planet_iter = iter(planet_samples.iterrows())
+
+    # First two rows: 4 Planet samples
+    for row in range(2):
+        for col in range(2):
+            try:
+                _, row_data = next(planet_iter)
+
+                planet_path = os.path.join(root_dir, row_data["planet_path"])
+                with rasterio.open(planet_path) as src:
+                    planet_data = src.read()
+
+                    if resize_factor is not None:
+                        new_h = int(planet_data.shape[1] * resize_factor)
+                        new_w = int(planet_data.shape[2] * resize_factor)
+                        resized_data = np.zeros((planet_data.shape[0], new_h, new_w))
+                        for b in range(planet_data.shape[0]):
+                            resized_data[b] = sk_resize(
+                                planet_data[b],
+                                (new_h, new_w),
+                                preserve_range=True,
+                                anti_aliasing=True,
+                            )
+                        planet_data = resized_data
+
+                    rgb = planet_data[[2, 1, 0]].transpose(1, 2, 0)
+                    rgb = percentile_normalization(rgb)
+
+                    axes[row, col].imshow(rgb)
+                    axes[row, col].set_title(f"Planet {row_data['planet_date']}")
+                    axes[row, col].axis("off")
+            except StopIteration:
+                axes[row, col].axis("off")
+
+    # Row 3: Last Planet sample and Label
+    try:
+        _, row_data = next(planet_iter)
+
+        planet_path = os.path.join(root_dir, row_data["planet_path"])
+        with rasterio.open(planet_path) as src:
+            planet_data = src.read()
+
+            if resize_factor is not None:
+                new_h = int(planet_data.shape[1] * resize_factor)
+                new_w = int(planet_data.shape[2] * resize_factor)
+                resized_data = np.zeros((planet_data.shape[0], new_h, new_w))
+                for b in range(planet_data.shape[0]):
+                    resized_data[b] = sk_resize(
+                        planet_data[b],
+                        (new_h, new_w),
+                        preserve_range=True,
+                        anti_aliasing=True,
+                    )
+                planet_data = resized_data
+
+            rgb = rgb = planet_data[[2, 1, 0]].transpose(1, 2, 0)
+            rgb = percentile_normalization(rgb)
+
+            print("SIZE", rgb.shape)
+
+            axes[2, 0].imshow(rgb)
+            axes[2, 0].set_title(f"Planet {row_data['planet_date']}")
+            axes[2, 0].axis("off")
+    except StopIteration:
+        axes[2, 0].axis("off")
+
+    # Label data
+    reference_row = sample_df.iloc[0]
+    label_path = os.path.join(root_dir, reference_row["label_path"])
+    with rasterio.open(label_path) as src:
+        label_data = src.read()
+
+        if resize_factor is not None:
+            new_h = int(label_data.shape[1] * resize_factor)
+            new_w = int(label_data.shape[2] * resize_factor)
+            resized_data = np.zeros((label_data.shape[0], new_h, new_w))
+            for b in range(label_data.shape[0]):
+                resized_data[b] = sk_resize(
+                    label_data[b],
+                    (new_h, new_w),
+                    preserve_range=True,
+                    anti_aliasing=True,
+                )
+            label_data = resized_data
+
+        land_cover = np.argmax(label_data, axis=0)
+
+        colors = [
+            "lightgreen",
+            "darkgreen",
+            "blue",
+            "gray",
+            "yellow",
+            "white",
+            "silver",
+        ]
+        cmap = ListedColormap(colors[: label_data.shape[0]])
+
+        axes[2, 1].imshow(land_cover, cmap=cmap, vmin=0, vmax=label_data.shape[0] - 1)
+        axes[2, 1].set_title("Land Cover")
+        axes[2, 1].axis("off")
+
+    # Row 4: S1 and S2
+    s1_path = os.path.join(root_dir, reference_row["s1_path"])
+    with rasterio.open(s1_path) as src:
+        s1_data = src.read()
+
+        if resize_factor is not None:
+            new_h = int(s1_data.shape[1] * resize_factor)
+            new_w = int(s1_data.shape[2] * resize_factor)
+            resized_data = np.zeros((s1_data.shape[0], new_h, new_w))
+            for b in range(s1_data.shape[0]):
+                resized_data[b] = sk_resize(
+                    s1_data[b], (new_h, new_w), preserve_range=True, anti_aliasing=True
+                )
+            s1_data = resized_data
+
+        vv = s1_data[0]
+        vh = s1_data[4] if s1_data.shape[0] > 4 else s1_data[1]
+
+        s1_rgb = np.stack([vv, vh, vv - vh], axis=2)
+        s1_rgb = percentile_normalization(s1_rgb)
+
+        axes[3, 0].imshow(s1_rgb)
+        axes[3, 0].set_title("Sentinel-1")
+        axes[3, 0].axis("off")
+
+    s2_path = os.path.join(root_dir, reference_row["s2_path"])
+    with rasterio.open(s2_path) as src:
+        s2_data = src.read()
+
+        if resize_factor is not None:
+            new_h = int(s2_data.shape[1] * resize_factor)
+            new_w = int(s2_data.shape[2] * resize_factor)
+            resized_data = np.zeros((s2_data.shape[0], new_h, new_w))
+            for b in range(s2_data.shape[0]):
+                resized_data[b] = sk_resize(
+                    s2_data[b], (new_h, new_w), preserve_range=True, anti_aliasing=True
+                )
+            s2_data = resized_data
+
+        s2_rgb = np.stack([s2_data[3], s2_data[2], s2_data[1]], axis=2)
+        s2_rgb = percentile_normalization(s2_rgb)
+
+        axes[3, 1].imshow(s2_rgb)
+        axes[3, 1].set_title("Sentinel-2")
+        axes[3, 1].axis("off")
+
+    plt.tight_layout()
+    fig.suptitle(
+        f"DynamicEarthNet Sample: {sample_df.iloc[0]['new_id']}", fontsize=14, y=0.98
+    )
+
+    if output_path:
+        plt.savefig(output_path, dpi=150, bbox_inches="tight")
+        print(f"Visualization saved to {output_path}")
+
+    plt.show()
+
+    return fig
