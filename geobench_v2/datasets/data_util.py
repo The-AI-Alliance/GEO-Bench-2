@@ -253,7 +253,7 @@ class DataUtilsMixin(ABC):
                         channel = source_data[idx : idx + 1]
                 channels.append(channel)
 
-            shape = list(next(iter(data.values())).shape)
+            shape = source_data.shape
             if len(shape) == 4:  # handle time series case
                 output[f"image_{modality}"] = torch.cat(channels, dim=1)
             else:  # assume [C, H, W]

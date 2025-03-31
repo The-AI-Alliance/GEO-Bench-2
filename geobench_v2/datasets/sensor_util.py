@@ -800,6 +800,96 @@ class DatasetBandRegistry:
         native_resolution=10,
     )
 
+    # has rgbn planet imagery, 8 sentinel 1 bands and 12 sentinel 2 bands
+    DYNAMICEARTHNET = MultiModalConfig(
+        modalities={
+            "planet": ModalityConfig(
+                bands={
+                    "r": BandConfig("red", ["r", "red", "RED"], wavelength=0.665),
+                    "g": BandConfig("green", ["g", "green", "GREEN"], wavelength=0.560),
+                    "b": BandConfig("blue", ["b", "blue", "BLUE"], wavelength=0.490),
+                    "nir": BandConfig(
+                        "nir", ["nir", "NIR", "near_infrared"], wavelength=0.842
+                    ),
+                },
+                # the nativ order in the dataset is
+                # https://github.com/aysim/dynnet/blob/1e7d90294b54f52744ae2b35db10b4d0a48d093d/data/utae_dynamicen.py#L105
+                # order of bands is BGRN,
+                default_order=["b", "g", "r", "nir"],
+            ),
+            # except B9
+            "s2": ModalityConfig(
+                bands={
+                    band: config
+                    for band, config in SensorBandRegistry.SENTINEL2.bands.items()
+                    if band != "B09"
+                },
+                default_order=[
+                    "B01",
+                    "B02",
+                    "B03",
+                    "B04",
+                    "B05",
+                    "B06",
+                    "B07",
+                    "B08",
+                    "B8A",
+                    "B11",
+                    "B12",
+                ],
+            ),
+            # TODO wait for inof
+            # "s1": ModalityConfig(
+            #     bands={
+            #         "VV": BandConfig("vv", ["co_pol"], wavelength=0.056, resolution=10),
+            #         "VH": BandConfig("vh", ["cross_pol"], wavelength=0.056, resolution=10),
+            #     },
+            #     default_order=["VV", "VH"],
+            #     native_resolution=10,
+            # ),
+        },
+        default_order=[
+            "r",
+            "g",
+            "b",
+            "nir",
+            "B01",
+            "B02",
+            "B03",
+            "B04",
+            "B05",
+            "B06",
+            "B07",
+            "B08",
+            "B8A",
+            "B11",
+            "B12",
+        ],
+        band_to_modality={
+            "r": "planet",
+            "g": "planet",
+            "b": "planet",
+            "nir": "planet",
+            **{
+                band: "s2"
+                for band in [
+                    "B01",
+                    "B02",
+                    "B03",
+                    "B04",
+                    "B05",
+                    "B06",
+                    "B07",
+                    "B08",
+                    "B8A",
+                    "B10",
+                    "B11",
+                    "B12",
+                ]
+            },
+        },
+    )
+
     @classmethod
     def get_dataset_config(
         cls, dataset_name: str
