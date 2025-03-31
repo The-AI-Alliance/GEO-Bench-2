@@ -18,6 +18,7 @@ from .kuro_siwo import GeoBenchKuroSiwo
 from .treesatai import GeoBenchTreeSatAI
 from .biomassters import GeoBenchBioMassters
 from .mados import GeoBenchMADOS
+from .dynamic_earthnet import GeoBenchDynamicEarthNet
 
 __all__ = (
     "GeoBenchCaFFe",
@@ -35,4 +36,5 @@ __all__ = (
     "GeoBenchTreeSatAI",
     "GeoBenchBioMassters",
     "GeoBenchMADOS",
+    "GeoBenchDynamicEarthNet",
 )
