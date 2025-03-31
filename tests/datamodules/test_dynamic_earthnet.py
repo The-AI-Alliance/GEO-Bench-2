@@ -47,8 +47,15 @@ class TestDynamicEarthNetDataModule:
         assert "image_s2" in batch
         assert "image_planet" in batch
 
-        import pdb
+        assert batch["image_planet"].shape[1] == 6
+        assert batch["image_planet"].shape[2] == len(multimodal_band_order["planet"])
+        assert batch["image_planet"].shape[3] == 74
+        assert batch["image_planet"].shape[4] == 74
 
-        pdb.set_trace()
+        assert batch["image_s2"].shape[1] == len(multimodal_band_order["s2"])
+        assert batch["image_s2"].shape[2] == 74
+        assert batch["image_s2"].shape[3] == 74
 
-        print(0)
+        assert batch["mask"].shape[1] == 1
+        assert batch["mask"].shape[2] == 74
+        assert batch["mask"].shape[3] == 74

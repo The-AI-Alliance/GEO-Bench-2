@@ -15,10 +15,9 @@ import matplotlib.pyplot as plt
 
 import torch
 from .base import GeoBenchSegmentationDataModule
+from .utils import TimeSeriesResize
 import torch.nn as nn
 from torch import Tensor
-
-
 
 
 # TODO add timeseries argument
@@ -96,3 +95,14 @@ class GeoBenchDynamicEarthNetDataModule(GeoBenchSegmentationDataModule):
     def visualize_geolocation_distribution(self) -> None:
         """Visualize the geolocation distribution of the dataset."""
         pass
+
+    def setup_image_size_transforms(self) -> tuple[nn.Module, nn.Module, nn.Module]:
+        """Setup image resizing transforms for train, val, test.
+
+        Image resizing and normalization happens on dataset level on individual data samples.
+        """
+        return (
+            TimeSeriesResize(self.img_size),
+            TimeSeriesResize(self.img_size),
+            TimeSeriesResize(self.img_size),
+        )

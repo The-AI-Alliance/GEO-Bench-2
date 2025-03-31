@@ -213,7 +213,7 @@ class GeoBenchDynamicEarthNet(GeoBenchBaseDataset):
             else:
                 mask[label[i, :, :] == 255] = i
 
-        sample["mask"] = mask
+        sample["mask"] = mask.unsqueeze(0)
 
         if self.transforms is not None:
             sample = self.transforms(sample)
