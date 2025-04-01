@@ -61,22 +61,10 @@ class GeoBenchBioMassters(GeoBenchBaseDataset):
         },
     }
 
-    band_default_order = (
-        "VV_asc",
-        "VH_asc",
-        "VV_desc",
-        "VH_desc",
-        "B02",
-        "B03",
-        "B04",
-        "B05",
-        "B06",
-        "B07",
-        "B08",
-        "B8A",
-        "B11",
-        "B12",
-    )
+    band_default_order = {
+        "s1": {"VV_asc", "VH_asc", "VV_desc", "VH_desc"},
+        "s2": {"B02", "B03", "B04", "B05", "B06", "B07", "B08", "B8A", "B11", "B12"},
+    }
 
     paths = [
         "BioMassters.0000.part.tortilla",
@@ -108,7 +96,6 @@ class GeoBenchBioMassters(GeoBenchBaseDataset):
         data_normalizer: Type[nn.Module] = MultiModalNormalizer,
         transforms: nn.Module | None = None,
         num_time_steps: int = 1,
-        **kwargs,
     ) -> None:
         """Initialize BioMassters dataset.
 
@@ -179,16 +166,20 @@ class GeoBenchBioMassters(GeoBenchBaseDataset):
             # for single time step only return [C, H, W]
             if self.num_time_steps == 1:
                 s1_data = s1_data[0]
+
+            # replace -9999 with 0
+            s1_mask = s1_data == -9999
+            s1_data[s1_mask] = 0.0
             img_dict["s1"] = s1_data
 
         if "s2" in self.band_order:
-            sample_s1_row = sample_row[sample_row["modality"] == "S1"]
+            sample_s1_row = sample_row[sample_row["modality"] == "S2"]
             s2_data = []
             for i in sample_s1_row.index[: self.num_time_steps]:
                 s2_step = sample_row.read(i)
                 with rasterio.open(s2_step) as src:
                     img = src.read()
-                img = torch.from_numpy(img)
+                img = torch.from_numpy(img).float()
 
                 s2_data.append(img)
 
@@ -196,7 +187,7 @@ class GeoBenchBioMassters(GeoBenchBaseDataset):
 
             if s2_data.shape[0] < self.num_time_steps:
                 padding = torch.zeros(
-                    self.num_time_steps - s2_data.shape[0], *img.shape[1:]
+                    self.num_time_steps - s2_data.shape[0], *s2_data.shape[1:]
                 )
                 s2_data = torch.cat((padding, s2_data), dim=0)
 
@@ -208,6 +199,11 @@ class GeoBenchBioMassters(GeoBenchBaseDataset):
 
         img_dict = self.rearrange_bands(img_dict, self.band_order)
         img_dict = self.data_normalizer(img_dict)
+
+        # after normalization replace the no-data pixels with 0 again
+        # TODO should this also be done for the s2 data?
+        if "s1" in self.band_order:
+            img_dict["image_s1"][s1_mask] = 0.0
 
         sample.update(img_dict)
 

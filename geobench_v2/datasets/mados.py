@@ -41,32 +41,39 @@ class GeoBenchMADOS(GeoBenchBaseDataset):
         "B12",
     )
 
+    # https://github.com/gkakogeorgiou/mados/blob/c20a7e972bdf111126540d8e6caa45808352f138/utils/dataset.py#L29
+    # bands_mean = np.array([0.0582676,  0.05223386, 0.04381474, 0.0357083,  0.03412902, 0.03680401,
+    # 0.03999107, 0.03566642, 0.03965081, 0.0267993,  0.01978944]).astype('float32')
+
+    # bands_std = np.array([0.03240627, 0.03432253, 0.0354812,  0.0375769,  0.03785412, 0.04992323,
+    # 0.05884482, 0.05545856, 0.06423746, 0.04211187, 0.03019115]).astype('float32')
+
     normalization_stats = {
         "means": {
-            "B01": 0.0,
-            "B02": 0.0,
-            "B03": 0.0,
-            "B04": 0.0,
-            "B05": 0.0,
-            "B06": 0.0,
-            "B07": 0.0,
-            "B08": 0.0,
-            "B8A": 0.0,
-            "B11": 0.0,
-            "B12": 0.0,
+            "B01": 0.0582676,
+            "B02": 0.05223386,
+            "B03": 0.04381474,
+            "B04": 0.0357083,
+            "B05": 0.03412902,
+            "B06": 0.03680401,
+            "B07": 0.03999107,
+            "B08": 0.03566642,
+            "B8A": 0.03965081,
+            "B11": 0.0267993,
+            "B12": 0.01978944,
         },
         "stds": {
-            "B01": 1.0,
-            "B02": 1.0,
-            "B03": 1.0,
-            "B04": 1.0,
-            "B05": 1.0,
-            "B06": 1.0,
-            "B07": 1.0,
-            "B08": 1.0,
-            "B8A": 1.0,
-            "B11": 1.0,
-            "B12": 1.0,
+            "B01": 0.03240627,
+            "B02": 0.03432253,
+            "B03": 0.0354812,
+            "B04": 0.0375769,
+            "B05": 0.03785412,
+            "B06": 0.04992323,
+            "B07": 0.05884482,
+            "B08": 0.05545856,
+            "B8A": 0.06423746,
+            "B11": 0.04211187,
+            "B12": 0.03019115,
         },
     }
 
@@ -91,6 +98,8 @@ class GeoBenchMADOS(GeoBenchBaseDataset):
         "Sea snot",
     )
 
+    num_classes = len(classes)
+
     def __init__(
         self,
         root: Path,
@@ -113,9 +122,6 @@ class GeoBenchMADOS(GeoBenchBaseDataset):
                 which applies z-score normalization to each band.
             transforms:
             **kwargs: Additional keyword arguments passed to ``torchgeo.datasets.MADOS``
-
-        Raises:
-            AssertionError: If the number of time steps is greater than 12
         """
         super().__init__(
             root=root,
@@ -124,12 +130,6 @@ class GeoBenchMADOS(GeoBenchBaseDataset):
             data_normalizer=data_normalizer,
             transforms=transforms,
         )
-
-        # data does not have georeferencing information, yet is a Gtiff, that the tacoreader can only read with rasterio
-        import warnings
-        from rasterio.errors import NotGeoreferencedWarning
-
-        warnings.filterwarnings("ignore", category=NotGeoreferencedWarning)
 
     def __getitem__(self, idx: int) -> dict[str, Tensor]:
         """Return an index within the dataset.
@@ -149,7 +149,6 @@ class GeoBenchMADOS(GeoBenchBaseDataset):
                 array = dataset.read(
                     indexes=1, out_shape=(240, 240), resampling=Resampling.bilinear
                 )
-                print(array.dtype)
                 images.append(array)
 
         images = torch.from_numpy(np.stack(images)).float()

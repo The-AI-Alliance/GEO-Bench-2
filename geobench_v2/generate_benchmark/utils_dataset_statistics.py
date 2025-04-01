@@ -4,23 +4,39 @@
 """Utilities for computing and storing input and target statistics."""
 
 import os
-from typing import Dict, List, Any, Optional, Union, Tuple, Callable
+from typing import Any, Optional, Union, Tuple, Callable
 import numpy as np
 import pandas as pd
 import torch
+import torch.nn as nn
 from torch.utils.data import DataLoader, Dataset
 from tqdm.auto import tqdm
 import matplotlib.pyplot as plt
 import seaborn as sns
+from lightning import LightningDataModule
+
+
 from torch import Tensor
 from abc import ABC, abstractmethod
 
 from geobench_v2.datasets.sensor_util import DatasetBandRegistry
 
 
+class NoNormalization(nn.Module):
+    """No normalization applied to the input batch, used to replace
+    the datamodule or dataset normalization scheme to compute original stas
+    """
+
+    def __init__(self, stats, band_order):
+        super().__init__()
+
+    def forward(self, batch: dict[str, Tensor]) -> Tensor:
+        return batch
+
+
 # Using Caleb Robinson's implementation: https://gist.github.com/calebrob6/1ef1e64bd62b1274adf2c6f91e20d215
 class ImageSatistics(torch.nn.Module):
-    def __init__(self, shape, dims):
+    def __init__(self, shape, dims, bins=1000, range_vals=(0, 100)):
         """Initializes the ImageSatistics method.
 
         A PyTorch module that can be put on the GPU and calculate the multidimensional
@@ -39,7 +55,7 @@ class ImageSatistics(torch.nn.Module):
         rs = ImageSatistics((12,), [0, 2, 3])
         for inputs, _ in dataloader:
             rs(inputs)
-        print(rs.mean)
+        rs.mean)
         print(rs.var)
         print(rs.std)
         ```
@@ -59,6 +75,9 @@ class ImageSatistics(torch.nn.Module):
         self.register_buffer("std", torch.ones(shape))
         self.register_buffer("count", torch.zeros(1))
         self.dims = dims
+        self.bins = bins
+        self.range_min, self.range_max = range_vals
+        self.register_buffer("hist", torch.zeros(shape[0], bins))
 
     def update(self, x: Tensor) -> None:
         """Update the mean and variance with a new batch of inputs.
@@ -98,6 +117,27 @@ class ImageSatistics(torch.nn.Module):
             self.min = torch.min(self.min, min_vals)
             self.max = torch.max(self.max, max_vals)
 
+            # compute channel histograms
+            # Determine the channel dimension as the unique dimension not in dims.
+            all_dims = set(range(x.ndim))
+            dims_set = set(self.dims)
+            channel_dims = list(all_dims - dims_set)
+            if len(channel_dims) != 1:
+                raise ValueError(
+                    "Could not determine unique channel dimension from dims."
+                )
+            channel_dim = channel_dims[0]
+            channels = self.hist.shape[0]
+
+            # Loop over channels to compute histogram for each.
+            for i in range(channels):
+                channel_data = x.select(dim=channel_dim, index=i).flatten()
+                # Compute the histogram of the channel's data.
+                hist_channel = torch.histc(
+                    channel_data, bins=self.bins, min=self.range_min, max=self.range_max
+                )
+                self.hist[i] += hist_channel
+
     def forward(self, x: Tensor) -> Tensor:
         """Update the statistics with a new batch of inputs and return the inputs.
 
@@ -107,18 +147,24 @@ class ImageSatistics(torch.nn.Module):
         self.update(x)
         return x
 
+    def extra_repr(self) -> str:
+        """Return a string representation of the ImageSatistics object."""
+        return (
+            f"ImageSatistics(mean={self.mean}, var={self.var}, std={self.std}, "
+            f"min={self.min}, max={self.max}, count={self.count}, bins={self.bins}, dims={self.dims})"
+        )
+
 
 class DatasetStatistics(ABC):
     """Base class for computing dataset statistics."""
 
     def __init__(
         self,
-        dataset: Dataset,
-        dataset_band_config: DatasetBandRegistry,
+        datamodule: LightningDataModule,
+        bins: int = 500,
+        range_vals: dict[str, tuple[float, float]] | tuple[float, float] = (0.0, 1.0),
         input_keys: list[str] = ["image"],
         target_key: str = "label",
-        batch_size: int = 32,
-        num_workers: int = 4,
         device: str = "cpu",
         save_dir: Optional[str] = None,
         **kwargs,
@@ -126,24 +172,20 @@ class DatasetStatistics(ABC):
         """Initialize statistics computer.
 
         Args:
-            dataset: Dataset to analyze
-            dataset_band_config: Band configuration for the dataset
+            datamodule: lightning datamodule which will choose train loader for statistics
+            bins: Number of bins for histogram
+            range_vals: Range for histogram
             input_keys: Keys for input data in batch dict, can compute statistics for multi-modal inputs
-            target_key: Key for target data in batch dict, assume only single target
-            batch_size: Batch size for dataloader
-            num_workers: Number of workers for dataloader
             device: Device for computation
             save_dir: Directory to save statistics
             **kwargs: Additional task-specific arguments
         """
-        self.dataset = dataset
-        self.dataset_band_config = dataset_band_config
         self.input_keys = input_keys
         self.target_key = target_key
-        self.batch_size = batch_size
-        self.num_workers = num_workers
         self.device = device
         self.save_dir = save_dir
+        self.bins = bins
+        self.range_vals = range_vals
 
         for key, value in kwargs.items():
             setattr(self, key, value)
@@ -151,19 +193,18 @@ class DatasetStatistics(ABC):
         if self.save_dir:
             os.makedirs(self.save_dir, exist_ok=True)
 
-        self.dataloader = DataLoader(
-            dataset,
-            batch_size=self.batch_size,
-            num_workers=self.num_workers,
-            shuffle=False,
-            pin_memory=True if self.device == "cuda" else False,
-        )
+        datamodule.setup("fit")
 
+        self.datamodule = datamodule
+
+        self.dataset_band_config = datamodule.dataset_band_config
+
+        self.dataloader = datamodule.train_dataloader()
         self.input_stats = {key: {} for key in self.input_keys}
 
     def compute_batch_image_statistics(
-        self, batch: Dict[str, Tensor]
-    ) -> Dict[str, Dict[str, Any]]:
+        self, batch: dict[str, Tensor]
+    ) -> dict[str, dict[str, Any]]:
         """Compute statistics for input data using ImageSatistics.
 
         Args:
@@ -178,7 +219,7 @@ class DatasetStatistics(ABC):
     @abstractmethod
     def compute_batch_target_statistics(
         self, targets: Tensor
-    ) -> Dict[str, Dict[str, Any]]:
+    ) -> dict[str, dict[str, Any]]:
         """Compute statistics for target data.
 
         Args:
@@ -187,11 +228,11 @@ class DatasetStatistics(ABC):
         pass
 
     @abstractmethod
-    def aggregate_target_statistics(self) -> Dict[str, Dict[str, Any]]:
+    def aggregate_target_statistics(self) -> dict[str, dict[str, Any]]:
         """Aggregate target statistics."""
         pass
 
-    def aggregate_image_statistics(self) -> Dict[str, Dict[str, Any]]:
+    def aggregate_image_statistics(self) -> dict[str, dict[str, Any]]:
         """Aggregate image input statistics."""
         for key in self.running_stats:
             stats = self.running_stats[key]
@@ -203,6 +244,49 @@ class DatasetStatistics(ABC):
                     "count": stats.count.cpu().item(),
                 }
             )
+        band_order = self.datamodule.band_order
+
+        return self.input_stats
+
+    def aggregate_image_statistics(self) -> dict[str, dict[str, Any]]:
+        """Aggregate image input statistics."""
+        # Extract statistics from running_stats
+        for key in self.running_stats:
+            stats = self.running_stats[key]
+            self.input_stats[key].update(
+                {
+                    "mean": stats.mean.cpu().numpy(),
+                    "std": stats.std.cpu().numpy(),
+                    "var": stats.var.cpu().numpy(),
+                    "min": stats.min.cpu().numpy(),
+                    "max": stats.max.cpu().numpy(),
+                    "count": stats.count.cpu().item(),
+                    "histograms": stats.hist.cpu().numpy(),
+                    "histogram_bins": torch.linspace(
+                        stats.range_min, stats.range_max, stats.bins + 1
+                    )
+                    .cpu()
+                    .numpy(),
+                }
+            )
+
+        # # Add band names and modality info using band_order
+        # band_order = self.datamodule.band_order
+
+        # # explicit format
+        # input_band_stats = {}
+        # if isinstance(band_order, dict):
+        #     # Multi-modal case
+        #     for key in self.input_keys:
+        #         # Extract modality from key (e.g., "image_s1" -> "s1")
+        #         if "_" in key:
+        #             modality = key.split("_", 1)[1]
+        #             # band names for the specific modality
+        #             band_names = band_order.get(modality, [])
+        # else:
+        #     # Single modality case
+        #     for key in self.input_keys:
+        #         self.input_stats[key]["band_names"] = list(band_order)
 
         return self.input_stats
 
@@ -216,11 +300,11 @@ class DatasetStatistics(ABC):
         """
         return self.aggregate_image_statistics(), self.aggregate_target_statistics()
 
-    def compute_statistics(self) -> Dict[str, Dict[str, Any]]:
+    def compute_statistics(self) -> dict[str, dict[str, Any]]:
         """Compute statistics for input data using ImageSatistics.
 
         Returns:
-            Dictionary with input statistics for each input key
+            dictionary with input statistics for each input key
         """
         self.running_stats: dict[str, ImageSatistics] = {}
 
@@ -228,13 +312,40 @@ class DatasetStatistics(ABC):
             batch = next(iter(self.dataloader))
             input_data = batch[key]
 
-            if input_data.dim() == 4:
-                band_names = (
-                    self.dataset_band_config.get_band_names()
-                    if hasattr(self.dataset_band_config, "get_band_names")
-                    else None
+            if input_data.dim() == 5:
+                # 5D input data (e.g., time series), assume [B, T, C, H, W]
+                band_order = self.datamodule.band_order
+                if key.strip("image_") in band_order:
+                    band_names = band_order[key.strip("image_")]
+                else:
+                    band_names = band_order
+                num_channels = input_data.size(2)
+
+                assert len(band_names) == num_channels, (
+                    f"Band names length {len(band_names)} does not match number of channels {num_channels} for key {key}"
                 )
+
+                if band_names and len(band_names) == num_channels:
+                    self.input_stats[key]["band_names"] = band_names
+
+                shape = (num_channels,)
+                dims = [0, 1, 3, 4]
+                import pdb
+
+                pdb.set_trace()
+
+            elif input_data.dim() == 4:
+                # assume [B, C, H, W]
+                band_order = self.datamodule.band_order
+                if key.strip("image_") in band_order:
+                    band_names = band_order[key.strip("image_")]
+                else:
+                    band_names = band_order
                 num_channels = input_data.size(1)
+
+                assert len(band_names) == num_channels, (
+                    f"Band names length {len(band_names)} does not match number of channels {num_channels} for key {key}"
+                )
 
                 if band_names and len(band_names) == num_channels:
                     self.input_stats[key]["band_names"] = band_names
@@ -254,27 +365,31 @@ class DatasetStatistics(ABC):
                     shape = (1,)
                     dims = [0]
 
-            self.running_stats[key] = ImageSatistics(shape, dims).to(self.device)
+            self.running_stats[key] = ImageSatistics(
+                shape, dims, bins=self.bins, range_vals=self.range_vals[key]
+            ).to(self.device)
 
+        i = 0
         for batch in tqdm(self.dataloader, desc="Computing dataset statistics"):
             self.compute_batch_image_statistics(batch)
             self.compute_batch_target_statistics(batch[self.target_key])
+            i += 1
+            if i > 5:
+                break
 
         return self.aggregate_statistics()
 
 
-class ClassificationDatasetStatistics(DatasetStatistics):
+class ClassificationStatistics(DatasetStatistics):
     """Compute statistics for a classification dataset."""
 
     def __init__(
         self,
-        dataset: Dataset,
-        dataset_band_config: DatasetBandRegistry,
-        num_classes: int,
+        datamodule: LightningDataModule,
+        bins: int = 500,
+        range_vals: tuple[float, float] = (0.0, 1.0),
         input_keys: list[str] = ["image"],
         target_key: str = "label",
-        batch_size: int = 32,
-        num_workers: int = 4,
         device: str = "cpu",
         save_dir: Optional[str] = None,
         **kwargs,
@@ -282,35 +397,31 @@ class ClassificationDatasetStatistics(DatasetStatistics):
         """Initialize classification statistics computer.
 
         Args:
-            dataset: Dataset to analyze
-            dataset_band_config: Band configuration for the dataset
+            datamodule
             num_classes: Number of classes
             input_keys: Keys for input data in batch dict, can compute statistics for multi-modal inputs
             target_key: Key for target data in batch dict, assume only single target
-            batch_size: Batch size for dataloader
-            num_workers: Number of workers for dataloader
             device: Device for computation
             save_dir: Directory to save statistics
             **kwargs: Additional task-specific arguments
         """
         super().__init__(
-            dataset=dataset,
-            dataset_band_config=dataset_band_config,
+            datamodule=datamodule,
+            bins=bins,
+            range_vals=range_vals,
             input_keys=input_keys,
             target_key=target_key,
-            batch_size=batch_size,
-            num_workers=num_workers,
             device=device,
             save_dir=save_dir,
             **kwargs,
         )
-        self.num_classes = num_classes
+        self.num_classes = datamodule.num_classes
         self.class_counts = torch.zeros(self.num_classes, device=self.device)
         self.total_samples = 0
 
     def compute_batch_target_statistics(
         self, targets: Tensor
-    ) -> Dict[str, Dict[str, Any]]:
+    ) -> dict[str, dict[str, Any]]:
         """Compute classification statistics for target data.
 
         Args:
@@ -322,7 +433,7 @@ class ClassificationDatasetStatistics(DatasetStatistics):
 
         self.total_samples += targets.shape[0]
 
-    def aggregate_target_statistics(self) -> Dict[str, Dict[str, Any]]:
+    def aggregate_target_statistics(self) -> dict[str, dict[str, Any]]:
         """Aggregate classification target statistics."""
         class_frequencies = self.class_counts.float() / self.total_samples
         self.target_stats = {
@@ -334,18 +445,16 @@ class ClassificationDatasetStatistics(DatasetStatistics):
         return self.target_stats
 
 
-class SegmentationDatasetStatistics(DatasetStatistics):
+class SegmentationStatistics(DatasetStatistics):
     """Compute statistics for a segmentation dataset."""
 
     def __init__(
         self,
-        dataset: Dataset,
-        dataset_band_config: DatasetBandRegistry,
-        num_classes: int,
+        datamodule: LightningDataModule,
+        bins: int = 500,
+        range_vals: tuple[float, float] = (0.0, 1.0),
         input_keys: list[str] = ["image"],
         target_key: str = "mask",
-        batch_size: int = 16,
-        num_workers: int = 4,
         device: str = "cpu",
         save_dir: Optional[str] = None,
         **kwargs,
@@ -353,29 +462,24 @@ class SegmentationDatasetStatistics(DatasetStatistics):
         """Initialize segmentation statistics computer.
 
         Args:
-            dataset: Dataset to analyze
-            dataset_band_config: Band configuration for the dataset
-            num_classes: Number of classes
+            datamodule:
             input_keys: Keys for input data in batch dict
             target_key: Key for target data in batch dict (typically 'mask')
-            batch_size: Batch size for dataloader
-            num_workers: Number of workers for dataloader
             device: Device for computation
             save_dir: Directory to save statistics
             **kwargs: Additional task-specific arguments
         """
         super().__init__(
-            dataset=dataset,
-            dataset_band_config=dataset_band_config,
+            datamodule=datamodule,
+            bins=bins,
+            range_vals=range_vals,
             input_keys=input_keys,
             target_key=target_key,
-            batch_size=batch_size,
-            num_workers=num_workers,
             device=device,
             save_dir=save_dir,
             **kwargs,
         )
-        self.num_classes = num_classes
+        self.num_classes = datamodule.num_classes
         self.pixel_counts = torch.zeros(self.num_classes, device=self.device)
         self.class_presence = torch.zeros(self.num_classes, device=self.device)
         self.total_pixels = 0
@@ -383,7 +487,7 @@ class SegmentationDatasetStatistics(DatasetStatistics):
 
     def compute_batch_target_statistics(
         self, targets: Tensor
-    ) -> Dict[str, Dict[str, Any]]:
+    ) -> dict[str, dict[str, Any]]:
         """Compute segmentation statistics for target data.
 
         Args:
@@ -408,7 +512,7 @@ class SegmentationDatasetStatistics(DatasetStatistics):
             self.total_pixels += mask.numel()
             self.total_images += 1
 
-    def aggregate_target_statistics(self) -> Dict[str, Dict[str, Any]]:
+    def aggregate_target_statistics(self) -> dict[str, dict[str, Any]]:
         """Aggregate segmentation target statistics."""
         pixel_distribution = (
             self.pixel_counts.float() / self.total_pixels
@@ -431,4 +535,82 @@ class SegmentationDatasetStatistics(DatasetStatistics):
             "num_classes": self.num_classes,
         }
 
+        return self.target_stats
+
+
+class PxRegressionStatistics(DatasetStatistics):
+    """Compute statistics for a pixel regression dataset."""
+
+    def __init__(
+        self,
+        datamodule: LightningDataModule,
+        bins: int = 500,
+        range_vals: tuple[float, float] = (0.0, 1.0),
+        target_range_vals: tuple[float, float] = (0.0, 1.0),
+        input_keys: list[str] = ["image"],
+        target_key: str = "label",
+        device: str = "cpu",
+        save_dir: Optional[str] = None,
+        **kwargs,
+    ):
+        """Initialize pixel regression statistics computer.
+
+        Args:
+            datamodule
+            input_keys: Keys for input data in batch dict
+            target_key: Key for target data in batch dict
+            bins: Number of bins for histogram
+            range_vals: Range for histogram
+            target_range_vals: Range for target histogram
+            device: Device for computation
+            save_dir: Directory to save statistics
+            **kwargs: Additional task-specific arguments
+        """
+        super().__init__(
+            datamodule=datamodule,
+            bins=bins,
+            range_vals=range_vals,
+            input_keys=input_keys,
+            target_key=target_key,
+            device=device,
+            save_dir=save_dir,
+            **kwargs,
+        )
+        self.target_range_vals = target_range_vals
+        self.target_stats = ImageSatistics(
+            shape=(1,),
+            dims=[0, 2, 3],
+            bins=self.bins,
+            range_vals=self.target_range_vals,
+        ).to(self.device)
+
+    def compute_batch_target_statistics(
+        self, targets: Tensor
+    ) -> dict[str, dict[str, Any]]:
+        """Compute pixel regression statistics for target data.
+
+        Args:
+            targets: Target data tensor
+        """
+        targets = targets.to(self.device)
+        self.target_stats.update(targets)
+
+    def aggregate_target_statistics(self) -> dict[str, dict[str, Any]]:
+        """Aggregate pixelwise regression target statistics."""
+        self.target_stats = {
+            "mean": self.target_stats.mean.cpu().numpy(),
+            "std": self.target_stats.std.cpu().numpy(),
+            "var": self.target_stats.var.cpu().numpy(),
+            "min": self.target_stats.min.cpu().numpy(),
+            "max": self.target_stats.max.cpu().numpy(),
+            "count": self.target_stats.count.cpu().item(),
+            "histograms": self.target_stats.hist.cpu().numpy(),
+            "histogram_bins": torch.linspace(
+                self.target_stats.range_min,
+                self.target_stats.range_max,
+                self.target_stats.bins + 1,
+            )
+            .cpu()
+            .numpy(),
+        }
         return self.target_stats
