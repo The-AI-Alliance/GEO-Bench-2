@@ -33,8 +33,8 @@ class GeoBenchSpaceNet8(GeoBenchBaseDataset):
     dataset_band_config = DatasetBandRegistry.SPACENET8
 
     normalization_stats = {
-        "means": {"r": 0.0, "g": 0.0, "b": 0.0, "n": 0.0},
-        "stds": {"r": 255.0, "g": 255.0, "b": 255.0, "n": 255.0},
+        "means": {"r": 0.0, "g": 0.0, "b": 0.0, "nir": 0.0},
+        "stds": {"r": 255.0, "g": 255.0, "b": 255.0, "nir": 255.0},
     }
 
     band_default_order = ("red", "green", "blue", "nir")
