@@ -33,11 +33,11 @@ class GeoBenchSpaceNet8(GeoBenchBaseDataset):
     dataset_band_config = DatasetBandRegistry.SPACENET8
 
     normalization_stats = {
-        "means": {"r": 0.0, "g": 0.0, "b": 0.0, "n": 0.0},
-        "stds": {"r": 255.0, "g": 255.0, "b": 255.0, "n": 255.0},
+        "means": {"r": 0.0, "g": 0.0, "b": 0.0},
+        "stds": {"r": 255.0, "g": 255.0, "b": 255.0},
     }
 
-    band_default_order = ("red", "green", "blue", "nir")
+    band_default_order = ("red", "green", "blue")
 
     paths = ["SpaceNet8.tortilla"]
 
@@ -55,8 +55,8 @@ class GeoBenchSpaceNet8(GeoBenchBaseDataset):
         Args:
             root: Path to the dataset root directory
             split: The dataset split, supports 'train', 'val', 'test'
-            band_order: The order of bands to return, defaults to ['red', 'green', 'blue', 'nir'], if one would
-                specify ['red', 'green', 'blue', 'nir', 'nir'], the dataset would return images with 5 channels
+            band_order: The order of bands to return, defaults to ['red', 'green', 'blue'], if one would
+                specify ['red', 'green', 'blue', 'blue', 'blue'], the dataset would return images with 5 channels
                 in that order. This is useful for models that expect a certain band order, or
                 test the impact of band order on model performance.
             **kwargs: Additional keyword arguments passed to ``SpaceNet8``
