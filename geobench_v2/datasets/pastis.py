@@ -68,12 +68,12 @@ class GeoBenchPASTIS(PASTIS, DataUtilsMixin):
             "B8A": 3000.0,
             "B11": 3000.0,
             "B12": 3000.0,
-            "VV_asc": 3000.0,
-            "VH_asc": 3000.0,
-            "VV/VH_asc": 3000.0,
-            "VV_desc": 3000.0,
-            "VH_desc": 3000.0,
-            "VV/VH_desc": 3000.0,
+            "VV_asc": 1.0,
+            "VH_asc": 1.0,
+            "VV/VH_asc": 1.0,
+            "VV_desc": 1.0,
+            "VH_desc": 1.0,
+            "VV/VH_desc": 1.0,
         },
     }
 
