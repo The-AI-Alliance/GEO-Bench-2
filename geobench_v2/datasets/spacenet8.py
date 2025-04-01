@@ -33,8 +33,8 @@ class GeoBenchSpaceNet8(GeoBenchBaseDataset):
     dataset_band_config = DatasetBandRegistry.SPACENET8
 
     normalization_stats = {
-        "means": {"r": 0.0, "g": 0.0, "b": 0.0, "n": 0.0},
-        "stds": {"r": 255.0, "g": 255.0, "b": 255.0, "n": 255.0},
+        "means": {"r": 0.0, "g": 0.0, "b": 0.0, "nir": 0.0},
+        "stds": {"r": 255.0, "g": 255.0, "b": 255.0, "nir": 255.0},
     }
 
     band_default_order = ("red", "green", "blue", "nir")
@@ -82,10 +82,12 @@ class GeoBenchSpaceNet8(GeoBenchBaseDataset):
 
         sample_row = self.data_df.read(index)
 
+        print("reading data")
         pre_event_path = sample_row.read(0)
         post_event_path = sample_row.read(1)
         mask_path = sample_row.read(2)
-
+        
+        print("reading pre and post image")
         with (
             rasterio.open(pre_event_path) as pre_src,
             rasterio.open(post_event_path) as post_src,
@@ -95,22 +97,28 @@ class GeoBenchSpaceNet8(GeoBenchBaseDataset):
             post_image: np.ndarray = post_src.read(out_dtype="float32")
             mask: np.ndarray = mask_src.read()
 
+        print("reading from numpy")
         image_pre = torch.from_numpy(pre_image).float()
         image_post = torch.from_numpy(post_image).float()
         mask = torch.from_numpy(mask).long()
 
+        print("rearranging bands")
         image_pre = self.rearrange_bands(image_pre, self.band_order)
         image_pre = self.data_normalizer(image_pre)
         image_post = self.rearrange_bands(image_post, self.band_order)
         image_post = self.data_normalizer(image_post)
+
+        print("adding to sample ")
 
         sample["image_pre"] = image_pre["image"]
         sample["image_post"] = image_post["image"]
         # We add 1 to the mask to map the current {background, building} labels to
         # the values {1, 2}. This is necessary because we add 0 padding to the
         # mask that we want to ignore in the loss function.
+        print("adding to mask ")
         sample["mask"] = mask + 1
 
+        print("transforms")
         if self.transforms is not None:
             sample = self.transforms(sample)
 

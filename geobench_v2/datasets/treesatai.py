@@ -239,7 +239,19 @@ class GeoBenchTreeSatAI(GeoBenchBaseDataset):
                     -self.num_time_steps :
                 ]
 
-        return sample
+        stacked_image = []
+        for mod in self.band_order:
+            if mod == "s1":
+                stacked_image.append(sample["image_s1"])
+            if mod == "s2":
+                stacked_image.append(sample["image_s2"])
+            if mod == "aerial":
+                stacked_image.append(sample["image_aerial"])
+        output = {}
+        output["image"] = torch.cat(stacked_image, 0)
+        output["label"] = sample["label"] 
+
+        return output
 
     def _format_label(
         self, class_labels: list[str], dist_labels: list[float]

@@ -125,19 +125,31 @@ class GeoBenchKuroSiwo(GeoBenchBaseDataset):
             image = self.rearrange_bands({"sar": image}, self.band_order["sar"])
             normalized = self.data_normalizer({"image_sar": image["image"]})
             return normalized["image_sar"] * invalid_mask
+        
+        if "sar" in self.band_order:
+            sample["image_pre_1"] = process_sar_image(pre_event_1_vv, pre_event_1_vh)
+            sample["image_pre_2"] = process_sar_image(pre_event_2_vv, pre_event_2_vh)
+            sample["image_post"] = process_sar_image(post_event_vv, post_event_vh)
 
-        sample["image_pre_1"] = process_sar_image(pre_event_1_vv, pre_event_1_vh)
-        sample["image_pre_2"] = process_sar_image(pre_event_2_vv, pre_event_2_vh)
-        sample["image_post"] = process_sar_image(post_event_vv, post_event_vh)
-
-        image_dem = torch.from_numpy(dem)
-        image_dem = self.rearrange_bands({"dem": image_dem}, self.band_order["dem"])
-        image_dem = self.data_normalizer({"image_dem": image_dem["image"]})
-        sample["image_dem"] = image_dem["image_dem"] * invalid_mask
+        if "dem" in self.band_order:
+            image_dem = torch.from_numpy(dem)
+            image_dem = self.rearrange_bands({"dem": image_dem}, self.band_order["dem"])
+            image_dem = self.data_normalizer({"image_dem": image_dem["image"]})
+            sample["image_dem"] = image_dem["image_dem"] * invalid_mask
 
         sample["mask"] = torch.from_numpy(mask).long()
 
         if self.transforms is not None:
             sample = self.transforms(sample)
 
-        return sample
+        stacked_image = []
+        for mod in self.band_order:
+            if mod == "sar":
+                stacked_image.append(sample["image_post"])
+            if mod == "dem":
+                stacked_image.append(sample["image_dem"])
+        output = {}
+        output["image"] = torch.cat(stacked_image, 0)
+        output["mask"] =  sample["mask"] 
+
+        return output
