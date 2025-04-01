@@ -165,7 +165,11 @@ class DataUtilsMixin(ABC):
                         f"Available bands: {', '.join(source_lookup.keys())}"
                     )
                 idx = source_lookup[band_spec]
-                channel = data[idx : idx + 1]
+                if len(data.shape) == 4:
+                    # timeseries of [T, C, H, W]
+                    channel = data[:, idx : idx + 1]
+                else:  # assume [C, H, W]
+                    channel = data[idx : idx + 1]
             output_channels.append(channel)
 
         shape = data.shape
