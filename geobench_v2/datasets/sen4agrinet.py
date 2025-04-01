@@ -22,7 +22,10 @@ import h5py
 
 
 class GeoBenchSen4AgriNet(NonGeoDataset, DataUtilsMixin):
-    """Sen4AgriNet dataset."""
+    """Sen4AgriNet dataset.
+
+    Time-series crop classification dataset.
+    """
 
     classes = (
         "background/other",
@@ -192,6 +195,14 @@ class GeoBenchSen4AgriNet(NonGeoDataset, DataUtilsMixin):
                         align_corners=False,
                     ).squeeze(0)
 
+                if band_data.shape[0] < self.num_time_steps:
+                    padding = torch.zeros(
+                        self.num_time_steps - band_data.shape[0], *band_data.shape[1:]
+                    )
+                    band_data = torch.cat((padding, band_data), dim=0)
+                else:
+                    band_data = band_data[-self.num_time_steps :]
+
                 data.append(band_data)
 
             mask = torch.from_numpy(hdf5_data["labels"]["labels"][:]).long()
@@ -203,13 +214,6 @@ class GeoBenchSen4AgriNet(NonGeoDataset, DataUtilsMixin):
 
         # [T, C, H, W]
         data = torch.stack(data, dim=1)
-
-        if data.shape[0] < self.num_time_steps:
-            padding = torch.zeros(self.num_time_steps - data.shape[0], *data.shape[1:])
-            data = torch.cat((padding, data), dim=0)
-        else:
-            data = data[-self.num_time_steps :]
-
         # only return [C, H, W]
         if self.num_time_steps == 1:
             data = data.squeeze(0)

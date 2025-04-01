@@ -101,20 +101,34 @@ datamodules:
   #     range_vals:
   #       image: [0, 255]
 
-  - name: DynamicEarthNet
+  # - name: DynamicEarthNet
+  #   stats_computer:
+  #     _target_: geobench_v2.generate_benchmark.utils_dataset_statistics.SegmentationStatistics
+  #     datamodule:
+  #       _target_: geobench_v2.datamodules.GeoBenchDynamicEarthNetDataModule
+  #       batch_size: 16
+  #       num_workers: 0
+  #       root: "/mnt/rg_climate_benchmark/data/geobenchV2/dynamic_earthnet"
+  #       temporal_setting: "weekly"
+  #     input_keys: ["image_planet","image_s2"]
+  #     target_key: "mask"
+  #     range_vals:
+  #       image_planet: [0, 3000]
+  #       image_s2: [0, 3000]
+
+  - name: Sen4AgriNet
     stats_computer:
       _target_: geobench_v2.generate_benchmark.utils_dataset_statistics.SegmentationStatistics
       datamodule:
-        _target_: geobench_v2.datamodules.GeoBenchDynamicEarthNetDataModule
+        _target_: geobench_v2.datamodules.GeoBenchSen4AgriNetDataModule
         batch_size: 16
         num_workers: 0
-        root: "/mnt/rg_climate_benchmark/data/geobenchV2/dynamic_earthnet"
-        temporal_setting: "weekly"
-      input_keys: ["image_planet","image_s2"]
+        num_time_steps: 5
+        root: "/mnt/rg_climate_benchmark/data/geobenchV2/sen4agrinet"
+      input_keys: ["image"]
       target_key: "mask"
       range_vals:
-        image_planet: [0, 3000]
-        image_s2: [0, 3000]
+        image: [0, 10000]
 
   # - name: TreeSatAI
   #   stats_computer:
