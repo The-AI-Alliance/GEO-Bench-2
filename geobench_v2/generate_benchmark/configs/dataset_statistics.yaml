@@ -14,18 +14,122 @@ datamodules:
   #       image_s1: [-30, 30]
   #       image_s2: [0, 3000]
   #     target_range_vals: [0, 1000]
-  - name: MADOS
+  # - name: MADOS
+  #   stats_computer:
+  #     _target_: geobench_v2.generate_benchmark.utils_dataset_statistics.SegmentationStatistics
+  #     datamodule:
+  #       _target_: geobench_v2.datamodules.GeoBenchMADOSDataModule
+  #       batch_size: 16
+  #       num_workers: 0
+  #       root: "/mnt/rg_climate_benchmark/data/geobenchV2/mados"
+  #     input_keys: ["image"]
+  #     target_key: "mask"
+  #     range_vals:
+  #       image: [0, 0.2]
+  # - name: CaFFe
+  #   stats_computer:
+  #     _target_: geobench_v2.generate_benchmark.utils_dataset_statistics.SegmentationStatistics
+  #     datamodule:
+  #       _target_: geobench_v2.datamodules.GeoBenchCaFFeDataModule
+  #       batch_size: 16
+  #       num_workers: 0
+  #       root: "/mnt/rg_climate_benchmark/data/geobenchV2/caffe"
+  #     input_keys: ["image"]
+  #     target_key: "mask"
+  #     range_vals:
+  #       image: [0, 255]
+  # - name: FotW
+  #   stats_computer:
+  #     _target_: geobench_v2.generate_benchmark.utils_dataset_statistics.SegmentationStatistics
+  #     datamodule:
+  #       _target_: geobench_v2.datamodules.GeoBenchFieldsOfTheWorldDataModule
+  #       batch_size: 16
+  #       num_workers: 0
+  #       root: "/mnt/rg_climate_benchmark/data/geobenchV2/fotw"
+  #     input_keys: ["image"]
+  #     target_key: "mask"
+  #     range_vals:
+  #       image: [0, 3000]
+  # - name: SpaceNet6
+  #   stats_computer:
+  #     _target_: geobench_v2.generate_benchmark.utils_dataset_statistics.SegmentationStatistics
+  #     datamodule:
+  #       _target_: geobench_v2.datamodules.GeoBenchSpaceNet6DataModule
+  #       batch_size: 16
+  #       num_workers: 0
+  #       root: "/mnt/rg_climate_benchmark/data/geobenchV2/SpaceNet6"
+  #     input_keys: ["image_rgbn", "image_sar"]
+  #     target_key: "mask"
+  #     range_vals:
+  #       image_rgbn: [0, 1000]
+  #       image_sar: [0, 100]
+  # - name: SpaceNet8
+  #   stats_computer:
+  #     _target_: geobench_v2.generate_benchmark.utils_dataset_statistics.SegmentationStatistics
+  #     datamodule:
+  #       _target_: geobench_v2.datamodules.GeoBenchSpaceNet8DataModule
+  #       batch_size: 16
+  #       num_workers: 0
+  #       root: "/mnt/rg_climate_benchmark/data/geobenchV2/spacenet8"
+  #     input_keys: ["image_pre", "image_post"]
+  #     target_key: "mask"
+  #     range_vals:
+  #       image_pre: [0, 255]
+  #       image_post: [0, 255]
+  # - name: CloudSen12
+  #   stats_computer:
+  #     _target_: geobench_v2.generate_benchmark.utils_dataset_statistics.SegmentationStatistics
+  #     datamodule:
+  #       _target_: geobench_v2.datamodules.GeoBenchCloudSen12DataModule
+  #       batch_size: 16
+  #       num_workers: 0
+  #       root: "/mnt/rg_climate_benchmark/data/geobenchV2/cloudsen12"
+  #     input_keys: ["image"]
+  #     target_key: "mask"
+  #     range_vals:
+  #       image: [0, 3000]
+  # - name: EverWatch
+  #   stats_computer:
+  #     _target_: geobench_v2.generate_benchmark.utils_dataset_statistics.ObjectDetectionStatistics
+  #     datamodule:
+  #       _target_: geobench_v2.datamodules.GeoBenchEverWatchDataModule
+  #       batch_size: 16
+  #       num_workers: 0
+  #       root: "/mnt/rg_climate_benchmark/data/geobenchV2/everwatch"
+  #     input_keys: ["image"]
+  #     target_key: "label"
+  #     range_vals:
+  #       image: [0, 255]
+
+  - name: DynamicEarthNet
     stats_computer:
       _target_: geobench_v2.generate_benchmark.utils_dataset_statistics.SegmentationStatistics
       datamodule:
-        _target_: geobench_v2.datamodules.GeoBenchMADOSDataModule
+        _target_: geobench_v2.datamodules.GeoBenchDynamicEarthNetDataModule
         batch_size: 16
         num_workers: 0
-        root: "/mnt/rg_climate_benchmark/data/geobenchV2/mados"
-      input_keys: ["image"]
+        root: "/mnt/rg_climate_benchmark/data/geobenchV2/dynamic_earthnet"
+        temporal_setting: "weekly"
+      input_keys: ["image_planet","image_s2"]
       target_key: "mask"
       range_vals:
-        image: [0, 0.2]
+        image_planet: [0, 3000]
+        image_s2: [0, 3000]
+
+  # - name: TreeSatAI
+  #   stats_computer:
+  #     _target_: geobench_v2.generate_benchmark.utils_dataset_statistics.ClassificationStatistics
+  #     datamodule:
+  #       _target_: geobench_v2.datamodules.GeoBenchTreeSatAIDataModule
+  #       batch_size: 16
+  #       num_workers: 0
+  #       root: "/mnt/rg_climate_benchmark/data/geobenchV2/treesatai"
+  #     input_keys: ["image_aerial", "image_s2", "image_s1"]
+  #     target_key: "label"
+  #     range_vals:
+  #       image_aerial: [0, 255]
+  #       image_s2: [0, 3000]
+  #       image_s1: [0, 1]
   # - name: KuroSiwo
   #   stats_computer:
   #     _target_: geobench_v2.generate_benchmark.utils_dataset_statistics.SegmentationStatistics

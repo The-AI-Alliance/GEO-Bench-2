@@ -21,13 +21,9 @@ import torch.nn as nn
 class GeoBenchCaFFeDataModule(GeoBenchSegmentationDataModule):
     """GeoBench CaFFe Data Module."""
 
-    # https://github.com/microsoft/torchgeo/blob/68e0cfebcd18edb6605008eeeaba96388e63eca7/torchgeo/datamodules/caffe.py#L22
-    band_means = {"gray": 0.5517}
-    band_stds = {"gray": 11.8478}
-
     def __init__(
         self,
-        img_size: int,
+        img_size: int = 512,
         band_order: Sequence[float | str] = GeoBenchCaFFe.band_default_order,
         batch_size: int = 32,
         eval_batch_size: int = 64,

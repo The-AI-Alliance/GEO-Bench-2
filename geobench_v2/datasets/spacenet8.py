@@ -33,13 +33,23 @@ class GeoBenchSpaceNet8(GeoBenchBaseDataset):
     dataset_band_config = DatasetBandRegistry.SPACENET8
 
     normalization_stats = {
-        "means": {"r": 0.0, "g": 0.0, "b": 0.0, "n": 0.0},
-        "stds": {"r": 255.0, "g": 255.0, "b": 255.0, "n": 255.0},
+        "means": {"r": 0.0, "g": 0.0, "b": 0.0},
+        "stds": {"r": 255.0, "g": 255.0, "b": 255.0},
     }
 
-    band_default_order = ("red", "green", "blue", "nir")
+    band_default_order = ("red", "green", "blue")
 
     paths = ["SpaceNet8.tortilla"]
+
+    classes = (
+        "background",
+        "road (not flooded)",
+        "road (flooded)",
+        "building (not flooded)",
+        "building (flooded)",
+    )
+
+    num_classes = len(classes)
 
     def __init__(
         self,
@@ -106,10 +116,8 @@ class GeoBenchSpaceNet8(GeoBenchBaseDataset):
 
         sample["image_pre"] = image_pre["image"]
         sample["image_post"] = image_post["image"]
-        # We add 1 to the mask to map the current {background, building} labels to
-        # the values {1, 2}. This is necessary because we add 0 padding to the
-        # mask that we want to ignore in the loss function.
-        sample["mask"] = mask + 1
+
+        sample["mask"] = mask
 
         if self.transforms is not None:
             sample = self.transforms(sample)

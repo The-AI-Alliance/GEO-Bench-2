@@ -202,6 +202,8 @@ class DatasetStatistics(ABC):
         self.dataloader = datamodule.train_dataloader()
         self.input_stats = {key: {} for key in self.input_keys}
 
+        self.initialize_running_stats()
+
     def compute_batch_image_statistics(
         self, batch: dict[str, Tensor]
     ) -> dict[str, dict[str, Any]]:
@@ -300,12 +302,8 @@ class DatasetStatistics(ABC):
         """
         return self.aggregate_image_statistics(), self.aggregate_target_statistics()
 
-    def compute_statistics(self) -> dict[str, dict[str, Any]]:
-        """Compute statistics for input data using ImageSatistics.
-
-        Returns:
-            dictionary with input statistics for each input key
-        """
+    def initialize_running_stats(self) -> None:
+        """Initialize running statistics for input data."""
         self.running_stats: dict[str, ImageSatistics] = {}
 
         for key in self.input_keys:
@@ -315,8 +313,8 @@ class DatasetStatistics(ABC):
             if input_data.dim() == 5:
                 # 5D input data (e.g., time series), assume [B, T, C, H, W]
                 band_order = self.datamodule.band_order
-                if key.strip("image_") in band_order:
-                    band_names = band_order[key.strip("image_")]
+                if key.removeprefix("image_") in band_order:
+                    band_names = band_order[key.removeprefix("image_")]
                 else:
                     band_names = band_order
                 num_channels = input_data.size(2)
@@ -330,17 +328,15 @@ class DatasetStatistics(ABC):
 
                 shape = (num_channels,)
                 dims = [0, 1, 3, 4]
-                import pdb
-
-                pdb.set_trace()
 
             elif input_data.dim() == 4:
                 # assume [B, C, H, W]
                 band_order = self.datamodule.band_order
-                if key.strip("image_") in band_order:
-                    band_names = band_order[key.strip("image_")]
+                if key.removeprefix("image_") in band_order:
+                    band_names = band_order[key.removeprefix("image_")]
                 else:
                     band_names = band_order
+
                 num_channels = input_data.size(1)
 
                 assert len(band_names) == num_channels, (
@@ -369,6 +365,12 @@ class DatasetStatistics(ABC):
                 shape, dims, bins=self.bins, range_vals=self.range_vals[key]
             ).to(self.device)
 
+    def compute_statistics(self) -> dict[str, dict[str, Any]]:
+        """Compute statistics for input data using ImageSatistics.
+
+        Returns:
+            dictionary with input statistics for each input key
+        """
         i = 0
         for batch in tqdm(self.dataloader, desc="Computing dataset statistics"):
             self.compute_batch_image_statistics(batch)
@@ -614,3 +616,136 @@ class PxRegressionStatistics(DatasetStatistics):
             .numpy(),
         }
         return self.target_stats
+
+
+class ObjectDetectionStatistics(DatasetStatistics):
+    """Compute statistics for an object detection dataset."""
+
+    def __init__(
+        self,
+        datamodule: LightningDataModule,
+        bins: int = 500,
+        range_vals: tuple[float, float] = (0.0, 1.0),
+        input_keys: list[str] = ["image"],
+        target_key: str = "boxes",
+        device: str = "cpu",
+        save_dir: Optional[str] = None,
+        **kwargs,
+    ):
+        """Initialize object detection statistics computer.
+
+        Args:
+            datamodule
+            input_keys: Keys for input data in batch dict
+            target_key: Key for target data in batch dict
+            bins: Number of bins for histogram
+            range_vals: Range for histogram
+            device: Device for computation
+            save_dir: Directory to save statistics
+            **kwargs: Additional task-specific arguments
+        """
+        super().__init__(
+            datamodule=datamodule,
+            bins=bins,
+            range_vals=range_vals,
+            input_keys=input_keys,
+            target_key=target_key,
+            device=device,
+            save_dir=save_dir,
+            **kwargs,
+        )
+
+        self.num_classes = datamodule.num_classes
+        self.class_counts = torch.zeros(self.num_classes, device=self.device)
+        self.total_samples = 0
+        self.total_boxes = 0
+        self.box_counts = torch.zeros(self.num_classes, device=self.device)
+        self.box_area = torch.zeros(self.num_classes, device=self.device)
+        self.box_aspect_ratio = torch.zeros(self.num_classes, device=self.device)
+        self.box_width = torch.zeros(self.num_classes, device=self.device)
+        self.box_height = torch.zeros(self.num_classes, device=self.device)
+        self.box_width_counts = torch.zeros(self.num_classes, device=self.device)
+        self.box_height_counts = torch.zeros(self.num_classes, device=self.device)
+        self.box_area_counts = torch.zeros(self.num_classes, device=self.device)
+        self.box_aspect_ratio_counts = torch.zeros(self.num_classes, device=self.device)
+
+    def compute_batch_target_statistics(
+        self, bboxes: list[Tensor], labels: list[Tensor]
+    ) -> None:
+        """Compute Object detection target statistics."""
+        batch_size = len(bboxes)
+        assert len(bboxes) == len(labels)
+
+        for i in range(batch_size):
+            boxes = bboxes[i]
+            labels_i = labels[i]
+
+            for j in range(len(boxes)):
+                box = boxes[j]
+                label = labels_i[j]
+
+                if label >= self.num_classes:
+                    continue
+
+                self.total_boxes += 1
+                self.box_counts[label] += 1
+                self.class_counts[label] += 1
+
+                x_min, y_min, x_max, y_max = box
+                width = x_max - x_min
+                height = y_max - y_min
+                area = width * height
+
+                self.box_area[label] += area
+                self.box_width[label] += width
+                self.box_height[label] += height
+                self.box_width_counts[label] += 1
+                self.box_height_counts[label] += 1
+                self.box_area_counts[label] += 1
+
+                aspect_ratio = width / height if height > 0 else 0.0
+                self.box_aspect_ratio[label] += aspect_ratio
+                self.box_aspect_ratio_counts[label] += 1
+
+    def aggregate_target_statistics(self) -> dict[str, dict[str, Any]]:
+        """Aggregate object detection target statistics."""
+        box_area = self.box_area / self.box_area_counts
+        box_width = self.box_width / self.box_width_counts
+        box_height = self.box_height / self.box_height_counts
+        box_aspect_ratio = self.box_aspect_ratio / self.box_aspect_ratio_counts
+
+        class_frequencies = (
+            self.class_counts.float() / self.total_samples
+            if self.total_samples > 0
+            else self.class_counts.float()
+        )
+
+        self.target_stats = {
+            "class_counts": self.class_counts.cpu().numpy(),
+            "total_boxes": self.total_boxes,
+            "total_samples": self.total_samples,
+            "num_classes": self.num_classes,
+            "box_area": box_area.cpu().numpy(),
+            "box_width": box_width.cpu().numpy(),
+            "box_height": box_height.cpu().numpy(),
+            "box_aspect_ratio": box_aspect_ratio.cpu().numpy(),
+            "class_frequencies": class_frequencies.cpu().numpy(),
+        }
+
+        return self.target_stats
+
+    def compute_statistics(self) -> dict[str, dict[str, Any]]:
+        """Compute statistics for input data using ImageSatistics.
+
+        Returns:
+            dictionary with input statistics for each input key
+        """
+        i = 0
+        for batch in tqdm(self.dataloader, desc="Computing dataset statistics"):
+            self.compute_batch_image_statistics(batch)
+            self.compute_batch_target_statistics(batch["bbox_xyxy"], batch["label"])
+            i += 1
+            if i > 5:
+                break
+
+        return self.aggregate_statistics()

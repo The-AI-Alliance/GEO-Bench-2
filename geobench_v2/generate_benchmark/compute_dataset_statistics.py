@@ -18,6 +18,7 @@ from geobench_v2.generate_benchmark.utils_dataset_statistics import (
     PxRegressionStatistics,
     SegmentationStatistics,
     ClassificationStatistics,
+    ObjectDetectionStatistics,
 )
 import matplotlib.pyplot as plt
 import seaborn as sns
@@ -46,6 +47,8 @@ def create_visualizations(input_stats, target_stats, vis_dir, dataset_name, task
         _create_classification_visualizations(target_stats, vis_dir, dataset_name)
     elif task_type == "segmentation":
         _create_segmentation_visualizations(target_stats, vis_dir, dataset_name)
+    elif task_type == "object_detection":
+        _create_object_detection_visualizations(target_stats, vis_dir, dataset_name)
 
 
 def _determine_task_type(stats_computer):
@@ -56,6 +59,8 @@ def _determine_task_type(stats_computer):
         return "segmentation"
     elif isinstance(stats_computer, ClassificationStatistics):
         return "classification"
+    elif isinstance(stats_computer, ObjectDetectionStatistics):
+        return "object_detection"
 
 
 def _create_input_visualizations(input_stats, modalities, vis_dir, dataset_name):
@@ -221,6 +226,11 @@ def _create_segmentation_visualizations(target_stats, vis_dir, dataset_name):
                 os.path.join(vis_dir, f"{dataset_name}_class_presence.png"), dpi=300
             )
             plt.close()
+
+
+def _create_object_detection_visualizations(target_stats, vis_dir, dataset_name):
+    """Create visualizations for object detection target statistics."""
+    pass
 
 
 class NumpyEncoder(json.JSONEncoder):

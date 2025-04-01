@@ -44,6 +44,9 @@ class GeoBenchFieldsOfTheWorld(GeoBenchBaseDataset):
         "FullFOTW.0003.part.tortilla",
     ]
 
+    classes = ("background", "field", "field-boundary")
+    num_classes = len(classes)
+
     # TODO maybe add country argument?
     def __init__(
         self,

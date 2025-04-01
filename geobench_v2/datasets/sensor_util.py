@@ -132,6 +132,9 @@ class SensorBandRegistry:
             "B09": BandConfig(
                 "water_vapor", ["wv", "b09"], wavelength=0.945, resolution=60
             ),
+            "B10": BandConfig(
+                "cirrus", ["cirrus", "b10"], wavelength=1.375, resolution=60
+            ),
             "B11": BandConfig(
                 "swir1",
                 ["short_wave_infrared_1", "b11"],
@@ -156,6 +159,7 @@ class SensorBandRegistry:
             "B08",
             "B8A",
             "B09",
+            "B10",
             "B11",
             "B12",
         ],
@@ -493,7 +497,7 @@ class DatasetBandRegistry:
         },
     )
     SPACENET8 = ModalityConfig(
-        bands=SensorBandRegistry.RGBN.bands, default_order=["r", "g", "b", "nir"]
+        bands=SensorBandRegistry.RGB.bands, default_order=["r", "g", "b"]
     )
 
     # flair 2 has rgbn and elevation bands
@@ -833,6 +837,7 @@ class DatasetBandRegistry:
                     "B07",
                     "B08",
                     "B8A",
+                    "B10",
                     "B11",
                     "B12",
                 ],

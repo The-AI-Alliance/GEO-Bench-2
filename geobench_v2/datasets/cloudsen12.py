@@ -40,6 +40,8 @@ class GeoBenchCloudSen12(NonGeoDataset, DataUtilsMixin):
 
     classes = ("clear", "thick cloud", "thin cloud", "cloud shadow")
 
+    num_classes = len(classes)
+
     splits = ("train", "val", "test")
 
     dataset_band_config = DatasetBandRegistry.CLOUDSEN12

@@ -22,7 +22,7 @@ class GeoBenchTreeSatAIDataModule(GeoBenchClassificationDataModule):
 
     def __init__(
         self,
-        img_size: int,
+        img_size: int = 304,
         band_order: Sequence[float | str] = GeoBenchTreeSatAI.band_default_order,
         batch_size: int = 32,
         eval_batch_size: int = 64,
@@ -36,7 +36,7 @@ class GeoBenchTreeSatAIDataModule(GeoBenchClassificationDataModule):
         """Initialize GeoBench TreeSatAI dataset module.
 
         Args:
-            img_size: Image size
+            img_size: Image size originally 304
             batch_size: Batch size
             eval_batch_size: Evaluation batch size
             num_workers: Number of workers
