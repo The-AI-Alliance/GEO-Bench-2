@@ -5,7 +5,7 @@
 
 import torch.nn as nn
 from torch import Tensor
-from typing import Type
+from typing import Type, Literal
 import rasterio
 from torchgeo.datasets import NonGeoDataset
 import tacoreader
@@ -25,7 +25,7 @@ class GeoBenchBaseDataset(NonGeoDataset, DataUtilsMixin):
     def __init__(
         self,
         root: str,
-        split: str,
+        split: Literal["train", "validation", "test"],
         band_order: list[str],
         data_normalizer: Type[nn.Module] = MultiModalNormalizer,
         transforms: nn.Module = None,

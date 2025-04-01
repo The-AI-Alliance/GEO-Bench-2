@@ -894,6 +894,26 @@ class DatasetBandRegistry:
         },
     )
 
+    SEN4AGRINET = ModalityConfig(
+        bands={**SensorBandRegistry.SENTINEL2.bands},
+        default_order=[
+            "B01",
+            "B02",
+            "B03",
+            "B04",
+            "B05",
+            "B06",
+            "B07",
+            "B08",
+            "B8A",
+            "B09",
+            "B10",
+            "B11",
+            "B12",
+        ],
+        native_resolution=10,
+    )
+
     @classmethod
     def get_dataset_config(
         cls, dataset_name: str

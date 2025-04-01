@@ -30,6 +30,22 @@ class GeoBenchPASTIS(PASTIS, DataUtilsMixin):
 
     dataset_band_config = DatasetBandRegistry.PASTIS
 
+    band_default_order = (
+        "B01",
+        "B02",
+        "B03",
+        "B04",
+        "B05",
+        "B06",
+        "B07",
+        "B08",
+        "B8A",
+        "B09",
+        "B10",
+        "B11",
+        "B12",
+    )
+
     band_default_order = {
         "s2": ("B02", "B03", "B04", "B05", "B06", "B07", "B08", "B8A", "B11", "B12"),
         "s1_asc": ("VV_asc", "VH_asc", "VV/VH_asc"),
@@ -90,7 +106,6 @@ class GeoBenchPASTIS(PASTIS, DataUtilsMixin):
         num_time_steps: int = 1,
         transforms: nn.Module | None = None,
         label_type: Literal["instance_seg", "semantic_seg"] = "semantic_seg",
-        **kwargs,
     ) -> None:
         """Initialize PASTIS Dataset.
 
@@ -109,7 +124,6 @@ class GeoBenchPASTIS(PASTIS, DataUtilsMixin):
                 which applies z-score normalization to each band.
             transforms:
             label_type: The type of label to return, either 'instance_seg' or 'semantic_seg'
-            **kwargs: Additional keyword arguments passed to ``torchgeo.datasts.PASTIS``
 
         Raises:
             AssertionError: If an invalid split is specified
