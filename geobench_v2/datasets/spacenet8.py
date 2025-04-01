@@ -103,9 +103,13 @@ class GeoBenchSpaceNet8(GeoBenchBaseDataset):
         mask = torch.from_numpy(mask).long()
 
         print("rearranging bands")
+        print("step 1")
         image_pre = self.rearrange_bands(image_pre, self.band_order)
+        print("step 2")
         image_pre = self.data_normalizer(image_pre)
+        print("step 3")
         image_post = self.rearrange_bands(image_post, self.band_order)
+        print("step 4")
         image_post = self.data_normalizer(image_post)
 
         print("adding to sample ")
