@@ -36,11 +36,15 @@ class GeoBenchCaFFe(CaFFe, DataUtilsMixin):
 
     mask_dirs = ("zones", "zones")
 
+    classes = ("N/A", "rock", "glacier", "ocean/ice melange")
+
+    num_classes = len(classes)
+
     def __init__(
         self,
         root: Path,
         split: str,
-        band_order: list["str"] = band_default_order,
+        band_order: list[str] = band_default_order,
         data_normalizer: Type[nn.Module] = MultiModalNormalizer,
         transforms: nn.Module | None = None,
     ) -> None:

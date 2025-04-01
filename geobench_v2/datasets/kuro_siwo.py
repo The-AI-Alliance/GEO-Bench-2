@@ -31,12 +31,23 @@ class GeoBenchKuroSiwo(GeoBenchBaseDataset):
 
     dataset_band_config = DatasetBandRegistry.KURO_SIWO
 
-    band_default_order = ("vv", "vh", "dem")
+    band_default_order = {"sar": ("vv", "vh"), "dem": ("dem",)}
+
+    # https://github.com/Orion-AI-Lab/KuroSiwo/blob/2b9491629ffd9e1322eea4eaaf88fbaecef6d9b3/configs/train/data_config.json#L16
+    # "data_mean": [0.0953, 0.0264],
+    # "data_std": [0.0427, 0.0215],
+    # "dem_mean":93.4313,
+    # "dem_std":1410.8382,
 
     normalization_stats = {
-        "means": {"vv": 0.0, "vh": 0.0, "dem": 0.0},
-        "stds": {"vv": 10, "vh": 1.0, "dem": 50.0},
+        "means": {"vv": 0.0953, "vh": 0.0264, "dem": 93.4313},
+        "stds": {"vv": 0.0427, "vh": 0.0215, "dem": 1410.8382},
     }
+
+    classes = ("No Water", "Permanent Water", "Flood", "No Data")
+
+    # TODO should move no-data to 0 and have that as ignore_index
+    num_classes = len(classes)
 
     paths = [
         "kurosiwo.0000.part.tortilla",
@@ -51,7 +62,7 @@ class GeoBenchKuroSiwo(GeoBenchBaseDataset):
         self,
         root: str,
         split: Literal["train", "val", "test"],
-        band_order: dict[str, Sequence[str]] = {"sar": ["vv", "vh"], "dem": ["dem"]},
+        band_order: dict[str, Sequence[str]] = band_default_order,
         data_normalizer: Type[nn.Module] = MultiModalNormalizer,
         transforms: Type[nn.Module] = None,
     ) -> None:
@@ -118,7 +129,7 @@ class GeoBenchKuroSiwo(GeoBenchBaseDataset):
 
         invalid_data_tensor = torch.from_numpy(invalid_data).long()
         sample["invalid_data"] = invalid_data_tensor
-        invalid_mask = 1 - invalid_data_tensor  # to keep pixels with valid data
+        invalid_mask = invalid_data_tensor
 
         def process_sar_image(vv: np.ndarray, vh: np.ndarray) -> Tensor:
             image = torch.cat([torch.from_numpy(vv), torch.from_numpy(vh)])

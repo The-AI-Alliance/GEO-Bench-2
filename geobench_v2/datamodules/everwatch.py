@@ -46,13 +46,9 @@ def everwatch_collate_fn(batch: Sequence[dict[str, Any]]) -> dict[str, Any]:
 class GeoBenchEverWatchDataModule(GeoBenchObjectDetectionDataModule):
     """GeoBench EverWatch Data Module."""
 
-    # norm stats
-    band_means = {"red": 0.0, "green": 0.0, "blue": 0.0}
-    band_stds = {"red": 1.0, "green": 1.0, "blue": 1.0}
-
     def __init__(
         self,
-        img_size: int,
+        img_size: int = 512,
         band_order: Sequence[float | str] = GeoBenchEverWatch.band_default_order,
         batch_size: int = 32,
         eval_batch_size: int = 64,

@@ -41,6 +41,16 @@ class GeoBenchSpaceNet8(GeoBenchBaseDataset):
 
     paths = ["SpaceNet8.tortilla"]
 
+    classes = (
+        "background",
+        "road (not flooded)",
+        "road (flooded)",
+        "building (not flooded)",
+        "building (flooded)",
+    )
+
+    num_classes = len(classes)
+
     def __init__(
         self,
         root: Path,
@@ -106,10 +116,8 @@ class GeoBenchSpaceNet8(GeoBenchBaseDataset):
 
         sample["image_pre"] = image_pre["image"]
         sample["image_post"] = image_post["image"]
-        # We add 1 to the mask to map the current {background, building} labels to
-        # the values {1, 2}. This is necessary because we add 0 padding to the
-        # mask that we want to ignore in the loss function.
-        sample["mask"] = mask + 1
+
+        sample["mask"] = mask
 
         if self.transforms is not None:
             sample = self.transforms(sample)

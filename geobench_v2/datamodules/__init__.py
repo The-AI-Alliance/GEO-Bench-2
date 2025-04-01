@@ -21,8 +21,12 @@ from .biomassters import GeoBenchBioMasstersDataModule
 from .dynamic_earthnet import GeoBenchDynamicEarthNetDataModule
 
 
-from .base import (GeoBenchClassificationDataModule, GeoBenchSegmentationDataModule, 
-                    GeoBenchObjectDetectionDataModule, GeoBenchDataModule)
+from .base import (
+    GeoBenchClassificationDataModule,
+    GeoBenchSegmentationDataModule,
+    GeoBenchObjectDetectionDataModule,
+    GeoBenchDataModule,
+)
 
 __all__ = (
     "GeoBenchCaFFeDataModule",
@@ -38,8 +42,7 @@ __all__ = (
     "GeoBenchClassificationDataModule",
     "GeoBenchSegmentationDataModule",
     "GeoBenchObjectDetectionDataModule",
-    "GeoBenchDataModule"
-    "GeoBenchFLOGADataModule",
+    "GeoBenchDataModuleGeoBenchFLOGADataModule",
     "GeoBenchKuroSiwoDataModule",
     "GeoBenchTreeSatAIDataModule",
     "GeoBenchBioMasstersDataModule",

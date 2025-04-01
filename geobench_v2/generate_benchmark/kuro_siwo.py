@@ -138,10 +138,10 @@ def extract_grid_data(path):
     return extracted
 
 
-def process_grid_samples(df):
+def process_grid_samples(df, root):
     for idx, row in tqdm(df.iterrows(), total=df.shape[0], desc="Processing"):
         data_dir = os.path.join(
-            str(MAIN_FOLDER), str(row["event_id"]), str(row["aoi"]), str(row["hex"])
+            str(root), str(row["event_id"]), str(row["aoi"]), str(row["hex"])
         )
 
         if not os.path.exists(data_dir):
@@ -406,14 +406,14 @@ def main():
     # OUTPUT_FOLDER.mkdir(exist_ok=True)
 
     # # Setup data and splits
-    # split_mapper = create_split_mapper()
-    # extracted_data = extract_grid_data(GRID_DATA_PATH)
+    split_mapper = create_split_mapper()
+    extracted_data = extract_grid_data(GRID_DATA_PATH)
 
-    # # Create dataframe and assign splits
-    # df = pd.DataFrame(extracted_data)
-    # df["split"] = df["event_id"].apply(lambda x: split_mapper[x])
-    # df.to_csv("full_df.csv", index=False)
-    # process_grid_samples(df)
+    # Create dataframe and assign splits
+    df = pd.DataFrame(extracted_data)
+    df["split"] = df["event_id"].apply(lambda x: split_mapper[x])
+    df.to_csv("full_df.csv", index=False)
+    process_grid_samples(df, args.root)
 
     # merge_tortilla_files()
 

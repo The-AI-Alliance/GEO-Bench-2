@@ -34,10 +34,11 @@ class GeoBenchSpaceNet6(GeoBenchBaseDataset):
 
     dataset_band_config = DatasetBandRegistry.SPACENET6
 
+
     band_default_order = {
-                            'rgbn': ['r', 'g', 'b', 'nir'],
-                            'sar': ['hh', 'hv', 'vv', 'vh']
-                        }
+        "rgbn": ("r", "g", "b", "nir"),
+        "sar": ("hh", "hv", "vv", "vh"),
+    }
 
     normalization_stats = {
         "means": {
@@ -51,14 +52,14 @@ class GeoBenchSpaceNet6(GeoBenchBaseDataset):
             "vh": 0.0,
         },
         "stds": {
-            "r": 3000.0,
-            "g": 3000.0,
-            "b": 3000.0,
-            "nir": 3000.0,
-            "hh": 255.0,
-            "hv": 255.0,
-            "vv": 255.0,
-            "vh": 255.0,
+            "r": 1000.0,
+            "g": 1000.0,
+            "b": 1000.0,
+            "n": 1000.0,
+            "hh": 100.0,
+            "hv": 100.0,
+            "vv": 100.0,
+            "vh": 100.0,
         },
     }
 
@@ -67,6 +68,10 @@ class GeoBenchSpaceNet6(GeoBenchBaseDataset):
         "SpaceNet6.0001.part.tortilla",
         "SpaceNet6.0002.part.tortilla",
     ]
+
+    classes = ("background", "no_building", "building")
+
+    num_classes = len(classes)
 
     def __init__(
         self,

@@ -49,6 +49,8 @@ class GeoBenchEverWatch(EverWatch, DataUtilsMixin):
         "Unknown White",
     )
 
+    num_classes = len(classes)
+
     def __init__(
         self,
         root: Path,

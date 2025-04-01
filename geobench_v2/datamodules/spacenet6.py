@@ -25,7 +25,7 @@ class GeoBenchSpaceNet6DataModule(GeoBenchSegmentationDataModule):
 
     def __init__(
         self,
-        img_size: int,
+        img_size: int = 450,
         band_order: Sequence[float | str] = GeoBenchSpaceNet6.band_default_order,
         batch_size: int = 32,
         eval_batch_size: int = 64,
@@ -39,7 +39,7 @@ class GeoBenchSpaceNet6DataModule(GeoBenchSegmentationDataModule):
         """Initialize GeoBench SpaceNet6 dataset module.
 
         Args:
-            img_size: Image size
+            img_size: Image size, in geobench version patches of 450
             batch_size: Batch size during training
             eval_batch_size: Evaluation batch size
             num_workers: Number of workers

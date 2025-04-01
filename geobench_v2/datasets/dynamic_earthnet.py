@@ -25,29 +25,27 @@ class GeoBenchDynamicEarthNet(GeoBenchBaseDataset):
 
     dataset_band_config = DatasetBandRegistry.DYNAMICEARTHNET
 
-    band_default_order = (
-        "r",
-        "g",
-        "b",
-        "nir",
-        "B01",
-        "B02",
-        "B03",
-        "B04",
-        "B05",
-        "B06",
-        "B07",
-        "B08",
-        "B8A",
-        "B10",
-        "B11",
-        "B12",
-    )
+    band_default_order = {
+        "planet": ("b", "g", "r", "nir"),
+        "s2": (
+            "B01",
+            "B02",
+            "B03",
+            "B04",
+            "B05",
+            "B06",
+            "B07",
+            "B08",
+            "B8A",
+            "B10",
+            "B11",
+            "B12",
+        ),
+    }
 
     # Appendix C normalization stats for planet
     # mean = [1042.59, 915.62, 671.26, 2605.21] and
     # std = [957.96, 715.55, 596.94, 1059.90],
-    # but I think those won't be good
     # https://github.com/aysim/dynnet/blob/1e7d90294b54f52744ae2b35db10b4d0a48d093d/data/utae_dynamicen.py#L13
     # TODO check
     normalization_stats = {
@@ -116,6 +114,18 @@ class GeoBenchDynamicEarthNet(GeoBenchBaseDataset):
     # daily returns all available days between 28 and 30 days
     # single returns the 30th day
 
+    classes = (
+        "impervious surfaces",
+        "water",
+        "soil",
+        "agriculture",
+        "wetlands",
+        "snow & ice",
+        "forest & other vegetation",
+    )
+
+    num_classes = len(classes)
+
     def __init__(
         self,
         root: Path,
@@ -124,10 +134,8 @@ class GeoBenchDynamicEarthNet(GeoBenchBaseDataset):
             "plane": ["r", "g", "b", "nir"]
         },
         data_normalizer: Type[nn.Module] = MultiModalNormalizer,
-        num_time_steps: int = 1,
         transforms: nn.Module | None = None,
         temporal_setting: Literal["single", "daily", "weekly"] = "single",
-        **kwargs,
     ) -> None:
         """Initialize the dataset.
 
@@ -136,7 +144,6 @@ class GeoBenchDynamicEarthNet(GeoBenchBaseDataset):
             split: The dataset split, supports 'train', 'val', 'test'
             band_order: Band order for the dataset
             data_normalizer: Data normalizer
-            num_time_steps: Number of latest time steps to consider, max is 30
             transforms: A composition of transformations to apply to the data
             temporal_setting
             **kwargs: Additional keyword arguments
@@ -150,8 +157,6 @@ class GeoBenchDynamicEarthNet(GeoBenchBaseDataset):
         )
 
         self.temporal_setting = temporal_setting
-        assert num_time_steps <= 30, "num_time_steps should be less than or equal to 30"
-        self.num_time_steps = num_time_steps
 
     def __getitem__(self, idx: int) -> dict[str, Tensor]:
         """Return an index within the dataset.
@@ -183,7 +188,7 @@ class GeoBenchDynamicEarthNet(GeoBenchBaseDataset):
                 planet_imgs.append(torch.from_numpy(img))
 
         # [T, C, H, W]
-        planet_imgs = torch.stack(planet_imgs, dim=0)
+        planet_imgs = torch.stack(planet_imgs, dim=0).float()
 
         img_dict["planet"] = planet_imgs
         # [C, T, H, W]
@@ -192,11 +197,21 @@ class GeoBenchDynamicEarthNet(GeoBenchBaseDataset):
             planet_imgs = planet_imgs.squeeze(0)
 
         if "s2" in self.band_order:
-            with rasterio.open(sample_row.read(-2)) as src:
-                img = src.read()
-                img = torch.from_numpy(img).float()
-
+            sentinel_2_row = sample_row[sample_row["tortilla:id"] == "s2"]
+            if sentinel_2_row.empty:
+                img = torch.zeros(
+                    (12, planet_imgs.shape[-2], planet_imgs.shape[-1]),
+                    dtype=torch.float32,
+                )
+            else:
+                with rasterio.open(sample_row.read(-2)) as src:
+                    img = src.read()
+                    img = torch.from_numpy(img).float()
             img_dict["s2"] = img
+            if img.shape[0] != 12:
+                import pdb
+
+                pdb.set_trace()
 
         img_dict = self.rearrange_bands(img_dict, self.band_order)
         img_dict = self.data_normalizer(img_dict)

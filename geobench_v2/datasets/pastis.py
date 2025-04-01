@@ -30,24 +30,11 @@ class GeoBenchPASTIS(PASTIS, DataUtilsMixin):
 
     dataset_band_config = DatasetBandRegistry.PASTIS
 
-    band_default_order = (
-        "B02",
-        "B03",
-        "B04",
-        "B05",
-        "B06",
-        "B07",
-        "B08",
-        "B8A",
-        "B11",
-        "B12",
-        "VV_asc",
-        "VH_asc",
-        "VV/VH_asc",
-        "VV_desc",
-        "VH_desc",
-        "VV/VH_desc",
-    )
+    band_default_order = {
+        "s2": ("B02", "B03", "B04", "B05", "B06", "B07", "B08", "B8A", "B11", "B12"),
+        "s1_asc": ("VV_asc", "VH_asc", "VV/VH_asc"),
+        "s1_desc": ("VV_desc", "VH_desc", "VV/VH_desc"),
+    }
 
     valid_splits = ("train", "val", "test")
 
@@ -81,24 +68,24 @@ class GeoBenchPASTIS(PASTIS, DataUtilsMixin):
             "B8A": 3000.0,
             "B11": 3000.0,
             "B12": 3000.0,
-            "VV_asc": 3000.0,
-            "VH_asc": 3000.0,
-            "VV/VH_asc": 3000.0,
-            "VV_desc": 3000.0,
-            "VH_desc": 3000.0,
-            "VV/VH_desc": 3000.0,
+            "VV_asc": 1.0,
+            "VH_asc": 1.0,
+            "VV/VH_asc": 1.0,
+            "VV_desc": 1.0,
+            "VH_desc": 1.0,
+            "VV/VH_desc": 1.0,
         },
     }
+
+    classes = PASTIS.classes
+
+    num_classes = len(classes)
 
     def __init__(
         self,
         root: Path,
         split: str,
-        band_order: Sequence[float | str] | dict[str, Sequence[float | str]] = [
-            "B04",
-            "B03",
-            "B02",
-        ],
+        band_order: dict[str, Sequence[float | str]] = {"s2": ["B04", "B03", "B02"]},
         data_normalizer: Type[nn.Module] = MultiModalNormalizer,
         num_time_steps: int = 1,
         transforms: nn.Module | None = None,
@@ -207,7 +194,7 @@ class GeoBenchPASTIS(PASTIS, DataUtilsMixin):
         sample["lat"] = torch.tensor([sample_row["latitude"]])
 
         if self.transforms:
-            sample = self.transforms(sample)    
+            sample = self.transforms(sample)
 
         return sample
 
@@ -220,8 +207,7 @@ class GeoBenchPASTIS(PASTIS, DataUtilsMixin):
         Returns:
             the time-series
         """
-        array = np.load(path).copy()
-        tensor = torch.from_numpy(array)
+        tensor = torch.tensor(np.load(path).astype(np.float32))
 
         if tensor.shape[0] < self.num_time_steps:
             padding = torch.zeros(
@@ -234,7 +220,7 @@ class GeoBenchPASTIS(PASTIS, DataUtilsMixin):
         if self.num_time_steps == 1:
             tensor = tensor.squeeze(0)
 
-        return tensor
+        return tensor.float()
 
     def _load_semantic_targets(self, path: str) -> Tensor:
         """Load the target mask for a single image.

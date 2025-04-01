@@ -132,6 +132,9 @@ class SensorBandRegistry:
             "B09": BandConfig(
                 "water_vapor", ["wv", "b09"], wavelength=0.945, resolution=60
             ),
+            "B10": BandConfig(
+                "cirrus", ["cirrus", "b10"], wavelength=1.375, resolution=60
+            ),
             "B11": BandConfig(
                 "swir1",
                 ["short_wave_infrared_1", "b11"],
@@ -156,6 +159,7 @@ class SensorBandRegistry:
             "B08",
             "B8A",
             "B09",
+            "B10",
             "B11",
             "B12",
         ],
@@ -645,22 +649,21 @@ class DatasetBandRegistry:
                 native_resolution=10,
             ),
         },
-        default_order=[
-            "VV_asc",
-            "VH_asc",
-            "VV_desc",
-            "VH_desc",
-            "B02",
-            "B03",
-            "B04",
-            "B05",
-            "B06",
-            "B07",
-            "B08",
-            "B8A",
-            "B11",
-            "B12",
-        ],
+        default_order={
+            "s1": {"VV_asc", "VH_asc", "VV_desc", "VH_desc"},
+            "s2": {
+                "B02",
+                "B03",
+                "B04",
+                "B05",
+                "B06",
+                "B07",
+                "B08",
+                "B8A",
+                "B11",
+                "B12",
+            },
+        },
         band_to_modality={
             "VV_asc": "s1",
             "VH_asc": "s1",
@@ -834,6 +837,7 @@ class DatasetBandRegistry:
                     "B07",
                     "B08",
                     "B8A",
+                    "B10",
                     "B11",
                     "B12",
                 ],

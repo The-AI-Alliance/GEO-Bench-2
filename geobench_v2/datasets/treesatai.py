@@ -117,6 +117,8 @@ class GeoBenchTreeSatAI(GeoBenchBaseDataset):
         "Tilia",
     )
 
+    num_classes: int = len(classes)
+
     def __init__(
         self,
         root: Path,
@@ -204,6 +206,7 @@ class GeoBenchTreeSatAI(GeoBenchBaseDataset):
             sample_row.iloc[0]["species_labels"], sample_row.iloc[0]["dist_labels"]
         )
 
+        # only resize the aerial image
         if self.transforms is not None:
             sample = self.transforms(sample)
 

@@ -24,7 +24,7 @@ class GeoBenchSpaceNet8DataModule(GeoBenchSegmentationDataModule):
 
     def __init__(
         self,
-        img_size: int,
+        img_size: int = 512,
         band_order: Sequence[float | str] = GeoBenchSpaceNet8.band_default_order,
         batch_size: int = 32,
         eval_batch_size: int = 64,
@@ -38,7 +38,7 @@ class GeoBenchSpaceNet8DataModule(GeoBenchSegmentationDataModule):
         """Initialize GeoBench SpaceNet8 dataset module.
 
         Args:
-            img_size: Image size
+            img_size: Image size, created patches are of size 512
             batch_size: Batch size during training
             eval_batch_size: Evaluation batch size
             num_workers: Number of workers
