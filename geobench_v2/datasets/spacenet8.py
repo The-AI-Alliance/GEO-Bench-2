@@ -65,8 +65,8 @@ class GeoBenchSpaceNet8(GeoBenchBaseDataset):
         Args:
             root: Path to the dataset root directory
             split: The dataset split, supports 'train', 'val', 'test'
-            band_order: The order of bands to return, defaults to ['red', 'green', 'blue', 'nir'], if one would
-                specify ['red', 'green', 'blue', 'nir', 'nir'], the dataset would return images with 5 channels
+            band_order: The order of bands to return, defaults to ['red', 'green', 'blue'], if one would
+                specify ['red', 'green', 'blue', 'blue', 'blue'], the dataset would return images with 5 channels
                 in that order. This is useful for models that expect a certain band order, or
                 test the impact of band order on model performance.
             **kwargs: Additional keyword arguments passed to ``SpaceNet8``
