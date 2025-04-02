@@ -8,6 +8,7 @@ from .fotw import GeoBenchFieldsOfTheWorldDataModule
 from .pastis import GeoBenchPASTISDataModule
 from .resisc45 import GeoBenchRESISC45DataModule
 from .spacenet6 import GeoBenchSpaceNet6DataModule
+from .spacenet7 import GeoBenchSpaceNet7DataModule
 from .spacenet8 import GeoBenchSpaceNet8DataModule
 from .benv2 import GeoBenchBENV2DataModule
 from .everwatch import GeoBenchEverWatchDataModule
@@ -35,6 +36,7 @@ __all__ = (
     "GeoBenchPASTISDataModule",
     "GeoBenchRESISC45DataModule",
     "GeoBenchSpaceNet6DataModule",
+    "GeoBenchSpaceNet7DataModule",
     "GeoBenchSpaceNet8DataModule",
     "GeoBenchBENV2DataModule",
     "GeoBenchEverWatchDataModule",
