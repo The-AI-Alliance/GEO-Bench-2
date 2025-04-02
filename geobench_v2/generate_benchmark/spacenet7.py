@@ -319,6 +319,8 @@ def main():
         metadata_df,
         os.path.join(args.save_dir, "sample_locations.png"),
         buffer_degrees=1.0,
+        dataset_name="SpaceNet7",
+        s=5,
     )
 
     visualize_sample(
@@ -354,6 +356,8 @@ def main():
         patches_df_with_split,
         os.path.join(args.save_dir, "sample_locations_split.png"),
         buffer_degrees=1.0,
+        dataset_name="SpaceNet7",
+        s=5,
     )
 
     # sort by aoi, year, month
@@ -368,11 +372,11 @@ def main():
         "val", "validation"
     )
 
-    create_tortilla(
-        os.path.join(os.path.dirname(args.root), "patches"),
-        patches_df_with_split,
-        os.path.join(args.save_dir, "tortilla"),
-    )
+    # create_tortilla(
+    #     os.path.join(os.path.dirname(args.root), "patches"),
+    #     patches_df_with_split,
+    #     os.path.join(args.save_dir, "tortilla"),
+    # )
 
     import pdb
 
