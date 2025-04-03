@@ -914,32 +914,6 @@ class DatasetBandRegistry:
         native_resolution=10,
     )
 
-    MMFLOOD = MultiModalConfig(
-        modalities={
-            "s1": ModalityConfig(
-                bands={
-                    "vv": BandConfig("vv", ["VV"], wavelength=0.056),
-                    "vh": BandConfig("vh", ["VH"], wavelength=0.056),
-                },
-                default_order=["vv", "vh"],
-            ),
-            "dem": ModalityConfig(
-                bands={"dem": BandConfig("dem", ["elevation", "dem"], wavelength=None)},
-                default_order=["dem"],
-            ),
-            "hydro": ModalityConfig(
-                bands={
-                    "hydro": BandConfig(
-                        "hydro", ["hydro_layer", "HYDRO"], wavelength=None
-                    )
-                },
-                default_order=["hydro"],
-            ),
-        },
-        default_order=["vv", "vh", "dem", "hydro"],
-        band_to_modality={"vv": "s1", "vh": "s1", "dem": "dem", "hydro": "hydro"},
-    )
-
     @classmethod
     def get_dataset_config(
         cls, dataset_name: str
