@@ -20,6 +20,7 @@ from .mados import GeoBenchMADOSDataModule
 from .biomassters import GeoBenchBioMasstersDataModule
 from .dynamic_earthnet import GeoBenchDynamicEarthNetDataModule
 from .sen4agrinet import GeoBenchSen4AgriNetDataModule
+from .mmflood import GeoBenchMMFloodDataModule
 
 
 from .base import (
@@ -50,4 +51,5 @@ __all__ = (
     "GeoBenchMADOSDataModule",
     "GeoBenchDynamicEarthNetDataModule",
     "GeoBenchSen4AgriNetDataModule",
+    "GeoBenchMMFloodDataModule",
 )
