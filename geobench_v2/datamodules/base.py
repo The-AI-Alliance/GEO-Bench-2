@@ -121,6 +121,11 @@ class GeoBenchDataModule(LightningDataModule, ABC):
                 **self.kwargs,
             )
 
+        self.dataset_band_config = self.train_dataset.dataset_band_config
+
+        if hasattr(self.train_dataset, "num_classes"):
+            self.num_classes = self.train_dataset.num_classes
+            self.class_names = self.train_dataset.classes
 
     @abstractmethod
     def setup_image_size_transforms(self) -> tuple[nn.Module, nn.Module, nn.Module]:

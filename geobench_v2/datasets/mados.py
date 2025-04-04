@@ -149,7 +149,6 @@ class GeoBenchMADOS(GeoBenchBaseDataset):
                 array = dataset.read(
                     indexes=1, out_shape=(240, 240), resampling=Resampling.bilinear
                 )
-                #print(array.dtype)
                 images.append(array)
 
         images = torch.from_numpy(np.stack(images)).float()
