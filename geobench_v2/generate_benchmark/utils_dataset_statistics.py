@@ -36,7 +36,9 @@ class NoNormalization(nn.Module):
 
 # Using Caleb Robinson's implementation: https://gist.github.com/calebrob6/1ef1e64bd62b1274adf2c6f91e20d215
 class ImageSatistics(torch.nn.Module):
-    def __init__(self, shape, dims, bins=1000, range_vals=(0, 100)):
+    def __init__(
+        self, shape, dims, bins=1000, range_vals=(0, 100), compute_quantiles=False
+    ):
         """Initializes the ImageSatistics method.
 
         A PyTorch module that can be put on the GPU and calculate the multidimensional
@@ -74,7 +76,11 @@ class ImageSatistics(torch.nn.Module):
         self.register_buffer("var", torch.ones(shape))
         self.register_buffer("std", torch.ones(shape))
         self.register_buffer("count", torch.zeros(1))
+        if compute_quantiles:
+            self.register_buffer("pct_02", torch.zeros(shape))
+            self.register_buffer("pct_98", torch.zeros(shape))
         self.dims = dims
+        self.compute_quantiles = compute_quantiles
         self.bins = bins
         self.range_min, self.range_max = range_vals
         self.register_buffer("hist", torch.zeros(shape[0], bins))
@@ -137,6 +143,9 @@ class ImageSatistics(torch.nn.Module):
                     channel_data, bins=self.bins, min=self.range_min, max=self.range_max
                 )
                 self.hist[i] += hist_channel
+                if self.compute_quantiles:
+                    self.pct_02[i] = torch.quantile(channel_data, 0.02)
+                    self.pct_98[i] = torch.quantile(channel_data, 0.98)
 
     def forward(self, x: Tensor) -> Tensor:
         """Update the statistics with a new batch of inputs and return the inputs.
@@ -269,6 +278,12 @@ class DatasetStatistics(ABC):
                     )
                     .cpu()
                     .numpy(),
+                    "pct_02": stats.pct_02.cpu().numpy()
+                    if hasattr(stats, "pct_02")
+                    else None,
+                    "pct_98": stats.pct_98.cpu().numpy()
+                    if hasattr(stats, "pct_98")
+                    else None,
                 }
             )
 
@@ -376,7 +391,7 @@ class DatasetStatistics(ABC):
             self.compute_batch_image_statistics(batch)
             self.compute_batch_target_statistics(batch[self.target_key])
             i += 1
-            if i > 5:
+            if i > 100:
                 break
 
         return self.aggregate_statistics()
@@ -584,6 +599,7 @@ class PxRegressionStatistics(DatasetStatistics):
             dims=[0, 2, 3],
             bins=self.bins,
             range_vals=self.target_range_vals,
+            compute_quantiles=True,
         ).to(self.device)
 
     def compute_batch_target_statistics(
@@ -614,6 +630,8 @@ class PxRegressionStatistics(DatasetStatistics):
             )
             .cpu()
             .numpy(),
+            "pct_02": self.target_stats.pct_02.cpu().numpy(),
+            "pct_98": self.target_stats.pct_98.cpu().numpy(),
         }
         return self.target_stats
 

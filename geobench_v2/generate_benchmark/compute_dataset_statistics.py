@@ -234,7 +234,7 @@ def _create_object_detection_visualizations(target_stats, vis_dir, dataset_name)
 
 
 class NumpyEncoder(json.JSONEncoder):
-    """Custom JSON encoder for NumPy types."""
+    """Custom JSON encoder for NumPy types and sets."""
 
     def default(self, obj):
         if isinstance(obj, np.ndarray):
@@ -243,6 +243,8 @@ class NumpyEncoder(json.JSONEncoder):
             return int(obj)
         if isinstance(obj, np.floating):
             return float(obj)
+        if isinstance(obj, set):
+            return list(obj)  # Convert sets to lists for JSON serialization
         return super(NumpyEncoder, self).default(obj)
 
 
@@ -304,6 +306,9 @@ def save_statistics(stats: tuple, save_dir: str, dataset_name: str) -> None:
 
     dataset_stats = {"input_stats": input_stats, "target_stats": target_stats}
     dataset_stats_path = os.path.join(save_dir, f"{dataset_name}_stats.json")
+    import pdb
+
+    pdb.set_trace()
     with open(dataset_stats_path, "w") as f:
         json.dump(dataset_stats, f, cls=NumpyEncoder, indent=4)
 

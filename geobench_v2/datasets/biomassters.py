@@ -15,6 +15,7 @@ import torch.nn as nn
 import rasterio
 import numpy as np
 import torch
+import einops
 from PIL import Image
 
 
@@ -42,6 +43,7 @@ class GeoBenchBioMassters(GeoBenchBaseDataset):
             "B8A": 0.0,
             "B11": 0.0,
             "B12": 0.0,
+            "AGB": 0.0,  # 2 percentile
         },
         "stds": {
             "VV_asc": 1.0,
@@ -58,6 +60,7 @@ class GeoBenchBioMassters(GeoBenchBaseDataset):
             "B8A": 3000.0,
             "B11": 3000.0,
             "B12": 3000.0,
+            "AGB": 289.89,  # 98 percentile
         },
     }
 
@@ -170,6 +173,11 @@ class GeoBenchBioMassters(GeoBenchBaseDataset):
             # replace -9999 with 0
             s1_mask = s1_data == -9999
             s1_data[s1_mask] = 0.0
+            # Create a spatial mask that ignores channels/timesteps
+            if s1_mask.dim() == 3:  # [C, H, W]
+                spatial_mask = s1_mask.any(dim=0)  # [H, W]
+            else:  # [T, C, H, W]
+                spatial_mask = s1_mask.any(dim=(1))  # [T, H, W]
             img_dict["s1"] = s1_data
 
         if "s2" in self.band_order:
@@ -201,9 +209,30 @@ class GeoBenchBioMassters(GeoBenchBaseDataset):
         img_dict = self.data_normalizer(img_dict)
 
         # after normalization replace the no-data pixels with 0 again
-        # TODO should this also be done for the s2 data?
         if "s1" in self.band_order:
-            img_dict["image_s1"][s1_mask] = 0.0
+            if img_dict["image_s1"].dim() == 3:  # [C, H, W]
+                img_dict["image_s1"][:, spatial_mask] = 0.0
+            else:  # [T, C, H, W]
+                img_dict["image_s1"][
+                    einops.repeat(
+                        spatial_mask,
+                        "t h w -> t c h w",
+                        c=img_dict["image_s1"].shape[1],
+                    )
+                ] = 0.0
+
+        if "s2" in self.band_order:
+            if img_dict["image_s2"].dim() == 3:  # [C, H, W]
+                img_dict["image_s2"][:, spatial_mask] = 0.0
+            else:  # [T, C, H, W]
+                # unsqueeze channel dim for broadcasting
+                img_dict["image_s2"][
+                    einops.repeat(
+                        spatial_mask,
+                        "t h w -> t c h w",
+                        c=img_dict["image_s2"].shape[1],
+                    )
+                ] = 0.0
 
         sample.update(img_dict)
 
@@ -213,6 +242,11 @@ class GeoBenchBioMassters(GeoBenchBaseDataset):
         with rasterio.open(agb_path) as src:
             agb = src.read()
         agb = torch.from_numpy(agb).float()
+
+        agb = (
+            agb - self.normalization_stats["means"]["AGB"]
+        ) / self.normalization_stats["stds"]["AGB"]
+
         sample["mask"] = agb
 
         if self.transforms is not None:
