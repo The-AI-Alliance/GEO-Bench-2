@@ -83,7 +83,7 @@ class GeoBenchEverWatch(EverWatch, DataUtilsMixin):
             self.normalization_stats, self.band_order
         )
 
-        self.annot_df = pd.read_csv(os.path.join(self.root, "annotations.csv"))
+        self.annot_df = pd.read_csv(os.path.join(self.root, "resized_annotations.csv"))
 
         # remove all entries where xmin == xmax or ymin == ymax
         self.annot_df = self.annot_df[

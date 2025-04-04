@@ -1953,7 +1953,7 @@ def create_geospatial_temporal_split(
     )
 
     unique_areas = df["area_id"].unique()
-    np.random.shuffle(unique_areas) 
+    np.random.shuffle(unique_areas)
 
     print(f"Found {len(unique_areas)} unique geographic areas")
 
@@ -2025,7 +2025,6 @@ def create_geospatial_temporal_split(
             }
         )
 
-
     for area_id in tqdm(temporal_areas, desc="Processing temporal split areas"):
         area_df = df[df["area_id"] == area_id].copy()
 
@@ -2062,7 +2061,7 @@ def create_geospatial_temporal_split(
             }
         )
 
-    df["split"] = "unknown" 
+    df["split"] = "unknown"
     df.loc[train_indices, "split"] = "train"
     df.loc[val_indices, "split"] = "validation"
     df.loc[test_indices, "split"] = "test"
@@ -2083,7 +2082,6 @@ def create_geospatial_temporal_split(
     print(f"  Train: {len(geo_stats[geo_stats['split'] == 'train'])} areas")
     print(f"  Validation: {len(geo_stats[geo_stats['split'] == 'validation'])} areas")
     print(f"  Test: {len(geo_stats[geo_stats['split'] == 'test'])} areas")
-
 
     temp_stats = stats_df[stats_df["split_type"] == "temporal"]
     train_periods_total = temp_stats["train_periods"].sum()
@@ -2574,7 +2572,7 @@ def create_geographic_splits_spacenet7(
 
     return df_copy
 
-  
+
 def create_mmflood_patches(
     metadata_df: pd.DataFrame,
     root_dir: str,
