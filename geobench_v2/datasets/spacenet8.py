@@ -58,6 +58,7 @@ class GeoBenchSpaceNet8(GeoBenchBaseDataset):
         band_order: list[str] = band_default_order,
         data_normalizer: Type[nn.Module] = MultiModalNormalizer,
         transforms: nn.Module = None,
+        return_stacked_image: bool = False,
         **kwargs,
     ) -> None:
         """Initialize SpaceNet8 dataset.
@@ -69,6 +70,7 @@ class GeoBenchSpaceNet8(GeoBenchBaseDataset):
                 specify ['red', 'green', 'blue', 'blue', 'blue'], the dataset would return images with 5 channels
                 in that order. This is useful for models that expect a certain band order, or
                 test the impact of band order on model performance.
+            return_stacked_image: if true, returns a single image tensor with all modalities stacked in band_order
             **kwargs: Additional keyword arguments passed to ``SpaceNet8``
         """
         super().__init__(
@@ -78,6 +80,7 @@ class GeoBenchSpaceNet8(GeoBenchBaseDataset):
             data_normalizer=data_normalizer,
             transforms=transforms,
         )
+        self.return_stacked_image = return_stacked_image
 
     def __getitem__(self, index: int) -> dict[str, Tensor]:
         """Return an index within the dataset.
@@ -122,8 +125,14 @@ class GeoBenchSpaceNet8(GeoBenchBaseDataset):
         if self.transforms is not None:
             sample = self.transforms(sample)
 
-        output = {}
-        output["image"] = sample["image_post"]
-        output["mask"] = sample["mask"]
+        if self.return_stacked_image:
+            stacked_image = []
+            stacked_image.append(sample["image_pre"])
+            stacked_image.append(sample["image_post"])
+            output = {}
+            output["image"] = torch.cat(stacked_image, 0)
+            output["mask"] = sample["mask"]
+        else:
+            output = sample 
 
         return output

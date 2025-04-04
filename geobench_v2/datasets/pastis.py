@@ -150,6 +150,8 @@ class GeoBenchPASTIS(PASTIS, DataUtilsMixin):
         self.num_time_steps = num_time_steps
 
         self.label_type = label_type
+        self.return_stacked_image = return_stacked_image
+        self.return_metadata = return_metadata
 
         self.metadata_df = pd.read_parquet(
             os.path.join(root, "geobench_pastis.parquet")
@@ -216,7 +218,7 @@ class GeoBenchPASTIS(PASTIS, DataUtilsMixin):
         if self.transforms:
             sample = self.transforms(sample)
 
-        if return_stacked_image:
+        if self.return_stacked_image:
             stacked_image = []
             for mod in self.band_order:
                 if mod == "s1_desc":
@@ -228,11 +230,14 @@ class GeoBenchPASTIS(PASTIS, DataUtilsMixin):
             output = {}
             output["image"] = torch.cat(stacked_image, 0)
             output["mask"] = sample["mask"]
+        else:
+            output = sample
 
-        if return_metadata:
-            output["dates"] = sample["dates"]
-            output["lon"] = sample["lon"]
-            output["lat"] = sample["lat"]
+        if self.return_metadata:
+            metadata = ["dates", "lon", "lat"]
+            for key in metadata:
+                if key not in output:
+                    output[key] = sample[key]
 
         return output
 
