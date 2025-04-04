@@ -25,7 +25,7 @@ class GeoBenchCloudSen12DataModule(GeoBenchSegmentationDataModule):
 
     def __init__(
         self,
-        img_size: int,
+        img_size: int = 512,
         band_order: Sequence[
             float | str
         ] = GeoBenchCloudSen12.dataset_band_config.default_order,

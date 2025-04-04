@@ -68,6 +68,10 @@ class GeoBenchSpaceNet6(GeoBenchBaseDataset):
         "SpaceNet6.0002.part.tortilla",
     ]
 
+    classes = ("background", "no_building", "building")
+
+    num_classes = len(classes)
+
     def __init__(
         self,
         root: Path,

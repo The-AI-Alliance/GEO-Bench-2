@@ -1,53 +1,32 @@
 # Copyright (c) 2025 GeoBenchV2. All rights reserved.
 # Licensed under the Apache License 2.0.
 
-"""PASTIS DataModule."""
+
+"""MMFlood Datamodule."""
 
 from collections.abc import Callable
 from typing import Any, Sequence
-
-from geobench_v2.datasets import GeoBenchPASTIS
 
 import pandas as pd
 from torch import Tensor
 import os
 import matplotlib.pyplot as plt
 
-import torch
+from geobench_v2.datasets import GeoBenchMMFlood
+
 from .base import GeoBenchSegmentationDataModule
 import torch.nn as nn
-from torch import Tensor
 
 
-# def pastis_collate_fn(batch: Sequence[dict[str, Any]]) -> dict[str, Tensor]:
-#     """Collate function for PASTIS dataset to deal with timeseries
+class GeoBenchMMFloodDataModule(GeoBenchSegmentationDataModule):
+    """GeoBench MMFlood Data Module."""
 
-#     Args:
-#         batch: A list of samples from PASTIS dataset
-
-#     Returns:
-#         A dictionary containing the collated batch
-#     """
-#     collated_batch = {}
-#     # deal with various timeseries, collate to min-number of time steps
-#     min_time_steps = min([sample["image"].shape[0] for sample in batch])
-#     images = [sample["image"][:min_time_steps] for sample in batch]
-#     images = torch.stack(images, dim=0)
-#     collated_batch["image"] = images
-
-#     collate_batch["mask"] = torch.stack([sample["mask"] for sample in batch], dim=0)
-
-#     return collated_batch
-
-
-# TODO add timeseries argument
-class GeoBenchPASTISDataModule(GeoBenchSegmentationDataModule):
-    """GeoBench PASIS Data Module."""
+    #
 
     def __init__(
         self,
-        img_size: int = 128,
-        band_order: Sequence[float | str] = GeoBenchPASTIS.band_default_order,
+        img_size: int = 512,
+        band_order: Sequence[float | str] = GeoBenchMMFlood.band_default_order,
         batch_size: int = 32,
         eval_batch_size: int = 64,
         num_workers: int = 0,
@@ -57,10 +36,10 @@ class GeoBenchPASTISDataModule(GeoBenchSegmentationDataModule):
         pin_memory: bool = False,
         **kwargs: Any,
     ) -> None:
-        """Initialize GeoBench PASIS DataModule.
+        """Initialize GeoBench MMFlood dataset module.
 
         Args:
-            img_size: Image size
+            img_size: Image size, in geobench version patches of 512
             batch_size: Batch size during training
             eval_batch_size: Evaluation batch size
             num_workers: Number of workers
@@ -72,13 +51,12 @@ class GeoBenchPASTISDataModule(GeoBenchSegmentationDataModule):
                 at the sample level and should include normalization. See :method:`define_augmentations`
                 for the default transformation.
             pin_memory: Pin memory
-            **kwargs: Additional keyword arguments to
-                :class:`~geobench_v2.datasets.pastis.GeoBenchPASTIS`.
+            **kwargs: Additional keyword arguments for the dataset class
         """
         super().__init__(
-            dataset_class=GeoBenchPASTIS,
-            band_order=band_order,
+            dataset_class=GeoBenchMMFlood,
             img_size=img_size,
+            band_order=band_order,
             batch_size=batch_size,
             eval_batch_size=eval_batch_size,
             num_workers=num_workers,
@@ -96,7 +74,7 @@ class GeoBenchPASTISDataModule(GeoBenchSegmentationDataModule):
             pandas DataFrame with metadata.
         """
         return pd.read_parquet(
-            os.path.join(self.kwargs["root"], "geobench_pastis.parquet")
+            os.path.join(self.kwargs["root"], "geobench_mmflood.parquet")
         )
 
     def visualize_batch(

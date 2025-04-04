@@ -1,12 +1,12 @@
 # Copyright (c) 2025 GeoBenchV2. All rights reserved.
 # Licensed under the Apache License 2.0.
 
-"""PASTIS DataModule."""
+"""Sen4AgriNet DataModule."""
 
 from collections.abc import Callable
 from typing import Any, Sequence
 
-from geobench_v2.datasets import GeoBenchPASTIS
+from geobench_v2.datasets import GeoBenchSen4AgriNet
 
 import pandas as pd
 from torch import Tensor
@@ -19,35 +19,13 @@ import torch.nn as nn
 from torch import Tensor
 
 
-# def pastis_collate_fn(batch: Sequence[dict[str, Any]]) -> dict[str, Tensor]:
-#     """Collate function for PASTIS dataset to deal with timeseries
-
-#     Args:
-#         batch: A list of samples from PASTIS dataset
-
-#     Returns:
-#         A dictionary containing the collated batch
-#     """
-#     collated_batch = {}
-#     # deal with various timeseries, collate to min-number of time steps
-#     min_time_steps = min([sample["image"].shape[0] for sample in batch])
-#     images = [sample["image"][:min_time_steps] for sample in batch]
-#     images = torch.stack(images, dim=0)
-#     collated_batch["image"] = images
-
-#     collate_batch["mask"] = torch.stack([sample["mask"] for sample in batch], dim=0)
-
-#     return collated_batch
-
-
-# TODO add timeseries argument
-class GeoBenchPASTISDataModule(GeoBenchSegmentationDataModule):
-    """GeoBench PASIS Data Module."""
+class GeoBenchSen4AgriNetDataModule(GeoBenchSegmentationDataModule):
+    """GeoBench Sen4Agrinet Data Module."""
 
     def __init__(
         self,
         img_size: int = 128,
-        band_order: Sequence[float | str] = GeoBenchPASTIS.band_default_order,
+        band_order: Sequence[float | str] = GeoBenchSen4AgriNet.band_default_order,
         batch_size: int = 32,
         eval_batch_size: int = 64,
         num_workers: int = 0,
@@ -57,7 +35,7 @@ class GeoBenchPASTISDataModule(GeoBenchSegmentationDataModule):
         pin_memory: bool = False,
         **kwargs: Any,
     ) -> None:
-        """Initialize GeoBench PASIS DataModule.
+        """Initialize GeoBench Sen4AgriNet DataModule.
 
         Args:
             img_size: Image size
@@ -73,10 +51,10 @@ class GeoBenchPASTISDataModule(GeoBenchSegmentationDataModule):
                 for the default transformation.
             pin_memory: Pin memory
             **kwargs: Additional keyword arguments to
-                :class:`~geobench_v2.datasets.pastis.GeoBenchPASTIS`.
+                :class:`~geobench_v2.datasets.Sen4AgriNet.GeoBenchSen4AgriNet`.
         """
         super().__init__(
-            dataset_class=GeoBenchPASTIS,
+            dataset_class=GeoBenchSen4AgriNet,
             band_order=band_order,
             img_size=img_size,
             batch_size=batch_size,
@@ -96,7 +74,7 @@ class GeoBenchPASTISDataModule(GeoBenchSegmentationDataModule):
             pandas DataFrame with metadata.
         """
         return pd.read_parquet(
-            os.path.join(self.kwargs["root"], "geobench_pastis.parquet")
+            os.path.join(self.kwargs["root"], "geobench_sen4agrinet.parquet")
         )
 
     def visualize_batch(

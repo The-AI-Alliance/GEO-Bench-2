@@ -24,7 +24,7 @@ class GeoBenchFLAIR2DataModule(GeoBenchSegmentationDataModule):
 
     def __init__(
         self,
-        img_size: int,
+        img_size: int = 512,
         band_order: Sequence[float | str] = GeoBenchFLAIR2.band_default_order,
         batch_size: int = 32,
         eval_batch_size: int = 64,

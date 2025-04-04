@@ -165,7 +165,11 @@ class DataUtilsMixin(ABC):
                         f"Available bands: {', '.join(source_lookup.keys())}"
                     )
                 idx = source_lookup[band_spec]
-                channel = data[idx : idx + 1]
+                if len(data.shape) == 4:
+                    # timeseries of [T, C, H, W]
+                    channel = data[:, idx : idx + 1]
+                else:  # assume [C, H, W]
+                    channel = data[idx : idx + 1]
             output_channels.append(channel)
 
         shape = data.shape
@@ -253,7 +257,7 @@ class DataUtilsMixin(ABC):
                         channel = source_data[idx : idx + 1]
                 channels.append(channel)
 
-            shape = list(next(iter(data.values())).shape)
+            shape = source_data.shape
             if len(shape) == 4:  # handle time series case
                 output[f"image_{modality}"] = torch.cat(channels, dim=1)
             else:  # assume [C, H, W]

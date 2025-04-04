@@ -1,11 +1,14 @@
+# Copyright (c) 2025 GeoBenchV2. All rights reserved.
+# Licensed under the Apache License 2.0.
+
 import pytest
-from geobench_v2.datamodules import GeoBenchEverWatchDataModule
+from geobench_v2.datamodules import GeoBenchDOTAV2DataModule
 
 
 @pytest.fixture
 def data_root():
     """Path to test data directory."""
-    return "/mnt/rg_climate_benchmark/data/geobenchV2/EverWatch"
+    return "/mnt/rg_climate_benchmark/data/geobenchV2/dotav2"
 
 
 @pytest.fixture
@@ -16,9 +19,8 @@ def band_order():
 
 @pytest.fixture
 def datamodule(data_root, band_order):
-    """Initialize EverWatch datamodule with test configuration."""
-    return GeoBenchEverWatchDataModule(
-        img_size=74,
+    """Initialize DOTAV2 datamodule with test configuration."""
+    return GeoBenchDOTAV2DataModule(
         batch_size=32,
         eval_batch_size=64,
         num_workers=0,
@@ -28,8 +30,8 @@ def datamodule(data_root, band_order):
     )
 
 
-class TestEverWatchDataModule:
-    """Test cases for EverWatch datamodule functionality."""
+class TestDOTAV2DataModule:
+    """Test cases for DOTAV2 datamodule functionality."""
 
     def test_batch_dimensions(self, datamodule):
         """Test if batches have correct dimensions."""
@@ -37,8 +39,10 @@ class TestEverWatchDataModule:
         train_batch = next(iter(datamodule.train_dataloader()))
         assert train_batch["image"].shape[0] == datamodule.batch_size
         assert train_batch["image"].shape[1] == len(datamodule.band_order)
-        assert train_batch["image"].shape[2] == 74
-        assert train_batch["image"].shape[3] == datamodule.img_size
+
+        # TODO resize augmentations do not work with oriented bboxes
+        assert len(train_batch["bbox_xyxy"]) == datamodule.batch_size
+        assert len(train_batch["label"]) == datamodule.batch_size
 
     def test_band_order_resolution(self, datamodule):
         """Test if band order is correctly resolved."""

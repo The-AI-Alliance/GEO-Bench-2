@@ -65,10 +65,14 @@ class GeoBenchDataModule(LightningDataModule, ABC):
             **kwargs: Additional keyword arguments passed to ``dataset_class``
         """
         super().__init__()
-        if isinstance(train_augmentations, str): 
-            assert train_augmentations=="default", "Please provide one of the follow for eval_augmentations: Callable or None or 'default'"
-        if isinstance(eval_augmentations, str): 
-            assert eval_augmentations=="default", "Please provide one of the follow for eval_augmentations: Callable or None or 'default'"
+        if isinstance(train_augmentations, str):
+            assert train_augmentations == "default", (
+                "Please provide one of the follow for eval_augmentations: Callable or None or 'default'"
+            )
+        if isinstance(eval_augmentations, str):
+            assert eval_augmentations == "default", (
+                "Please provide one of the follow for eval_augmentations: Callable or None or 'default'"
+            )
 
         self.dataset_class = dataset_class
         self.img_size = img_size
@@ -268,13 +272,13 @@ class GeoBenchDataModule(LightningDataModule, ABC):
                 continue
 
             if not obj:
-                msg = f'{self.__class__.__name__}.{arg} has length 0.'
+                msg = f"{self.__class__.__name__}.{arg} has length 0."
                 print(msg)
                 raise RuntimeError
 
             return obj
 
-        msg = f'{self.__class__.__name__}.setup must define one of {args}.'
+        msg = f"{self.__class__.__name__}.setup must define one of {args}."
         print(msg)
         raise RuntimeError
 
@@ -345,14 +349,12 @@ class GeoBenchClassificationDataModule(GeoBenchDataModule):
                 K.RandomVerticalFlip(p=0.5),
                 data_keys=None,
                 keepdim=True,
-
             )
         elif self.train_augmentations is None:
             self.train_augmentations = nn.Identity()
 
         if (self.eval_augmentations == "default") or (self.eval_augmentations is None):
             self.eval_augmentations = nn.Identity()
-
 
     def setup_image_size_transforms(self) -> tuple[nn.Module, nn.Module, nn.Module]:
         """Setup image resizing transforms for train, val, test.
@@ -398,7 +400,6 @@ class GeoBenchClassificationDataModule(GeoBenchDataModule):
     def visualize_geolocation_distribution(self) -> None:
         """Visualize the geolocation distribution of the dataset."""
         pass
-
 
 
 class GeoBenchSegmentationDataModule(GeoBenchDataModule):
@@ -465,7 +466,7 @@ class GeoBenchSegmentationDataModule(GeoBenchDataModule):
             self.train_augmentations = K.AugmentationSequential(
                 K.RandomHorizontalFlip(p=0.5),
                 K.RandomVerticalFlip(p=0.5),
-                #data_keys=["image", "mask"],
+                # data_keys=["image", "mask"],
                 data_keys=None,
                 keepdim=True,
             )
@@ -474,7 +475,6 @@ class GeoBenchSegmentationDataModule(GeoBenchDataModule):
 
         if (self.eval_augmentations == "default") or (self.eval_augmentations is None):
             self.eval_augmentations = nn.Identity()
-
 
     def setup_image_size_transforms(self) -> tuple[nn.Module, nn.Module, nn.Module]:
         """Setup image resizing transforms for train, val, test.
@@ -587,7 +587,6 @@ class GeoBenchObjectDetectionDataModule(GeoBenchDataModule):
                 K.RandomVerticalFlip(p=0.5),
                 data_keys=["image", "bbox_xyxy", "label"],
                 keepdim=True,
-
             )
         elif self.train_augmentations is None:
             self.train_augmentations = nn.Identity()
@@ -639,4 +638,3 @@ class GeoBenchObjectDetectionDataModule(GeoBenchDataModule):
     def visualize_geolocation_distribution(self) -> None:
         """Visualize the geolocation distribution of the dataset."""
         pass
-

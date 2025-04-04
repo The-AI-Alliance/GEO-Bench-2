@@ -41,6 +41,13 @@ class GeoBenchMADOS(GeoBenchBaseDataset):
         "B12",
     )
 
+    # https://github.com/gkakogeorgiou/mados/blob/c20a7e972bdf111126540d8e6caa45808352f138/utils/dataset.py#L29
+    # bands_mean = np.array([0.0582676,  0.05223386, 0.04381474, 0.0357083,  0.03412902, 0.03680401,
+    # 0.03999107, 0.03566642, 0.03965081, 0.0267993,  0.01978944]).astype('float32')
+
+    # bands_std = np.array([0.03240627, 0.03432253, 0.0354812,  0.0375769,  0.03785412, 0.04992323,
+    # 0.05884482, 0.05545856, 0.06423746, 0.04211187, 0.03019115]).astype('float32')
+
     normalization_stats = {
         "means": {
             "B01": 0.0582676,
@@ -91,6 +98,8 @@ class GeoBenchMADOS(GeoBenchBaseDataset):
         "Sea snot",
     )
 
+    num_classes = len(classes)
+
     def __init__(
         self,
         root: Path,
@@ -113,9 +122,6 @@ class GeoBenchMADOS(GeoBenchBaseDataset):
                 which applies z-score normalization to each band.
             transforms:
             **kwargs: Additional keyword arguments passed to ``torchgeo.datasets.MADOS``
-
-        Raises:
-            AssertionError: If the number of time steps is greater than 12
         """
         super().__init__(
             root=root,
@@ -124,12 +130,6 @@ class GeoBenchMADOS(GeoBenchBaseDataset):
             data_normalizer=data_normalizer,
             transforms=transforms,
         )
-
-        # data does not have georeferencing information, yet is a Gtiff, that the tacoreader can only read with rasterio
-        import warnings
-        from rasterio.errors import NotGeoreferencedWarning
-
-        warnings.filterwarnings("ignore", category=NotGeoreferencedWarning)
 
     def __getitem__(self, idx: int) -> dict[str, Tensor]:
         """Return an index within the dataset.
