@@ -122,4 +122,8 @@ class GeoBenchSpaceNet8(GeoBenchBaseDataset):
         if self.transforms is not None:
             sample = self.transforms(sample)
 
-        return sample
+        output = {}
+        output["image"] = sample["image_post"]
+        output["mask"] = sample["mask"]
+
+        return output

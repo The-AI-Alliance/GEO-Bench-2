@@ -15,6 +15,8 @@ from lightning import LightningDataModule
 from matplotlib import pyplot as plt
 from torch import Tensor
 from torch.utils.data import DataLoader, Dataset
+from torch.utils.data import random_split
+
 
 
 # TODO come up with an expected metadata file scheme
@@ -246,7 +248,9 @@ class GeoBenchDataModule(LightningDataModule, ABC):
                 split = "eval"
 
             aug = self._valid_attribute(f"{split}_augmentations")
+
             batch = aug(batch)
+            
         return batch
 
     def _valid_attribute(self, args) -> Any:
@@ -340,7 +344,7 @@ class GeoBenchClassificationDataModule(GeoBenchDataModule):
         Augmentations will be applied in `on_after_batch_transfer` in the LightningDataModule.
         """
         if self.train_augmentations == "default":
-            self.train_augmentations = nn.Sequential(
+            self.train_augmentations = K.AugmentationSequential(
                 K.RandomHorizontalFlip(p=0.5),
                 K.RandomVerticalFlip(p=0.5),
                 data_keys=None,

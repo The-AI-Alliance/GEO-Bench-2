@@ -160,7 +160,7 @@ class GeoBenchMADOS(GeoBenchBaseDataset):
 
         with rasterio.open(sample_row.read(11)) as src:
             mask = src.read()
-        mask = torch.from_numpy(mask).float()
+        mask = torch.from_numpy(mask).long()
         sample["mask"] = mask
 
         if self.transforms is not None:

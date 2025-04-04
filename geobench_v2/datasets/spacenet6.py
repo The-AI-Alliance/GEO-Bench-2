@@ -54,7 +54,7 @@ class GeoBenchSpaceNet6(GeoBenchBaseDataset):
             "r": 1000.0,
             "g": 1000.0,
             "b": 1000.0,
-            "n": 1000.0,
+            "nir": 1000.0,
             "hh": 100.0,
             "hv": 100.0,
             "vv": 100.0,
@@ -155,4 +155,15 @@ class GeoBenchSpaceNet6(GeoBenchBaseDataset):
         if self.transforms is not None:
             sample = self.transforms(sample)
 
-        return sample
+
+        stacked_image = []
+        for mod in self.band_order:
+            if mod == "rgbn":
+                stacked_image.append(sample["image_rgbn"])
+            if mod == "sar":
+                stacked_image.append(sample["image_sar"])
+        output = {}
+        output["image"] = torch.cat(stacked_image, 0)
+        output["mask"] = sample["mask"]
+
+        return output

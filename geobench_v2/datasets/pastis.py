@@ -210,7 +210,19 @@ class GeoBenchPASTIS(PASTIS, DataUtilsMixin):
         if self.transforms:
             sample = self.transforms(sample)
 
-        return sample
+        stacked_image = []
+        for mod in self.band_order:
+            if mod == "s1_desc":
+                stacked_image.append(sample["image_s1_desc"])
+            if mod == "s1_asc":
+                stacked_image.append(sample["image_s1_asc"])
+            if mod == "s2":
+                stacked_image.append(sample["image_s2"])
+        output = {}
+        output["image"] = torch.cat(stacked_image, 0)
+        output["mask"] = sample["mask"]
+
+        return output
 
     def _load_image(self, path: str) -> Tensor:
         """Load a single time-series.
