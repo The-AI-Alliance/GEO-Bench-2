@@ -33,13 +33,23 @@ class GeoBenchSpaceNet8(GeoBenchBaseDataset):
     dataset_band_config = DatasetBandRegistry.SPACENET8
 
     normalization_stats = {
-        "means": {"r": 0.0, "g": 0.0, "b": 0.0, "nir": 0.0},
-        "stds": {"r": 255.0, "g": 255.0, "b": 255.0, "nir": 255.0},
+        "means": {"r": 0.0, "g": 0.0, "b": 0.0},
+        "stds": {"r": 255.0, "g": 255.0, "b": 255.0},
     }
 
-    band_default_order = ("red", "green", "blue", "nir")
+    band_default_order = ("red", "green", "blue")
 
     paths = ["SpaceNet8.tortilla"]
+
+    classes = (
+        "background",
+        "road (not flooded)",
+        "road (flooded)",
+        "building (not flooded)",
+        "building (flooded)",
+    )
+
+    num_classes = len(classes)
 
     def __init__(
         self,
@@ -55,8 +65,8 @@ class GeoBenchSpaceNet8(GeoBenchBaseDataset):
         Args:
             root: Path to the dataset root directory
             split: The dataset split, supports 'train', 'val', 'test'
-            band_order: The order of bands to return, defaults to ['red', 'green', 'blue', 'nir'], if one would
-                specify ['red', 'green', 'blue', 'nir', 'nir'], the dataset would return images with 5 channels
+            band_order: The order of bands to return, defaults to ['red', 'green', 'blue'], if one would
+                specify ['red', 'green', 'blue', 'blue', 'blue'], the dataset would return images with 5 channels
                 in that order. This is useful for models that expect a certain band order, or
                 test the impact of band order on model performance.
             **kwargs: Additional keyword arguments passed to ``SpaceNet8``
@@ -85,7 +95,7 @@ class GeoBenchSpaceNet8(GeoBenchBaseDataset):
         pre_event_path = sample_row.read(0)
         post_event_path = sample_row.read(1)
         mask_path = sample_row.read(2)
-        
+
         with (
             rasterio.open(pre_event_path) as pre_src,
             rasterio.open(post_event_path) as post_src,
@@ -104,13 +114,10 @@ class GeoBenchSpaceNet8(GeoBenchBaseDataset):
         image_post = self.rearrange_bands(image_post, self.band_order)
         image_post = self.data_normalizer(image_post)
 
-
         sample["image_pre"] = image_pre["image"]
         sample["image_post"] = image_post["image"]
-        # We add 1 to the mask to map the current {background, building} labels to
-        # the values {1, 2}. This is necessary because we add 0 padding to the
-        # mask that we want to ignore in the loss function.
-        sample["mask"] = mask + 1
+
+        sample["mask"] = mask
 
         if self.transforms is not None:
             sample = self.transforms(sample)

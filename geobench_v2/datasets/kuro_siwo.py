@@ -34,8 +34,8 @@ class GeoBenchKuroSiwo(GeoBenchBaseDataset):
     band_default_order = ("vv", "vh", "dem")
 
     normalization_stats = {
-        "means": {"vv": 0.0, "vh": 0.0, "dem": 0.0},
-        "stds": {"vv": 10, "vh": 1.0, "dem": 50.0},
+        "means": {"vv": 0.0953, "vh": 0.0264, "dem": 93.4313},
+        "stds": {"vv": 0.0427, "vh": 0.0215, "dem": 1410.8382},
     }
 
     paths = [
