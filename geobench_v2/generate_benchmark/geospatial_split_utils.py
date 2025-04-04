@@ -11,6 +11,9 @@ from sklearn.cluster import DBSCAN
 from matplotlib.colors import ListedColormap
 from typing import Optional, Tuple, Union, List
 
+import geopandas as gpd
+from rasterio.features import rasterize
+
 import os
 from tqdm import tqdm
 import rasterio
@@ -232,12 +235,10 @@ def checkerboard_split(
     )
     gdf["block_id"] = gdf["block_y"] * n_blocks_x + gdf["block_x"]
 
-    # Count points per block for balancing
     block_counts = gdf["block_id"].value_counts().to_dict()
     n_blocks = n_blocks_x * n_blocks_y
     blocks = np.arange(n_blocks)
 
-    # Set random seed for reproducibility
     np.random.seed(random_state)
 
     if pattern == "checkerboard":
@@ -266,20 +267,16 @@ def checkerboard_split(
                 block_splits[block_id] = "train"
 
     elif pattern == "balanced":
-        # Initialize with random assignment
         np.random.shuffle(blocks)
 
-        # Start with initial ratio-based assignment
         n_total_samples = len(gdf)
         n_test_samples_target = int(n_total_samples * target_test_ratio)
         n_val_samples_target = int(n_total_samples * target_val_ratio)
 
-        # Initialize block splits
         block_splits = {}
         for block_id in range(n_blocks):
-            block_splits[block_id] = "train"  # Default all to train
+            block_splits[block_id] = "train"
 
-        # Calculate initial block assignments based on ratios
         assigned_blocks = []
         test_blocks = []
         val_blocks = []
@@ -295,7 +292,6 @@ def checkerboard_split(
                 val_blocks, \
                 assigned_blocks, \
                 remaining_blocks
-            # First assign test blocks
             remaining_blocks = list(set(blocks) - set(assigned_blocks))
             np.random.shuffle(remaining_blocks)
 
@@ -310,7 +306,6 @@ def checkerboard_split(
                 else:
                     break
 
-            # Then assign validation blocks
             remaining_blocks = list(set(blocks) - set(assigned_blocks))
             np.random.shuffle(remaining_blocks)
 
@@ -325,18 +320,15 @@ def checkerboard_split(
                 else:
                     break
 
-            # Rest are train
             remaining_blocks = list(set(blocks) - set(assigned_blocks))
             for block_id in remaining_blocks:
                 block_splits[block_id] = "train"
 
         get_initial_assignments()
 
-        # Calculate actual ratios achieved
         test_ratio = test_samples / n_total_samples
         val_ratio = val_samples / n_total_samples
 
-        # Iteratively improve to get closer to target ratios
         iteration = 0
         while (
             abs(test_ratio - target_test_ratio) > ratio_tolerance
@@ -404,7 +396,6 @@ def checkerboard_split(
                         assigned_blocks.append(block_to_move)
                         block_splits[block_to_move] = "validation"
 
-            # Recalculate ratios
             test_ratio = test_samples / n_total_samples
             val_ratio = val_samples / n_total_samples
 
@@ -1160,9 +1151,6 @@ def split_geospatial_tiles_into_patches(
 
             try:
                 mask_full = np.zeros((1, src_height, src_width), dtype=np.uint8)
-
-                import geopandas as gpd
-                from rasterio.features import rasterize
 
                 gdf = gpd.read_file(mask_path)
 
@@ -1920,6 +1908,673 @@ def show_samples_per_valid_ratio(
     plt.close()
 
 
+def create_geospatial_temporal_split(
+    metadata_df: pd.DataFrame,
+    train_ratio=0.7,
+    val_ratio=0.1,
+    test_ratio=0.2,
+    geo_exclusive_ratio=0.3,
+    temporal_ratio=0.7,
+    random_seed=42,
+):
+    """Create a train/validation/test split with both geospatial and temporal constraints.
+
+    This function creates a split that combines:
+    1. Geographic exclusivity - some areas appear only in one split
+    2. Temporal progression - other areas have their time series split chronologically
+
+    Args:
+        metadata_df: DataFrame containing DynamicEarthNet metadata
+        train_ratio: Proportion of data for training set (default: 0.7)
+        val_ratio: Proportion of data for validation set (default: 0.1)
+        test_ratio: Proportion of data for test set (default: 0.2)
+        geo_exclusive_ratio: Ratio of areas to assign exclusively to one split (default: 0.3)
+        temporal_ratio: Ratio of areas to split temporally (default: 0.7)
+        random_seed: Random seed for reproducibility (default: 42)
+
+    Returns:
+        DataFrame with an additional 'split' column indicating the assigned split
+    """
+    assert abs(train_ratio + val_ratio + test_ratio - 1.0) < 1e-10, (
+        "Split ratios must sum to 1.0"
+    )
+    assert abs(geo_exclusive_ratio + temporal_ratio - 1.0) < 1e-10, (
+        "Geographic and temporal ratios must sum to 1.0"
+    )
+
+    df = metadata_df.copy()
+    np.random.seed(random_seed)
+
+    print(
+        f"Creating enhanced geospatial-temporal split with {train_ratio:.1%}/{val_ratio:.1%}/{test_ratio:.1%} ratios"
+    )
+    print(
+        f"Using {geo_exclusive_ratio:.1%} areas for geographic exclusivity and {temporal_ratio:.1%} for temporal splits"
+    )
+
+    unique_areas = df["area_id"].unique()
+    np.random.shuffle(unique_areas) 
+
+    print(f"Found {len(unique_areas)} unique geographic areas")
+
+    n_geo_exclusive_areas = int(len(unique_areas) * geo_exclusive_ratio)
+    n_temporal_areas = len(unique_areas) - n_geo_exclusive_areas
+
+    geo_train_areas = int(
+        n_geo_exclusive_areas * (train_ratio / (train_ratio + val_ratio + test_ratio))
+    )
+    geo_val_areas = int(
+        n_geo_exclusive_areas * (val_ratio / (train_ratio + val_ratio + test_ratio))
+    )
+    geo_test_areas = n_geo_exclusive_areas - geo_train_areas - geo_val_areas
+
+    geo_exclusive_areas = unique_areas[:n_geo_exclusive_areas]
+    temporal_areas = unique_areas[n_geo_exclusive_areas:]
+
+    train_geo_areas = geo_exclusive_areas[:geo_train_areas]
+    val_geo_areas = geo_exclusive_areas[
+        geo_train_areas : geo_train_areas + geo_val_areas
+    ]
+    test_geo_areas = geo_exclusive_areas[geo_train_areas + geo_val_areas :]
+
+    print(
+        f"Geographic exclusivity: {len(train_geo_areas)} train, {len(val_geo_areas)} val, {len(test_geo_areas)} test areas"
+    )
+    print(f"Temporal split: {len(temporal_areas)} areas")
+
+    train_indices = []
+    val_indices = []
+    test_indices = []
+
+    area_stats = []
+
+    for area_id in tqdm(
+        geo_exclusive_areas, desc="Processing geographically exclusive areas"
+    ):
+        area_df = df[df["area_id"] == area_id].copy()
+
+        if area_id in train_geo_areas:
+            split = "train"
+            train_indices.extend(area_df.index.tolist())
+        elif area_id in val_geo_areas:
+            split = "validation"
+            val_indices.extend(area_df.index.tolist())
+        else:
+            split = "test"
+            test_indices.extend(area_df.index.tolist())
+
+        area_stats.append(
+            {
+                "area_id": area_id,
+                "split_type": "geographic",
+                "split": split,
+                "total_periods": len(area_df["year_month"].unique()),
+                "train_periods": len(area_df["year_month"].unique())
+                if split == "train"
+                else 0,
+                "val_periods": len(area_df["year_month"].unique())
+                if split == "validation"
+                else 0,
+                "test_periods": len(area_df["year_month"].unique())
+                if split == "test"
+                else 0,
+                "train_samples": len(area_df) if split == "train" else 0,
+                "val_samples": len(area_df) if split == "validation" else 0,
+                "test_samples": len(area_df) if split == "test" else 0,
+                "total_samples": len(area_df),
+            }
+        )
+
+
+    for area_id in tqdm(temporal_areas, desc="Processing temporal split areas"):
+        area_df = df[df["area_id"] == area_id].copy()
+
+        time_periods = sorted(area_df["year_month"].unique())
+        total_periods = len(time_periods)
+
+        train_end = int(np.floor(total_periods * train_ratio))
+        val_end = train_end + int(np.floor(total_periods * val_ratio))
+        train_periods = time_periods[:train_end]
+        val_periods = time_periods[train_end:val_end]
+        test_periods = time_periods[val_end:]
+
+        train_mask = area_df["year_month"].isin(train_periods)
+        val_mask = area_df["year_month"].isin(val_periods)
+        test_mask = area_df["year_month"].isin(test_periods)
+
+        train_indices.extend(area_df.index[train_mask].tolist())
+        val_indices.extend(area_df.index[val_mask].tolist())
+        test_indices.extend(area_df.index[test_mask].tolist())
+
+        area_stats.append(
+            {
+                "area_id": area_id,
+                "split_type": "temporal",
+                "split": "mixed",
+                "total_periods": total_periods,
+                "train_periods": len(train_periods),
+                "val_periods": len(val_periods),
+                "test_periods": len(test_periods),
+                "train_samples": train_mask.sum(),
+                "val_samples": val_mask.sum(),
+                "test_samples": test_mask.sum(),
+                "total_samples": len(area_df),
+            }
+        )
+
+    df["split"] = "unknown" 
+    df.loc[train_indices, "split"] = "train"
+    df.loc[val_indices, "split"] = "validation"
+    df.loc[test_indices, "split"] = "test"
+
+    total_samples = len(df)
+    train_count = len(train_indices)
+    val_count = len(val_indices)
+    test_count = len(test_indices)
+
+    print(f"\nOverall Split Statistics:")
+    print(f"  Train: {train_count} samples ({train_count / total_samples:.1%})")
+    print(f"  Validation: {val_count} samples ({val_count / total_samples:.1%})")
+    print(f"  Test: {test_count} samples ({test_count / total_samples:.1%})")
+
+    stats_df = pd.DataFrame(area_stats)
+    geo_stats = stats_df[stats_df["split_type"] == "geographic"]
+    print(f"\nGeographically Exclusive Areas:")
+    print(f"  Train: {len(geo_stats[geo_stats['split'] == 'train'])} areas")
+    print(f"  Validation: {len(geo_stats[geo_stats['split'] == 'validation'])} areas")
+    print(f"  Test: {len(geo_stats[geo_stats['split'] == 'test'])} areas")
+
+
+    temp_stats = stats_df[stats_df["split_type"] == "temporal"]
+    train_periods_total = temp_stats["train_periods"].sum()
+    val_periods_total = temp_stats["val_periods"].sum()
+    test_periods_total = temp_stats["test_periods"].sum()
+    total_periods_all = temp_stats["total_periods"].sum()
+
+    print(f"\nTemporal Distribution (for temporally split areas):")
+    print(
+        f"  Train: {train_periods_total} periods ({train_periods_total / total_periods_all:.1%})"
+    )
+    print(
+        f"  Validation: {val_periods_total} periods ({val_periods_total / total_periods_all:.1%})"
+    )
+    print(
+        f"  Test: {test_periods_total} periods ({test_periods_total / total_periods_all:.1%})"
+    )
+
+    train_areas = df[df["split"] == "train"]["area_id"].nunique()
+    val_areas = df[df["split"] == "validation"]["area_id"].nunique()
+    test_areas = df[df["split"] == "test"]["area_id"].nunique()
+
+    print(f"\nGeographic Coverage:")
+    print(
+        f"  Train: {train_areas}/{len(unique_areas)} areas ({train_areas / len(unique_areas):.1%})"
+    )
+    print(
+        f"  Validation: {val_areas}/{len(unique_areas)} areas ({val_areas / len(unique_areas):.1%})"
+    )
+    print(
+        f"  Test: {test_areas}/{len(unique_areas)} areas ({test_areas / len(unique_areas):.1%})"
+    )
+
+    unknown_count = (df["split"] == "unknown").sum()
+    if unknown_count > 0:
+        print(
+            f"\nWARNING: {unknown_count} samples ({unknown_count / total_samples:.1%}) were not assigned to any split!"
+        )
+
+    print("\nSplit Type by Area:")
+    for split_type in ["geographic", "temporal"]:
+        if split_type == "geographic":
+            print(f"\nGeographically Exclusive Areas:")
+            for split in ["train", "validation", "test"]:
+                areas = stats_df[
+                    (stats_df["split_type"] == "geographic")
+                    & (stats_df["split"] == split)
+                ]["area_id"].tolist()
+                print(f"  {split}: {areas}")
+        else:
+            print(f"\nTemporally Split Areas:")
+            areas = stats_df[stats_df["split_type"] == "temporal"]["area_id"].tolist()
+            print(f"  {areas}")
+
+    return df
+
+
+def split_spacenet7_into_patches(
+    root_dir: str,
+    metadata_df: pd.DataFrame,
+    output_dir: str,
+    patch_size: tuple[int, int] = (512, 512),
+) -> pd.DataFrame:
+    """Split SpaceNet7 images and labels into patches of specified size.
+
+    Args:
+        root_dir: Root directory of SpaceNet7 dataset
+        metadata_df: DataFrame with image/label paths and metadata
+        output_dir: Directory to save patches and metadata
+        patch_size: Size of patches to create (height, width)
+
+    Returns:
+        DataFrame with metadata for all created patches
+    """
+    os.makedirs(output_dir, exist_ok=True)
+
+    img_dir = os.path.join(output_dir, "images")
+    mask_dir = os.path.join(output_dir, "masks")
+    os.makedirs(img_dir, exist_ok=True)
+    os.makedirs(mask_dir, exist_ok=True)
+
+    all_patch_metadata = []
+
+    for idx, row in tqdm(
+        metadata_df.iterrows(), total=len(metadata_df), desc="Creating patches"
+    ):
+        img_path = os.path.join(root_dir, row["image_path"])
+        label_path = os.path.join(root_dir, row["labels_path"])
+
+        img_filename = os.path.basename(img_path)
+        img_basename = os.path.splitext(img_filename)[0]
+
+        with rasterio.open(img_path) as img_src:
+            image = img_src.read()
+            img_meta = img_src.meta.copy()
+            src_height, src_width = img_src.height, img_src.width
+            src_crs = img_src.crs
+            src_transform = img_src.transform
+
+            gdf = gpd.read_file(label_path)
+            if len(gdf) > 0 and not gdf.empty:
+                if gdf.crs is None:
+                    gdf.set_crs(src_crs, inplace=True)
+                elif gdf.crs != src_crs:
+                    gdf = gdf.to_crs(src_crs)
+
+                label_shapes = [
+                    (geom, 1)
+                    for geom in gdf.geometry
+                    if geom is not None and not geom.is_empty
+                ]
+
+                label_mask = rasterize(
+                    label_shapes,
+                    out_shape=(src_height, src_width),
+                    transform=src_transform,
+                    fill=0,
+                    dtype=np.uint8,
+                    all_touched=False,
+                )
+                label_mask = label_mask[np.newaxis, :, :]
+            else:
+                label_mask = np.zeros((1, src_height, src_width), dtype=np.uint8)
+
+        num_patches_h = 2
+        num_patches_w = 2
+
+        patch_info_list = []
+        for i in range(num_patches_h):
+            for j in range(num_patches_w):
+                # Calculate window position with possible overlap for odd-sized images
+                row_start = i * (src_height // num_patches_h)
+                if i == 1 and src_height < num_patches_h * patch_size[0]:
+                    # Ensure the second patch gets full size by overlapping
+                    row_start = src_height - patch_size[0]
+
+                col_start = j * (src_width // num_patches_w)
+                if j == 1 and src_width < num_patches_w * patch_size[1]:
+                    # Ensure the second patch gets full size by overlapping
+                    col_start = src_width - patch_size[1]
+
+                # Ensure window is within bounds
+                row_end = min(row_start + patch_size[0], src_height)
+                col_end = min(col_start + patch_size[1], src_width)
+
+                img_patch = image[:, row_start:row_end, col_start:col_end]
+                mask_patch = label_mask[:, row_start:row_end, col_start:col_end]
+
+                patch_transform = rasterio.transform.from_origin(
+                    src_transform.c + col_start * src_transform.a,
+                    src_transform.f + row_start * src_transform.e,
+                    src_transform.a,
+                    src_transform.e,
+                )
+
+                patch_id = f"{img_basename}_p{i}{j}"
+
+                img_patch_path = os.path.join(img_dir, f"{patch_id}.tif")
+                mask_patch_path = os.path.join(mask_dir, f"{patch_id}.tif")
+
+                patch_meta = img_meta.copy()
+                patch_meta.update(
+                    {
+                        "height": patch_size[0],
+                        "width": patch_size[1],
+                        "transform": patch_transform,
+                    }
+                )
+
+                with rasterio.open(img_patch_path, "w", **patch_meta) as dst:
+                    dst.write(img_patch)
+
+                mask_meta = patch_meta.copy()
+                mask_meta.update({"count": 1, "dtype": np.uint8})
+
+                with rasterio.open(mask_patch_path, "w", **mask_meta) as dst:
+                    dst.write(mask_patch)
+
+                patch_bounds = rasterio.transform.array_bounds(
+                    patch_size[0], patch_size[1], patch_transform
+                )
+                west, south, east, north = patch_bounds
+                center_x = (west + east) / 2
+                center_y = (north + south) / 2
+
+                lon, lat = center_x, center_y
+                if src_crs and not src_crs.is_geographic:
+                    from pyproj import Transformer
+
+                    transformer = Transformer.from_crs(
+                        src_crs, "EPSG:4326", always_xy=True
+                    )
+                    lon, lat = transformer.transform(center_x, center_y)
+
+                patch_metadata = {
+                    "source_img_file": img_filename,
+                    "source_mask_file": os.path.basename(label_path),
+                    "patch_id": patch_id,
+                    "images_path": os.path.relpath(img_patch_path, start=output_dir),
+                    "mask_path": os.path.relpath(mask_patch_path, start=output_dir),
+                    "lon": lon,
+                    "lat": lat,
+                    "height_px": patch_size[0],
+                    "width_px": patch_size[1],
+                    "crs": str(src_crs),
+                    "row": i,
+                    "col": j,
+                    "row_px": row_start,
+                    "col_px": col_start,
+                    "date": row["date"],
+                    "year": row["year"],
+                    "month": row["month"],
+                    "aoi": row["aoi"],
+                }
+
+                patch_info_list.append(
+                    ((img_patch, mask_patch), i, j, row_start, col_start)
+                )
+
+                all_patch_metadata.append(patch_metadata)
+
+        # vis_dir = os.path.join(output_dir, "visualizations")
+        # os.makedirs(vis_dir, exist_ok=True)
+        # vis_path = os.path.join(vis_dir, f"{img_basename}_patches.png")
+
+        # visualize_spacenet7_patches(
+        #     image,
+        #     label_mask,
+        #     patch_info_list,
+        #     output_path=vis_path
+        # )
+        # import pdb
+        # pdb.set_trace()
+
+    patches_df = pd.DataFrame(all_patch_metadata)
+
+    metadata_path = os.path.join(output_dir, "patch_metadata.parquet")
+    patches_df.to_parquet(metadata_path, index=False)
+
+    print(f"Created {len(patches_df)} patches from {len(metadata_df)} source images")
+    print(f"Patch metadata saved to {metadata_path}")
+
+    pos_patches = patches_df[patches_df["is_positive"] == True]
+    pos_pct = len(pos_patches) / len(patches_df) * 100 if len(patches_df) > 0 else 0
+    print(f"Positive patches: {len(pos_patches)} ({pos_pct:.1f}%)")
+
+    return patches_df
+
+
+def visualize_spacenet7_patches(
+    image_data, mask_data, patches_info, output_path=None, figsize=(22, 8)
+):
+    """Visualize SpaceNet7 original images and their patches.
+
+    Args:
+        image_data: Full-sized RGB image data
+        mask_data: Full-sized binary mask data
+        patches_info: List of tuples (patch_id, row, col, row_px, col_px) for each patch
+        output_path: Path to save the visualization (optional)
+        figsize: Figure size (width, height)
+    """
+    import matplotlib.pyplot as plt
+    import matplotlib.gridspec as gridspec
+    from matplotlib.patches import Rectangle
+    import matplotlib.patches as mpatches
+
+    fig = plt.figure(figsize=figsize)
+    gs = gridspec.GridSpec(2, 5, figure=fig, wspace=0.05, hspace=0.2)
+
+    patch_colors = ["r", "g", "b", "y"]
+
+    ax_img = fig.add_subplot(gs[0, 0])
+    if image_data.shape[0] >= 3:
+        img_display = np.stack([image_data[i] for i in range(3)], axis=2)
+        if img_display.dtype != np.uint8:
+            img_display = np.clip(img_display / np.percentile(img_display, 99), 0, 1)
+    else:
+        img_display = image_data[0]
+        if img_display.dtype != np.uint8:
+            img_display = np.clip(img_display / np.percentile(img_display, 99), 0, 1)
+
+    ax_img.imshow(img_display)
+    ax_img.set_title("Original Image")
+    ax_img.axis("off")
+
+    ax_mask = fig.add_subplot(gs[1, 0])
+    mask_display = mask_data[0] if mask_data.shape[0] == 1 else mask_data
+    ax_mask.imshow(mask_display, cmap="gray")
+    ax_mask.set_title("Original Building Mask")
+    ax_mask.axis("off")
+
+    building_pixels = np.sum(mask_display > 0)
+    total_pixels = mask_display.size
+    building_pct = 100 * building_pixels / total_pixels
+
+    legend_patches = [
+        mpatches.Patch(
+            color="black",
+            label=f"Background: {total_pixels - building_pixels} px ({100 - building_pct:.1f}%)",
+        ),
+        mpatches.Patch(
+            color="white",
+            label=f"Buildings: {building_pixels} px ({building_pct:.1f}%)",
+        ),
+    ]
+    ax_mask.legend(
+        handles=legend_patches, loc="lower right", fontsize=8, framealpha=0.7
+    )
+
+    for i, (patch_id, row, col, row_px, col_px) in enumerate(patches_info[:4]):
+        if i == 0:
+            patch_height, patch_width = patch_id[0].shape[1], patch_id[0].shape[2]
+
+        ax_img_patch = fig.add_subplot(gs[0, i + 1])
+        if patch_id[0].shape[0] >= 3:
+            img_patch_display = np.stack([patch_id[0][j] for j in range(3)], axis=2)
+            if img_patch_display.dtype != np.uint8:
+                img_patch_display = np.clip(
+                    img_patch_display / np.percentile(img_patch_display, 99), 0, 1
+                )
+        else:
+            img_patch_display = patch_id[0][0]
+            if img_patch_display.dtype != np.uint8:
+                img_patch_display = np.clip(
+                    img_patch_display / np.percentile(img_patch_display, 99), 0, 1
+                )
+
+        ax_img_patch.imshow(img_patch_display)
+        ax_img_patch.set_title(
+            f"Image Patch ({row},{col})", color=patch_colors[i % len(patch_colors)]
+        )
+        for spine in ax_img_patch.spines.values():
+            spine.set_color(patch_colors[i % len(patch_colors)])
+            spine.set_linewidth(3)
+        ax_img_patch.axis("off")
+
+        ax_mask_patch = fig.add_subplot(gs[1, i + 1])
+        mask_patch_display = patch_id[1][0]
+        ax_mask_patch.imshow(mask_patch_display, cmap="gray")
+        ax_mask_patch.set_title(
+            f"Mask Patch ({row},{col})", color=patch_colors[i % len(patch_colors)]
+        )
+        for spine in ax_mask_patch.spines.values():
+            spine.set_color(patch_colors[i % len(patch_colors)])
+            spine.set_linewidth(3)
+        ax_mask_patch.axis("off")
+
+        patch_building_pixels = np.sum(mask_patch_display > 0)
+        patch_total_pixels = mask_patch_display.size
+        patch_building_pct = 100 * patch_building_pixels / patch_total_pixels
+
+        ax_mask_patch.text(
+            0.98,
+            0.02,
+            f"Buildings: {patch_building_pct:.1f}%",
+            transform=ax_mask_patch.transAxes,
+            ha="right",
+            va="bottom",
+            fontsize=8,
+            color="white",
+            bbox=dict(facecolor="black", alpha=0.7, boxstyle="round,pad=0.3"),
+        )
+
+        rect_img = Rectangle(
+            (col_px, row_px),
+            patch_width,
+            patch_height,
+            linewidth=2,
+            edgecolor=patch_colors[i % len(patch_colors)],
+            facecolor="none",
+            alpha=0.8,
+        )
+        ax_img.add_patch(rect_img)
+
+        ax_img.text(
+            col_px + patch_width // 2,
+            row_px + patch_height // 2,
+            f"{row},{col}",
+            color="white",
+            ha="center",
+            va="center",
+            fontsize=10,
+            fontweight="bold",
+            bbox=dict(facecolor="black", alpha=0.5, pad=0.5, boxstyle="round"),
+        )
+
+        rect_mask = Rectangle(
+            (col_px, row_px),
+            patch_width,
+            patch_height,
+            linewidth=2,
+            edgecolor=patch_colors[i % len(patch_colors)],
+            facecolor="none",
+            alpha=0.8,
+        )
+        ax_mask.add_patch(rect_mask)
+
+        ax_mask.text(
+            col_px + patch_width // 2,
+            row_px + patch_height // 2,
+            f"{row},{col}",
+            color="white",
+            ha="center",
+            va="center",
+            fontsize=10,
+            fontweight="bold",
+            bbox=dict(facecolor="black", alpha=0.5, pad=0.5, boxstyle="round"),
+        )
+
+    fig.text(
+        0.01,
+        0.01,
+        f"Overall Building Coverage: {building_pct:.2f}%\nTotal Patches: {len(patches_info)}",
+        fontsize=10,
+        bbox=dict(facecolor="white", alpha=0.8, boxstyle="round"),
+    )
+
+    plt.tight_layout()
+
+    if output_path:
+        plt.savefig(output_path, dpi=150, bbox_inches="tight")
+        print(f"Visualization saved to {output_path}")
+    else:
+        plt.show()
+
+    plt.close(fig)
+
+
+def create_geographic_splits_spacenet7(
+    df: pd.DataFrame,
+    train_ratio: float = 0.7,
+    val_ratio: float = 0.1,
+    test_ratio: float = 0.2,
+    aoi_col: str = "aoi",
+    random_state: int = 42,
+) -> pd.DataFrame:
+    """Create train/val/test splits by assigning AOIs to maintain geographic separation.
+
+    Args:
+        df: DataFrame with patch metadata
+        train_ratio: Ratio of data for training
+        val_ratio: Ratio of data for validation
+        test_ratio: Ratio of data for testing
+        aoi_col: Column name for area of interest
+        random_state: Random seed
+
+    Returns:
+        DataFrame with added 'split' column
+    """
+    import numpy as np
+
+    df_copy = df.copy()
+
+    aoi_counts = df_copy.groupby(aoi_col).size().reset_index(name="count")
+    total_samples = aoi_counts["count"].sum()
+
+    target_test = int(total_samples * test_ratio)
+    target_val = int(total_samples * val_ratio)
+    target_train = total_samples - target_test - target_val
+    np.random.seed(random_state)
+    aoi_counts = aoi_counts.sample(frac=1, random_state=random_state)
+
+    aoi_counts["split"] = "train"
+
+    curr_test, curr_val = 0, 0
+
+    for idx, row in aoi_counts.iterrows():
+        if curr_test < target_test:
+            aoi_counts.loc[idx, "split"] = "test"
+            curr_test += row["count"]
+        elif curr_val < target_val:
+            aoi_counts.loc[idx, "split"] = "validation"
+            curr_val += row["count"]
+        else:
+            break
+
+    aoi_split_map = dict(zip(aoi_counts[aoi_col], aoi_counts["split"]))
+
+    df_copy["split"] = df_copy[aoi_col].map(aoi_split_map)
+
+    split_counts = df_copy["split"].value_counts()
+    print("\nSplit statistics:")
+    for split in ["train", "validation", "test"]:
+        if split in split_counts:
+            count = split_counts[split]
+            pct = 100 * count / len(df_copy)
+            print(f"{split}: {count} samples ({pct:.1f}%)")
+
+    return df_copy
+
+  
 def create_mmflood_patches(
     metadata_df: pd.DataFrame,
     root_dir: str,
