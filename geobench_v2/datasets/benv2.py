@@ -114,6 +114,8 @@ class GeoBenchBENV2(GeoBenchBaseDataset):
         "Marine waters",
     )
 
+    classes = label_names
+
     num_classes: int = len(label_names)
 
     def __init__(

@@ -12,6 +12,7 @@ from .spacenet7 import GeoBenchSpaceNet7
 from .spacenet8 import GeoBenchSpaceNet8
 from .benv2 import GeoBenchBENV2
 from .everwatch import GeoBenchEverWatch
+from .dotav2 import GeoBenchDOTAV2
 from .flair2 import GeoBenchFLAIR2
 from .cloudsen12 import GeoBenchCloudSen12
 from .floga import GeoBenchFLOGA
@@ -33,6 +34,7 @@ __all__ = (
     "GeoBenchSpaceNet8",
     "GeoBenchBENV2",
     "GeoBenchEverWatch",
+    "GeoBenchDOTAV2",
     "GeoBenchFlair2",
     "GeoBenchCloudSen12",
     "GeoBenchFLOGA",

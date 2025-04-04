@@ -919,6 +919,10 @@ class DatasetBandRegistry:
         native_resolution=10,
     )
 
+    DOTAV2 = ModalityConfig(
+        bands=SensorBandRegistry.RGB.bands, default_order=["r", "g", "b"]
+    )
+
     @classmethod
     def get_dataset_config(
         cls, dataset_name: str

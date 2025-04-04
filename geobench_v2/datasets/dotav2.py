@@ -1,0 +1,143 @@
+# Copyright (c) 2025 GeoBenchV2. All rights reserved.
+# Licensed under the Apache License 2.0.
+
+"""DOTAV2 dataset."""
+
+import os
+
+from typing import Type, Literal
+from torchgeo.datasets import DOTA
+import numpy as np
+from PIL import Image
+import torch.nn as nn
+from torch import Tensor
+import torch
+from pathlib import Path
+import kornia.augmentation as K
+import torch.nn.functional as F
+import pandas as pd
+
+
+from .sensor_util import DatasetBandRegistry
+from .data_util import DataUtilsMixin, MultiModalNormalizer
+
+
+class GeoBenchDOTAV2(DOTA, DataUtilsMixin):
+    """ "GeoBenchDOTAV2 dataset with enhanced functionality.
+
+    Allows:
+    - Variable Band Selection
+    - Return band wavelengths
+    """
+
+    dataset_band_config = DatasetBandRegistry.DOTAV2
+    band_default_order = ("r", "g", "b")
+
+    normalization_stats = {
+        "means": {"r": 0.0, "g": 0.0, "b": 0.0},
+        "stds": {"r": 255.0, "g": 255.0, "b": 255.0},
+    }
+
+    classes = (
+        "plane",
+        "ship",
+        "storage-tank",
+        "baseball-diamond",
+        "tennis-court",
+        "basketball-court",
+        "ground-track-field",
+        "harbor",
+        "bridge",
+        "large-vehicle",
+        "small-vehicle",
+        "helicopter",
+        "roundabout",
+        "soccer-ball-field",
+        "swimming-pool",
+        "container-crane",
+        "airport",
+        "helipad",
+    )
+
+    num_classes = len(classes)
+
+    def __init__(
+        self,
+        root: Path,
+        split: str,
+        band_order: list[str] = band_default_order,
+        data_normalizer: Type[nn.Module] = MultiModalNormalizer,
+        bbox_orientation: Literal["horizontal", "oriented"] = "oriented",
+        transforms: nn.Module | None = None,
+    ) -> None:
+        """Initialize DOTAV2 dataset.
+
+        Args:
+            root: Path to the dataset root directory
+            split: The dataset split, supports 'train', 'val', 'test'
+            band_order: The order of bands to return, defaults to ['red', 'green', 'blue'], if one would
+                specify ['red', 'green', 'blue', 'blue'], the dataset would return images with 4 channels
+                in that order. This is useful for models that expect a certain band order, or
+                test the impact of band order on model performance.
+            data_normalizer: The data normalizer to apply to the data, defaults to :class:`data_util.MultiModalNormalizer`,
+                which applies z-score normalization to each band.
+            transforms:
+        """
+        self.root = root
+        self.split = split
+
+        self.transforms = transforms
+
+        self.band_order = self.resolve_band_order(band_order)
+
+        self.data_normalizer = data_normalizer(
+            self.normalization_stats, self.band_order
+        )
+
+        self.data_df = pd.read_parquet(
+            os.path.join(self.root, "geobench_dotav2_processed.parquet")
+        )
+
+        self.data_df = self.data_df[self.data_df["split"] == split].reset_index(
+            drop=True
+        )
+
+        self.class2idx: dict[str, int] = {c: i for i, c in enumerate(self.classes)}
+
+        self.bbox_orientation = bbox_orientation
+
+    def __getitem__(self, index: int) -> dict[str, Tensor]:
+        """Return an index within the dataset.
+
+        Args:
+            index: index to return
+
+        Returns:
+            data and label at that index
+        """
+        sample: dict[str, Tensor] = {}
+
+        sample_row = self.data_df.loc[index]
+
+        img = self._load_image(os.path.join(self.root, sample_row["processed_image"]))
+
+        image_dict = self.rearrange_bands(img, self.band_order)
+        image_dict = self.data_normalizer(image_dict)
+        sample.update(image_dict)
+
+        boxes, labels = self._load_annotations(
+            os.path.join(self.root, sample_row["processed_label"])
+        )
+
+        sample["bbox_xyxy"] = boxes
+        sample["label"] = labels
+
+        # TODO kornia does not work with oriented bboxes
+        # if self.transforms is not None:
+        #     sample = self.transforms(sample)
+
+        return sample
+
+    def __len__(self) -> int:
+        """Return the length of the dataset."""
+        return len(self.data_df)

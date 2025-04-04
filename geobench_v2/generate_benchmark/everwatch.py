@@ -10,7 +10,7 @@ from geobench_v2.generate_benchmark.object_detection_util import (
     process_dataset,
     verify_patching,
     compare_resize,
-    resize_object_detection_dataset,
+    process_everwatch_dataset,
 )
 import numpy as np
 
@@ -228,9 +228,7 @@ def main():
     metadata_df.to_parquet(path)
 
     # metadata_df = metadata_df.iloc[:10]
-    resize_object_detection_dataset(
-        args.root, metadata_df, args.save_dir, target_size=512
-    )
+    process_everwatch_dataset(args.root, metadata_df, args.save_dir, target_size=512)
 
 
 if __name__ == "__main__":

@@ -1,7 +1,7 @@
 # Copyright (c) 2025 GeoBenchV2. All rights reserved.
 # Licensed under the Apache License 2.0.
 
-"""GeoBench EverWatch DataModule."""
+"""GeoBench DOTAV2 DataModule."""
 
 from collections.abc import Callable
 from typing import Any, Sequence
@@ -14,17 +14,15 @@ import os
 import matplotlib.pyplot as plt
 
 
-from geobench_v2.datasets import GeoBenchEverWatch
+from geobench_v2.datasets import GeoBenchDOTAV2
 from torch.utils.data import random_split
 
 from .base import GeoBenchObjectDetectionDataModule
 import torch.nn as nn
 
-# TODO everwatch collate_fn check the different image sizes
 
-
-def everwatch_collate_fn(batch: Sequence[dict[str, Any]]) -> dict[str, Any]:
-    """Collate function for EverWatch dataset.
+def dotaV2_collate_fn(batch: Sequence[dict[str, Any]]) -> dict[str, Any]:
+    """Collate function for DotaV2 dataset.
 
     Args:
         batch: A list of dictionaries containing the data for each sample
@@ -43,17 +41,17 @@ def everwatch_collate_fn(batch: Sequence[dict[str, Any]]) -> dict[str, Any]:
     return {"image": images, "bbox_xyxy": boxes, "label": label}
 
 
-class GeoBenchEverWatchDataModule(GeoBenchObjectDetectionDataModule):
-    """GeoBench EverWatch Data Module."""
+class GeoBenchDOTAV2DataModule(GeoBenchObjectDetectionDataModule):
+    """GeoBench DOTAV2 Data Module."""
 
     def __init__(
         self,
         img_size: int = 512,
-        band_order: Sequence[float | str] = GeoBenchEverWatch.band_default_order,
+        band_order: Sequence[float | str] = GeoBenchDOTAV2.band_default_order,
         batch_size: int = 32,
         eval_batch_size: int = 64,
         num_workers: int = 0,
-        collate_fn: Callable | None = everwatch_collate_fn,
+        collate_fn: Callable | None = dotaV2_collate_fn,
         train_augmentations: nn.Module | None = None,
         eval_augmentations: nn.Module | None = None,
         pin_memory: bool = False,
@@ -77,7 +75,7 @@ class GeoBenchEverWatchDataModule(GeoBenchObjectDetectionDataModule):
             **kwargs: Additional keyword arguments for the dataset class
         """
         super().__init__(
-            dataset_class=GeoBenchEverWatch,
+            dataset_class=GeoBenchDOTAV2,
             img_size=img_size,
             band_order=band_order,
             batch_size=batch_size,
@@ -97,7 +95,7 @@ class GeoBenchEverWatchDataModule(GeoBenchObjectDetectionDataModule):
             pandas DataFrame with metadata.
         """
         return pd.read_parquet(
-            os.path.join(self.kwargs["root"], "geobench_everwatch.parquet")
+            os.path.join(self.kwargs["root"], "geobench_dotav2.parquet")
         )
 
     def visualize_batch(
