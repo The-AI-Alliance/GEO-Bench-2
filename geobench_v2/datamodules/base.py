@@ -99,7 +99,6 @@ class GeoBenchDataModule(LightningDataModule, ABC):
             self.setup_image_size_transforms()
         )
 
-        comment = """
         if stage in ["fit"]:
             self.train_dataset = self.dataset_class(
                 split="train",
@@ -121,74 +120,6 @@ class GeoBenchDataModule(LightningDataModule, ABC):
                 transforms=self.test_transform,
                 **self.kwargs,
             )
-        """
-############ FOR INITIAL EXPERIMENTS ONLY
-        generator = torch.Generator().manual_seed(0)
-        train_dataset = self.dataset_class(
-                split="train",
-                band_order=self.band_order,
-                transforms=self.train_transform,
-                **self.kwargs,
-                )
-        val_dataset = self.dataset_class(
-                split="val",
-                band_order=self.band_order,
-                transforms=self.val_transform,
-                **self.kwargs,
-            )
-        test_dataset = self.dataset_class(
-                split="test",
-                band_order=self.band_order,
-                transforms=self.test_transform,
-                **self.kwargs,
-            )
-        print(f"train_dataset: {len(train_dataset)}")
-        print(f"val_dataset: {len(val_dataset)}")
-        print(f"test_dataset: {len(test_dataset)}")
-
-        MAX_VAL = 2000
-        MAX_TRAIN = 5000
-        MAX_TEST = 2000
-        if len(val_dataset) == 0:
-            if len(train_dataset) >= (MAX_TRAIN + MAX_VAL):
-                fraction = MAX_VAL/len(train_dataset)
-            else:
-                fraction = 0.2
-            print(f"len(val_dataset) == 0:: {fraction}")
-            train_dataset, self.val_dataset = random_split(
-                train_dataset, [1 - fraction, fraction], generator
-                )
-        elif len(val_dataset) > MAX_VAL:
-            fraction = MAX_VAL/len(val_dataset)
-            print(f"len(val_dataset) > MAX_VAL: {fraction}")
-            _, self.val_dataset = random_split(
-            val_dataset, [1 - fraction, fraction], generator
-            )
-        else:
-            self.val_dataset = val_dataset
-
-        if len(train_dataset) > MAX_TRAIN:
-            fraction = MAX_TRAIN/len(train_dataset)
-            print(f"len(train_dataset) > MAX_TRAIN: {fraction}")
-            _, self.train_dataset = random_split(
-            train_dataset, [1 - fraction, fraction], generator
-            )
-        else:
-            self.train_dataset = train_dataset
-
-        if len(test_dataset) > MAX_TEST:
-            fraction = MAX_TEST/len(test_dataset)
-            print(f"len(test_dataset) > MAX_TEST:: {fraction}")
-            _, self.test_dataset = random_split(
-            test_dataset, [1 - fraction, fraction], generator
-            )
-        else:
-            self.test_dataset = test_dataset
-
-        print(f"train_dataset: {len(self.train_dataset)}")
-        print(f"val_dataset: {len(self.val_dataset)}")
-        print(f"test_dataset: {len(self.test_dataset)}")
-############ 
 
 
     @abstractmethod
@@ -309,14 +240,8 @@ class GeoBenchDataModule(LightningDataModule, ABC):
 
             aug = self._valid_attribute(f"{split}_augmentations")
 
-            ####### JUST FOR INITIAL EXPERIMENTS. WILL NEED TO BE REMOVED FOR MULTI_TEMPORAL
-            #print(f"before: {batch['mask'].shape}")
             batch = aug(batch)
-            #print(f"after: {batch['mask'].shape}")
-            if "mask" in batch:
-                shape = batch["mask"].shape
-                if (len(shape) == 4):
-                    batch["mask"] = batch["mask"][:,0,:,:]
+            
         return batch
 
     def _valid_attribute(self, args) -> Any:
