@@ -65,6 +65,8 @@ class GeoBenchKuroSiwo(GeoBenchBaseDataset):
         band_order: dict[str, Sequence[str]] = band_default_order,
         data_normalizer: Type[nn.Module] = MultiModalNormalizer,
         transforms: Type[nn.Module] = None,
+        return_stacked_image: bool = False,
+        return_metadata: bool = True,
     ) -> None:
         """Initialize Kuro Siwo Dataset.
 
@@ -74,6 +76,8 @@ class GeoBenchKuroSiwo(GeoBenchBaseDataset):
             band_order: Band order for dataset
             data_normalizer: Data normalizer
             transforms: Data transforms
+            return_stacked_image: if true, returns a single image tensor with all modalities stacked in band_order
+            return_metadata: if true, returns metadata as part of the image
         """
         super().__init__(
             root=root,
@@ -153,14 +157,15 @@ class GeoBenchKuroSiwo(GeoBenchBaseDataset):
         if self.transforms is not None:
             sample = self.transforms(sample)
 
-        stacked_image = []
-        for mod in self.band_order:
-            if mod == "sar":
-                stacked_image.append(sample["image_post"])
-            if mod == "dem":
-                stacked_image.append(sample["image_dem"])
-        output = {}
-        output["image"] = torch.cat(stacked_image, 0)
-        output["mask"] =  sample["mask"] 
+        if return_stacked_image:
+            stacked_image = []
+            for mod in self.band_order:
+                if mod == "sar":
+                    stacked_image.append(sample["image_post"])
+                if mod == "dem":
+                    stacked_image.append(sample["image_dem"])
+            output = {}
+            output["image"] = torch.cat(stacked_image, 0)
+            output["mask"] =  sample["mask"] 
 
         return output

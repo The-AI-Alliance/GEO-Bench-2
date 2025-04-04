@@ -496,7 +496,7 @@ class DatasetBandRegistry:
             "vh": "sar",
         },
     )
-
+    
     SPACENET7 = ModalityConfig(
         bands=SensorBandRegistry.RGBN.bands, default_order=["r", "g", "b", "nir"]
     )
