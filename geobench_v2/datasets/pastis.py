@@ -103,6 +103,8 @@ class GeoBenchPASTIS(PASTIS, DataUtilsMixin):
         num_time_steps: int = 1,
         transforms: nn.Module | None = None,
         label_type: Literal["instance_seg", "semantic_seg"] = "semantic_seg",
+        return_stacked_image: bool = False,
+        return_metadata: bool = True,
         **kwargs,
     ) -> None:
         """Initialize PASTIS Dataset.
@@ -122,6 +124,8 @@ class GeoBenchPASTIS(PASTIS, DataUtilsMixin):
                 which applies z-score normalization to each band.
             transforms:
             label_type: The type of label to return, either 'instance_seg' or 'semantic_seg'
+            return_stacked_image: if true, returns a single image tensor with all modalities stacked in band_order
+            return_metadata: if true, returns metadata as part of the image
             **kwargs: Additional keyword arguments passed to ``torchgeo.datasts.PASTIS``
 
         Raises:
@@ -209,17 +213,23 @@ class GeoBenchPASTIS(PASTIS, DataUtilsMixin):
         if self.transforms:
             sample = self.transforms(sample)    
 
-        stacked_image = []
-        for mod in self.band_order:
-            if mod == "s1_desc":
-                stacked_image.append(sample["image_s1_desc"])
-            if mod == "s1_asc":
-                stacked_image.append(sample["image_s1_asc"])
-            if mod == "s2":
-                stacked_image.append(sample["image_s2"])
-        output = {}
-        output["image"] = torch.cat(stacked_image, 0)
-        output["mask"] = sample["mask"]
+        if return_stacked_image:
+            stacked_image = []
+            for mod in self.band_order:
+                if mod == "s1_desc":
+                    stacked_image.append(sample["image_s1_desc"])
+                if mod == "s1_asc":
+                    stacked_image.append(sample["image_s1_asc"])
+                if mod == "s2":
+                    stacked_image.append(sample["image_s2"])
+            output = {}
+            output["image"] = torch.cat(stacked_image, 0)
+            output["mask"] = sample["mask"]
+
+        if return_metadata:
+            output["dates"] = sample["dates"]
+            output["lon"] = sample["lon"]
+            output["lat"] = sample["lat"]
 
         return output
 
