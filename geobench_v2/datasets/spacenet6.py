@@ -75,6 +75,7 @@ class GeoBenchSpaceNet6(GeoBenchBaseDataset):
         band_order: Sequence[str] = band_default_order,
         data_normalizer: Type[nn.Module] = MultiModalNormalizer,
         transforms: nn.Module | None = None,
+        return_stacked_image: bool = False,
         **kwargs,
     ) -> None:
         """Initialize SpaceNet6 dataset.
@@ -89,6 +90,7 @@ class GeoBenchSpaceNet6(GeoBenchBaseDataset):
             data_normalizer: The data normalizer to apply to the data, defaults to :class:`data_util.MultiModalNormalizer`,
                 which applies z-score normalization to each band.
             transforms:
+            return_stacked_image: if true, returns a single image tensor with all modalities stacked in band_order
             **kwargs: Additional keyword arguments passed to ``torchgeo.datasets.SpaceNet6``
         """
         super().__init__(
@@ -98,6 +100,8 @@ class GeoBenchSpaceNet6(GeoBenchBaseDataset):
             data_normalizer=data_normalizer,
             transforms=transforms,
         )
+
+        self.return_stacked_image = return_stacked_image
 
     def __getitem__(self, index: int) -> dict[str, Tensor]:
         """Return an index within the dataset.
@@ -151,15 +155,16 @@ class GeoBenchSpaceNet6(GeoBenchBaseDataset):
         if self.transforms is not None:
             sample = self.transforms(sample)
 
-
-        stacked_image = []
-        for mod in self.band_order:
-            if mod == "rgbn":
-                stacked_image.append(sample["image_rgbn"])
-            if mod == "sar":
-                stacked_image.append(sample["image_sar"])
-        output = {}
-        output["image"] = torch.cat(stacked_image, 0)
-        output["mask"] = sample["mask"]
-
+        if self.return_stacked_image:
+            stacked_image = []
+            for mod in self.band_order:
+                if mod == "rgbn":
+                    stacked_image.append(sample["image_rgbn"])
+                if mod == "sar":
+                    stacked_image.append(sample["image_sar"])
+            output = {}
+            output["image"] = torch.cat(stacked_image, 0)
+            output["mask"] = sample["mask"]
+        else:
+            output = sample 
         return output

@@ -126,6 +126,7 @@ class GeoBenchTreeSatAI(GeoBenchBaseDataset):
         transforms: nn.Module | None = None,
         include_ts: bool = False,
         num_time_steps: int = None,
+        return_stacked_image: bool = False,
         **kwargs,
     ) -> None:
         """Initialize TreeSatAI dataset.
@@ -142,6 +143,7 @@ class GeoBenchTreeSatAI(GeoBenchBaseDataset):
             transforms:
             include_ts: whether or not to return the time series in data loading
             num_time_steps: number of last time steps to return in the ts data
+            return_stacked_image: if true, returns a single image tensor with all modalities stacked in band_order
             **kwargs: Additional keyword arguments passed to ``torchgeo.datasets.TreeSatAI``
         """
         super().__init__(
@@ -154,6 +156,7 @@ class GeoBenchTreeSatAI(GeoBenchBaseDataset):
 
         self.include_ts = include_ts
         self.num_time_steps = num_time_steps
+        self.return_stacked_image = return_stacked_image
 
         if include_ts:
             if num_time_steps is None:
@@ -239,17 +242,28 @@ class GeoBenchTreeSatAI(GeoBenchBaseDataset):
                     -self.num_time_steps :
                 ]
 
-        stacked_image = []
-        for mod in self.band_order:
-            if mod == "s1":
-                stacked_image.append(sample["image_s1"])
-            if mod == "s2":
-                stacked_image.append(sample["image_s2"])
-            if mod == "aerial":
-                stacked_image.append(sample["image_aerial"])
-        output = {}
-        output["image"] = torch.cat(stacked_image, 0)
-        output["label"] = sample["label"] 
+        if return_stacked_image:
+            stacked_image = []
+            for mod in self.band_order:
+                if mod == "s1":
+                    stacked_image.append(sample["image_s1"])
+                if mod == "s2":
+                    stacked_image.append(sample["image_s2"])
+                if mod == "aerial":
+                    stacked_image.append(sample["image_aerial"])
+            output = {}
+            output["image"] = torch.cat(stacked_image, 0)
+            output["label"] = sample["label"] 
+        else:
+            output = sample
+
+        if self.include_ts:
+            metadata = ["image_s1_asc_ts", "image_s1_des_ts", "image_s2_ts"]
+            for key in metadata:
+                if key not in output:
+                    output[key] = sample[key]
+
+        return output
 
         return output
 
