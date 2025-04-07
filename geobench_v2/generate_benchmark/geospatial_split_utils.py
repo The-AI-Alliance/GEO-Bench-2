@@ -2761,3 +2761,380 @@ def create_mmflood_patches(
         print(f"{split} patches: {split_count} ({split_pct:.1f}%)")
 
     return patches_df
+
+
+def create_bright_patches(
+    metadata_df: pd.DataFrame, root_dir: str, output_dir: str, visualize=True
+) -> pd.DataFrame:
+    import os
+    import numpy as np
+    import pandas as pd
+    import rasterio
+    from rasterio.windows import Window
+    from tqdm import tqdm
+
+    modalities = ["pre-event", "post-event", "target"]
+    for modality in modalities:
+        os.makedirs(os.path.join(output_dir, modality), exist_ok=True)
+
+    if visualize:
+        vis_dir = os.path.join(output_dir, "visualizations")
+        os.makedirs(vis_dir, exist_ok=True)
+
+    patches_metadata = []
+
+    patch_positions = [(0, 0, 0), (0, 512, 1), (512, 0, 2), (512, 512, 3)]
+
+    for idx, row in tqdm(
+        metadata_df.iterrows(), total=len(metadata_df), desc="Creating patches"
+    ):
+        target_path = os.path.join(root_dir, row["target_path"].lstrip("/"))
+        pre_event_path = os.path.join(root_dir, row["pre_event_path"].lstrip("/"))
+        post_event_path = os.path.join(root_dir, row["post_event_path"].lstrip("/"))
+
+        event_id = row["event_id"]
+        split = row["split"]
+
+        with rasterio.open(pre_event_path) as src:
+            orig_transform = src.transform
+            orig_crs = src.crs
+            orig_profile = src.profile.copy()
+
+        if visualize:
+            with rasterio.open(pre_event_path) as src:
+                pre_full_data = src.read()
+
+            with rasterio.open(post_event_path) as src:
+                post_full_data = src.read()
+
+            with rasterio.open(target_path) as src:
+                target_full_data = src.read()
+
+            patch_viz_data = []
+
+        for row_start, col_start, patch_idx in patch_positions:
+            patch_id = f"{event_id}_{patch_idx}"
+
+            new_transform = rasterio.transform.from_origin(
+                orig_transform.c + col_start * orig_transform.a,
+                orig_transform.f + row_start * orig_transform.e,
+                orig_transform.a,
+                orig_transform.e,
+            )
+
+            patch_profile = orig_profile.copy()
+            patch_profile.update(
+                {"height": 512, "width": 512, "transform": new_transform}
+            )
+
+            patch_target_path = os.path.join(
+                output_dir, "target", f"{patch_id}_building_damage.tif"
+            )
+            patch_pre_event_path = os.path.join(
+                output_dir, "pre-event", f"{patch_id}_pre_disaster.tif"
+            )
+            patch_post_event_path = os.path.join(
+                output_dir, "post-event", f"{patch_id}_post_disaster.tif"
+            )
+
+            window = Window(col_start, row_start, 512, 512)
+
+            with rasterio.open(target_path) as src:
+                target_data = src.read(window=window)
+
+                target_profile = patch_profile.copy()
+                target_profile["count"] = target_data.shape[0]
+                with rasterio.open(patch_target_path, "w", **target_profile) as dst:
+                    dst.write(target_data)
+
+            with rasterio.open(pre_event_path) as src:
+                pre_event_data = src.read(window=window)
+                pre_profile = patch_profile.copy()
+                pre_profile["count"] = pre_event_data.shape[0]
+                with rasterio.open(patch_pre_event_path, "w", **pre_profile) as dst:
+                    dst.write(pre_event_data)
+
+            with rasterio.open(post_event_path) as src:
+                post_event_data = src.read(window=window)
+                post_profile = patch_profile.copy()
+                post_profile["count"] = post_event_data.shape[0]
+                with rasterio.open(patch_post_event_path, "w", **post_profile) as dst:
+                    dst.write(post_event_data)
+
+            bounds = rasterio.transform.array_bounds(512, 512, new_transform)
+            west, south, east, north = bounds
+            center_lon = (west + east) / 2
+            center_lat = (north + south) / 2
+
+            if visualize:
+                patch_viz_data.append(
+                    (
+                        (pre_event_data, post_event_data, target_data),
+                        patch_idx,
+                        row_start,
+                        col_start,
+                    )
+                )
+
+            patches_metadata.append(
+                {
+                    "target_path": os.path.relpath(patch_target_path, output_dir),
+                    "pre_event_path": os.path.relpath(patch_pre_event_path, output_dir),
+                    "post_event_path": os.path.relpath(
+                        patch_post_event_path, output_dir
+                    ),
+                    "original_target_path": row["target_path"],
+                    "original_pre_event_path": row["pre_event_path"],
+                    "original_post_event_path": row["post_event_path"],
+                    "lon": center_lon,
+                    "lat": center_lat,
+                    "height_px": 512,
+                    "width_px": 512,
+                    "event_id": event_id,
+                    "patch_id": patch_id,
+                    "patch_idx": patch_idx,
+                    "row_start": row_start,
+                    "col_start": col_start,
+                    "split": split,
+                }
+            )
+
+        if visualize and patch_viz_data:
+            viz_path = os.path.join(vis_dir, f"{event_id}_patches.png")
+            visualize_bright_patches(
+                pre_full_data,
+                post_full_data,
+                target_full_data,
+                patch_viz_data,
+                output_path=viz_path,
+            )
+
+    patches_df = pd.DataFrame(patches_metadata)
+    metadata_path = os.path.join(output_dir, "patches_metadata.parquet")
+    patches_df.to_parquet(metadata_path)
+
+    print(f"Created {len(patches_df)} patches from {len(metadata_df)} original images")
+    print(f"Patches distribution by split:")
+    print(patches_df["split"].value_counts())
+
+    return patches_df
+
+
+def visualize_bright_patches(
+    pre_data, post_data, target_data, patches_info, output_path=None, figsize=(22, 12)
+):
+    import matplotlib.pyplot as plt
+    import matplotlib.gridspec as gridspec
+    from matplotlib.patches import Rectangle
+    import matplotlib.patches as mpatches
+    import numpy as np
+    import matplotlib.colors as mcolors
+    import os
+
+    if output_path:
+        os.makedirs(os.path.dirname(output_path), exist_ok=True)
+
+    fig = plt.figure(figsize=figsize)
+    gs = gridspec.GridSpec(3, 5, figure=fig, wspace=0.05, hspace=0.2)
+
+    patch_colors = ["r", "g", "b", "y"]
+
+    ax_pre = fig.add_subplot(gs[0, 0])
+    if pre_data.shape[0] >= 3:
+        pre_display = np.stack([pre_data[i] for i in range(3)], axis=2)
+        if pre_display.dtype != np.uint8:
+            pre_display = np.clip(pre_display / np.percentile(pre_display, 99), 0, 1)
+    else:
+        pre_display = pre_data[0]
+        if pre_display.dtype != np.uint8:
+            pre_display = np.clip(pre_display / np.percentile(pre_display, 99), 0, 1)
+
+    ax_pre.imshow(pre_display)
+    ax_pre.set_title("Pre-event Image")
+    ax_pre.axis("off")
+
+    ax_post = fig.add_subplot(gs[1, 0])
+    if post_data.shape[0] >= 3:
+        post_display = np.stack([post_data[i] for i in range(3)], axis=2)
+        if post_display.dtype != np.uint8:
+            post_display = np.clip(post_display / np.percentile(post_display, 99), 0, 1)
+    else:
+        post_display = post_data[0]
+        if post_display.dtype != np.uint8:
+            post_display = np.clip(post_display / np.percentile(post_display, 99), 0, 1)
+
+    ax_post.imshow(post_display)
+    ax_post.set_title("Post-event Image")
+    ax_post.axis("off")
+
+    ax_target = fig.add_subplot(gs[2, 0])
+    if target_data.ndim > 2:
+        target_display = target_data[0] if target_data.shape[0] == 1 else target_data
+    else:
+        target_display = target_data
+
+    damage_classes = {0: "background", 1: "intact", 2: "damaged", 3: "destroyed"}
+
+    damage_colors = {0: "black", 1: "green", 2: "yellow", 3: "red"}
+
+    cmap = mcolors.ListedColormap([damage_colors[i] for i in range(len(damage_colors))])
+
+    ax_target.imshow(target_display, cmap=cmap, vmin=0, vmax=len(damage_colors) - 1)
+    ax_target.set_title("Building Damage Mask")
+    ax_target.axis("off")
+
+    damage_legend = []
+    for class_id, class_name in damage_classes.items():
+        if class_id < len(damage_colors):
+            class_pixels = np.sum(target_display == class_id)
+            class_pct = 100 * class_pixels / target_display.size
+            damage_legend.append(
+                mpatches.Patch(
+                    color=damage_colors[class_id],
+                    label=f"{class_name}: {class_pixels} px ({class_pct:.1f}%)",
+                )
+            )
+
+    ax_target.legend(
+        handles=damage_legend, loc="lower right", fontsize=8, framealpha=0.7
+    )
+
+    for i, (patch_data, patch_idx, row_start, col_start) in enumerate(patches_info[:4]):
+        if i >= 4:
+            break
+
+        pre_patch, post_patch, target_patch = patch_data
+        patch_height, patch_width = 512, 512
+
+        ax_pre_patch = fig.add_subplot(gs[0, i + 1])
+        if pre_patch.shape[0] >= 3:
+            pre_patch_display = np.stack([pre_patch[j] for j in range(3)], axis=2)
+            if pre_patch_display.dtype != np.uint8:
+                pre_patch_display = np.clip(
+                    pre_patch_display / np.percentile(pre_patch_display, 99), 0, 1
+                )
+        else:
+            pre_patch_display = pre_patch[0]
+            if pre_patch_display.dtype != np.uint8:
+                pre_patch_display = np.clip(
+                    pre_patch_display / np.percentile(pre_patch_display, 99), 0, 1
+                )
+
+        ax_pre_patch.imshow(pre_patch_display)
+        ax_pre_patch.set_title(
+            f"Pre-event (Patch {patch_idx})", color=patch_colors[i % len(patch_colors)]
+        )
+        for spine in ax_pre_patch.spines.values():
+            spine.set_color(patch_colors[i % len(patch_colors)])
+            spine.set_linewidth(3)
+        ax_pre_patch.axis("off")
+
+        ax_post_patch = fig.add_subplot(gs[1, i + 1])
+        if post_patch.shape[0] >= 3:
+            post_patch_display = np.stack([post_patch[j] for j in range(3)], axis=2)
+            if post_patch_display.dtype != np.uint8:
+                post_patch_display = np.clip(
+                    post_patch_display / np.percentile(post_patch_display, 99), 0, 1
+                )
+        else:
+            post_patch_display = post_patch[0]
+            if post_patch_display.dtype != np.uint8:
+                post_patch_display = np.clip(
+                    post_patch_display / np.percentile(post_patch_display, 99), 0, 1
+                )
+
+        ax_post_patch.imshow(post_patch_display)
+        ax_post_patch.set_title(
+            f"Post-event (Patch {patch_idx})", color=patch_colors[i % len(patch_colors)]
+        )
+        for spine in ax_post_patch.spines.values():
+            spine.set_color(patch_colors[i % len(patch_colors)])
+            spine.set_linewidth(3)
+        ax_post_patch.axis("off")
+
+        ax_target_patch = fig.add_subplot(gs[2, i + 1])
+        if target_patch.ndim > 2:
+            target_patch_display = (
+                target_patch[0] if target_patch.shape[0] == 1 else target_patch
+            )
+        else:
+            target_patch_display = target_patch
+
+        ax_target_patch.imshow(
+            target_patch_display, cmap=cmap, vmin=0, vmax=len(damage_colors) - 1
+        )
+        ax_target_patch.set_title(
+            f"Damage Mask (Patch {patch_idx})",
+            color=patch_colors[i % len(patch_colors)],
+        )
+        for spine in ax_target_patch.spines.values():
+            spine.set_color(patch_colors[i % len(patch_colors)])
+            spine.set_linewidth(3)
+        ax_target_patch.axis("off")
+
+        class_counts = {}
+        for class_id in damage_classes.keys():
+            if class_id < len(damage_colors):
+                class_counts[class_id] = np.sum(target_patch_display == class_id)
+
+        total_pixels = target_patch_display.size
+        damage_buildings = sum(class_counts.get(i, 0) for i in [2, 3])
+        intact_buildings = class_counts.get(1, 0)
+        all_buildings = damage_buildings + intact_buildings
+        damage_pct = 100 * damage_buildings / all_buildings if all_buildings > 0 else 0
+
+        stat_text = f"Damage: {damage_pct:.1f}%"
+        ax_target_patch.text(
+            0.98,
+            0.02,
+            stat_text,
+            transform=ax_target_patch.transAxes,
+            ha="right",
+            va="bottom",
+            fontsize=8,
+            color="white",
+            bbox=dict(facecolor="black", alpha=0.7, boxstyle="round,pad=0.3"),
+        )
+
+        for ax in [ax_pre, ax_post, ax_target]:
+            rect = Rectangle(
+                (col_start, row_start),
+                patch_width,
+                patch_height,
+                linewidth=2,
+                edgecolor=patch_colors[i % len(patch_colors)],
+                facecolor="none",
+                alpha=0.8,
+            )
+            ax.add_patch(rect)
+
+            ax.text(
+                col_start + patch_width // 2,
+                row_start + patch_height // 2,
+                str(patch_idx),
+                color="white",
+                ha="center",
+                va="center",
+                fontsize=10,
+                fontweight="bold",
+                bbox=dict(facecolor="black", alpha=0.5, pad=0.5, boxstyle="round"),
+            )
+
+    event_id = os.path.basename(output_path).split("_")[0] if output_path else "Unknown"
+    fig.text(
+        0.01,
+        0.01,
+        f"Total Patches: {len(patches_info)}\n" + f"Event ID: {event_id}",
+        fontsize=10,
+        bbox=dict(facecolor="white", alpha=0.8, boxstyle="round"),
+    )
+
+    plt.tight_layout()
+
+    if output_path:
+        plt.savefig(output_path, dpi=150, bbox_inches="tight")
+        print(f"Visualization saved to {output_path}")
+    else:
+        plt.show()
+
+    plt.close(fig)
