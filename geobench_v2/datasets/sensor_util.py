@@ -949,6 +949,27 @@ class DatasetBandRegistry:
         band_to_modality={"vv": "s1", "vh": "s1", "dem": "dem", "hydro": "hydro"},
     )
 
+    BRIGHT = MultiModalConfig(
+        modalities={
+            "aerial": ModalityConfig(
+                bands={
+                    "r": BandConfig("red", ["r", "red", "RED"], wavelength=0.665),
+                    "g": BandConfig("green", ["g", "green", "GREEN"], wavelength=0.560),
+                    "b": BandConfig("blue", ["b", "blue", "BLUE"], wavelength=0.490),
+                },
+                default_order=["r", "g", "b"],
+            ),
+            "sar": ModalityConfig(
+                bands={
+                    "sar": BandConfig("sar", ["SAR"], wavelength=None, resolution=10)
+                },
+                default_order=["sar"],
+            ),
+        },
+        default_order=["r", "g", "b", "sar"],
+        band_to_modality={"r": "aerial", "g": "aerial", "b": "aerial", "sar": "sar"},
+    )
+
     @classmethod
     def get_dataset_config(
         cls, dataset_name: str
