@@ -170,5 +170,5 @@ class GeoBenchSpaceNet6(GeoBenchBaseDataset):
             output["image"] = torch.cat(stacked_image, 0)
             output["mask"] = sample["mask"]
         else:
-            output = sample 
+            output = sample
         return output
