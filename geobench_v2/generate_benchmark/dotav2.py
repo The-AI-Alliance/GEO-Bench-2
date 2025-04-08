@@ -71,7 +71,9 @@ def generate_metadata_df(root: str) -> pd.DataFrame:
                             }
                         )
 
-        width, height = row["width"], row["height"]
+        with Image.open(image_path) as img:
+            width, height = img.size
+
         image_metadata.append(
             {
                 "image_path": row["image_path"],
@@ -472,10 +474,12 @@ def main():
     )
     args = parser.parse_args()
 
-    metadata_df = generate_metadata_df(args.root)
-
     path = os.path.join(args.root, "geobench_dotav2.parquet")
-    metadata_df.to_parquet(path)
+    if os.path.exists(path):
+        metadata_df = pd.read_parquet(path)
+    else:
+        metadata_df = generate_metadata_df(args.root)
+        metadata_df.to_parquet(path)
 
     processed_df = process_dotav2_dataset(
         metadata_df, args.root, args.save_dir, target_size=512
