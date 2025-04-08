@@ -24,6 +24,7 @@ from .dynamic_earthnet import GeoBenchDynamicEarthNet
 from .sen4agrinet import GeoBenchSen4AgriNet
 from .mmflood import GeoBenchMMFlood
 from .bright import GeoBenchBRIGHT
+from .wind_turbine import GeoBenchWindTurbine
 
 __all__ = (
     "GeoBenchCaFFe",
@@ -47,4 +48,5 @@ __all__ = (
     "GeoBenchSen4AgriNet",
     "GeoBenchMMFlood",
     "GeoBenchBRIGHT",
+    "GeoBenchWindTurbine",
 )

@@ -139,7 +139,7 @@ class GeoBenchKuroSiwo(GeoBenchBaseDataset):
             image = self.rearrange_bands({"sar": image}, self.band_order["sar"])
             normalized = self.data_normalizer({"image_sar": image["image"]})
             return normalized["image_sar"] * invalid_mask
-        
+
         if "sar" in self.band_order:
             sample["image_pre_1"] = process_sar_image(pre_event_1_vv, pre_event_1_vh)
             sample["image_pre_2"] = process_sar_image(pre_event_2_vv, pre_event_2_vh)
@@ -167,7 +167,7 @@ class GeoBenchKuroSiwo(GeoBenchBaseDataset):
                     stacked_image.append(sample["image_dem"])
             output = {}
             output["image"] = torch.cat(stacked_image, 0)
-            output["mask"] =  sample["mask"] 
+            output["mask"] = sample["mask"]
         else:
-            output = sample 
+            output = sample
         return output

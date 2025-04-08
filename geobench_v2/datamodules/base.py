@@ -18,7 +18,6 @@ from torch.utils.data import DataLoader, Dataset
 from torch.utils.data import random_split
 
 
-
 # TODO come up with an expected metadata file scheme
 # with common names etc. so a standardization
 # - datamodules have functions to create nice visualizations of data distribution etc
@@ -250,7 +249,7 @@ class GeoBenchDataModule(LightningDataModule, ABC):
             aug = self._valid_attribute(f"{split}_augmentations")
 
             batch = aug(batch)
-            
+
         return batch
 
     def _valid_attribute(self, args) -> Any:

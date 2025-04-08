@@ -256,7 +256,7 @@ class GeoBenchTreeSatAI(GeoBenchBaseDataset):
                     stacked_image.append(sample["image_aerial"])
             output = {}
             output["image"] = torch.cat(stacked_image, 0)
-            output["label"] = sample["label"] 
+            output["label"] = sample["label"]
         else:
             output = sample
 

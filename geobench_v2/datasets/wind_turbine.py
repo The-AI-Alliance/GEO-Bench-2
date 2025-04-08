@@ -1,0 +1,190 @@
+# Copyright (c) 2025 GeoBenchV2. All rights reserved.
+# Licensed under the Apache License 2.0.
+
+"""WindTurbine dataset."""
+
+import os
+
+from typing import Type
+import numpy as np
+from PIL import Image
+import torch.nn as nn
+from torch import Tensor
+import torch
+from pathlib import Path
+import kornia.augmentation as K
+import torch.nn.functional as F
+import pandas as pd
+
+from torchgeo.datasets import NonGeoDataset
+
+
+from .sensor_util import DatasetBandRegistry
+from .data_util import DataUtilsMixin, MultiModalNormalizer
+
+
+class GeoBenchWindTurbine(NonGeoDataset, DataUtilsMixin):
+    """ "GeoBenchWindTurbine dataset with enhanced functionality.
+
+    Allows:
+    - Variable Band Selection
+    - Return band wavelengths
+    """
+
+    dataset_band_config = DatasetBandRegistry.WINDTURBINE
+    band_default_order = ("r", "g", "b")
+
+    normalization_stats = {
+        "means": {"r": 0.0, "g": 0.0, "b": 0.0},
+        "stds": {"r": 255.0, "g": 255.0, "b": 255.0},
+    }
+
+    classes = classes = "wind_turbine"
+
+    num_classes = len(classes)
+
+    def __init__(
+        self,
+        root: Path,
+        split: str,
+        band_order: list[str] = band_default_order,
+        data_normalizer: Type[nn.Module] = MultiModalNormalizer,
+        transforms: nn.Module | None = None,
+    ) -> None:
+        """Initialize WindTurbine dataset.
+
+        Args:
+            root: Path to the dataset root directory
+            split: The dataset split, supports 'train', 'val', 'test'
+            band_order: The order of bands to return, defaults to ['red', 'green', 'blue'], if one would
+                specify ['red', 'green', 'blue', 'blue'], the dataset would return images with 4 channels
+                in that order. This is useful for models that expect a certain band order, or
+                test the impact of band order on model performance.
+            data_normalizer: The data normalizer to apply to the data, defaults to :class:`data_util.MultiModalNormalizer`,
+                which applies z-score normalization to each band.
+            transforms: image transformations to apply to the data, defaults to None
+        """
+        self.root = root
+        self.split = split
+
+        self.transforms = transforms
+
+        self.band_order = self.resolve_band_order(band_order)
+
+        self.data_normalizer = data_normalizer(
+            self.normalization_stats, self.band_order
+        )
+
+        self.data_df = pd.read_parquet(
+            os.path.join(self.root, "geobench_wind_turbine.parquet")
+        )
+
+        self.data_df = self.data_df[self.data_df["split"] == split].reset_index(
+            drop=True
+        )
+
+    def __len__(self) -> int:
+        """Return the length of the dataset.
+
+        Returns:
+            length of the dataset
+        """
+        return len(self.data_df)
+
+    def __getitem__(self, index: int) -> dict[str, Tensor]:
+        """Return an index within the dataset.
+
+        Args:
+            index: index to return
+
+        Returns:
+            data and label at that index
+        """
+        sample: dict[str, Tensor] = {}
+
+        sample_row = self.data_df.iloc[index]
+
+        img_path = os.path.join(self.root, sample_row["image_path"])
+
+        image = self._load_image(img_path).float()
+
+        image_dict = self.rearrange_bands(image, self.band_order)
+
+        image_dict = self.data_normalizer(image_dict)
+
+        sample.update(image_dict)
+
+        label_path = os.path.join(self.root, sample_row["label_path"])
+
+        boxes, labels = self._load_target(label_path)
+
+        sample["bbox_xyxy"] = boxes
+        sample["label"] = labels
+
+        if self.transforms is not None:
+            sample = self.transforms(sample)
+
+        return sample
+
+    def _load_image(self, path: str) -> Tensor:
+        """Load an image from disk.
+
+        Args:
+            path: Path to the image file.
+
+        Returns:
+            image tensor
+        """
+        image = Image.open(path).convert("RGB")
+        image = np.array(image)
+        image = torch.from_numpy(image).permute(2, 0, 1)
+        return image.float()
+
+    def _load_target(self, path: str) -> tuple[Tensor, Tensor]:
+        """Load target annotations from disk.
+
+        Args:
+            path: path to annotation .txt file in YOLO format
+
+        Returns:
+            boxes: bounding boxes tensor in xyxy format
+            labels: labels tensor
+        """
+        boxes = []
+        labels = []
+
+        with open(path, "r") as f:
+            for line in f:
+                parts = line.strip().split()
+                if len(parts) >= 5:
+                    # Extract data from YOLO format
+                    class_id = int(parts[0])
+                    x_center = float(parts[1])
+                    y_center = float(parts[2])
+                    width = float(parts[3])
+                    height = float(parts[4])
+
+                    # Convert from YOLO format (x_center, y_center, width, height)
+                    # to xyxy format (x_min, y_min, x_max, y_max)
+                    x_min = x_center - width / 2
+                    y_min = y_center - height / 2
+                    x_max = x_center + width / 2
+                    y_max = y_center + height / 2
+
+                    # Clamp to [0, 1]
+                    x_min = max(0, min(1, x_min))
+                    y_min = max(0, min(1, y_min))
+                    x_max = max(0, min(1, x_max))
+                    y_max = max(0, min(1, y_max))
+
+                    boxes.append([x_min, y_min, x_max, y_max])
+                    labels.append(class_id)
+
+        if len(boxes) == 0:
+            return torch.zeros((0, 4), dtype=torch.float32), torch.zeros(
+                0, dtype=torch.int64
+            )
+
+        return torch.tensor(boxes, dtype=torch.float32), torch.tensor(
+            labels, dtype=torch.int64
+        )
