@@ -1,7 +1,7 @@
 # Copyright (c) 2025 GeoBenchV2. All rights reserved.
 # Licensed under the Apache License 2.0.
 
-"""SpaceNet8 DataModule."""
+"""SpaceNet2 DataModule."""
 
 from collections.abc import Callable
 from typing import Any, Sequence
@@ -11,19 +11,19 @@ import os
 from torch import Tensor
 
 
-from geobench_v2.datasets import GeoBenchSpaceNet8
+from geobench_v2.datasets import GeoBenchSpaceNet2
 
 from .base import GeoBenchSegmentationDataModule
 import torch.nn as nn
 
 
-class GeoBenchSpaceNet8DataModule(GeoBenchSegmentationDataModule):
-    """GeoBench SpaceNet8 Data Module."""
+class GeoBenchSpaceNet2DataModule(GeoBenchSegmentationDataModule):
+    """GeoBench SpaceNet2 Data Module."""
 
     def __init__(
         self,
         img_size: int = 512,
-        band_order: Sequence[float | str] = GeoBenchSpaceNet8.band_default_order,
+        band_order: Sequence[float | str] = GeoBenchSpaceNet2.band_default_order,
         batch_size: int = 32,
         eval_batch_size: int = 64,
         num_workers: int = 0,
@@ -33,7 +33,7 @@ class GeoBenchSpaceNet8DataModule(GeoBenchSegmentationDataModule):
         pin_memory: bool = False,
         **kwargs: Any,
     ) -> None:
-        """Initialize GeoBench SpaceNet8 dataset module.
+        """Initialize GeoBench SpaceNet2 dataset module.
 
         Args:
             img_size: Image size, created patches are of size 512
@@ -51,7 +51,7 @@ class GeoBenchSpaceNet8DataModule(GeoBenchSegmentationDataModule):
             **kwargs: Additional keyword arguments for the dataset class
         """
         super().__init__(
-            dataset_class=GeoBenchSpaceNet8,
+            dataset_class=GeoBenchSpaceNet2,
             img_size=img_size,
             band_order=band_order,
             batch_size=batch_size,
@@ -88,5 +88,5 @@ class GeoBenchSpaceNet8DataModule(GeoBenchSegmentationDataModule):
             pandas DataFrame with metadata.
         """
         return pd.read_parquet(
-            os.path.join(self.kwargs["root"], "geobench_spacenet8.parquet")
+            os.path.join(self.kwargs["root"], "geobench_spacenet2.parquet")
         )
