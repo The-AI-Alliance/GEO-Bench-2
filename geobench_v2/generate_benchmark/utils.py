@@ -81,11 +81,11 @@ def plot_sample_locations(
 
     ax.set_extent([min_lon, max_lon, min_lat, max_lat], crs=ccrs.PlateCarree())
 
-    scale = "110m"
+    scale = "50m"
     ax.add_feature(cfeature.LAND.with_scale(scale), facecolor="lightgray")
     ax.add_feature(cfeature.OCEAN.with_scale(scale), facecolor="lightblue")
-    ax.add_feature(cfeature.COASTLINE.with_scale(scale), linewidth=0.5)
-    ax.add_feature(cfeature.BORDERS.with_scale(scale), linewidth=0.3, linestyle=":")
+    ax.add_feature(cfeature.COASTLINE.with_scale(scale), linewidth=0.8)
+    ax.add_feature(cfeature.BORDERS.with_scale(scale), linewidth=0.8, linestyle=":")
 
     if max_lon - min_lon < 90:
         ax.add_feature(cfeature.RIVERS, linewidth=0.2, alpha=0.5)

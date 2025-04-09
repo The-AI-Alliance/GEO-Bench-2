@@ -481,13 +481,14 @@ def main():
         metadata_df = generate_metadata_df(args.root)
         metadata_df.to_parquet(path)
 
-    processed_df = process_dotav2_dataset(
-        metadata_df, args.root, args.save_dir, target_size=512
-    )
-
-    processed_df.to_parquet(
-        os.path.join(args.save_dir, "geobench_dotav2_processed.parquet")
-    )
+    processed_path = os.path.join(args.save_dir, "geobench_dotav2_processed.parquet")
+    if os.path.exists(processed_path):
+        processed_df = pd.read_parquet(processed_path)
+    else:
+        processed_df = process_dotav2_dataset(
+            metadata_df, args.root, args.save_dir, target_size=512, num_workers=6
+        )
+        processed_df.to_parquet(processed_path)
 
     vis_dir = visualize_processing_results(
         processed_df, args.root, args.save_dir, num_samples=25

@@ -181,17 +181,11 @@ def process_dotav2_dataset(df, input_dir, output_dir, target_size=512, num_worke
     else:
         print("All patches from the same source image are in the same split.")
 
-    # randomly with seed change #val_samples samples from train to val
-    train_indices = df[df["split"] == "train"].index
-    rng = np.random.default_rng(42)
-    val_indices = rng.choice(train_indices, val_samples, replace=False)
-    df.loc[val_indices, "split"] = "val"
-
-    for split in df["split"].unique():
-        if os.path.exists(os.path.join(output_dir, split)):
-            shutil.rmtree(os.path.join(output_dir, split))
-        os.makedirs(os.path.join(output_dir, split, "images"), exist_ok=True)
-        os.makedirs(os.path.join(output_dir, split, "annotations"), exist_ok=True)
+    # for split in df["split"].unique():
+    #     if os.path.exists(os.path.join(output_dir, split)):
+    #         shutil.rmtree(os.path.join(output_dir, split))
+    os.makedirs(os.path.join(output_dir, "images"), exist_ok=True)
+    os.makedirs(os.path.join(output_dir, "annotations"), exist_ok=True)
 
     def process_row(row_tuple):
         idx, row = row_tuple
@@ -204,14 +198,9 @@ def process_dotav2_dataset(df, input_dir, output_dir, target_size=512, num_worke
         else:
             output_filename = f"{base_filename}_patch{row['patch_id']:02d}.png"
 
-        output_img_path = os.path.join(
-            output_dir, row["split"], "images", output_filename
-        )
+        output_img_path = os.path.join(output_dir, "images", output_filename)
         output_label_path = os.path.join(
-            output_dir,
-            row["split"],
-            "annotations",
-            f"{os.path.splitext(output_filename)[0]}.txt",
+            output_dir, "annotations", f"{os.path.splitext(output_filename)[0]}.txt"
         )
 
         x1, y1, x2, y2 = row["patch_coords"]
@@ -240,11 +229,9 @@ def process_dotav2_dataset(df, input_dir, output_dir, target_size=512, num_worke
 
         return {
             "original_image": row["image_path"],
-            "processed_image": os.path.join(row["split"], "images", output_filename),
+            "processed_image": os.path.join("images", output_filename),
             "processed_label": os.path.join(
-                row["split"],
-                "annotations",
-                f"{os.path.splitext(output_filename)[0]}.txt",
+                "annotations", f"{os.path.splitext(output_filename)[0]}.txt"
             ),
             "strategy": row["strategy"],
             "patch_id": row["patch_id"],
@@ -279,7 +266,8 @@ def process_dotav2_dataset(df, input_dir, output_dir, target_size=512, num_worke
 
     print(f"Processed {len(processed_df)} images/patches:")
     print(f"  Train: {len(processed_df[processed_df['split'] == 'train'])}")
-    print(f"  Val: {len(processed_df[processed_df['split'] == 'val'])}")
+    print(f"  Val: {len(processed_df[processed_df['split'] == 'validation'])}")
+    print(f"  Test: {len(processed_df[processed_df['split'] == 'test'])}")
 
     return processed_df
 
