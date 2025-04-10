@@ -11,7 +11,10 @@ import argparse
 import rasterio
 from tqdm import tqdm
 import re
-from geobench_v2.generate_benchmark.utils import plot_sample_locations
+from geobench_v2.generate_benchmark.utils import (
+    plot_sample_locations,
+    create_unittest_subset,
+)
 import tacotoolbox
 import tacoreader
 import glob
@@ -323,12 +326,6 @@ def main():
         s=5,
     )
 
-    visualize_sample(
-        metadata_df.iloc[15],
-        args.root,
-        os.path.join(args.save_dir, "sample_visualization.png"),
-    )
-
     patches_path = os.path.join(args.save_dir, "patch_metadata.parquet")
     if os.path.exists(patches_path):
         patches_df = pd.read_parquet(patches_path)
@@ -378,15 +375,14 @@ def main():
     #     os.path.join(args.save_dir, "tortilla"),
     # )
 
-    import pdb
-
-    pdb.set_trace()
-
-    taco = tacoreader.load(
-        os.path.join(args.save_dir, "tortilla", "SpaceNet7.tortilla")
+    create_unittest_subset(
+        data_dir=args.save_dir,
+        tortilla_pattern="SpaceNet7.tortilla",
+        test_dir_name="spacenet7",
+        n_train_samples=2,
+        n_val_samples=1,
+        n_test_samples=1,
     )
-
-    # create_tortilla(args.save_dir, checker_split_df, args.save_dir)
 
 
 if __name__ == "__main__":
