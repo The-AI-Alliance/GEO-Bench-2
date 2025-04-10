@@ -335,14 +335,23 @@ def create_subset_from_tortilla(
 
 
 def create_unittest_subset(
-    data_dir,
+    data_dir: str,
     tortilla_pattern: str,
-    test_dir_name,
-    n_train_samples,
-    n_val_samples,
-    n_test_samples,
+    test_dir_name: str,
+    n_train_samples: int,
+    n_val_samples: int,
+    n_test_samples: int,
 ) -> None:
-    """Create a unittest version tortilla."""
+    """Create a unittest version tortilla.
+
+    Args:
+        data_dir: Directory containing the tortilla files
+        tortilla_pattern: Pattern to match tortilla files
+        test_dir_name: Name of the directory to save the unittest subset
+        n_train_samples: Number of training samples to include in the subset
+        n_val_samples: Number of validation samples to include in the subset
+        n_test_samples: Number of test samples to include in the subset
+    """
 
     taco_glob = sorted(glob(os.path.join(data_dir, tortilla_pattern)))
     taco_ben = tacoreader.load(taco_glob)
