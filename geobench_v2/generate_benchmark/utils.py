@@ -8,6 +8,10 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import cartopy.crs as ccrs
 import cartopy.feature as cfeature
+from glob import glob
+import os
+import numpy as np
+import tacoreader
 
 
 def plot_sample_locations(
@@ -328,3 +332,31 @@ def create_subset_from_tortilla(
     subset_taco = pd.concat([train_samples, val_samples, test_samples])
 
     return subset_taco
+
+
+def create_unittest_subset(
+    data_dir,
+    tortilla_pattern: str,
+    test_dir_name,
+    n_train_samples,
+    n_val_samples,
+    n_test_samples,
+) -> None:
+    """Create a unittest version tortilla."""
+
+    taco_glob = sorted(glob(os.path.join(data_dir, tortilla_pattern)))
+    taco_ben = tacoreader.load(taco_glob)
+
+    # create unit test subset
+    unit_test_taco = create_subset_from_tortilla(
+        taco_ben, n_train_samples=4, n_val_samples=2, n_test_samples=2
+    )
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    repo_root = os.path.dirname(os.path.dirname(script_dir))
+    test_data_dir = os.path.join(repo_root, "tests", "data", test_dir_name)
+    os.makedirs(test_data_dir, exist_ok=True)
+    tortilla_path = os.path.join(test_data_dir, f"{test_dir_name}.tortilla")
+    tacoreader.compile(dataframe=unit_test_taco, output=tortilla_path)
+    # print filesize in MB
+    print(f"Unit test subset saved to {tortilla_path}")
+    print(f"Filesize: {os.path.getsize(tortilla_path) / (1024 * 1024):.2f} MB")
