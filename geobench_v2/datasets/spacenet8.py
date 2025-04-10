@@ -126,13 +126,11 @@ class GeoBenchSpaceNet8(GeoBenchBaseDataset):
             sample = self.transforms(sample)
 
         if self.return_stacked_image:
-            stacked_image = []
-            stacked_image.append(sample["image_pre"])
-            stacked_image.append(sample["image_post"])
-            output = {}
-            output["image"] = torch.cat(stacked_image, 0)
-            output["mask"] = sample["mask"]
-        else:
-            output = sample
+            sample = {
+                "image": torch.cat(
+                    [img for key, img in sample.items() if key.startswith("image_")], 0
+                ),
+                "mask": sample["mask"],
+            }
 
-        return output
+        return sample
