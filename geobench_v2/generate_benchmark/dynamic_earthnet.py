@@ -15,13 +15,14 @@ from tqdm import tqdm
 import rasterio
 
 
-from geobench_v2.generate_benchmark.utils import (
-    plot_sample_locations,
-    visualize_dynamic_earthnet_sample,
-)
+from geobench_v2.generate_benchmark.utils import plot_sample_locations
 from geobench_v2.generate_benchmark.geospatial_split_utils import (
     create_geospatial_temporal_split,
 )
+
+from skimage.transform import resize
+import shutil
+import numpy as np
 
 
 # TODO add automatic download of dataset to have a starting point for benchmark generation
@@ -346,6 +347,138 @@ def create_tortilla(root_dir, df, save_dir):
     )
 
 
+def create_test_subset(
+    root_dir: str,
+    df: pd.DataFrame,
+    save_dir: str,
+    num_train_samples: int = 2,
+    num_val_samples: int = 1,
+    num_test_samples: int = 1,
+    target_size: int = 32,
+) -> None:
+    """Create a test subset of the DynamicEarthNet dataset with downsampled images.
+
+    Args:
+        root_dir: Root directory containing original DynamicEarthNet data
+        df: DataFrame with DynamicEarthNet metadata
+        save_dir: Directory to save the downsampled test subset
+        num_train_samples: Number of training samples to include
+        num_val_samples: Number of validation samples to include
+        num_test_samples: Number of test samples to include
+        target_size: Size of the downsampled images (target_size x target_size)
+    """
+    test_dir = os.path.join(save_dir, "unittest")
+    os.makedirs(test_dir, exist_ok=True)
+
+    df_unique = df.drop_duplicates(subset="new_id", keep="first")
+    train_samples = df_unique[df_unique["split"] == "train"].sample(
+        num_train_samples, random_state=42
+    )
+    val_samples = df_unique[df_unique["split"] == "validation"].sample(
+        num_val_samples, random_state=42
+    )
+    test_samples = df_unique[df_unique["split"] == "test"].sample(
+        num_test_samples, random_state=42
+    )
+
+    selected_ids = (
+        list(train_samples["new_id"])
+        + list(val_samples["new_id"])
+        + list(test_samples["new_id"])
+    )
+    subset_df = df[df["new_id"].isin(selected_ids)].copy()
+
+    print(
+        f"Creating test subset with {len(subset_df)} images from {len(selected_ids)} unique time-series"
+    )
+
+    modalities = ["planet", "s1", "s2", "label"]
+    modality_dirs = {
+        modality: os.path.join(test_dir, f"test_{modality}") for modality in modalities
+    }
+
+    for directory in modality_dirs.values():
+        os.makedirs(directory, exist_ok=True)
+
+    for idx, row in tqdm(
+        subset_df.iterrows(), total=len(subset_df), desc="Creating downsampled images"
+    ):
+        for modality in modalities:
+            if modality == "planet":
+                path_key = "planet_path"
+                is_missing = "planet_missing"
+            else:
+                path_key = f"{modality}_path"
+                is_missing = (
+                    f"{modality}_missing" if f"{modality}_missing" in row else False
+                )
+
+            # Skip if the modality is missing for this sample
+            if is_missing in row and row[is_missing]:
+                continue
+
+            source_path = os.path.join(root_dir, row[path_key])
+            if not os.path.exists(source_path):
+                print(f"Warning: File not found - {source_path}")
+                continue
+
+            try:
+                with rasterio.open(source_path) as src:
+                    profile = src.profile.copy()
+                    data = src.read()
+
+                    data_small = np.zeros(
+                        (data.shape[0], target_size, target_size), dtype=data.dtype
+                    )
+
+                    for band_idx in range(data.shape[0]):
+                        data_small[band_idx] = resize(
+                            data[band_idx],
+                            (target_size, target_size),
+                            preserve_range=True,
+                        ).astype(data.dtype)
+
+                    profile.update(height=target_size, width=target_size)
+
+                    filename = (
+                        f"small_{row['area_id']}_{row['range_id']}_{row['lat_id']}"
+                    )
+                    if modality == "planet":
+                        planet_date = row["planet_date"].replace("-", "_")
+                        filename += f"_{planet_date}"
+
+                    filename += ".tif"
+                    new_path = os.path.join(modality_dirs[modality], filename)
+
+                    with rasterio.open(new_path, "w", **profile) as dst:
+                        dst.write(data_small)
+
+                    subset_df.loc[idx, path_key] = os.path.relpath(new_path, test_dir)
+
+            except Exception as e:
+                print(f"Error processing {source_path}: {e}")
+
+    subset_df.to_parquet(os.path.join(test_dir, "subset_metadata.parquet"))
+
+    create_tortilla(test_dir, subset_df, os.path.join(save_dir, "unittest"))
+
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    repo_root = os.path.dirname(os.path.dirname(script_dir))
+    test_data_dir = os.path.join(repo_root, "tests", "data", "dynamic_earthnet")
+    os.makedirs(test_data_dir, exist_ok=True)
+
+    tortilla_path = os.path.join(save_dir, "unittest", "FullDynamicEarthNet.tortilla")
+
+    tortilla_size_mb = os.path.getsize(tortilla_path) / (1024 * 1024)
+    print(f"Tortilla file size: {tortilla_size_mb:.2f} MB")
+    shutil.copy(tortilla_path, os.path.join(test_data_dir, "dynamic_earthnet.tortilla"))
+
+    print(f"Test subset created successfully at {test_dir}")
+    print(
+        f"Tortilla file copied to {os.path.join(test_data_dir, 'dynamic_earthnet.tortilla')}"
+    )
+
+
 def main():
     """Generate DynamicEarthNet Benchmark."""
     parser = argparse.ArgumentParser()
@@ -382,31 +515,29 @@ def main():
     #     dataset_name="DynamicEarthNet",
     # )
     # create a plot for each split separately to see if they are geographically balanced
-    for split in ["train", "val", "test"]:
-        plot_sample_locations(
-            df[df["split"] == split].drop_duplicates(subset="new_id", keep="first"),
-            output_path=os.path.join(args.save_dir, f"sample_locations_{split}.png"),
-            buffer_degrees=4,
-            s=2.0,
-            dataset_name="DynamicEarthNet",
-        )
-
-    # df["sample_idx"] = pd.factorize(df["new_id"])[0]
-    # import numpy as np
-    # for i in [645, 766, 815]:
-    #     random_idx = i
-    #     visualize_dynamic_earthnet_sample(
-    #         args.root,
-    #         df,
-    #         sample_idx=random_idx,
-    #         output_path=os.path.join(args.save_dir, f"sample_visualization_{random_idx}.png"),
-    #         resize_factor=0.5
+    # for split in ["train", "val", "test"]:
+    #     plot_sample_locations(
+    #         df[df["split"] == split].drop_duplicates(subset="new_id", keep="first"),
+    #         output_path=os.path.join(args.save_dir, f"sample_locations_{split}.png"),
+    #         buffer_degrees=4,
+    #         s=2.0,
+    #         dataset_name="DynamicEarthNet",
     #     )
 
-    create_tortilla(args.root, df, args.save_dir)
+    create_test_subset(
+        args.root,
+        df,
+        args.save_dir,
+        num_train_samples=2,
+        num_val_samples=1,
+        num_test_samples=1,
+        target_size=16,
+    )
 
-    taco = tacoreader.load(os.path.join(args.save_dir, "FullDynamicEarthNet.tortilla"))
-    sample = taco.read(1)
+    # create_tortilla(args.root, df, args.save_dir)
+
+    # taco = tacoreader.load(os.path.join(args.save_dir, "FullDynamicEarthNet.tortilla"))
+    # sample = taco.read(1)
 
 
 if __name__ == "__main__":
