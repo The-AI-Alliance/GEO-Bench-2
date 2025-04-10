@@ -157,17 +157,9 @@ class GeoBenchKuroSiwo(GeoBenchBaseDataset):
             sample = self.transforms(sample)
 
         if self.return_stacked_image:
-            stacked_image = []
-            for mod in self.band_order:
-                if mod == "sar":
-                    stacked_image.append(sample["image_pre_1"])
-                    stacked_image.append(sample["image_pre_1"])
-                    stacked_image.append(sample["image_post"])
-                if mod == "dem":
-                    stacked_image.append(sample["image_dem"])
-            output = {}
-            output["image"] = torch.cat(stacked_image, 0)
-            output["mask"] = sample["mask"]
-        else:
-            output = sample
-        return output
+            stacked_images = [
+                img for key, img in sample.items() if key.startswith("image_")
+            ]
+            sample = {"image": torch.cat(stacked_images, 0), "mask": sample["mask"]}
+
+        return sample

@@ -1,73 +1,117 @@
 # Copyright (c) 2025 GeoBenchV2. All rights reserved.
 # Licensed under the Apache License 2.0.
 
-"""Test Kuro Siwo datamodule"""
+"""KuroSiwo Tests."""
 
+import os
 import pytest
+from typing import Dict, Sequence, Union
+import torch
+from pytest import MonkeyPatch
+from geobench_v2.datasets import GeoBenchKuroSiwo
 from geobench_v2.datamodules import GeoBenchKuroSiwoDataModule
 
 
-@pytest.fixture
-def data_root():
-    """Path to test data directory."""
-    return "/mnt/rg_climate_benchmark/data/geobenchV2/kuro_siwo"
+@pytest.fixture(
+    params=[
+        {"sar": ["vv", "vh", 0.2], "dem": [0.1, "dem"]},
+        {"sar": ["vv", "vh"], "dem": ["dem"]},
+    ]
+)
+def band_order(request):
+    """Parameterized band configuration with different configurations."""
+    return request.param
 
 
 @pytest.fixture
-def band_order():
-    """Test band configuration with fill values."""
-    return {"sar": ["vv", "vh", 0.2], "dem": [0.1, "dem"]}
-
-
-@pytest.fixture
-def datamodule(data_root, band_order):
+def datamodule(
+    monkeypatch: MonkeyPatch, band_order: Dict[str, Sequence[Union[str, float]]]
+):
     """Initialize KuroSiwo datamodule with test configuration."""
-    return GeoBenchKuroSiwoDataModule(
+    monkeypatch.setattr(GeoBenchKuroSiwo, "paths", ["kuro_siwo.tortilla"])
+    dm = GeoBenchKuroSiwoDataModule(
         img_size=74,
-        batch_size=32,
-        eval_batch_size=64,
+        batch_size=4,
+        eval_batch_size=2,
         num_workers=0,
         pin_memory=False,
         band_order=band_order,
-        root=data_root,
+        root=os.path.join("tests", "data", "kuro_siwo"),
     )
+    dm.setup("fit")
+    dm.setup("test")
+
+    return dm
+
+
+@pytest.fixture
+def stacked_datamodule(
+    monkeypatch: MonkeyPatch, band_order: Dict[str, Sequence[Union[str, float]]]
+):
+    """Initialize KuroSiwo datamodule with test configuration."""
+    monkeypatch.setattr(GeoBenchKuroSiwo, "paths", ["kuro_siwo.tortilla"])
+    dm = GeoBenchKuroSiwoDataModule(
+        img_size=74,
+        batch_size=4,
+        eval_batch_size=2,
+        num_workers=0,
+        pin_memory=False,
+        band_order=band_order,
+        root=os.path.join("tests", "data", "kuro_siwo"),
+        return_stacked_image=True,
+    )
+    dm.setup("fit")
+    dm.setup("test")
+
+    return dm
 
 
 class TestKuroSiwoDataModule:
     """Test cases for KuroSiwo datamodule functionality."""
 
-    def test_batch_dimensions(self, datamodule):
-        """Test if batches have correct dimensions."""
-        datamodule.setup("fit")
+    def test_loaders(self, datamodule):
+        """Test if dataloaders are created successfully."""
+        assert len(datamodule.train_dataloader()) > 0
+        assert len(datamodule.val_dataloader()) > 0
+        assert len(datamodule.test_dataloader()) > 0
+
+    def test_load_batch_and_check_dims(self, datamodule):
+        """Test loading a batch."""
         train_batch = next(iter(datamodule.train_dataloader()))
+        assert isinstance(train_batch, dict)
 
         # Define expected dimensions for testing
         expected_dims = {
             "image_pre_1": (
                 datamodule.batch_size,
                 len(datamodule.band_order["sar"]),
-                74,
+                datamodule.img_size,
                 datamodule.img_size,
             ),
             "image_pre_2": (
                 datamodule.batch_size,
                 len(datamodule.band_order["sar"]),
-                74,
+                datamodule.img_size,
                 datamodule.img_size,
             ),
             "image_post": (
                 datamodule.batch_size,
                 len(datamodule.band_order["sar"]),
-                74,
+                datamodule.img_size,
                 datamodule.img_size,
             ),
             "image_dem": (
                 datamodule.batch_size,
                 len(datamodule.band_order["dem"]),
-                74,
+                datamodule.img_size,
                 datamodule.img_size,
             ),
-            "mask": (datamodule.batch_size, 1, 74, datamodule.img_size),
+            "mask": (
+                datamodule.batch_size,
+                1,
+                datamodule.img_size,
+                datamodule.img_size,
+            ),
         }
 
         for key, expected_shape in expected_dims.items():
@@ -75,8 +119,50 @@ class TestKuroSiwoDataModule:
                 f"Wrong shape for {key}: got {train_batch[key].shape}, expected {expected_shape}"
             )
 
-    def test_band_order_resolution(self, datamodule):
-        """Test if band order is correctly resolved."""
-        assert len(datamodule.band_order["sar"]) == 3
-        assert isinstance(datamodule.band_order["sar"][2], float)
-        assert datamodule.band_order["dem"][0] == 0.1
+    def test_constant_values(self, datamodule):
+        """Test if constant values in band_order are correctly applied."""
+        train_batch = next(iter(datamodule.train_dataloader()))
+
+        # Check constants in sar bands if present
+        if any(isinstance(band, (int, float)) for band in datamodule.band_order["sar"]):
+            for i, band in enumerate(datamodule.band_order["sar"]):
+                if isinstance(band, (int, float)):
+                    assert torch.isclose(
+                        train_batch["image_pre_1"][:, i], torch.tensor(band)
+                    ).all(), f"Constant value mismatch for image_pre_1 channel {i}"
+
+                    assert torch.isclose(
+                        train_batch["image_pre_2"][:, i], torch.tensor(band)
+                    ).all(), f"Constant value mismatch for image_pre_2 channel {i}"
+
+                    assert torch.isclose(
+                        train_batch["image_post"][:, i], torch.tensor(band)
+                    ).all(), f"Constant value mismatch for image_post channel {i}"
+
+        # Check constants in dem bands if present
+        if any(isinstance(band, (int, float)) for band in datamodule.band_order["dem"]):
+            for i, band in enumerate(datamodule.band_order["dem"]):
+                if isinstance(band, (int, float)):
+                    assert torch.isclose(
+                        train_batch["image_dem"][:, i], torch.tensor(band)
+                    ).all(), f"Constant value mismatch for image_dem channel {i}"
+
+    def test_stacked_batch(self, stacked_datamodule):
+        """Test batch of stacked mode."""
+        train_batch = next(iter(stacked_datamodule.train_dataloader()))
+
+        assert isinstance(train_batch, dict)
+
+        assert "image" in train_batch
+        assert "mask" in train_batch
+
+        # for stacked mode, multiply sar channels by 3 (pre_1, pre_2, post) plus the dem channels
+        num_channels = 3 * len(stacked_datamodule.band_order["sar"]) + len(
+            stacked_datamodule.band_order["dem"]
+        )
+        assert train_batch["image"].shape == (
+            stacked_datamodule.batch_size,
+            num_channels,
+            stacked_datamodule.img_size,
+            stacked_datamodule.img_size,
+        )
