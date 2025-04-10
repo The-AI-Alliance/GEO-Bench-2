@@ -11,7 +11,10 @@ import argparse
 import rasterio
 from tqdm import tqdm
 import re
-from geobench_v2.generate_benchmark.utils import plot_sample_locations
+from geobench_v2.generate_benchmark.utils import (
+    plot_sample_locations,
+    create_unittest_subset,
+)
 import tacotoolbox
 import tacoreader
 import glob
@@ -216,7 +219,7 @@ def main():
         buffer_degrees=1.0,
     )
 
-    path = "/mnt/rg_climate_benchmark/data/geobenchV2/SpaceNet6/patch_metadata.parquet"
+    path = "/mnt/rg_climate_benchmark/data/geobenchV2/spacenet6/patch_metadata.parquet"
 
     df = pd.read_parquet(path)
 
@@ -239,7 +242,16 @@ def main():
         buffer_degrees=0.05,
     )
 
-    create_tortilla(args.save_dir, checker_split_df, args.save_dir)
+    create_unittest_subset(
+        data_dir=args.save_dir,
+        tortilla_pattern="SpaceNet6.*.part.tortilla",
+        test_dir_name="spacenet6",
+        n_train_samples=2,
+        n_val_samples=1,
+        n_test_samples=1,
+    )
+
+    # create_tortilla(args.save_dir, checker_split_df, args.save_dir)
 
 
 if __name__ == "__main__":
