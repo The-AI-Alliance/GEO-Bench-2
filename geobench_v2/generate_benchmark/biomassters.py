@@ -344,7 +344,7 @@ def create_test_subset(
     os.makedirs(test_data_dir, exist_ok=True)
 
     tortilla_path = os.path.join(save_dir, "unittest", "BioMassters.tortilla")
-    # compute size of this file in MB
+
     size_mb = os.path.getsize(tortilla_path) / (1024 * 1024)
     print(f"Tortilla file size: {size_mb:.2f} MB")
     shutil.copy(tortilla_path, os.path.join(test_data_dir, "biomassters.tortilla"))
