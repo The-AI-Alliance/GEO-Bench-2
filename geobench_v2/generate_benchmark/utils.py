@@ -300,3 +300,31 @@ def _plot_region(ax, df, split_column, split_colors, buffer_degrees, s, alpha, t
     gl.top_labels = False
     gl.right_labels = False
     ax.set_title(title, fontsize=12)
+
+
+def create_subset_from_tortilla(
+    taco, n_train_samples: int, n_val_samples: int, n_test_samples: int
+):
+    """Create a subset of a Taco dataset
+
+    Args:
+        taco: TACO dataset
+        n_train_samples: max Number of training samples to include in subset
+        n_val_samples: max Number of validation samples to include in subset
+        n_test_samples: max Number of test samples to include in subset
+
+    Returns:
+        subset TACO
+    """
+    train_samples = taco[taco["tortilla:data_split"] == "train"].sample(
+        n_train_samples, random_state=42
+    )
+    val_samples = taco[taco["tortilla:data_split"] == "validation"].sample(
+        n_val_samples, random_state=42
+    )
+    test_samples = taco[taco["tortilla:data_split"] == "test"].sample(
+        n_test_samples, random_state=42
+    )
+    subset_taco = pd.concat([train_samples, val_samples, test_samples])
+
+    return subset_taco

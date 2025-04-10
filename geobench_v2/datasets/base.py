@@ -45,6 +45,8 @@ class GeoBenchBaseDataset(NonGeoDataset, DataUtilsMixin):
         self.transforms = transforms
 
         self.data_df = tacoreader.load([os.path.join(root, f) for f in self.paths])
+        if split == "val":
+            split == "validation"
         self.data_df = self.data_df[
             self.data_df["tortilla:data_split"] == split
         ].reset_index(drop=True)
