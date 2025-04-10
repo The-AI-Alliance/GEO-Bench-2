@@ -155,6 +155,8 @@ class GeoBenchBioMassters(GeoBenchBaseDataset):
 
         img_dict: dict[str, Tensor] = {}
 
+        spatial_mask = None
+
         if "s1" in self.band_order:
             sample_s1_row = sample_row[sample_row["modality"] == "S1"]
             s1_data = []
@@ -221,7 +223,7 @@ class GeoBenchBioMassters(GeoBenchBaseDataset):
                     )
                 ] = 0.0
 
-        if "s2" in self.band_order:
+        if "s2" in self.band_order and spatial_mask is not None:
             if img_dict["image_s2"].dim() == 3:  # [C, H, W]
                 img_dict["image_s2"][:, spatial_mask] = 0.0
             else:  # [T, C, H, W]
