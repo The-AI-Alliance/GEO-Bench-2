@@ -290,6 +290,7 @@ def main():
     script_dir = os.path.dirname(os.path.abspath(__file__))
     repo_root = os.path.dirname(os.path.dirname(script_dir))
     test_data_dir = os.path.join(repo_root, "tests", "data", "benv2")
+    os.makedirs(test_data_dir, exist_ok=True)
     tacoreader.compile(
         dataframe=unit_test_taco, output=os.path.join(test_data_dir, "benv2.tortilla")
     )

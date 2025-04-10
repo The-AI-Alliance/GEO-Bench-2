@@ -245,7 +245,7 @@ class GeoBenchTreeSatAI(GeoBenchBaseDataset):
                     -self.num_time_steps :
                 ]
 
-        if return_stacked_image:
+        if self.return_stacked_image:
             stacked_image = []
             for mod in self.band_order:
                 if mod == "s1":

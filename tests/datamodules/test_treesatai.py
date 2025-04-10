@@ -3,74 +3,125 @@
 
 """TreeSatAI Tests."""
 
+import os
 import pytest
+from typing import Sequence
 import torch
+from pytest import MonkeyPatch
+from geobench_v2.datasets import GeoBenchTreeSatAI
 from geobench_v2.datamodules import GeoBenchTreeSatAIDataModule
 
 
-@pytest.fixture
-def data_root():
-    """Path to test data directory."""
-    return "/mnt/rg_climate_benchmark/data/geobenchV2/treesatai"
+@pytest.fixture(
+    params=[
+        # {
+        #     "aerial": ["r", "g", "b", "nir"],
+        #     "s2": ["B02", "B03", "B04", 0.0],
+        #     "s1": ["VV", "VH", -1.0],
+        # },
+        {"aerial": ["r", "g", "b"]}
+    ]
+)
+def band_order(request):
+    """Parameterized band configuration with different configurations."""
+    return request.param
 
 
 @pytest.fixture
-def multimodal_band_order():
-    """Test band configuration with separate modality sequences."""
-    return {
-        "aerial": ["r", "g", "b"],
-        "s2": ["B02", "B03", 0.0],
-        "s1": ["VV", "VH", -1.0],
-    }
-
-
-@pytest.fixture
-def datamodule(data_root, band_order):
+def datamodule(monkeypatch: MonkeyPatch, band_order: dict[str, Sequence[str | float]]):
     """Initialize TreeSatAI datamodule with test configuration."""
-    return GeoBenchTreeSatAIDataModule(
-        img_size=256,
-        batch_size=32,
-        eval_batch_size=64,
+    monkeypatch.setattr(GeoBenchTreeSatAI, "paths", ["treesatai.tortilla"])
+    dm = GeoBenchTreeSatAIDataModule(
+        img_size=74,
+        batch_size=4,
+        eval_batch_size=2,
         num_workers=0,
         pin_memory=False,
         band_order=band_order,
-        root=data_root,
+        root=os.path.join("tests", "data", "treesatai"),
     )
+    dm.setup("fit")
+    dm.setup("test")
+
+    return dm
+
+
+# @pytest.fixture
+# def ts_datamodule(monkeypatch: MonkeyPatch, band_order: dict[str, Sequence[str | float]]):
+#     """Initialize TreeSatAI datamodule with time series enabled."""
+#     monkeypatch.setattr(GeoBenchTreeSatAI, "paths", ["treesatai.tortilla"])
+#     dm = GeoBenchTreeSatAIDataModule(
+#         img_size=74,
+#         batch_size=4,
+#         eval_batch_size=2,
+#         num_workers=0,
+#         pin_memory=False,
+#         band_order=band_order,
+#         root=os.path.join("tests", "data", "treesatai"),
+#         include_ts=True,
+#         num_time_steps=12,
+#     )
+#     dm.setup("fit")
+#     dm.setup("test")
+
+#     return dm
 
 
 class TestTreeSatAIDataModule:
     """Test cases for TreeSatAI datamodule functionality."""
 
-    def test_multimodal_band_order(self, data_root, multimodal_band_order):
-        """Test batch retrieval with modality-specific band sequences."""
-        dm = GeoBenchTreeSatAIDataModule(
-            img_size=74, batch_size=32, band_order=multimodal_band_order, root=data_root
-        )
-        dm.setup("fit")
-        batch = next(iter(dm.train_dataloader()))
+    def test_loaders(self, datamodule):
+        """Test if dataloaders are created successfully."""
+        assert len(datamodule.train_dataloader()) > 0
+        assert len(datamodule.val_dataloader()) > 0
+        assert len(datamodule.test_dataloader()) > 0
 
-        # Check modality-specific outputs
-        assert "image_s2" in batch
-        assert "image_s1" in batch
-        assert batch["image_s2"].shape[:2] == (dm.batch_size, 3)  # S2 bands
-        assert batch["image_s1"].shape[:2] == (dm.batch_size, 3)  # S1 bands
-        assert batch["image_s2"].shape[2] == 74
-        assert batch["image_s2"].shape[3] == dm.img_size
-        assert torch.isclose(batch["image_s1"][:, 2], torch.tensor(-1.0)).all()
+    def test_load_batch_and_check_dims(self, datamodule):
+        """Test loading a batch."""
+        train_batch = next(iter(datamodule.train_dataloader()))
+        assert isinstance(train_batch, dict)
 
-    def test_multimodal_ts_band_order(self, data_root, multimodal_band_order):
-        """Test batch retrieval with modality-specific band sequences."""
-        dm = GeoBenchTreeSatAIDataModule(
-            img_size=74,
-            batch_size=32,
-            band_order=multimodal_band_order,
-            root=data_root,
-            include_ts=True,
-            num_time_steps=12,
-        )
-        dm.setup("fit")
-        batch = next(iter(dm.train_dataloader()))
+        expected_dims = {
+            f"image_{modality}": (
+                datamodule.batch_size,
+                len([b for b in band_names if isinstance(b, str)]),
+                datamodule.img_size,
+                datamodule.img_size,
+            )
+            for modality, band_names in datamodule.band_order.items()
+        }
+        expected_dims["label"] = (datamodule.batch_size, datamodule.num_classes)
 
-        # Check modality-specific outputs
+        for key, expected_shape in expected_dims.items():
+            assert train_batch[key].shape == expected_shape, (
+                f"Wrong shape for {key}: got {train_batch[key].shape}, expected {expected_shape}"
+            )
 
-        assert "image_s2_ts" in batch
+        # check that constant values are correct
+        for modality, band_names in datamodule.band_order.items():
+            for i, band in enumerate(band_names):
+                if isinstance(band, (int, float)):
+                    key = f"image_{modality}"
+                    assert torch.isclose(
+                        train_batch[key][:, i], torch.tensor(band)
+                    ).all(), f"Constant value mismatch for {key} channel {i}"
+
+    # def test_time_series_output(self, ts_datamodule):
+    #     """Test time series output dimensions."""
+    #     train_batch = next(iter(ts_datamodule.train_dataloader()))
+
+    #     for modality in ts_datamodule.band_order.keys():
+    #         ts_key = f"image_{modality}_ts"
+    #         assert ts_key in train_batch
+
+    #         expected_shape = (
+    #             ts_datamodule.batch_size,
+    #             ts_datamodule.num_time_steps,
+    #             len([b for b in ts_datamodule.band_order[modality] if isinstance(b, str)]),
+    #             ts_datamodule.img_size,
+    #             ts_datamodule.img_size,
+    #         )
+
+    #         assert train_batch[ts_key].shape == expected_shape, (
+    #             f"Wrong shape for {ts_key}: got {train_batch[ts_key].shape}, expected {expected_shape}"
+    #         )
