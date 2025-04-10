@@ -76,3 +76,12 @@ class TestMMFloodDataModule:
             assert train_batch[key].shape == expected_shape, (
                 f"Wrong shape for {key}: got {train_batch[key].shape}, expected {expected_shape}"
             )
+
+        # check that constant values are correct
+        for modality, band_names in datamodule.band_order.items():
+            for i, band in enumerate(band_names):
+                if isinstance(band, (int, float)):
+                    key = f"image_{modality}"
+                    assert torch.isclose(
+                        train_batch[key][:, i], torch.tensor(band)
+                    ).all(), f"Constant value mismatch for {key} channel {i}"

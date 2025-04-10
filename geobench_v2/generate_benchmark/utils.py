@@ -358,7 +358,10 @@ def create_unittest_subset(
 
     # create unit test subset
     unit_test_taco = create_subset_from_tortilla(
-        taco_ben, n_train_samples=4, n_val_samples=2, n_test_samples=2
+        taco_ben,
+        n_train_samples=n_train_samples,
+        n_val_samples=n_val_samples,
+        n_test_samples=n_test_samples,
     )
     script_dir = os.path.dirname(os.path.abspath(__file__))
     repo_root = os.path.dirname(os.path.dirname(script_dir))
