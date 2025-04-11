@@ -89,6 +89,8 @@ docs = [
     "jupytext>=1.15.2",
     # ipykernel to run notebooks
     "ipykernel>=6.29.3",
+    # pandoc
+    "pandoc>=2.4",
 ]
 
 [project.scripts]

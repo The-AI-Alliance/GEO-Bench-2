@@ -1,5 +1,5 @@
 datamodules:
-  # - name: BioMassters
+  # - name: biomassters
   #   stats_computer:
   #     _target_: geobench_v2.generate_benchmark.utils_dataset_statistics.PxRegressionStatistics
   #     datamodule:
@@ -15,7 +15,7 @@ datamodules:
   #       image_s2: [0, 3000]
   #     target_range_vals: [0, 1000]
     
-  # - name: MADOS
+  # - name: mados
   #   stats_computer:
   #     _target_: geobench_v2.generate_benchmark.utils_dataset_statistics.SegmentationStatistics
   #     datamodule:
@@ -28,7 +28,7 @@ datamodules:
   #     range_vals:
   #       image: [0, 0.2]
 
-  # - name: CaFFe
+  # - name: caffe
   #   stats_computer:
   #     _target_: geobench_v2.generate_benchmark.utils_dataset_statistics.SegmentationStatistics
   #     datamodule:
@@ -41,7 +41,7 @@ datamodules:
   #     range_vals:
   #       image: [0, 255]
 
-  # - name: FotW
+  # - name: fotw
   #   stats_computer:
   #     _target_: geobench_v2.generate_benchmark.utils_dataset_statistics.SegmentationStatistics
   #     datamodule:
@@ -54,7 +54,7 @@ datamodules:
   #     range_vals:
   #       image: [0, 3000]
 
-  # - name: SpaceNet2
+  # - name: spacenet2
   #   stats_computer:
   #     _target_: geobench_v2.generate_benchmark.utils_dataset_statistics.SegmentationStatistics
   #     datamodule:
@@ -69,7 +69,7 @@ datamodules:
   #       image_pan: [0, 3000]
 
 
-  # - name: SpaceNet6
+  # - name: spacenet6
   #   stats_computer:
   #     _target_: geobench_v2.generate_benchmark.utils_dataset_statistics.SegmentationStatistics
   #     datamodule:
@@ -83,7 +83,7 @@ datamodules:
   #       image_rgbn: [0, 1000]
   #       image_sar: [0, 100]
 
-  # - name: SpaceNet7
+  # - name: spacenet7
   #   stats_computer:
   #     _target_: geobench_v2.generate_benchmark.utils_dataset_statistics.SegmentationStatistics
   #     datamodule:
@@ -96,7 +96,7 @@ datamodules:
   #     range_vals:
   #       image: [0, 255]
 
-  # - name: SpaceNet8
+  # - name: spacenet8
   #   stats_computer:
   #     _target_: geobench_v2.generate_benchmark.utils_dataset_statistics.SegmentationStatistics
   #     datamodule:
@@ -110,7 +110,7 @@ datamodules:
   #       image_pre: [0, 255]
   #       image_post: [0, 255]
 
-  # - name: CloudSen12
+  # - name: cloudsen12
   #   stats_computer:
   #     _target_: geobench_v2.generate_benchmark.utils_dataset_statistics.SegmentationStatistics
   #     datamodule:
@@ -123,7 +123,7 @@ datamodules:
   #     range_vals:
   #       image: [0, 3000]
 
-  # - name: EverWatch
+  # - name: everwatch
   #   stats_computer:
   #     _target_: geobench_v2.generate_benchmark.utils_dataset_statistics.ObjectDetectionStatistics
   #     datamodule:
@@ -136,7 +136,7 @@ datamodules:
   #     range_vals:
   #       image: [0, 255]
 
-  # - name: DynamicEarthNet
+  # - name: dynamic_earthnet
   #   stats_computer:
   #     _target_: geobench_v2.generate_benchmark.utils_dataset_statistics.SegmentationStatistics
   #     datamodule:
@@ -151,7 +151,7 @@ datamodules:
   #       image_planet: [0, 3000]
   #       image_s2: [0, 3000]
 
-  # - name: Sen4AgriNet
+  # - name: sen4agrinet
   #   stats_computer:
   #     _target_: geobench_v2.generate_benchmark.utils_dataset_statistics.SegmentationStatistics
   #     datamodule:
@@ -165,7 +165,7 @@ datamodules:
   #     range_vals:
   #       image: [0, 10000]
 
-  - name: TreeSatAI
+  - name: treesatai
     stats_computer:
       _target_: geobench_v2.generate_benchmark.utils_dataset_statistics.ClassificationStatistics
       datamodule:
@@ -180,7 +180,7 @@ datamodules:
         image_s2: [0, 3000]
         image_s1: [0, 1]
 
-  - name: KuroSiwo
+  - name: kuro_siwo
     stats_computer:
       _target_: geobench_v2.generate_benchmark.utils_dataset_statistics.SegmentationStatistics
       datamodule:
@@ -196,7 +196,7 @@ datamodules:
         image_dem: [0, 150]
         image_post: [0, 0.5]
 
-  - name: PASTIS
+  - name: pastis
     stats_computer:
       _target_: geobench_v2.generate_benchmark.utils_dataset_statistics.SegmentationStatistics
       datamodule:
@@ -212,7 +212,7 @@ datamodules:
         image_s1_asc: [0, 1]
         image_s1_desc: [0, 1]
 
-  - name: FLAIR2
+  - name: flair2
     stats_computer:
       _target_: geobench_v2.generate_benchmark.utils_dataset_statistics.SegmentationStatistics
       datamodule:
