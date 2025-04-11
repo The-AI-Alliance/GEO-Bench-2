@@ -55,6 +55,7 @@ class GeoBenchMMFlood(GeoBenchBaseDataset):
         band_order: dict[str, Sequence[str]] = band_default_order,
         data_normalizer: Type[nn.Module] = MultiModalNormalizer,
         transforms: nn.Module | None = None,
+        return_stacked_image: bool = False,
     ) -> None:
         """Initialize MMFlood dataset.
 
@@ -68,6 +69,7 @@ class GeoBenchMMFlood(GeoBenchBaseDataset):
             data_normalizer: The data normalizer to apply to the data, defaults to :class:`data_util.MultiModalNormalizer`,
                 which applies z-score normalization to each band.
             transforms:
+            return_stacked_image: If True, return the stacked modalities across channel dimension instead of the individual modalities.
         """
         super().__init__(
             root=root,
@@ -76,6 +78,7 @@ class GeoBenchMMFlood(GeoBenchBaseDataset):
             data_normalizer=data_normalizer,
             transforms=transforms,
         )
+        self.return_stacked_image = return_stacked_image
 
     def __getitem__(self, index: int) -> dict[str, Tensor]:
         """Return an index within the dataset.
@@ -135,6 +138,14 @@ class GeoBenchMMFlood(GeoBenchBaseDataset):
         mask[..., nan_mask] = 0
 
         sample["mask"] = mask
+
+        if self.return_stacked_image:
+            sample = {
+                "image": torch.cat(
+                    [sample[f"image_{key}"] for key in self.band_order.keys()], 0
+                ),
+                "mask": sample["mask"],
+            }
 
         point = wkt.loads(sample_row.iloc[0]["stac:centroid"])
         lon, lat = point.x, point.y

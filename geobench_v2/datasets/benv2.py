@@ -125,6 +125,7 @@ class GeoBenchBENV2(GeoBenchBaseDataset):
         band_order: dict[str, Sequence[float | str]] = ["B04", "B03", "B02"],
         data_normalizer: Type[nn.Module] = MultiModalNormalizer,
         transforms: nn.Module | None = None,
+        return_stacked_image: bool = False,
     ) -> None:
         """Initialize Big Earth Net V2 Dataset.
 
@@ -138,7 +139,7 @@ class GeoBenchBENV2(GeoBenchBaseDataset):
             data_normalizer: The data normalizer to apply to the data, defaults to :class:`data_util.MultiModalNormalizer`,
                 which applies z-score normalization to each band.
             transforms: Transforms to apply to the data
-            **kwargs: Additional keyword arguments passed to ``BigEarthNetV2``
+            return_stacked_image: If True, return the stacked modalities across channel dimension instead of the individual modalities.
         """
         super().__init__(
             root=root,
@@ -147,6 +148,8 @@ class GeoBenchBENV2(GeoBenchBaseDataset):
             data_normalizer=data_normalizer,
             transforms=transforms,
         )
+
+        self.return_stacked_image = return_stacked_image
 
         self.class2idx = {c: i for i, c in enumerate(self.label_names)}
 
@@ -178,6 +181,13 @@ class GeoBenchBENV2(GeoBenchBaseDataset):
         img = self.rearrange_bands(data, self.band_order)
         img = self.data_normalizer(img)
         sample.update(img)
+
+        if self.return_stacked_image:
+            sample = {
+                "image": torch.cat(
+                    [sample[f"image_{key}"] for key in self.band_order.keys()], 0
+                )
+            }
 
         if self.transforms is not None:
             sample = self.transforms(sample)

@@ -215,7 +215,7 @@ class GeoBenchPASTIS(PASTIS, DataUtilsMixin):
                 ),
                 "mask": sample["mask"],
             }
-            
+
         sample["lon"] = torch.tensor(sample_row["longitude"])
         sample["lat"] = torch.tensor(sample_row["latitude"])
         sample["dates"] = torch.tensor(sample_dates)

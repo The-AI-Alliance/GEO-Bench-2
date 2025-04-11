@@ -130,7 +130,6 @@ class GeoBenchTreeSatAI(GeoBenchBaseDataset):
         include_ts: bool = False,
         num_time_steps: int = None,
         return_stacked_image: bool = False,
-        **kwargs,
     ) -> None:
         """Initialize TreeSatAI dataset.
 
@@ -147,7 +146,6 @@ class GeoBenchTreeSatAI(GeoBenchBaseDataset):
             include_ts: whether or not to return the time series in data loading
             num_time_steps: number of last time steps to return in the ts data
             return_stacked_image: if true, returns a single image tensor with all modalities stacked in band_order
-            **kwargs: Additional keyword arguments passed to ``torchgeo.datasets.TreeSatAI``
         """
         super().__init__(
             root=root,
@@ -206,9 +204,6 @@ class GeoBenchTreeSatAI(GeoBenchBaseDataset):
         img_dict = self.data_normalizer(img_dict)
 
         sample.update(img_dict)
-        sample["label"] = self._format_label(
-            sample_row.iloc[0]["species_labels"], sample_row.iloc[0]["dist_labels"]
-        )
 
         # only resize the aerial image
         if self.transforms is not None:
@@ -249,10 +244,13 @@ class GeoBenchTreeSatAI(GeoBenchBaseDataset):
         if self.return_stacked_image:
             sample = {
                 "image": torch.cat(
-                    [val for key, val in sample.items() if key.startswith("image_")], 0
-                ),
-                "label": sample["label"],
+                    [sample[f"image_{key}"] for key in self.band_order.keys()], 0
+                )
             }
+
+        sample["label"] = self._format_label(
+            sample_row.iloc[0]["species_labels"], sample_row.iloc[0]["dist_labels"]
+        )
 
         point = wkt.loads(sample_row.iloc[0]["stac:centroid"])
         lon, lat = point.x, point.y

@@ -159,16 +159,13 @@ class GeoBenchKuroSiwo(GeoBenchBaseDataset):
         if self.return_stacked_image:
             modality_keys = {
                 "sar": ["image_pre_1", "image_pre_2", "image_post"],
-                "dem": ["image_dem"]
+                "dem": ["image_dem"],
             }
             stacked_images = [
-                sample[key] 
-                for modality in self.band_order 
+                sample[key]
+                for modality in self.band_order
                 for key in modality_keys.get(modality, [])
             ]
-            sample = {
-                "image": torch.cat(stacked_images, dim=0),
-                "mask": sample["mask"]
-            }
+            sample = {"image": torch.cat(stacked_images, dim=0), "mask": sample["mask"]}
 
         return sample
