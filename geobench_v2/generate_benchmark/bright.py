@@ -11,14 +11,17 @@ import argparse
 import rasterio
 from tqdm import tqdm
 import re
-from geobench_v2.generate_benchmark.utils import plot_sample_locations
+
 import tacotoolbox
 import tacoreader
 import glob
 import numpy as np
 import pandas as pd
 
-from geobench_v2.generate_benchmark.utils import plot_sample_locations
+from geobench_v2.generate_benchmark.utils import (
+    plot_sample_locations,
+    create_unittest_subset,
+)
 
 from geobench_v2.generate_benchmark.geospatial_split_utils import create_bright_patches
 
@@ -270,35 +273,16 @@ def main():
             visualize=False,
         )
         patches_df.to_parquet(patches_path)
-    create_tortilla(args.save_dir, patches_df, args.save_dir)
 
-    import pdb
-
-    pdb.set_trace()
-
-    print(0)
-    # create taco version of the dataset
-
-    # checker_split_df = checkerboard_split(
-    #     df,
-    #     n_blocks_x=10,
-    #     n_blocks_y=10,
-    #     pattern="other",
-    #     random_state=42,
-    # )
-
-    # visualize_geospatial_split(
-    #     checker_split_df,
-    #     title='Checkerboard Split',
-    #     output_path=os.path.join(args.save_dir, 'checker_split.png'),
-    #     buffer_degrees=0.05
-    # )
-
-    # plot_sample_locations(
-    #     distance_df,
-    #     output_path=os.path.join(args.save_dir, "sample_locations.png"),
-    #     buffer_degrees=0.5,
-    # )
+    create_unittest_subset(
+        data_dir=args.save_dir,
+        tortilla_pattern="BRIGHT.tortilla",
+        test_dir_name="bright",
+        n_train_samples=2,
+        n_val_samples=1,
+        n_test_samples=1,
+    )
+    # create_tortilla(args.save_dir, patches_df, args.save_dir)
 
 
 if __name__ == "__main__":
