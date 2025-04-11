@@ -38,7 +38,7 @@ def datamodule(monkeypatch: MonkeyPatch, band_order: dict[str, Sequence[str | fl
 
 
 class TestBRIGHTDataModule:
-    """Test cases for Flair 2 datamodule functionality."""
+    """Test cases for BRIGHT datamodule functionality."""
 
     def test_loaders(self, datamodule):
         """Test if dataloaders are created successfully."""

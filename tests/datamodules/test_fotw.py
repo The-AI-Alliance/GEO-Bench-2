@@ -20,7 +20,7 @@ def band_order(request):
 
 @pytest.fixture
 def datamodule(monkeypatch: MonkeyPatch, band_order: dict[str, Sequence[str | float]]):
-    """Initialize TreeSatAI datamodule with test configuration."""
+    """Initialize FOTW datamodule with test configuration."""
     monkeypatch.setattr(GeoBenchFieldsOfTheWorld, "paths", ["fotw.tortilla"])
     dm = GeoBenchFieldsOfTheWorldDataModule(
         img_size=74,
@@ -38,7 +38,7 @@ def datamodule(monkeypatch: MonkeyPatch, band_order: dict[str, Sequence[str | fl
 
 
 class TestFieldsOfTheWorldDataModule:
-    """Test cases for Flair 2 datamodule functionality."""
+    """Test cases for FOTW datamodule functionality."""
 
     def test_loaders(self, datamodule):
         """Test if dataloaders are created successfully."""

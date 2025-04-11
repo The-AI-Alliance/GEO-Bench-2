@@ -20,7 +20,7 @@ def band_order(request):
 
 @pytest.fixture
 def datamodule(monkeypatch: MonkeyPatch, band_order: dict[str, Sequence[str | float]]):
-    """Initialize TreeSatAI datamodule with test configuration."""
+    """Initialize FLAIR2 datamodule with test configuration."""
     monkeypatch.setattr(GeoBenchFLAIR2, "paths", ["flair2.tortilla"])
     dm = GeoBenchFLAIR2DataModule(
         img_size=74,
@@ -38,7 +38,7 @@ def datamodule(monkeypatch: MonkeyPatch, band_order: dict[str, Sequence[str | fl
 
 
 class TestFlAIR2DataModule:
-    """Test cases for Flair 2 datamodule functionality."""
+    """Test cases for FLAIR2 datamodule functionality."""
 
     def test_loaders(self, datamodule):
         """Test if dataloaders are created successfully."""
