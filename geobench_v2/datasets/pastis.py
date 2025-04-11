@@ -201,11 +201,9 @@ class GeoBenchPASTIS(PASTIS, DataUtilsMixin):
 
         dates = sample_row["dates-s2"]
         if len(dates) < self.num_time_steps:
-            sample["dates"] = [0] * (self.num_time_steps - len(dates)) + dates
+            sample_dates = [0] * (self.num_time_steps - len(dates)) + dates
         else:
-            sample["dates"] = dates[-self.num_time_steps :]
-        sample["lon"] = torch.tensor(sample_row["longitude"])
-        sample["lat"] = torch.tensor(sample_row["latitude"])
+            sample_dates = dates[-self.num_time_steps :]
 
         if self.transforms:
             sample = self.transforms(sample)
@@ -213,13 +211,14 @@ class GeoBenchPASTIS(PASTIS, DataUtilsMixin):
         if self.return_stacked_image:
             sample = {
                 "image": torch.cat(
-                    [img for key, img in sample.items() if key.startswith("image")], 0
+                    [sample[f"image_{key}"] for key in self.band_order.keys()], 0
                 ),
                 "mask": sample["mask"],
-                "lon": sample["lon"],
-                "lat": sample["lat"],
-                "dates": sample["dates"],
             }
+            
+        sample["lon"] = torch.tensor(sample_row["longitude"])
+        sample["lat"] = torch.tensor(sample_row["latitude"])
+        sample["dates"] = torch.tensor(sample_dates)
 
         return sample
 
