@@ -93,6 +93,10 @@ docs = [
     "pandoc>=2.4",
 ]
 
+all = [
+    "geobench_v2[docs,tests]",
+]
+
 [project.scripts]
 geobench = "geobench_v2.main:main"
 

@@ -58,7 +58,7 @@ html_title = "GEO-Bench-2"
 
 html_static_path = ["_static"]
 # Uncomment to use custom CSS
-# html_css_files = ["my_theme.css"]
+html_css_files = ["my_theme.css"]
 
 html_show_sourcelink = False
 html_theme_options = {
