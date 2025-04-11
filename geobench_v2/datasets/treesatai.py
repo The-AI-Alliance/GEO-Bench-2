@@ -7,6 +7,7 @@ from torch import Tensor
 from pathlib import Path
 from typing import Sequence, Type
 import torch.nn as nn
+from shapely import wkt
 
 from .sensor_util import DatasetBandRegistry
 from .base import GeoBenchBaseDataset
@@ -246,29 +247,23 @@ class GeoBenchTreeSatAI(GeoBenchBaseDataset):
                 ]
 
         if self.return_stacked_image:
-            stacked_image = []
-            for mod in self.band_order:
-                if mod == "s1":
-                    stacked_image.append(sample["image_s1"])
-                if mod == "s2":
-                    stacked_image.append(sample["image_s2"])
-                if mod == "aerial":
-                    stacked_image.append(sample["image_aerial"])
-            output = {}
-            output["image"] = torch.cat(stacked_image, 0)
-            output["label"] = sample["label"]
-        else:
-            output = sample
+            sample = {
+                "image": torch.cat(
+                    [val for key, val in sample.items() if key.startswith("image_")], 0
+                ),
+                "label": sample["label"],
+            }
 
-        if self.include_ts:
-            metadata = ["image_s1_asc_ts", "image_s1_des_ts", "image_s2_ts"]
-            for key in metadata:
-                if key not in output:
-                    output[key] = sample[key]
+        point = wkt.loads(sample_row.iloc[0]["stac:centroid"])
+        lon, lat = point.x, point.y
+        sample["lon"], sample["lat"] = torch.tensor(lon), torch.tensor(lat)
+        # if self.include_ts:
+        #     metadata = ["image_s1_asc_ts", "image_s1_des_ts", "image_s2_ts"]
+        #     for key in metadata:
+        #         if key not in output:
+        #             output[key] = sample[key]
 
-        return output
-
-        return output
+        return sample
 
     def _format_label(
         self, class_labels: list[str], dist_labels: list[float]
@@ -284,10 +279,5 @@ class GeoBenchTreeSatAI(GeoBenchBaseDataset):
         """
         label = torch.zeros(len(self.classes))
         for name in class_labels:
-            try:
-                label[self.classes.index(name)] = 1
-            except:
-                import pdb
-
-                pdb.set_trace()
+            label[self.classes.index(name)] = 1
         return label

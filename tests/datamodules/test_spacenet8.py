@@ -61,3 +61,8 @@ class TestSpaceNet8DataModule:
         assert train_batch["mask"].shape[1] == 1
         assert train_batch["mask"].shape[2] == datamodule.img_size
         assert train_batch["mask"].shape[3] == 74
+
+        assert "lon" in train_batch
+        assert "lat" in train_batch
+        assert train_batch["lon"].shape == (datamodule.batch_size,)
+        assert train_batch["lat"].shape == (datamodule.batch_size,)

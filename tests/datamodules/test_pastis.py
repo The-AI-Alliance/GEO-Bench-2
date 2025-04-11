@@ -89,6 +89,11 @@ class TestPASTISDataModule:
         assert batch["image_s1_desc"].shape[2] == 74
         assert batch["image_s1_desc"].shape[3] == dm.img_size
 
+        assert "lon" in batch
+        assert "lat" in batch
+        assert batch["lon"].shape == (dm.batch_size,)
+        assert batch["lat"].shape == (dm.batch_size,)
+
     def test_invalid_mixed_band_order(self, data_root, invalid_mixed_band_order):
         """Test that validation rejects band sequences with mixed modalities."""
         with pytest.raises(

@@ -62,3 +62,8 @@ class TestCloudSen12DataModule:
         assert train_batch["mask"].shape[3] == 74
 
         assert torch.isclose(train_batch["image"][:, 4], torch.tensor(0.0)).all()
+
+        assert "lon" in train_batch
+        assert "lat" in train_batch
+        assert train_batch["lon"].shape == (datamodule.batch_size,)
+        assert train_batch["lat"].shape == (datamodule.batch_size,)

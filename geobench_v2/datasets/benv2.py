@@ -184,6 +184,9 @@ class GeoBenchBENV2(GeoBenchBaseDataset):
 
         sample["label"] = self._load_target(sample_row.iloc[0]["labels"])
 
+        sample["lat"] = torch.tensor(sample_row.iloc[0]["lat"])
+        sample["lon"] = torch.tensor(sample_row.iloc[0]["lon"])
+
         return sample
 
     def _load_target(self, label_names: list[str]) -> Tensor:

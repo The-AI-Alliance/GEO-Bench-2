@@ -8,6 +8,7 @@ from torchgeo.datasets import SpaceNet6
 from pathlib import Path
 from typing import Sequence, Type, Literal
 import torch.nn as nn
+from shapely import wkt
 
 from .sensor_util import DatasetBandRegistry
 from .base import GeoBenchBaseDataset
@@ -124,6 +125,10 @@ class GeoBenchFieldsOfTheWorld(GeoBenchBaseDataset):
         sample.update(win_a)
 
         sample["mask"] = mask
+
+        point = wkt.loads(sample_row.iloc[0]["stac:centroid"])
+        lon, lat = point.x, point.y
+        sample["lon"], sample["lat"] = torch.tensor(lon), torch.tensor(lat)
 
         if self.transforms is not None:
             sample = self.transforms(sample)

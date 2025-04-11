@@ -72,3 +72,8 @@ class TestBENV2DataModule:
             assert train_batch[key].shape == expected_shape, (
                 f"Wrong shape for {key}: got {train_batch[key].shape}, expected {expected_shape}"
             )
+
+        assert "lon" in train_batch
+        assert "lat" in train_batch
+        assert train_batch["lon"].shape == (datamodule.batch_size,)
+        assert train_batch["lat"].shape == (datamodule.batch_size,)

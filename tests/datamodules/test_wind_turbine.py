@@ -1,3 +1,6 @@
+# Copyright (c) 2025 GeoBenchV2. All rights reserved.
+# Licensed under the Apache License 2.0.
+
 import pytest
 from geobench_v2.datamodules import GeoBenchWindTurbineDataModule
 
@@ -11,7 +14,6 @@ def data_root():
 @pytest.fixture
 def band_order():
     """Test band configuration with RGB and fill value."""
-    # return ["red", "green", "blue", 0, "green"]
     return ["red", "green", "blue", 0]
 
 
@@ -41,11 +43,10 @@ class TestWindTurbineDataModule:
         assert train_batch["image"].shape[2] == datamodule.img_size
         assert train_batch["image"].shape[3] == datamodule.img_size
 
-        assert "bboxes_xyxy" in train_batch
-        assert "labels" in train_batch
+        assert "bbox_xyxy" in train_batch
+        assert "label" in train_batch
 
     def test_band_order_resolution(self, datamodule):
         """Test if band order is correctly resolved."""
-        # assert len(datamodule.band_order) == 5
         assert len(datamodule.band_order) == 4
-        assert datamodulue.band_order[0] == "red"
+        assert datamodule.band_order[0] == "red"

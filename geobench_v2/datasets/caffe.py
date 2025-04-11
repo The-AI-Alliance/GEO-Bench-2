@@ -61,6 +61,8 @@ class GeoBenchCaFFe(CaFFe, DataUtilsMixin):
                 which applies z-score normalization to each band.
             transforms:
         """
+        if split == "validation":
+            split = "val"
         super().__init__(root=root, split=split)
         self.transforms = transforms
 
@@ -114,6 +116,8 @@ class GeoBenchCaFFe(CaFFe, DataUtilsMixin):
 
         sample["mask"] = zone_mask
 
+        sample["lon"] = torch.tensor(sample_row["longitude"])
+        sample["lat"] = torch.tensor(sample_row["latitude"])
         if self.transforms:
             sample = self.transforms(sample)
 

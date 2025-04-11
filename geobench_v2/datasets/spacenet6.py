@@ -8,6 +8,7 @@ from torchgeo.datasets import SpaceNet6
 from pathlib import Path
 from typing import Sequence, Type
 import torch.nn as nn
+from shapely import wkt
 
 from .sensor_util import DatasetBandRegistry
 from .base import GeoBenchBaseDataset
@@ -156,19 +157,19 @@ class GeoBenchSpaceNet6(GeoBenchBaseDataset):
         sample.update(image_dict)
         sample["mask"] = mask
 
+        if self.return_stacked_image:
+            sample = {
+                "image": torch.cat(
+                    [val for key, val in sample.items() if key.startswith("image_")], 0
+                ),
+                "mask": sample["mask"],
+            }
+
         if self.transforms is not None:
             sample = self.transforms(sample)
 
-        if self.return_stacked_image:
-            stacked_image = []
-            for mod in self.band_order:
-                if mod == "rgbn":
-                    stacked_image.append(sample["image_rgbn"])
-                if mod == "sar":
-                    stacked_image.append(sample["image_sar"])
-            output = {}
-            output["image"] = torch.cat(stacked_image, 0)
-            output["mask"] = sample["mask"]
-        else:
-            output = sample
-        return output
+        point = wkt.loads(sample_row.iloc[0]["stac:centroid"])
+        lon, lat = point.x, point.y
+        sample["lon"], sample["lat"] = torch.tensor(lon), torch.tensor(lat)
+
+        return sample

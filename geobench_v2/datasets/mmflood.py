@@ -8,6 +8,7 @@ from torchgeo.datasets import MMFlood
 from pathlib import Path
 from typing import Sequence, Type
 import torch.nn as nn
+from shapely import wkt
 
 from .sensor_util import DatasetBandRegistry
 from .base import GeoBenchBaseDataset
@@ -134,6 +135,10 @@ class GeoBenchMMFlood(GeoBenchBaseDataset):
         mask[..., nan_mask] = 0
 
         sample["mask"] = mask
+
+        point = wkt.loads(sample_row.iloc[0]["stac:centroid"])
+        lon, lat = point.x, point.y
+        sample["lon"], sample["lat"] = torch.tensor(lon), torch.tensor(lat)
 
         if self.transforms is not None:
             sample = self.transforms(sample)

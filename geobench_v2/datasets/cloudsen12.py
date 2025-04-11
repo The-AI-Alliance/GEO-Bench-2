@@ -19,6 +19,7 @@ from .base import GeoBenchBaseDataset
 from .data_util import DataUtilsMixin, MultiModalNormalizer
 import tacoreader
 import numpy as np
+from shapely import wkt
 
 
 class GeoBenchCloudSen12(GeoBenchBaseDataset):
@@ -149,7 +150,11 @@ class GeoBenchCloudSen12(GeoBenchBaseDataset):
         image = self.data_normalizer(image_dict)
 
         sample.update(image_dict)
-        sample.update({"mask": mask})
+        sample["mask"] = mask
+
+        point = wkt.loads(l2a_row.iloc[0]["stac:centroid"])
+        lon, lat = point.x, point.y
+        sample["lon"], sample["lat"] = torch.tensor(lon), torch.tensor(lat)
 
         if self.transforms is not None:
             sample = self.transforms(sample)

@@ -107,8 +107,6 @@ class GeoBenchPASTIS(PASTIS, DataUtilsMixin):
         transforms: nn.Module | None = None,
         label_type: Literal["instance_seg", "semantic_seg"] = "semantic_seg",
         return_stacked_image: bool = False,
-        return_metadata: bool = True,
-        **kwargs,
     ) -> None:
         """Initialize PASTIS Dataset.
 
@@ -128,13 +126,14 @@ class GeoBenchPASTIS(PASTIS, DataUtilsMixin):
             transforms:
             label_type: The type of label to return, either 'instance_seg' or 'semantic_seg'
             return_stacked_image: if true, returns a single image tensor with all modalities stacked in band_order
-            return_metadata: if true, returns metadata as part of the image
-            **kwargs: Additional keyword arguments passed to ``torchgeo.datasts.PASTIS``
 
         Raises:
             AssertionError: If an invalid split is specified
         """
         super().__init__(root=root)
+
+        if split == "validation":
+            split = "val"
 
         assert split in self.valid_splits, (
             f"Invalid split {split}. Must be one of {self.valid_splits}"
@@ -151,7 +150,6 @@ class GeoBenchPASTIS(PASTIS, DataUtilsMixin):
 
         self.label_type = label_type
         self.return_stacked_image = return_stacked_image
-        self.return_metadata = return_metadata
 
         self.metadata_df = pd.read_parquet(
             os.path.join(root, "geobench_pastis.parquet")
@@ -159,12 +157,6 @@ class GeoBenchPASTIS(PASTIS, DataUtilsMixin):
         self.metadata_df = self.metadata_df[
             self.metadata_df["split"] == split
         ].reset_index(drop=True)
-        # self.metadata_df["ID_PATCH"] = self.metadata_df["ID_PATCH"].astype(str)
-
-        # self.files_df = pd.DataFrame(self.files)
-        # self.files_df["ID_PATCH"] = self.files_df["s2"].apply(lambda x: x.split("/")[-1].split("_")[-1].split(".")[0])
-
-        # self.new_df = pd.merge(self.metadata_df, self.files_df, how="left", left_on="ID_PATCH", right_on="ID_PATCH").reset_index(drop=True)
 
     def __len__(self) -> int:
         """Return the length of the dataset."""
@@ -212,34 +204,24 @@ class GeoBenchPASTIS(PASTIS, DataUtilsMixin):
             sample["dates"] = [0] * (self.num_time_steps - len(dates)) + dates
         else:
             sample["dates"] = dates[-self.num_time_steps :]
-        sample["lon"] = torch.tensor([sample_row["longitude"]])
-        sample["lat"] = torch.tensor([sample_row["latitude"]])
+        sample["lon"] = torch.tensor(sample_row["longitude"])
+        sample["lat"] = torch.tensor(sample_row["latitude"])
 
         if self.transforms:
             sample = self.transforms(sample)
 
         if self.return_stacked_image:
-            stacked_image = []
-            for mod in self.band_order:
-                if mod == "s1_desc":
-                    stacked_image.append(sample["image_s1_desc"])
-                if mod == "s1_asc":
-                    stacked_image.append(sample["image_s1_asc"])
-                if mod == "s2":
-                    stacked_image.append(sample["image_s2"])
-            output = {}
-            output["image"] = torch.cat(stacked_image, 0)
-            output["mask"] = sample["mask"]
-        else:
-            output = sample
+            sample = {
+                "image": torch.cat(
+                    [img for key, img in sample.items() if key.startswith("image")], 0
+                ),
+                "mask": sample["mask"],
+                "lon": sample["lon"],
+                "lat": sample["lat"],
+                "dates": sample["dates"],
+            }
 
-        if self.return_metadata:
-            metadata = ["dates", "lon", "lat"]
-            for key in metadata:
-                if key not in output:
-                    output[key] = sample[key]
-
-        return output
+        return sample
 
     def _load_image(self, path: str) -> Tensor:
         """Load a single time-series.

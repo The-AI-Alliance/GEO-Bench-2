@@ -85,3 +85,8 @@ class TestMMFloodDataModule:
                     assert torch.isclose(
                         train_batch[key][:, i], torch.tensor(band)
                     ).all(), f"Constant value mismatch for {key} channel {i}"
+
+        assert "lon" in train_batch
+        assert "lat" in train_batch
+        assert train_batch["lon"].shape == (datamodule.batch_size,)
+        assert train_batch["lat"].shape == (datamodule.batch_size,)

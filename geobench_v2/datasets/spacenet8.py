@@ -7,6 +7,7 @@ from torch import Tensor
 from torchgeo.datasets import SpaceNet8
 from pathlib import Path
 from typing import Type
+from shapely import wkt
 
 from .sensor_util import DatasetBandRegistry
 from .data_util import MultiModalNormalizer
@@ -122,9 +123,6 @@ class GeoBenchSpaceNet8(GeoBenchBaseDataset):
 
         sample["mask"] = mask
 
-        if self.transforms is not None:
-            sample = self.transforms(sample)
-
         if self.return_stacked_image:
             sample = {
                 "image": torch.cat(
@@ -132,5 +130,11 @@ class GeoBenchSpaceNet8(GeoBenchBaseDataset):
                 ),
                 "mask": sample["mask"],
             }
+        if self.transforms is not None:
+            sample = self.transforms(sample)
+
+        point = wkt.loads(sample_row.iloc[0]["stac:centroid"])
+        lon, lat = point.x, point.y
+        sample["lon"], sample["lat"] = torch.tensor(lon), torch.tensor(lat)
 
         return sample

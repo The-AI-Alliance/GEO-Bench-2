@@ -13,6 +13,7 @@ import json
 import pandas as pd
 import torch.nn as nn
 import rasterio
+from shapely import wkt
 
 from .base import GeoBenchBaseDataset
 
@@ -208,10 +209,6 @@ class GeoBenchDynamicEarthNet(GeoBenchBaseDataset):
                     img = src.read()
                     img = torch.from_numpy(img).float()
             img_dict["s2"] = img
-            if img.shape[0] != 12:
-                import pdb
-
-                pdb.set_trace()
 
         img_dict = self.rearrange_bands(img_dict, self.band_order)
         img_dict = self.data_normalizer(img_dict)
@@ -230,6 +227,9 @@ class GeoBenchDynamicEarthNet(GeoBenchBaseDataset):
 
         sample["mask"] = mask.unsqueeze(0)
 
+        point = wkt.loads(sample_row.iloc[0]["stac:centroid"])
+        lon, lat = point.x, point.y
+        sample["lon"], sample["lat"] = torch.tensor(lon), torch.tensor(lat)
         if self.transforms is not None:
             sample = self.transforms(sample)
 

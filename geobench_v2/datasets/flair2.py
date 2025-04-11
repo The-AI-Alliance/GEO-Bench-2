@@ -16,6 +16,7 @@ import torch.nn as nn
 import rasterio
 import numpy as np
 import torch
+from shapely import wkt
 
 
 class GeoBenchFLAIR2(GeoBenchBaseDataset):
@@ -143,6 +144,10 @@ class GeoBenchFLAIR2(GeoBenchBaseDataset):
         sample.update(image_dict)
 
         sample["mask"] = mask
+
+        point = wkt.loads(sample_row.iloc[0]["stac:centroid"])
+        lon, lat = point.x, point.y
+        sample["lon"], sample["lat"] = torch.tensor(lon), torch.tensor(lat)
 
         if self.transforms is not None:
             sample = self.transforms(sample)
