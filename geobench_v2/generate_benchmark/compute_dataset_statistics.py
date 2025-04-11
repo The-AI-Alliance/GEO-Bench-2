@@ -306,9 +306,7 @@ def save_statistics(stats: tuple, save_dir: str, dataset_name: str) -> None:
 
     dataset_stats = {"input_stats": input_stats, "target_stats": target_stats}
     dataset_stats_path = os.path.join(save_dir, f"{dataset_name}_stats.json")
-    import pdb
 
-    pdb.set_trace()
     with open(dataset_stats_path, "w") as f:
         json.dump(dataset_stats, f, cls=NumpyEncoder, indent=4)
 

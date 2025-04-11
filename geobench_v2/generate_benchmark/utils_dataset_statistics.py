@@ -391,7 +391,7 @@ class DatasetStatistics(ABC):
             self.compute_batch_image_statistics(batch)
             self.compute_batch_target_statistics(batch[self.target_key])
             i += 1
-            if i > 100:
+            if i > 50:
                 break
 
         return self.aggregate_statistics()
@@ -763,7 +763,7 @@ class ObjectDetectionStatistics(DatasetStatistics):
             self.compute_batch_image_statistics(batch)
             self.compute_batch_target_statistics(batch["bbox_xyxy"], batch["label"])
             i += 1
-            if i > 5:
+            if i > 50:
                 break
 
         return self.aggregate_statistics()
