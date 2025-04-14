@@ -4,11 +4,12 @@
 """GeoBench BigEarthNetV2 DataModule."""
 
 from collections.abc import Callable
-from typing import Any, Sequence
+from typing import Any, Sequence, Literal
 import pandas as pd
 from torch import Tensor
 import matplotlib.pyplot as plt
 import os
+import tacoreader
 
 
 from geobench_v2.datasets import GeoBenchBENV2
@@ -21,6 +22,11 @@ import torch.nn as nn
 class GeoBenchBENV2DataModule(GeoBenchClassificationDataModule):
     """GeoBench BigEarthNetV2 Data Module."""
 
+    paths = (
+        "FullBenV2.0000.part.tortilla",
+        "FullBenV2.0001.part.tortilla",
+        "FullBenV2.0002.part.tortilla",
+    )   
     def __init__(
         self,
         img_size: int,
@@ -65,9 +71,8 @@ class GeoBenchBENV2DataModule(GeoBenchClassificationDataModule):
         Returns:
             pandas DataFrame with metadata.
         """
-        return pd.read_parquet(
-            os.path.join(self.kwargs["root"], "geobench_benv2.parquet")
-        )
+        self.data_df = tacoreader.load([os.path.join(self.kwargs["root"], f) for f in self.paths])
+        return self.data_df
 
     def visualize_batch(
         self, split: str = "train"
@@ -82,6 +87,20 @@ class GeoBenchBENV2DataModule(GeoBenchClassificationDataModule):
         """
         pass
 
-    def visualize_geolocation_distribution(self) -> None:
-        """Visualize the geolocation distribution of the dataset."""
-        pass
+    def visualize_geospatial_distribution(
+        self,
+        output_path: str = None,
+        split_column="tortilla:data_split",
+        buffer_degrees: float = 5.0,
+        sample_fraction: float = 1.0,
+        scale: Literal["10m", "50m", "110m"] = "50m",
+        alpha: float = 0.5,
+        s: float = 0.5,
+    ) -> None:
+
+        return super().visualize_geospatial_distribution(
+            split_column=split_column,
+        )
+
+
+        
