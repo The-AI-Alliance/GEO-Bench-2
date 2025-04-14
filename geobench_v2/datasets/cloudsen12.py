@@ -89,6 +89,8 @@ class GeoBenchCloudSen12(GeoBenchBaseDataset):
 
     paths = ["geobench_cloudsen12-l2a.taco"]
 
+    valid_metadata = ("lat", "lon")
+
     def __init__(
         self,
         root,
@@ -96,6 +98,7 @@ class GeoBenchCloudSen12(GeoBenchBaseDataset):
         band_order: Sequence[float | str] = ["B04", "B03", "B02"],
         data_normalizer: Type[nn.Module] = MultiModalNormalizer,
         transforms: nn.Module | None = None,
+        metadata: Sequence[str] | None = None,
     ) -> None:
         """Initialize a CloudSen12 dataset instance.
 
@@ -107,6 +110,8 @@ class GeoBenchCloudSen12(GeoBenchBaseDataset):
             data_normalizer: The data normalizer to apply to the data, defaults to :class:`data_util.MultiModalNormalizer`,
                 which applies z-score normalization to each band.
             transforms: Image resize transform on sample level
+            metadata: metadata names to be returned under specified keys as part of the sample in the
+                __getitem__ method. If None, no metadata is returned.
 
         Raises:
             AssertionError: If split is not in the splits
@@ -117,6 +122,7 @@ class GeoBenchCloudSen12(GeoBenchBaseDataset):
             band_order=band_order,
             data_normalizer=data_normalizer,
             transforms=transforms,
+            metadata=metadata,
         )
 
     def __getitem__(self, idx: int) -> dict[str, Tensor]:
@@ -154,7 +160,10 @@ class GeoBenchCloudSen12(GeoBenchBaseDataset):
 
         point = wkt.loads(l2a_row.iloc[0]["stac:centroid"])
         lon, lat = point.x, point.y
-        sample["lon"], sample["lat"] = torch.tensor(lon), torch.tensor(lat)
+        if "lon" in self.metadata:
+            sample["lon"] = torch.tensor(lon)
+        if "lat" in self.metadata:
+            sample["lat"] = torch.tensor(lat)
 
         if self.transforms is not None:
             sample = self.transforms(sample)

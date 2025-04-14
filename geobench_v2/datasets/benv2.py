@@ -118,6 +118,8 @@ class GeoBenchBENV2(GeoBenchBaseDataset):
 
     num_classes: int = len(label_names)
 
+    valid_metadata: Sequence[str] = ("lat", "lon")
+
     def __init__(
         self,
         root: Path,
@@ -125,6 +127,7 @@ class GeoBenchBENV2(GeoBenchBaseDataset):
         band_order: dict[str, Sequence[float | str]] = ["B04", "B03", "B02"],
         data_normalizer: Type[nn.Module] = MultiModalNormalizer,
         transforms: nn.Module | None = None,
+        metadata: Sequence[str] = None,
         return_stacked_image: bool = False,
     ) -> None:
         """Initialize Big Earth Net V2 Dataset.
@@ -139,6 +142,8 @@ class GeoBenchBENV2(GeoBenchBaseDataset):
             data_normalizer: The data normalizer to apply to the data, defaults to :class:`data_util.MultiModalNormalizer`,
                 which applies z-score normalization to each band.
             transforms: Transforms to apply to the data
+            metadata: metadata names to be returned under specified keys as part of the sample in the
+                __getitem__ method. If None, no metadata is returned.
             return_stacked_image: If True, return the stacked modalities across channel dimension instead of the individual modalities.
         """
         super().__init__(
@@ -147,6 +152,7 @@ class GeoBenchBENV2(GeoBenchBaseDataset):
             band_order=band_order,
             data_normalizer=data_normalizer,
             transforms=transforms,
+            metadata=metadata,
         )
 
         self.return_stacked_image = return_stacked_image

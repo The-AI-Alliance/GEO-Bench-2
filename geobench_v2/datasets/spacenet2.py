@@ -81,6 +81,8 @@ class GeoBenchSpaceNet2(GeoBenchBaseDataset):
 
     num_classes = len(classes)
 
+    metadata = ("lat", "lon")
+
     def __init__(
         self,
         root: Path,
@@ -89,6 +91,7 @@ class GeoBenchSpaceNet2(GeoBenchBaseDataset):
         data_normalizer: Type[nn.Module] = MultiModalNormalizer,
         label_type: Literal["instance_seg", "semantic_seg"] = "semantic_seg",
         transforms: nn.Module = None,
+        metadata: Sequence[str] | None = None,
         return_stacked_image: bool = False,
     ) -> None:
         """Initialize SpaceNet2 dataset.
@@ -101,6 +104,11 @@ class GeoBenchSpaceNet2(GeoBenchBaseDataset):
                 specify ['red', 'green', 'blue', 'blue', 'blue'], the dataset would return images with 5 channels
                 in that order. This is useful for models that expect a certain band order, or
                 test the impact of band order on model performance.
+            data_normalizer:
+            label_type:
+            transforms: The transforms to apply to the data, defaults to None
+            metadata: metadata names to be returned as part of the sample in the
+                __getitem__ method. If None, no metadata is returned.
             return_stacked_image: if true, returns a single image tensor with all modalities stacked in band_order
         """
         super().__init__(
@@ -109,6 +117,7 @@ class GeoBenchSpaceNet2(GeoBenchBaseDataset):
             band_order=band_order,
             data_normalizer=data_normalizer,
             transforms=transforms,
+            metadata=metadata,
         )
         self.label_type = label_type
         self.return_stacked_image = return_stacked_image
@@ -167,6 +176,10 @@ class GeoBenchSpaceNet2(GeoBenchBaseDataset):
 
         point = wkt.loads(sample_row.iloc[0]["stac:centroid"])
         lon, lat = point.x, point.y
-        sample["lon"], sample["lat"] = torch.tensor(lon), torch.tensor(lat)
+
+        if "lon" in self.metadata:
+            sample["lon"] = torch.tensor(lon)
+        if "lat" in self.metadata:
+            sample["lat"] = torch.tensor(lat)
 
         return sample

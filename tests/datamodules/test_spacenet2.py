@@ -32,6 +32,7 @@ def datamodule(
         pin_memory=False,
         band_order=band_order,
         root=os.path.join("tests", "data", "spacenet2"),
+        metadata=["lon", "lat"],
     )
     dm.setup("fit")
     dm.setup("test")

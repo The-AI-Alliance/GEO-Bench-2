@@ -48,6 +48,8 @@ class GeoBenchFieldsOfTheWorld(GeoBenchBaseDataset):
     classes = ("background", "field", "field-boundary")
     num_classes = len(classes)
 
+    valid_metadata = ("lat", "lon")
+
     # TODO maybe add country argument?
     def __init__(
         self,
@@ -57,6 +59,7 @@ class GeoBenchFieldsOfTheWorld(GeoBenchBaseDataset):
         data_normalizer: Type[nn.Module] = MultiModalNormalizer,
         label_type: Literal["instance_seg", "semantic_seg"] = "semantic_seg",
         transforms: nn.Module | None = None,
+        metadata: Sequence[str] | None = None,
     ) -> None:
         """Initialize Fields of the World Dataset.
 
@@ -70,6 +73,8 @@ class GeoBenchFieldsOfTheWorld(GeoBenchBaseDataset):
             data_normalizer: The data normalizer to apply to the data, defaults to :class:`data_util.MultiModalNormalizer`,
                 which applies z-score normalization to each band.
             transforms:
+            metadata: metadata names to be returned under specified keys as part of the sample in the
+                __getitem__ method. If None, no metadata is returned.
         """
         super().__init__(
             root=root,
@@ -77,6 +82,7 @@ class GeoBenchFieldsOfTheWorld(GeoBenchBaseDataset):
             band_order=band_order,
             data_normalizer=data_normalizer,
             transforms=transforms,
+            metadata=metadata,
         )
 
         self.label_type = label_type
@@ -128,7 +134,11 @@ class GeoBenchFieldsOfTheWorld(GeoBenchBaseDataset):
 
         point = wkt.loads(sample_row.iloc[0]["stac:centroid"])
         lon, lat = point.x, point.y
-        sample["lon"], sample["lat"] = torch.tensor(lon), torch.tensor(lat)
+
+        if "lon" in self.metadata:
+            sample["lon"] = torch.tensor(lon)
+        if "lat" in self.metadata:
+            sample["lat"] = torch.tensor(lat)
 
         if self.transforms is not None:
             sample = self.transforms(sample)

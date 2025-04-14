@@ -90,6 +90,8 @@ class GeoBenchBioMassters(GeoBenchBaseDataset):
         "BioMassters.0015.part.tortilla",
     ]
 
+    valid_metadata: Sequence[str] = "time"
+
     def __init__(
         self,
         root: Path,
@@ -100,6 +102,7 @@ class GeoBenchBioMassters(GeoBenchBaseDataset):
         },
         data_normalizer: Type[nn.Module] = MultiModalNormalizer,
         transforms: nn.Module | None = None,
+        metadata: Sequence[str] | None = None,
         num_time_steps: int = 1,
     ) -> None:
         """Initialize BioMassters dataset.
@@ -114,6 +117,8 @@ class GeoBenchBioMassters(GeoBenchBaseDataset):
             data_normalizer: The data normalizer to apply to the data, defaults to :class:`data_util.MultiModalNormalizer`,
                 which applies z-score normalization to each band.
             transforms:
+            metadata: metadata names to be returned under specified keys as part of the sample in the
+                __getitem__ method. If None, no metadata is returned.
             num_time_steps: Number of last time steps to include in the dataset, maximum is 12, for S2
                 missing time steps are filled with zeros.
             **kwargs: Additional keyword arguments passed to ``torchgeo.datasets.BioMassters``

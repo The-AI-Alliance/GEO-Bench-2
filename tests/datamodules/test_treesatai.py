@@ -39,6 +39,7 @@ def datamodule(monkeypatch: MonkeyPatch, band_order: dict[str, Sequence[str | fl
         pin_memory=False,
         band_order=band_order,
         root=os.path.join("tests", "data", "treesatai"),
+        metadata=["lon", "lat"],
     )
     dm.setup("fit")
     dm.setup("test")

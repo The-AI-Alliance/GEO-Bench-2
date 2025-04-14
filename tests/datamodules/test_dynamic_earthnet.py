@@ -32,6 +32,7 @@ def datamodule(monkeypatch: MonkeyPatch, band_order: dict[str, Sequence[str | fl
         band_order=band_order,
         root=os.path.join("tests", "data", "dynamic_earthnet"),
         temporal_setting="weekly",
+        metadata=["lon", "lat"],
     )
     dm.setup("fit")
     dm.setup("test")

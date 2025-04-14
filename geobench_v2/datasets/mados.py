@@ -110,7 +110,6 @@ class GeoBenchMADOS(GeoBenchBaseDataset):
         band_order: Sequence[str] = ["B04", "B03", "B02", "B08"],
         data_normalizer: Type[nn.Module] = MultiModalNormalizer,
         transforms: nn.Module | None = None,
-        **kwargs,
     ) -> None:
         """Initialize MADOS dataset.
 
@@ -124,7 +123,6 @@ class GeoBenchMADOS(GeoBenchBaseDataset):
             data_normalizer: The data normalizer to apply to the data, defaults to :class:`data_util.MultiModalNormalizer`,
                 which applies z-score normalization to each band.
             transforms:
-            **kwargs: Additional keyword arguments passed to ``torchgeo.datasets.MADOS``
         """
         super().__init__(
             root=root,
@@ -132,6 +130,7 @@ class GeoBenchMADOS(GeoBenchBaseDataset):
             band_order=band_order,
             data_normalizer=data_normalizer,
             transforms=transforms,
+            metadata=None,
         )
 
     def __getitem__(self, idx: int) -> dict[str, Tensor]:

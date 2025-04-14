@@ -83,6 +83,7 @@ class GeoBenchKuroSiwo(GeoBenchBaseDataset):
             band_order=band_order,
             data_normalizer=data_normalizer,
             transforms=transforms,
+            metadata=None,
         )
         self.return_stacked_image = return_stacked_image
 

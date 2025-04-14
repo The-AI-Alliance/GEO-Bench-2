@@ -60,7 +60,11 @@ class TestPASTISDataModule:
     def test_multimodal_band_order(self, data_root, multimodal_band_order):
         """Test batch retrieval with modality-specific band sequences."""
         dm = GeoBenchPASTISDataModule(
-            img_size=74, batch_size=32, band_order=multimodal_band_order, root=data_root
+            img_size=74,
+            batch_size=32,
+            band_order=multimodal_band_order,
+            root=data_root,
+            metadata=["lon", "lat"],
         )
         dm.setup("fit")
         batch = next(iter(dm.train_dataloader()))

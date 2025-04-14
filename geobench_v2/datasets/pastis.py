@@ -97,6 +97,8 @@ class GeoBenchPASTIS(PASTIS, DataUtilsMixin):
 
     num_classes = len(classes)
 
+    valid_metadata = ("lat", "lon", "dates")
+
     def __init__(
         self,
         root: Path,
@@ -105,6 +107,7 @@ class GeoBenchPASTIS(PASTIS, DataUtilsMixin):
         data_normalizer: Type[nn.Module] = MultiModalNormalizer,
         num_time_steps: int = 1,
         transforms: nn.Module | None = None,
+        metadata: Sequence[str] | None = None,
         label_type: Literal["instance_seg", "semantic_seg"] = "semantic_seg",
         return_stacked_image: bool = False,
     ) -> None:
@@ -124,6 +127,8 @@ class GeoBenchPASTIS(PASTIS, DataUtilsMixin):
             data_normalizer: The data normalizer to apply to the data, defaults to :class:`data_util.MultiModalNormalizer`,
                 which applies z-score normalization to each band.
             transforms:
+            metadata: metadata names to be returned under specified keys as part of the sample in the
+                __getitem__ method. If None, no metadata is returned.
             label_type: The type of label to return, either 'instance_seg' or 'semantic_seg'
             return_stacked_image: if true, returns a single image tensor with all modalities stacked in band_order
 
@@ -150,6 +155,7 @@ class GeoBenchPASTIS(PASTIS, DataUtilsMixin):
 
         self.label_type = label_type
         self.return_stacked_image = return_stacked_image
+        self.metadata = metadata
 
         self.metadata_df = pd.read_parquet(
             os.path.join(root, "geobench_pastis.parquet")
@@ -216,9 +222,12 @@ class GeoBenchPASTIS(PASTIS, DataUtilsMixin):
                 "mask": sample["mask"],
             }
 
-        sample["lon"] = torch.tensor(sample_row["longitude"])
-        sample["lat"] = torch.tensor(sample_row["latitude"])
-        sample["dates"] = torch.tensor(sample_dates)
+        if "lon" in self.metadata:
+            sample["lon"] = torch.tensor(sample_row["longitude"])
+        if "lat" in self.metadata:
+            sample["lat"] = torch.tensor(sample_row["latitude"])
+        if "dates" in self.metadata:
+            sample["dates"] = torch.tensor(sample_dates)
 
         return sample
 

@@ -29,6 +29,7 @@ class GeoBenchBaseDataset(NonGeoDataset, DataUtilsMixin):
         band_order: list[str],
         data_normalizer: Type[nn.Module] = MultiModalNormalizer,
         transforms: nn.Module = None,
+        metadata: Sequence[str] | None = None,
     ) -> None:
         """Initialize the dataset.
         Args:
@@ -37,6 +38,8 @@ class GeoBenchBaseDataset(NonGeoDataset, DataUtilsMixin):
             band_order:
             data_normalizer
             transform: A composition of transformations to apply to the data
+            metadata: metadata names to be returned as part of the sample in the
+                __getitem__ method. If None, no metadata is returned.
         """
         super().__init__()
         self.root = root

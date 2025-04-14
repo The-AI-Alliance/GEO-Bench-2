@@ -26,6 +26,7 @@ def datamodule(data_root, band_order):
         pin_memory=False,
         band_order=band_order,
         root=data_root,
+        metadata=["lon", "lat"],
     )
 
 

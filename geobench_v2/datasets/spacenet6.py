@@ -73,6 +73,8 @@ class GeoBenchSpaceNet6(GeoBenchBaseDataset):
 
     num_classes = len(classes)
 
+    valid_metadata = ("lat", "lon")
+
     def __init__(
         self,
         root: Path,
@@ -81,7 +83,7 @@ class GeoBenchSpaceNet6(GeoBenchBaseDataset):
         data_normalizer: Type[nn.Module] = MultiModalNormalizer,
         transforms: nn.Module | None = None,
         return_stacked_image: bool = False,
-        **kwargs,
+        metadata: Sequence[str] | None = None,
     ) -> None:
         """Initialize SpaceNet6 dataset.
 
@@ -95,8 +97,8 @@ class GeoBenchSpaceNet6(GeoBenchBaseDataset):
             data_normalizer: The data normalizer to apply to the data, defaults to :class:`data_util.MultiModalNormalizer`,
                 which applies z-score normalization to each band.
             transforms:
+            metadata: metadata names to be returned as part of the sample in the
             return_stacked_image: if true, returns a single image tensor with all modalities stacked in band_order
-            **kwargs: Additional keyword arguments passed to ``torchgeo.datasets.SpaceNet6``
         """
         super().__init__(
             root=root,
@@ -104,6 +106,7 @@ class GeoBenchSpaceNet6(GeoBenchBaseDataset):
             band_order=band_order,
             data_normalizer=data_normalizer,
             transforms=transforms,
+            metadata=metadata,
         )
 
         self.return_stacked_image = return_stacked_image
@@ -170,6 +173,10 @@ class GeoBenchSpaceNet6(GeoBenchBaseDataset):
 
         point = wkt.loads(sample_row.iloc[0]["stac:centroid"])
         lon, lat = point.x, point.y
-        sample["lon"], sample["lat"] = torch.tensor(lon), torch.tensor(lat)
+
+        if "lon" in self.metadata:
+            sample["lon"] = torch.tensor(lon)
+        if "lat" in self.metadata:
+            sample["lat"] = torch.tensor(lat)
 
         return sample
