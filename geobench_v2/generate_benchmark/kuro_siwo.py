@@ -23,7 +23,10 @@ import numpy as np
 from torchgeo.datasets.utils import percentile_normalization
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 
-from geobench_v2.generate_benchmark.utils import plot_sample_locations
+from geobench_v2.generate_benchmark.utils import (
+    plot_sample_locations,
+    create_subset_from_tortilla,
+)
 
 
 # Constants
@@ -406,36 +409,32 @@ def main():
     # OUTPUT_FOLDER.mkdir(exist_ok=True)
 
     # # Setup data and splits
-    split_mapper = create_split_mapper()
-    extracted_data = extract_grid_data(GRID_DATA_PATH)
+    # split_mapper = create_split_mapper()
+    # extracted_data = extract_grid_data(GRID_DATA_PATH)
 
-    # Create dataframe and assign splits
-    df = pd.DataFrame(extracted_data)
-    df["split"] = df["event_id"].apply(lambda x: split_mapper[x])
-    df.to_csv("full_df.csv", index=False)
-    process_grid_samples(df, args.root)
+    # # Create dataframe and assign splits
+    # df = pd.DataFrame(extracted_data)
+    # df["split"] = df["event_id"].apply(lambda x: split_mapper[x])
+    # df.to_csv("full_df.csv", index=False)
 
+    # process_grid_samples(df, args.root)
     # merge_tortilla_files()
 
-    # # Visualize a sample
-    # visualize_sample(FINAL_TACO_PATH)
+    taco_glob = sorted(glob(os.path.join(args.save_dir, "kurosiwo.*.part.tortilla")))
+    taco_ben = tacoreader.load(taco_glob)
 
-    # import os
-    # import pandas as pd
-    # import tacoreader
-    # data_df = tacoreader.load([os.path.join(args.save_dir, f) for f in self.paths])
-
-    # geo_df = data_df.to_geodataframe()
-    # # extract lat/lon
-    # geo_df["longitude"] = geo_df.geometry.x
-    # geo_df["latitude"] = geo_df.geometry.y
-
-    # # drop geometry and stac:centroid
-    # geo_df = geo_df.drop(columns=["geometry", "stac:centroid"])
-
-    # pandas_df = pd.DataFrame(geo_df)
-    # import pdb; pdb.set_trace()
-    # pandas_df.to_parquet(os.path.join(args.save_dir, "geobench_kuro_siwo.parquet"))
+    # create unit test subset
+    unit_test_taco = create_subset_from_tortilla(
+        taco_ben, n_train_samples=4, n_val_samples=2, n_test_samples=2
+    )
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    repo_root = os.path.dirname(os.path.dirname(script_dir))
+    test_data_dir = os.path.join(repo_root, "tests", "data", "kuro_siwo")
+    os.makedirs(test_data_dir, exist_ok=True)
+    tacoreader.compile(
+        dataframe=unit_test_taco,
+        output=os.path.join(test_data_dir, "kuro_siwo.tortilla"),
+    )
 
 
 if __name__ == "__main__":

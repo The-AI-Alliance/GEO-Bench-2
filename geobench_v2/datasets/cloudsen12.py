@@ -8,19 +8,21 @@ import numpy as np
 import rasterio
 
 
-from typing import Sequence, ClassVar, Union, Type
+from typing import Sequence, ClassVar, Union, Type, Literal
 import torch
 import torch.nn as nn
 from torch import Tensor
 from torchgeo.datasets import NonGeoDataset
 
 from .sensor_util import DatasetBandRegistry
+from .base import GeoBenchBaseDataset
 from .data_util import DataUtilsMixin, MultiModalNormalizer
 import tacoreader
 import numpy as np
+from shapely import wkt
 
 
-class GeoBenchCloudSen12(NonGeoDataset, DataUtilsMixin):
+class GeoBenchCloudSen12(GeoBenchBaseDataset):
     """Implementation of CloudSen12 dataset Sentinel 2 L1C.
 
 
@@ -77,23 +79,26 @@ class GeoBenchCloudSen12(NonGeoDataset, DataUtilsMixin):
         },
     }
 
-    classes = ("clear", "thick cloud", "thin cloud", "cloud shadow")
+    # taco_files: dict[str, str] = {
+    #     "l1c": "geobench_cloudsen12-l1c.taco",
+    #     "l2a": "geobench_cloudsen12-l2a.taco",
+    #     "extra": "geobench_cloudsen12-extra.taco",
+    # }
 
-    taco_files: dict[str, str] = {
-        "l1c": "geobench_cloudsen12-l1c.taco",
-        "l2a": "geobench_cloudsen12-l2a.taco",
-        "extra": "geobench_cloudsen12-extra.taco",
-    }
+    # taco_name = "geobench_cloudsen12.taco"
 
-    taco_name = "geobench_cloudsen12.taco"
+    paths = ["geobench_cloudsen12-l2a.taco"]
+
+    valid_metadata = ("lat", "lon")
 
     def __init__(
         self,
         root,
-        split="train",
+        split: Literal["train", "validation", "test"] = "train",
         band_order: Sequence[float | str] = ["B04", "B03", "B02"],
         data_normalizer: Type[nn.Module] = MultiModalNormalizer,
         transforms: nn.Module | None = None,
+        metadata: Sequence[str] | None = None,
     ) -> None:
         """Initialize a CloudSen12 dataset instance.
 
@@ -105,47 +110,19 @@ class GeoBenchCloudSen12(NonGeoDataset, DataUtilsMixin):
             data_normalizer: The data normalizer to apply to the data, defaults to :class:`data_util.MultiModalNormalizer`,
                 which applies z-score normalization to each band.
             transforms: Image resize transform on sample level
+            metadata: metadata names to be returned under specified keys as part of the sample in the
+                __getitem__ method. If None, no metadata is returned.
 
         Raises:
             AssertionError: If split is not in the splits
         """
-        assert split in self.splits, f"split must be one of {self.splits}"
-
-        self.transforms = transforms
-
-        self.root = root
-        self.split = split
-        self.transforms = transforms
-
-        self.band_order = self.resolve_band_order(band_order)
-
-        self.data_normalizer = data_normalizer(
-            self.normalization_stats, self.band_order
-        )
-
-        self.l2a_metadata_df = tacoreader.load(
-            os.path.join(self.root, self.taco_files["l2a"])
-        )
-        self.l2a_metadata_df = self.l2a_metadata_df[
-            self.l2a_metadata_df["tortilla:data_split"] == split
-        ]
-
-        self.l1c_metadata_df = tacoreader.load(
-            os.path.join(self.root, self.taco_files["l1c"])
-        )
-        self.l1c_metadata_df = self.l1c_metadata_df[
-            self.l1c_metadata_df["tortilla:data_split"] == split
-        ]
-
-        self.extra_metadata_df = tacoreader.load(
-            os.path.join(self.root, self.taco_files["extra"])
-        )
-        # self.extra_metadata_df = self.extra_metadata_df[
-        #     self.extra_metadata_df["tortilla:data_split"] == split
-        # ].reset_index(drop=True)
-
-        assert len(self.l2a_metadata_df) == len(self.l1c_metadata_df), (
-            f"Length of metadata dataframes must be equal, got {len(self.l2a_metadata_df)}, {len(self.l1c_metadata_df)}"
+        super().__init__(
+            root=root,
+            split=split,
+            band_order=band_order,
+            data_normalizer=data_normalizer,
+            transforms=transforms,
+            metadata=metadata,
         )
 
     def __getitem__(self, idx: int) -> dict[str, Tensor]:
@@ -159,11 +136,7 @@ class GeoBenchCloudSen12(NonGeoDataset, DataUtilsMixin):
         """
         sample: dict[str, Tensor] = {}
 
-        l2a_row = self.l2a_metadata_df.read(idx)
-        l1c_row = self.l1c_metadata_df.read(idx)
-        extra_row = self.extra_metadata_df.read(idx)
-
-        # if "l2a" in self.band_order:
+        l2a_row = self.data_df.read(idx)
 
         image_path: str = l2a_row.read(0)
         target_path: str = l2a_row.read(1)
@@ -172,7 +145,6 @@ class GeoBenchCloudSen12(NonGeoDataset, DataUtilsMixin):
             rasterio.open(image_path) as image_src,
             rasterio.open(target_path) as target_src,
         ):
-            # TODO check
             image_data: np.ndarray = image_src.read(out_dtype="float32")
             target_data: np.ndarray = target_src.read()
 
@@ -184,17 +156,16 @@ class GeoBenchCloudSen12(NonGeoDataset, DataUtilsMixin):
         image = self.data_normalizer(image_dict)
 
         sample.update(image_dict)
-        sample.update({"mask": mask})
+        sample["mask"] = mask
+
+        point = wkt.loads(l2a_row.iloc[0]["stac:centroid"])
+        lon, lat = point.x, point.y
+        if "lon" in self.metadata:
+            sample["lon"] = torch.tensor(lon)
+        if "lat" in self.metadata:
+            sample["lat"] = torch.tensor(lat)
 
         if self.transforms is not None:
             sample = self.transforms(sample)
 
         return sample
-
-    def __len__(self) -> int:
-        """Return the number of samples in the dataset.
-
-        Returns:
-            The number of samples in the dataset
-        """
-        return len(self.l2a_metadata_df)

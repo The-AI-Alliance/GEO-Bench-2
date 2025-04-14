@@ -11,7 +11,10 @@ import argparse
 import numpy as np
 import pandas as pd
 
-from geobench_v2.generate_benchmark.utils import plot_sample_locations
+from geobench_v2.generate_benchmark.utils import (
+    plot_sample_locations,
+    create_unittest_subset,
+)
 
 
 def create_subset(root: str, save_dir: str) -> None:
@@ -82,16 +85,7 @@ def create_subset(root: str, save_dir: str) -> None:
     full_metadata = pd.concat(meta_dfs)
     full_metadata.reset_index(drop=True, inplace=True)
 
-    # full_metadata.to_geodataframe(inplace=True)
-
     return full_metadata
-
-
-def create_unit_test_subset() -> None:
-    """Create a subset of CloudSen12 dataset for GeoBench unit tests."""
-
-    # create random images etc that respect the structure of the dataset in minimal format
-    pass
 
 
 def main():
@@ -107,19 +101,26 @@ def main():
     )
     args = parser.parse_args()
 
-    # orig_dataset = CloudSen12(root=args.root, download=False)
+    metadata_path = os.path.join(args.save_dir, "geobench_cloudsen12_metadata.parquet")
+    if os.path.exists(metadata_path):
+        metadata_df = pd.read_parquet(metadata_path)
+    else:
+        metadata_df = create_subset(args.root, save_dir=args.save_dir)
+        metadata_df = pd.read_parquet(metadata_path)
 
-    # metadata_df = generate_metadata_df(orig_dataset)
-    metadata_df = create_subset(args.root, save_dir=args.save_dir)
-
-    metadata_df.to_parquet(
-        os.path.join(args.save_dir, "geobench_cloudsen12_metadata.parquet")
+    create_unittest_subset(
+        data_dir=args.save_dir,
+        tortilla_pattern="geobench_cloudsen12-l2a.taco",
+        test_dir_name="cloudsen12",
+        n_train_samples=2,
+        n_val_samples=1,
+        n_test_samples=1,
     )
 
-    plot_sample_locations(
-        metadata_df=metadata_df,
-        output_path=os.path.join(args.save_dir, "sample_locations.png"),
-    )
+    # plot_sample_locations(
+    #     metadata_df=metadata_df,
+    #     output_path=os.path.join(args.save_dir, "sample_locations.png"),
+    # )
 
 
 if __name__ == "__main__":

@@ -26,6 +26,7 @@ def datamodule(data_root, band_order):
         pin_memory=False,
         band_order=band_order,
         root=data_root,
+        metadata=["lon", "lat"],
     )
 
 
@@ -40,6 +41,13 @@ class TestCaFFeDataModule:
         assert train_batch["image"].shape[1] == len(datamodule.band_order)
         assert train_batch["image"].shape[2] == 74
         assert train_batch["image"].shape[3] == datamodule.img_size
+
+        assert train_batch["mask"].shape == (datamodule.batch_size, 74, 74)
+
+        assert "lon" in train_batch
+        assert "lat" in train_batch
+        assert train_batch["lon"].shape == (datamodule.batch_size,)
+        assert train_batch["lat"].shape == (datamodule.batch_size,)
 
     def test_band_order_resolution(self, datamodule):
         """Test if band order is correctly resolved."""

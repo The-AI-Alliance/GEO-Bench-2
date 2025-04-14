@@ -47,6 +47,7 @@ class GeoBenchCaFFe(CaFFe, DataUtilsMixin):
         band_order: list[str] = band_default_order,
         data_normalizer: Type[nn.Module] = MultiModalNormalizer,
         transforms: nn.Module | None = None,
+        metadata: Sequence[str] | None = None,
     ) -> None:
         """Initialize CaFFe Dataset.
 
@@ -60,11 +61,19 @@ class GeoBenchCaFFe(CaFFe, DataUtilsMixin):
             data_normalizer: The data normalizer to apply to the data, defaults to :class:`data_util.MultiModalNormalizer`,
                 which applies z-score normalization to each band.
             transforms:
+            metadata: metadata names to be returned under specified keys as part of the sample in the
+                __getitem__ method. If None, no metadata is returned.
         """
+        if split == "validation":
+            split = "val"
         super().__init__(root=root, split=split)
         self.transforms = transforms
 
         self.band_order = self.resolve_band_order(band_order)
+        if metadata is None:
+            self.metadata = []
+        else:
+            self.metadata = metadata
 
         self.data_normalizer = data_normalizer(
             self.normalization_stats, self.band_order
@@ -113,6 +122,11 @@ class GeoBenchCaFFe(CaFFe, DataUtilsMixin):
         zone_mask = self.ordinal_map_zones[zone_mask]
 
         sample["mask"] = zone_mask
+
+        if "lon" in self.metadata:
+            sample["lon"] = torch.tensor(sample_row["longitude"])
+        if "lat" in self.metadata:
+            sample["lat"] = torch.tensor(sample_row["latitude"])
 
         if self.transforms:
             sample = self.transforms(sample)

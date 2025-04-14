@@ -13,6 +13,7 @@ import json
 import pandas as pd
 import torch.nn as nn
 import rasterio
+from shapely import wkt
 
 from .base import GeoBenchBaseDataset
 
@@ -126,6 +127,8 @@ class GeoBenchDynamicEarthNet(GeoBenchBaseDataset):
 
     num_classes = len(classes)
 
+    valid_metadata = ("lat", "lon", "time")
+
     def __init__(
         self,
         root: Path,
@@ -135,6 +138,7 @@ class GeoBenchDynamicEarthNet(GeoBenchBaseDataset):
         },
         data_normalizer: Type[nn.Module] = MultiModalNormalizer,
         transforms: nn.Module | None = None,
+        metadata: Sequence[str] | None = None,
         temporal_setting: Literal["single", "daily", "weekly"] = "single",
     ) -> None:
         """Initialize the dataset.
@@ -145,8 +149,9 @@ class GeoBenchDynamicEarthNet(GeoBenchBaseDataset):
             band_order: Band order for the dataset
             data_normalizer: Data normalizer
             transforms: A composition of transformations to apply to the data
-            temporal_setting
-            **kwargs: Additional keyword arguments
+            metadata: metadata names to be returned as part of the sample in the
+                __getitem__ method. If None, no metadata is returned.
+            temporal_setting: The temporal setting to use, either 'single', 'daily' or 'weekly'
         """
         super().__init__(
             root=root,
@@ -154,6 +159,7 @@ class GeoBenchDynamicEarthNet(GeoBenchBaseDataset):
             band_order=band_order,
             data_normalizer=data_normalizer,
             transforms=transforms,
+            metadata=metadata,
         )
 
         self.temporal_setting = temporal_setting
@@ -208,10 +214,6 @@ class GeoBenchDynamicEarthNet(GeoBenchBaseDataset):
                     img = src.read()
                     img = torch.from_numpy(img).float()
             img_dict["s2"] = img
-            if img.shape[0] != 12:
-                import pdb
-
-                pdb.set_trace()
 
         img_dict = self.rearrange_bands(img_dict, self.band_order)
         img_dict = self.data_normalizer(img_dict)
@@ -229,6 +231,14 @@ class GeoBenchDynamicEarthNet(GeoBenchBaseDataset):
                 mask[label[i, :, :] == 255] = i
 
         sample["mask"] = mask.unsqueeze(0)
+
+        point = wkt.loads(sample_row.iloc[0]["stac:centroid"])
+        lon, lat = point.x, point.y
+
+        if "lon" in self.metadata:
+            sample["lon"] = torch.tensor(lon)
+        if "lat" in self.metadata:
+            sample["lat"] = torch.tensor(lat)
 
         if self.transforms is not None:
             sample = self.transforms(sample)

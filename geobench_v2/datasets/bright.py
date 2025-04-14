@@ -6,6 +6,7 @@
 from torch import Tensor
 from pathlib import Path
 from typing import Type, Sequence
+from shapely import wkt
 
 from .sensor_util import DatasetBandRegistry
 from .data_util import MultiModalNormalizer
@@ -44,6 +45,8 @@ class GeoBenchBRIGHT(GeoBenchBaseDataset):
 
     num_classes = len(classes)
 
+    valid_metadata = ("lat", "lon")
+
     def __init__(
         self,
         root: Path,
@@ -51,6 +54,7 @@ class GeoBenchBRIGHT(GeoBenchBaseDataset):
         band_order: dict[str, Sequence[str]] = band_default_order,
         data_normalizer: Type[nn.Module] = MultiModalNormalizer,
         transforms: nn.Module = None,
+        metadata: Sequence[str] | None = None,
     ) -> None:
         """Initialize BRIGHT dataset.
 
@@ -64,6 +68,8 @@ class GeoBenchBRIGHT(GeoBenchBaseDataset):
                 the sar bands are for the post-event image.
             data_normalizer: The normalizer to use, defaults to MultiModalNormalizer, which normalizes the data
             transforms: The transforms to apply to the data, defaults to None
+            metadata: metadata names to be returned as part of the sample in the
+                __getitem__ method. If None, no metadata is returned.
         """
         super().__init__(
             root=root,
@@ -71,6 +77,7 @@ class GeoBenchBRIGHT(GeoBenchBaseDataset):
             band_order=band_order,
             data_normalizer=data_normalizer,
             transforms=transforms,
+            metadata=metadata,
         )
 
     def __getitem__(self, index: int) -> dict[str, Tensor]:
@@ -112,6 +119,14 @@ class GeoBenchBRIGHT(GeoBenchBaseDataset):
         sample["image_post"] = image_dict["image_sar"]
 
         sample["mask"] = mask
+
+        point = wkt.loads(sample_row.iloc[0]["stac:centroid"])
+        lon, lat = point.x, point.y
+
+        if "lon" in self.metadata:
+            sample["lon"] = torch.tensor(lon)
+        if "lat" in self.metadata:
+            sample["lat"] = torch.tensor(lat)
 
         if self.transforms is not None:
             sample = self.transforms(sample)

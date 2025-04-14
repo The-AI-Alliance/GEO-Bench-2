@@ -16,6 +16,7 @@ import torch.nn as nn
 import rasterio
 import numpy as np
 import torch
+from shapely import wkt
 
 
 class GeoBenchFLAIR2(GeoBenchBaseDataset):
@@ -79,6 +80,8 @@ class GeoBenchFLAIR2(GeoBenchBaseDataset):
         "FullFlair2.0005.part.tortilla",
     )
 
+    valid_metadata = ("lat", "lon")
+
     def __init__(
         self,
         root,
@@ -86,6 +89,7 @@ class GeoBenchFLAIR2(GeoBenchBaseDataset):
         band_order: Sequence[float | str] = ["r", "g", "b"],
         data_normalizer: Type[nn.Module] = MultiModalNormalizer,
         transforms: nn.Module | None = None,
+        metadata: Sequence[str] | None = None,
     ):
         """Initialize FLAIR 2 dataset.
 
@@ -107,6 +111,7 @@ class GeoBenchFLAIR2(GeoBenchBaseDataset):
             band_order=band_order,
             data_normalizer=data_normalizer,
             transforms=transforms,
+            metadata=metadata,
         )
 
     def __getitem__(self, idx: int) -> dict[str, Tensor]:
@@ -143,6 +148,14 @@ class GeoBenchFLAIR2(GeoBenchBaseDataset):
         sample.update(image_dict)
 
         sample["mask"] = mask
+
+        point = wkt.loads(sample_row.iloc[0]["stac:centroid"])
+        lon, lat = point.x, point.y
+
+        if "lon" in self.metadata:
+            sample["lon"] = torch.tensor(lon)
+        if "lat" in self.metadata:
+            sample["lat"] = torch.tensor(lat)
 
         if self.transforms is not None:
             sample = self.transforms(sample)

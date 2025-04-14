@@ -8,6 +8,10 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import cartopy.crs as ccrs
 import cartopy.feature as cfeature
+from glob import glob
+import os
+import numpy as np
+import tacoreader
 
 
 def plot_sample_locations(
@@ -300,3 +304,71 @@ def _plot_region(ax, df, split_column, split_colors, buffer_degrees, s, alpha, t
     gl.top_labels = False
     gl.right_labels = False
     ax.set_title(title, fontsize=12)
+
+
+def create_subset_from_tortilla(
+    taco, n_train_samples: int, n_val_samples: int, n_test_samples: int
+):
+    """Create a subset of a Taco dataset
+
+    Args:
+        taco: TACO dataset
+        n_train_samples: max Number of training samples to include in subset
+        n_val_samples: max Number of validation samples to include in subset
+        n_test_samples: max Number of test samples to include in subset
+
+    Returns:
+        subset TACO
+    """
+    train_samples = taco[taco["tortilla:data_split"] == "train"].sample(
+        n_train_samples, random_state=42
+    )
+    val_samples = taco[taco["tortilla:data_split"] == "validation"].sample(
+        n_val_samples, random_state=42
+    )
+    test_samples = taco[taco["tortilla:data_split"] == "test"].sample(
+        n_test_samples, random_state=42
+    )
+    subset_taco = pd.concat([train_samples, val_samples, test_samples])
+
+    return subset_taco
+
+
+def create_unittest_subset(
+    data_dir: str,
+    tortilla_pattern: str,
+    test_dir_name: str,
+    n_train_samples: int,
+    n_val_samples: int,
+    n_test_samples: int,
+) -> None:
+    """Create a unittest version tortilla.
+
+    Args:
+        data_dir: Directory containing the tortilla files
+        tortilla_pattern: Pattern to match tortilla files
+        test_dir_name: Name of the directory to save the unittest subset
+        n_train_samples: Number of training samples to include in the subset
+        n_val_samples: Number of validation samples to include in the subset
+        n_test_samples: Number of test samples to include in the subset
+    """
+
+    taco_glob = sorted(glob(os.path.join(data_dir, tortilla_pattern)))
+    taco_ben = tacoreader.load(taco_glob)
+
+    # create unit test subset
+    unit_test_taco = create_subset_from_tortilla(
+        taco_ben,
+        n_train_samples=n_train_samples,
+        n_val_samples=n_val_samples,
+        n_test_samples=n_test_samples,
+    )
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    repo_root = os.path.dirname(os.path.dirname(script_dir))
+    test_data_dir = os.path.join(repo_root, "tests", "data", test_dir_name)
+    os.makedirs(test_data_dir, exist_ok=True)
+    tortilla_path = os.path.join(test_data_dir, f"{test_dir_name}.tortilla")
+    tacoreader.compile(dataframe=unit_test_taco, output=tortilla_path)
+    # print filesize in MB
+    print(f"Unit test subset saved to {tortilla_path}")
+    print(f"Filesize: {os.path.getsize(tortilla_path) / (1024 * 1024):.2f} MB")

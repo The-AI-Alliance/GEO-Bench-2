@@ -10,7 +10,10 @@ import argparse
 import rasterio
 from tqdm import tqdm
 import re
-from geobench_v2.generate_benchmark.utils import plot_sample_locations
+from geobench_v2.generate_benchmark.utils import (
+    plot_sample_locations,
+    create_unittest_subset,
+)
 import tacotoolbox
 import tacoreader
 import glob
@@ -284,7 +287,15 @@ def main():
         metadata_df = generate_metadata_df(args.root)
         metadata_df.to_parquet(metadata_path)
 
-    create_tortilla(args.root, metadata_df, args.save_dir)
+    # create_tortilla(args.root, metadata_df, args.save_dir)x
+    create_unittest_subset(
+        data_dir=args.save_dir,
+        tortilla_pattern="MADOS.tortilla",
+        test_dir_name="mados",
+        n_train_samples=4,
+        n_val_samples=2,
+        n_test_samples=2,
+    )
 
     # taco = tacoreader.load(os.path.join(args.save_dir, "MADOS.tortilla"))
 

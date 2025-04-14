@@ -7,6 +7,7 @@ from torch import Tensor
 from pathlib import Path
 from typing import Sequence, Type
 import torch.nn as nn
+from shapely import wkt
 
 from .sensor_util import DatasetBandRegistry
 from .base import GeoBenchBaseDataset
@@ -23,6 +24,8 @@ class GeoBenchMADOS(GeoBenchBaseDataset):
     """MADOS dataset.
 
     There are always 12 S1 time steps available but the number of S2 time steps can vary.
+
+    No Geospatial info.
     """
 
     dataset_band_config = DatasetBandRegistry.MADOS
@@ -107,7 +110,6 @@ class GeoBenchMADOS(GeoBenchBaseDataset):
         band_order: Sequence[str] = ["B04", "B03", "B02", "B08"],
         data_normalizer: Type[nn.Module] = MultiModalNormalizer,
         transforms: nn.Module | None = None,
-        **kwargs,
     ) -> None:
         """Initialize MADOS dataset.
 
@@ -121,7 +123,6 @@ class GeoBenchMADOS(GeoBenchBaseDataset):
             data_normalizer: The data normalizer to apply to the data, defaults to :class:`data_util.MultiModalNormalizer`,
                 which applies z-score normalization to each band.
             transforms:
-            **kwargs: Additional keyword arguments passed to ``torchgeo.datasets.MADOS``
         """
         super().__init__(
             root=root,
@@ -129,6 +130,7 @@ class GeoBenchMADOS(GeoBenchBaseDataset):
             band_order=band_order,
             data_normalizer=data_normalizer,
             transforms=transforms,
+            metadata=None,
         )
 
     def __getitem__(self, idx: int) -> dict[str, Tensor]:
