@@ -11,7 +11,10 @@ import argparse
 import rasterio
 from tqdm import tqdm
 import re
-from geobench_v2.generate_benchmark.utils import plot_sample_locations
+from geobench_v2.generate_benchmark.utils import (
+    plot_sample_locations,
+    create_unittest_subset,
+)
 import tacotoolbox
 import tacoreader
 import glob
@@ -563,7 +566,16 @@ def main():
 
         result_df.to_parquet(result_path, index=False)
 
-    create_tortilla(args.root, result_df, args.save_dir)
+    create_unittest_subset(
+        data_dir=args.save_dir,
+        tortilla_pattern="SpaceNet2.*.part.tortilla",
+        test_dir_name="spacenet2",
+        n_train_samples=2,
+        n_val_samples=1,
+        n_test_samples=1,
+    )
+
+    # create_tortilla(args.root, result_df, args.save_dir)
 
     # for city in full_df["area"].unique():
     #     plot_sample_locations(
@@ -573,9 +585,9 @@ def main():
     #         dataset_name=f"SpaceNet2 {city}",
     #     )
 
-    visualize_samples(full_df, args.root)
+    # visualize_samples(full_df, args.root)
 
-    full_df.to_parquet(metadata_path)
+    # full_df.to_parquet(metadata_path)
 
 
 if __name__ == "__main__":

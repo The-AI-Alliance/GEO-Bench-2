@@ -17,7 +17,7 @@ import rasterio
 
 from geobench_v2.generate_benchmark.utils import (
     plot_sample_locations,
-    validate_metadata_with_geo,
+    create_subset_from_tortilla,
 )
 
 from geobench_v2.datasets.flair2 import GeoBenchFLAIR2
@@ -266,15 +266,32 @@ def main():
     os.makedirs(args.save_dir, exist_ok=True)
 
     metadata_path = os.path.join(args.save_dir, "geobench_flair2.parquet")
-    # if os.path.exists(metadata_path):
-    #     metadata_df = pd.read_parquet(metadata_path)
-    # else:
-    metadata_df = generate_metadata_df(save_dir=args.save_dir)
-    metadata_df.to_parquet(metadata_path)
+    if os.path.exists(metadata_path):
+        metadata_df = pd.read_parquet(metadata_path)
+    else:
+        metadata_df = generate_metadata_df(save_dir=args.save_dir)
+        metadata_df.to_parquet(metadata_path)
 
     # validate_metadata_with_geo(metadata_df)
 
-    create_tortilla(args.root, metadata_df, args.save_dir)
+    # create_tortilla(args.root, metadata_df, args.save_dir)
+
+    taco_glob = sorted(
+        glob.glob(os.path.join(args.save_dir, "FullFlair2.*.part.tortilla"))
+    )
+    taco_flair = tacoreader.load(taco_glob)
+
+    # create unit test subset
+    unit_test_taco = create_subset_from_tortilla(
+        taco_flair, n_train_samples=4, n_val_samples=2, n_test_samples=2
+    )
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    repo_root = os.path.dirname(os.path.dirname(script_dir))
+    test_data_dir = os.path.join(repo_root, "tests", "data", "flair2")
+    os.makedirs(test_data_dir, exist_ok=True)
+    tacoreader.compile(
+        dataframe=unit_test_taco, output=os.path.join(test_data_dir, "flair2.tortilla")
+    )
 
     # plot_sample_locations(
     #     metadata_df,

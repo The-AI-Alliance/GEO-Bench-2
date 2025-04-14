@@ -11,13 +11,15 @@ import argparse
 import rasterio
 from tqdm import tqdm
 import re
-from geobench_v2.generate_benchmark.utils import plot_sample_locations
 import tacotoolbox
 import tacoreader
 import glob
 
-from geobench_v2.generate_benchmark.utils import plot_sample_locations
 
+from geobench_v2.generate_benchmark.utils import (
+    plot_sample_locations,
+    create_unittest_subset,
+)
 from geobench_v2.generate_benchmark.geospatial_split_utils import (
     visualize_checkerboard_pattern,
     split_geospatial_tiles_into_patches,
@@ -236,8 +238,11 @@ def main():
     if not os.path.exists(args.save_dir):
         os.makedirs(args.save_dir)
 
-    metadata_df = generate_metadata_df(args.root)
-    metadata_df.to_parquet(metadata_path)
+    if os.path.exists(metadata_path):
+        metadata_df = pd.read_parquet(metadata_path)
+    else:
+        metadata_df = generate_metadata_df(args.root)
+        metadata_df.to_parquet(metadata_path)
 
     # create_geobench_ds(metadata_df, save_dir=args.save_dir)
     path = "/mnt/rg_climate_benchmark/data/geobenchV2/spacenet8/patch_metadata.parquet"
@@ -286,7 +291,16 @@ def main():
         buffer_degrees=0.05,
     )
 
-    create_tortilla(args.save_dir, df_with_assigned_split, args.save_dir)
+    create_unittest_subset(
+        data_dir=args.save_dir,
+        tortilla_pattern="SpaceNet8.tortilla",
+        test_dir_name="spacenet8",
+        n_train_samples=2,
+        n_val_samples=1,
+        n_test_samples=1,
+    )
+
+    # create_tortilla(args.save_dir, df_with_assigned_split, args.save_dir)
 
     # create taco version of the dataset
 

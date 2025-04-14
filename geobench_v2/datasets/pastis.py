@@ -97,6 +97,8 @@ class GeoBenchPASTIS(PASTIS, DataUtilsMixin):
 
     num_classes = len(classes)
 
+    valid_metadata = ("lat", "lon", "dates")
+
     def __init__(
         self,
         root: Path,
@@ -105,10 +107,9 @@ class GeoBenchPASTIS(PASTIS, DataUtilsMixin):
         data_normalizer: Type[nn.Module] = MultiModalNormalizer,
         num_time_steps: int = 1,
         transforms: nn.Module | None = None,
+        metadata: Sequence[str] | None = None,
         label_type: Literal["instance_seg", "semantic_seg"] = "semantic_seg",
         return_stacked_image: bool = False,
-        return_metadata: bool = True,
-        **kwargs,
     ) -> None:
         """Initialize PASTIS Dataset.
 
@@ -126,15 +127,18 @@ class GeoBenchPASTIS(PASTIS, DataUtilsMixin):
             data_normalizer: The data normalizer to apply to the data, defaults to :class:`data_util.MultiModalNormalizer`,
                 which applies z-score normalization to each band.
             transforms:
+            metadata: metadata names to be returned under specified keys as part of the sample in the
+                __getitem__ method. If None, no metadata is returned.
             label_type: The type of label to return, either 'instance_seg' or 'semantic_seg'
             return_stacked_image: if true, returns a single image tensor with all modalities stacked in band_order
-            return_metadata: if true, returns metadata as part of the image
-            **kwargs: Additional keyword arguments passed to ``torchgeo.datasts.PASTIS``
 
         Raises:
             AssertionError: If an invalid split is specified
         """
         super().__init__(root=root)
+
+        if split == "validation":
+            split = "val"
 
         assert split in self.valid_splits, (
             f"Invalid split {split}. Must be one of {self.valid_splits}"
@@ -151,24 +155,20 @@ class GeoBenchPASTIS(PASTIS, DataUtilsMixin):
 
         self.label_type = label_type
         self.return_stacked_image = return_stacked_image
-        self.return_metadata = return_metadata
 
-        self.metadata_df = pd.read_parquet(
-            os.path.join(root, "geobench_pastis.parquet")
+        if metadata is None:
+            self.metadata = []
+        else:
+            self.metadata = metadata
+
+        self.data_df = pd.read_parquet(os.path.join(root, "geobench_pastis.parquet"))
+        self.data_df = self.data_df[self.data_df["split"] == split].reset_index(
+            drop=True
         )
-        self.metadata_df = self.metadata_df[
-            self.metadata_df["split"] == split
-        ].reset_index(drop=True)
-        # self.metadata_df["ID_PATCH"] = self.metadata_df["ID_PATCH"].astype(str)
-
-        # self.files_df = pd.DataFrame(self.files)
-        # self.files_df["ID_PATCH"] = self.files_df["s2"].apply(lambda x: x.split("/")[-1].split("_")[-1].split(".")[0])
-
-        # self.new_df = pd.merge(self.metadata_df, self.files_df, how="left", left_on="ID_PATCH", right_on="ID_PATCH").reset_index(drop=True)
 
     def __len__(self) -> int:
         """Return the length of the dataset."""
-        return len(self.metadata_df)
+        return len(self.data_df)
 
     def __getitem__(self, index: int) -> dict[str, Tensor]:
         """Return an index within the dataset.
@@ -180,7 +180,7 @@ class GeoBenchPASTIS(PASTIS, DataUtilsMixin):
             data and label at that index
         """
         sample: dict[str, Tensor] = {}
-        sample_row = self.metadata_df.iloc[index]
+        sample_row = self.data_df.iloc[index]
         data = {
             "s2": self._load_image(os.path.join(self.root, sample_row["s2_path"])),
             "s1_asc": self._load_image(os.path.join(self.root, sample_row["s1a_path"])),
@@ -209,37 +209,29 @@ class GeoBenchPASTIS(PASTIS, DataUtilsMixin):
 
         dates = sample_row["dates-s2"]
         if len(dates) < self.num_time_steps:
-            sample["dates"] = [0] * (self.num_time_steps - len(dates)) + dates
+            sample_dates = [0] * (self.num_time_steps - len(dates)) + dates
         else:
-            sample["dates"] = dates[-self.num_time_steps :]
-        sample["lon"] = torch.tensor([sample_row["longitude"]])
-        sample["lat"] = torch.tensor([sample_row["latitude"]])
+            sample_dates = dates[-self.num_time_steps :]
 
         if self.transforms:
             sample = self.transforms(sample)
 
         if self.return_stacked_image:
-            stacked_image = []
-            for mod in self.band_order:
-                if mod == "s1_desc":
-                    stacked_image.append(sample["image_s1_desc"])
-                if mod == "s1_asc":
-                    stacked_image.append(sample["image_s1_asc"])
-                if mod == "s2":
-                    stacked_image.append(sample["image_s2"])
-            output = {}
-            output["image"] = torch.cat(stacked_image, 0)
-            output["mask"] = sample["mask"]
-        else:
-            output = sample
+            sample = {
+                "image": torch.cat(
+                    [sample[f"image_{key}"] for key in self.band_order.keys()], 0
+                ),
+                "mask": sample["mask"],
+            }
 
-        if self.return_metadata:
-            metadata = ["dates", "lon", "lat"]
-            for key in metadata:
-                if key not in output:
-                    output[key] = sample[key]
+        if "lon" in self.metadata:
+            sample["lon"] = torch.tensor(sample_row["longitude"])
+        if "lat" in self.metadata:
+            sample["lat"] = torch.tensor(sample_row["latitude"])
+        if "dates" in self.metadata:
+            sample["dates"] = torch.tensor(sample_dates)
 
-        return output
+        return sample
 
     def _load_image(self, path: str) -> Tensor:
         """Load a single time-series.

@@ -21,20 +21,10 @@ import cartopy.crs as ccrs
 import cartopy.feature as cfeature
 from matplotlib.colors import LinearSegmentedColormap
 import numpy as np
-from geobench_v2.generate_benchmark.utils import plot_sample_locations
-
-
-def create_subset(ds: BigEarthNetV2, metadata_df: pd.DataFrame, save_dir: str) -> None:
-    """Create a subset of BigEarthNet dataset.
-
-    Args:
-        ds: BigEarthNet dataset.
-        metadata_df: Metadata DataFrame.
-        save_dir: Directory to save the subset.
-    """
-    # based on the metadata_df create a subset of the dataset and copy it
-    # with the same structure to the save_dir
-    pass
+from geobench_v2.generate_benchmark.utils import (
+    plot_sample_locations,
+    create_subset_from_tortilla,
+)
 
 
 def extract_date_from_patch_id(patch_id: str) -> str:
@@ -286,12 +276,26 @@ def main():
     else:
         metadata_df = pd.read_parquet(new_metadata_path)
 
-    create_tortilla(args.root, metadata_df, args.save_dir)
+    # create_tortilla(args.root, metadata_df, args.save_dir)
 
-    # plot_sample_locations(
-    #     metadata_df, output_path=os.path.join(args.save_dir, "sample_locations.png")
-    # )
+    taco_glob = sorted(
+        glob.glob(os.path.join(args.save_dir, "FullBenV2.*.part.tortilla"))
+    )
+    taco_ben = tacoreader.load(taco_glob)
+
+    # create unit test subset
+    unit_test_taco = create_subset_from_tortilla(
+        taco_ben, n_train_samples=4, n_val_samples=2, n_test_samples=2
+    )
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    repo_root = os.path.dirname(os.path.dirname(script_dir))
+    test_data_dir = os.path.join(repo_root, "tests", "data", "benv2")
+    os.makedirs(test_data_dir, exist_ok=True)
+    tacoreader.compile(
+        dataframe=unit_test_taco, output=os.path.join(test_data_dir, "benv2.tortilla")
+    )
 
 
 if __name__ == "__main__":
+    # command:
     main()

@@ -111,7 +111,7 @@ class GeoBenchDataModule(LightningDataModule, ABC):
             )
         if stage in ["fit", "validate"]:
             self.val_dataset = self.dataset_class(
-                split="val",
+                split="validation",
                 band_order=self.band_order,
                 transforms=self.val_transform,
                 **self.kwargs,

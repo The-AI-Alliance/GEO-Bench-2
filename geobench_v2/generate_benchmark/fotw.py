@@ -14,7 +14,7 @@ from tqdm import tqdm
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from geobench_v2.generate_benchmark.utils import (
     plot_sample_locations,
-    validate_metadata_with_geo,
+    create_subset_from_tortilla,
 )
 import matplotlib.pyplot as plt
 import cartopy.crs as ccrs
@@ -26,6 +26,7 @@ import rasterio
 import tacotoolbox
 import tacoreader
 import glob
+import cartopy.io.shapereader as shpreader
 
 
 TOTAL_N = 20000
@@ -251,19 +252,6 @@ def create_unit_test_subset() -> None:
     pass
 
 
-def generate_benchmark(
-    ds: FieldsOfTheWorld, metadata_df: pd.DataFrame, save_dir: str
-) -> None:
-    """Generate Fields of the World Benchmark.
-
-    Args:
-        ds: Fields of the World dataset.
-        save_dir: Directory to save the subset benchmark data.
-    """
-    subset = create_subset(ds, metadata_df, save_dir)
-    copy_subset_files(ds, subset, save_dir)
-
-
 def plot_country_distribution(
     metadata_df: pd.DataFrame,
     output_path: str = None,
@@ -274,7 +262,6 @@ def plot_country_distribution(
     figsize: tuple = (14, 10),
 ) -> None:
     """Plot the geolocation of samples on a world map with country-level highlighting."""
-    # Count samples per country and split
     country_counts = (
         metadata_df.groupby("country")["aoi_id"].count().sort_values(ascending=False)
     )
@@ -284,7 +271,6 @@ def plot_country_distribution(
         .unstack(fill_value=0)
     )
 
-    # Get global stats
     total_samples = len(metadata_df)
     n_countries = len(country_counts)
 
@@ -294,64 +280,44 @@ def plot_country_distribution(
         percentage = 100 * count / total_samples
         print(f"  {country}: {count:,} samples ({percentage:.1f}%)")
 
-    # Create figure with Robinson projection for global data
     plt.figure(figsize=figsize)
     projection = ccrs.Robinson()
     ax = plt.axes(projection=projection)
 
-    # Set global extent for world map
     ax.set_global()
 
-    # Add map features with improved styling
     ax.add_feature(cfeature.LAND, facecolor="#EFEFEF")
     ax.add_feature(cfeature.OCEAN, facecolor="#D8E9F5")
     ax.add_feature(cfeature.COASTLINE, linewidth=0.5, edgecolor="#888888")
     ax.add_feature(cfeature.BORDERS, linewidth=0.3, linestyle="-", edgecolor="#888888")
 
     # Define color palette for splits
-    split_colors = {
-        "train": "#1f77b4",  # Blue
-        "val": "#ff7f0e",  # Orange
-        "test": "#2ca02c",  # Green
-    }
+    split_colors = {"train": "#1f77b4", "val": "#ff7f0e", "test": "#2ca02c"}
 
-    # Define country highlight colors if needed
     if highlight_countries:
-        # Use tab20 colormap for up to 20 countries
         country_colormap = plt.cm.get_cmap("tab20", n_countries)
         country_colors = {
             country: country_colormap(i)
             for i, country in enumerate(country_counts.index)
         }
 
-    # Get country shapes for highlighting
     if highlight_countries:
-        # Create a list of countries with samples for highlighting
         countries_with_samples = set(metadata_df["country"].unique())
 
-        # Use shapereader to directly access country geometries
-        import cartopy.io.shapereader as shpreader
-
-        # Get shapefile from cartopy's data store
         shapename = "admin_0_countries"
         countries_shp = shpreader.natural_earth(
             resolution="50m", category="cultural", name=shapename
         )
-
-        # Read the shapefile
         reader = shpreader.Reader(countries_shp)
 
-        # Match countries in dataset with geometries in shapefile
         for country_record in reader.records():
             country_name = country_record.attributes["NAME"].lower()
 
-            # Try to match with dataset countries
             for ds_country in countries_with_samples:
                 if (
                     ds_country.lower() in country_name
                     or country_name in ds_country.lower()
                 ):
-                    # Add the geometry for this country with its color
                     ax.add_geometries(
                         [country_record.geometry],
                         ccrs.PlateCarree(),
@@ -362,15 +328,12 @@ def plot_country_distribution(
                     )
                     break
 
-    # Plot points by country and split
     for country in country_counts.index:
         country_data = metadata_df[metadata_df["country"] == country]
 
-        # Calculate point size inversely proportional to number of points (with limits)
         n_points = len(country_data)
         point_size = max(0.5, min(3.0, 50.0 / np.sqrt(n_points)))
 
-        # Plot each split separately
         for split in ["train", "val", "test"]:
             split_data = country_data[country_data["split"] == split]
             if len(split_data) > 0:
@@ -387,29 +350,24 @@ def plot_country_distribution(
                     zorder=3,
                 )
 
-    # Add country labels with much better positioning
     if show_country_labels:
-        # Prepare data for label positioning
         countries_to_label = []
         for country, count in country_counts.items():
             if count >= min_samples_for_label:
-                # Calculate centroid of samples for this country
                 country_data = metadata_df[metadata_df["country"] == country]
                 center_lon = country_data["lon"].mean()
                 center_lat = country_data["lat"].mean()
 
-                # Store for later use
                 countries_to_label.append(
                     {
                         "name": country,
                         "lon": center_lon,
                         "lat": center_lat,
                         "count": count,
-                        "importance": count,  # Use count as initial importance
+                        "importance": count,
                     }
                 )
 
-        # Define regions with their center points
         regions = {
             "europe": {"center": (15, 50), "countries": []},
             "africa": {"center": (20, 0), "countries": []},
@@ -420,11 +378,9 @@ def plot_country_distribution(
             "other": {"center": None, "countries": []},
         }
 
-        # Assign countries to regions
         for country in countries_to_label:
             lon, lat = country["lon"], country["lat"]
 
-            # Determine region based on coordinates
             if -20 <= lon <= 40 and 35 <= lat <= 75:
                 region = "europe"
             elif -20 <= lon <= 55 and -40 <= lat <= 35:
@@ -442,17 +398,14 @@ def plot_country_distribution(
 
             regions[region]["countries"].append(country)
 
-        # Function to position labels in a curved grid pattern
         def position_labels_in_grid(
             countries, center, min_radius=15, grid_width=5, vertical_spacing=5
         ):
             if not countries:
                 return
 
-            # Sort by importance (sample count)
             countries.sort(key=lambda x: x["importance"], reverse=True)
 
-            # Calculate positions in a curved grid
             positions = []
             rows = (len(countries) + grid_width - 1) // grid_width
 
@@ -460,54 +413,40 @@ def plot_country_distribution(
                 row = i // grid_width
                 col = i % grid_width
 
-                # Position along a curved grid (arc)
-                angle_range = 120  # degrees
-                angle_offset = -60  # center around due north
+                angle_range = 120
+                angle_offset = -60
                 angle = (
                     angle_offset
                     + (col / (grid_width - 1 if grid_width > 1 else 1)) * angle_range
                 )
-
-                # Convert to radians
                 angle_rad = np.radians(angle)
-
-                # Radius increases with row number
                 radius = min_radius + row * vertical_spacing
 
-                # Convert to cartesian coordinates
                 offset_x = center[0] + radius * np.sin(angle_rad)
                 offset_y = center[1] + radius * np.cos(angle_rad)
-
-                # Store position with the country
                 country["label_x"] = offset_x
                 country["label_y"] = offset_y
 
-        # Position labels for each region
         for region_name, region_data in regions.items():
             if region_data["countries"]:
-                # Skip positioning for "other" region
                 if region_name == "other":
                     for country in region_data["countries"]:
                         country["label_x"] = country["lon"]
                         country["label_y"] = country["lat"]
                     continue
 
-                # For regions with multiple countries, position in grid
                 center = region_data["center"]
                 countries = region_data["countries"]
 
-                # Adjust parameters for different regions
                 if region_name == "europe":
-                    # European countries need more spread
                     position_labels_in_grid(
                         countries,
                         center,
-                        min_radius=20,  # Larger starting radius
-                        grid_width=4,  # Fewer columns for more spread
-                        vertical_spacing=8,  # More vertical space
+                        min_radius=20,
+                        grid_width=4,
+                        vertical_spacing=8,
                     )
                 elif region_name == "asia" and len(countries) > 5:
-                    # Asia might need custom layout too
                     position_labels_in_grid(
                         countries,
                         center,
@@ -516,7 +455,6 @@ def plot_country_distribution(
                         vertical_spacing=8,
                     )
                 else:
-                    # Default positioning
                     position_labels_in_grid(
                         countries,
                         center,
@@ -525,11 +463,9 @@ def plot_country_distribution(
                         vertical_spacing=6,
                     )
 
-        # Draw all labels and connecting lines
         for region_name, region_data in regions.items():
             for country in region_data["countries"]:
-                # Draw connecting line
-                if region_name != "other":  # Don't draw lines for "other" region
+                if region_name != "other":
                     plt.plot(
                         [country["lon"], country["label_x"]],
                         [country["lat"], country["label_y"]],
@@ -540,7 +476,6 @@ def plot_country_distribution(
                         zorder=3,
                     )
 
-                # Add text label
                 ax.text(
                     country["label_x"],
                     country["label_y"],
@@ -558,7 +493,6 @@ def plot_country_distribution(
                     zorder=4,
                 )
 
-    # Create legend for dataset splits
     legend_elements = [
         Line2D(
             [0],
@@ -580,20 +514,17 @@ def plot_country_distribution(
         framealpha=0.9,
     )
 
-    # Add gridlines (lighter for better readability)
     gl = ax.gridlines(
         draw_labels=True, linewidth=0.5, color="gray", alpha=0.3, linestyle="--"
     )
     gl.top_labels = False
     gl.right_labels = False
 
-    # Add a title with dataset statistics
     plt.title(
         f"{title}\n{total_samples:,} samples across {n_countries} countries",
         fontsize=14,
     )
 
-    # Add a small inset with numerical summary
     summary_text = f"Total: {total_samples:,} samples\n"
     for split in ["train", "val", "test"]:
         if split in metadata_df["split"].unique():
@@ -609,12 +540,10 @@ def plot_country_distribution(
         bbox=dict(facecolor="white", alpha=0.7, boxstyle="round,pad=0.5"),
     )
 
-    # Save or display the figure
     if output_path:
         plt.savefig(output_path, dpi=300, bbox_inches="tight")
         print(f"Map saved to {output_path}")
 
-        # Also save split counts by country as CSV
         csv_path = output_path.replace(".png", "_country_stats.csv")
         split_counts.to_csv(csv_path)
         print(f"Country statistics saved to {csv_path}")
@@ -732,7 +661,7 @@ def main():
 
     # validate_metadata_with_geo(metadata_df)
 
-    create_tortilla(args.root, metadata_df, args.save_dir)
+    # create_tortilla(args.root, metadata_df, args.save_dir)
 
     plot_country_distribution(
         metadata_df,
@@ -740,7 +669,22 @@ def main():
         title="Fields of the World Dataset - Geographic Distribution",
     )
 
-    # generate_benchmark(orig_dataset, metadata_df, args.save_dir)
+    # create unit test subset
+    taco_glob = sorted(
+        glob.glob(os.path.join(args.save_dir, "FullFOTW.*.part.tortilla"))
+    )
+    taco_ben = tacoreader.load(taco_glob)
+
+    unit_test_taco = create_subset_from_tortilla(
+        taco_ben, n_train_samples=4, n_val_samples=2, n_test_samples=2
+    )
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    repo_root = os.path.dirname(os.path.dirname(script_dir))
+    test_data_dir = os.path.join(repo_root, "tests", "data", "fotw")
+    os.makedirs(test_data_dir, exist_ok=True)
+    tacoreader.compile(
+        dataframe=unit_test_taco, output=os.path.join(test_data_dir, "fotw.tortilla")
+    )
 
 
 if __name__ == "__main__":

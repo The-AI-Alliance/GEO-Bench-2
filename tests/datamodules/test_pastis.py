@@ -60,7 +60,11 @@ class TestPASTISDataModule:
     def test_multimodal_band_order(self, data_root, multimodal_band_order):
         """Test batch retrieval with modality-specific band sequences."""
         dm = GeoBenchPASTISDataModule(
-            img_size=74, batch_size=32, band_order=multimodal_band_order, root=data_root
+            img_size=74,
+            batch_size=32,
+            band_order=multimodal_band_order,
+            root=data_root,
+            metadata=["lon", "lat"],
         )
         dm.setup("fit")
         batch = next(iter(dm.train_dataloader()))
@@ -88,6 +92,11 @@ class TestPASTISDataModule:
         assert batch["image_s1_desc"].shape[1] == len(multimodal_band_order["s1_desc"])
         assert batch["image_s1_desc"].shape[2] == 74
         assert batch["image_s1_desc"].shape[3] == dm.img_size
+
+        assert "lon" in batch
+        assert "lat" in batch
+        assert batch["lon"].shape == (dm.batch_size,)
+        assert batch["lat"].shape == (dm.batch_size,)
 
     def test_invalid_mixed_band_order(self, data_root, invalid_mixed_band_order):
         """Test that validation rejects band sequences with mixed modalities."""

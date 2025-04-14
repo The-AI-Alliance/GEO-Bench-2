@@ -180,7 +180,11 @@ datamodules:
         image_s2: [0, 3000]
         image_s1: [0, 1]
 
+<<<<<<< HEAD
   - name: kuro_siwo
+=======
+  - name: KuroSiwo
+>>>>>>> main
     stats_computer:
       _target_: geobench_v2.generate_benchmark.utils_dataset_statistics.SegmentationStatistics
       datamodule:
@@ -196,7 +200,11 @@ datamodules:
         image_dem: [0, 150]
         image_post: [0, 0.5]
 
+<<<<<<< HEAD
   - name: pastis
+=======
+  - name: PASTIS
+>>>>>>> main
     stats_computer:
       _target_: geobench_v2.generate_benchmark.utils_dataset_statistics.SegmentationStatistics
       datamodule:
@@ -212,7 +220,11 @@ datamodules:
         image_s1_asc: [0, 1]
         image_s1_desc: [0, 1]
 
+<<<<<<< HEAD
   - name: flair2
+=======
+  - name: FLAIR2
+>>>>>>> main
     stats_computer:
       _target_: geobench_v2.generate_benchmark.utils_dataset_statistics.SegmentationStatistics
       datamodule:
