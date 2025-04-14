@@ -70,7 +70,10 @@ class GeoBenchCaFFe(CaFFe, DataUtilsMixin):
         self.transforms = transforms
 
         self.band_order = self.resolve_band_order(band_order)
-        self.metadata = metadata
+        if metadata is None:
+            self.metadata = []
+        else:
+            self.metadata = metadata
 
         self.data_normalizer = data_normalizer(
             self.normalization_stats, self.band_order

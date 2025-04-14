@@ -53,6 +53,8 @@ class GeoBenchRESISC45(RESISC45, DataUtilsMixin):
                 which applies z-score normalization to each band.
             **kwargs: Additional keyword arguments passed to ``torchgeo.datasts.RESISC45``
         """
+        if split == "validation":
+            split = "val"
         super().__init__(root=root, split=split, **kwargs)
 
         self.band_order = self.resolve_band_order(band_order)

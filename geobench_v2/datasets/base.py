@@ -5,7 +5,7 @@
 
 import torch.nn as nn
 from torch import Tensor
-from typing import Type, Literal
+from typing import Type, Literal, Sequence
 import rasterio
 from torchgeo.datasets import NonGeoDataset
 import tacoreader
@@ -46,6 +46,10 @@ class GeoBenchBaseDataset(NonGeoDataset, DataUtilsMixin):
         self.split = split
         self.band_order = band_order
         self.transforms = transforms
+        if metadata is None:
+            self.metadata = []
+        else:
+            self.metadata = metadata
 
         self.data_df = tacoreader.load([os.path.join(root, f) for f in self.paths])
         if split == "val":

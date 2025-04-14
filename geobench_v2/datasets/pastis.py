@@ -155,18 +155,20 @@ class GeoBenchPASTIS(PASTIS, DataUtilsMixin):
 
         self.label_type = label_type
         self.return_stacked_image = return_stacked_image
-        self.metadata = metadata
 
-        self.metadata_df = pd.read_parquet(
-            os.path.join(root, "geobench_pastis.parquet")
+        if metadata is None:
+            self.metadata = []
+        else:
+            self.metadata = metadata
+
+        self.data_df = pd.read_parquet(os.path.join(root, "geobench_pastis.parquet"))
+        self.data_df = self.data_df[self.data_df["split"] == split].reset_index(
+            drop=True
         )
-        self.metadata_df = self.metadata_df[
-            self.metadata_df["split"] == split
-        ].reset_index(drop=True)
 
     def __len__(self) -> int:
         """Return the length of the dataset."""
-        return len(self.metadata_df)
+        return len(self.data_df)
 
     def __getitem__(self, index: int) -> dict[str, Tensor]:
         """Return an index within the dataset.
@@ -178,7 +180,7 @@ class GeoBenchPASTIS(PASTIS, DataUtilsMixin):
             data and label at that index
         """
         sample: dict[str, Tensor] = {}
-        sample_row = self.metadata_df.iloc[index]
+        sample_row = self.data_df.iloc[index]
         data = {
             "s2": self._load_image(os.path.join(self.root, sample_row["s2_path"])),
             "s1_asc": self._load_image(os.path.join(self.root, sample_row["s1a_path"])),

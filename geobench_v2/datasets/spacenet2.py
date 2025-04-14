@@ -6,7 +6,7 @@
 from torch import Tensor
 from torchgeo.datasets import SpaceNet2
 from pathlib import Path
-from typing import Type, Literal
+from typing import Type, Literal, Sequence
 from shapely import wkt
 
 from .sensor_util import DatasetBandRegistry
