@@ -172,7 +172,7 @@ def create_spacenet2_masks(
     df: pd.DataFrame,
     src_root: str,
     output_root: str,
-    copy_originals: bool = False,
+    copy_originals: bool = True,
     visualize_samples: bool = True,
     num_vis_samples: int = 4,
 ) -> pd.DataFrame:
@@ -192,11 +192,17 @@ def create_spacenet2_masks(
     result_df = df.copy()
     os.makedirs(output_root, exist_ok=True)
 
-    for split in df["split"].unique():
-        mask_dir_semantic = os.path.join(output_root, split, "semantic_masks")
-        mask_dir_instance = os.path.join(output_root, split, "instance_masks")
-        os.makedirs(mask_dir_semantic, exist_ok=True)
-        os.makedirs(mask_dir_instance, exist_ok=True)
+    # Create directories for each split
+    mask_dir_semantic = os.path.join(output_root, "semantic_masks")
+    mask_dir_instance = os.path.join(output_root, "instance_masks")
+    os.makedirs(mask_dir_semantic, exist_ok=True)
+    os.makedirs(mask_dir_instance, exist_ok=True)
+
+    if copy_originals:
+        # Create directories for original images
+        for img_type in ["PAN", "MUL-PanSharpen", "RGB-PanSharpen"]:
+            img_dir = os.path.join(output_root, img_type)
+            os.makedirs(img_dir, exist_ok=True)
 
     if visualize_samples:
         os.makedirs(os.path.join(output_root, "visualizations"), exist_ok=True)
@@ -205,6 +211,7 @@ def create_spacenet2_masks(
         )
         vis_samples = []
 
+    # Initialize new columns for paths
     result_df["semantic_mask_path"] = None
     result_df["instance_mask_path"] = None
 
@@ -213,29 +220,43 @@ def create_spacenet2_masks(
         pan_path = os.path.join(src_root, row["pan_path"])
         split = row["split"]
 
-        label_dir = os.path.dirname(row["label_path"])
-        parent_dir = os.path.dirname(label_dir)
-        base_dir = os.path.dirname(parent_dir)
-
+        # Extract image ID for naming
         img_id = (
             os.path.basename(row["label_path"])
             .replace("buildings_", "")
             .replace(".geojson", "")
         )
 
-        semantic_mask_dir = os.path.join(base_dir, "semantic_masks")
-        instance_mask_dir = os.path.join(base_dir, "instance_masks")
-        os.makedirs(os.path.join(output_root, semantic_mask_dir), exist_ok=True)
-        os.makedirs(os.path.join(output_root, instance_mask_dir), exist_ok=True)
+        # Create output paths for masks
+        semantic_mask_name = f"semantic_{img_id}.tif"
+        instance_mask_name = f"instance_{img_id}.tif"
+        semantic_mask_path = os.path.join("semantic_masks", semantic_mask_name)
+        instance_mask_path = os.path.join("instance_masks", instance_mask_name)
 
-        semantic_mask_path = os.path.join(semantic_mask_dir, f"semantic_{img_id}.tif")
-        instance_mask_path = os.path.join(instance_mask_dir, f"instance_{img_id}.tif")
-
-        with rasterio.open(os.path.join(src_root, row["pan_path"])) as src:
+        # Read metadata from source image for profile creation
+        with rasterio.open(pan_path) as src:
             height, width = src.height, src.width
             transform = src.transform
-            profile = src.profile.copy()
+            crs = src.crs
+            nodata = src.nodata
 
+        # Create standardized profile with optimal compression settings
+        base_profile = {
+            "driver": "GTiff",
+            "height": height,
+            "width": width,
+            "tiled": True,
+            "blockxsize": 512,
+            "blockysize": 512,
+            "interleave": "pixel",
+            "compress": "zstd",
+            "zstd_level": 22,
+            "predictor": 2,
+            "crs": crs,
+            "transform": transform,
+        }
+
+        # Create semantic mask
         gdf = gpd.read_file(label_path)
         valid_geoms = [
             geom for geom in gdf.geometry if geom is not None and not geom.is_empty
@@ -250,8 +271,8 @@ def create_spacenet2_masks(
             all_touched=True,
         )
 
+        # Create instance mask
         instance_mask = np.zeros((height, width), dtype=np.uint16)
-
         for i, geom in enumerate(valid_geoms, start=1):
             building_mask = rasterize(
                 [(geom, i)],
@@ -263,18 +284,23 @@ def create_spacenet2_masks(
             )
             instance_mask = np.maximum(instance_mask, building_mask)
 
+        # Check for potential instance mask issues
         unique_instances = np.unique(instance_mask)
         if len(unique_instances) - 1 != len(valid_geoms):
             print(
                 f"Warning: Instance count mismatch in {img_id}: {len(unique_instances) - 1} vs {len(valid_geoms)}"
             )
 
-        profile.update(count=1, dtype="uint8", nodata=0)
-        instance_profile = profile.copy()
-        instance_profile.update(dtype="uint16")
+        # Create profiles for masks
+        semantic_profile = base_profile.copy()
+        semantic_profile.update(count=1, dtype="uint8", nodata=0)
 
+        instance_profile = base_profile.copy()
+        instance_profile.update(count=1, dtype="uint16", nodata=0)
+
+        # Write masks
         with rasterio.open(
-            os.path.join(output_root, semantic_mask_path), "w", **profile
+            os.path.join(output_root, semantic_mask_path), "w", **semantic_profile
         ) as dst:
             dst.write(semantic_mask[np.newaxis, :, :])
 
@@ -283,11 +309,78 @@ def create_spacenet2_masks(
         ) as dst:
             dst.write(instance_mask[np.newaxis, :, :])
 
+        # Store mask paths in DataFrame
         result_df.at[idx, "semantic_mask_path"] = semantic_mask_path
         result_df.at[idx, "instance_mask_path"] = instance_mask_path
 
-        if visualize_samples and idx in vis_indices:
+        # Handle original images if requested
+        if copy_originals:
+            # Process panchromatic image
+            pan_img_name = os.path.basename(row["pan_path"])
+            new_pan_path = os.path.join("PAN", pan_img_name)
+
+            # Process multispectral image
+            ps_ms_img_name = os.path.basename(row["ps-ms_path"])
+            new_ps_ms_path = os.path.join("MUL-PanSharpen", ps_ms_img_name)
+
+            # Process RGB image
+            ps_rgb_img_name = os.path.basename(row["ps-rgb_path"])
+            new_ps_rgb_path = os.path.join("RGB-PanSharpen", ps_rgb_img_name)
+
+            # Copy and convert panchromatic image
+            with rasterio.open(os.path.join(src_root, row["pan_path"])) as src:
+                pan_data = src.read()
+                pan_profile = base_profile.copy()
+                pan_profile.update(count=pan_data.shape[0], dtype=pan_data.dtype)
+                if src.nodata is not None:
+                    pan_profile.update(nodata=src.nodata)
+
+                with rasterio.open(
+                    os.path.join(output_root, new_pan_path), "w", **pan_profile
+                ) as dst:
+                    dst.write(pan_data)
+
+            # Copy and convert multispectral image
+            with rasterio.open(os.path.join(src_root, row["ps-ms_path"])) as src:
+                ms_data = src.read()
+                ms_profile = base_profile.copy()
+                ms_profile.update(count=ms_data.shape[0], dtype=ms_data.dtype)
+                if src.nodata is not None:
+                    ms_profile.update(nodata=src.nodata)
+
+                with rasterio.open(
+                    os.path.join(output_root, new_ps_ms_path), "w", **ms_profile
+                ) as dst:
+                    dst.write(ms_data)
+
+            # Copy and convert RGB image
             with rasterio.open(os.path.join(src_root, row["ps-rgb_path"])) as src:
+                rgb_data = src.read()
+                rgb_profile = base_profile.copy()
+                rgb_profile.update(count=rgb_data.shape[0], dtype=rgb_data.dtype)
+                if src.nodata is not None:
+                    rgb_profile.update(nodata=src.nodata)
+
+                with rasterio.open(
+                    os.path.join(output_root, new_ps_rgb_path), "w", **rgb_profile
+                ) as dst:
+                    dst.write(rgb_data)
+
+            # Update paths in DataFrame
+            result_df.at[idx, "pan_path"] = new_pan_path
+            result_df.at[idx, "ps-ms_path"] = new_ps_ms_path
+            result_df.at[idx, "ps-rgb_path"] = new_ps_rgb_path
+
+        # Prepare visualization data if needed
+        if visualize_samples and idx in vis_indices:
+            # For visualization, we use the original images from src_root if not copying,
+            # or the newly written images from output_root if we are copying
+            rgb_path = os.path.join(
+                output_root if copy_originals else src_root,
+                new_ps_rgb_path if copy_originals else row["ps-rgb_path"],
+            )
+
+            with rasterio.open(rgb_path) as src:
                 rgb_img = src.read() / 3000.0
                 rgb_img = np.clip(rgb_img, 0, 1)
                 rgb_img = rgb_img.transpose(1, 2, 0)
@@ -305,6 +398,7 @@ def create_spacenet2_masks(
                 }
             )
 
+    # Generate visualizations
     if visualize_samples and vis_samples:
         for i, sample in enumerate(vis_samples):
             fig, axes = plt.subplots(1, 3, figsize=(18, 6))
@@ -342,15 +436,21 @@ def create_spacenet2_masks(
             )
             plt.close(fig)
 
+    # Save metadata
     result_df.to_parquet(
         os.path.join(output_root, "spacenet2_metadata.parquet"), index=False
     )
 
+    # Print summary
     semantic_count = len(result_df[~result_df["semantic_mask_path"].isna()])
     instance_count = len(result_df[~result_df["instance_mask_path"].isna()])
     print(
         f"Generated masks for {len(df)} samples: {semantic_count} semantic, {instance_count} instance"
     )
+    if copy_originals:
+        print(
+            f"Copied and optimized {len(df)} original images with new profile settings"
+        )
 
     return result_df
 
@@ -369,8 +469,6 @@ def visualize_samples(
         num_samples: Number of random samples to visualize
         output_path: Path to save the visualization
     """
-    # set new random seed
-    np.random.seed(np.random.randint(0, 10000))
     random_indices = np.random.choice(len(df), min(num_samples, len(df)), replace=False)
     random_rows = df.iloc[random_indices]
 
@@ -526,6 +624,65 @@ def create_tortilla(root_dir, df, save_dir):
     )
 
 
+def create_geobench_version(
+    metadata_df: pd.DataFrame,
+    n_train_samples: int,
+    n_val_samples: int,
+    n_test_samples: int,
+    root_dir: str,
+    save_dir: str,
+) -> None:
+    """Create a GeoBench version of the dataset.
+    Args:
+        metadata_df: DataFrame with metadata including geolocation for each patch
+        n_train_samples: Number of final training samples, -1 means all
+        n_val_samples: Number of final validation samples, -1 means all
+        n_test_samples: Number of final test samples, -1 means all
+        root_dir: Root directory for the dataset
+        save_dir: Directory to save the GeoBench version
+    """
+    random_state = 24
+
+    # Step 1: Subsample procedure
+    # Handle -1 case which means "use all samples"
+    train_count = len(metadata_df[metadata_df["split"] == "train"])
+    val_count = len(metadata_df[metadata_df["split"] == "validation"])
+    test_count = len(metadata_df[metadata_df["split"] == "test"])
+
+    n_train_samples = (
+        train_count if n_train_samples == -1 else min(n_train_samples, train_count)
+    )
+    n_val_samples = val_count if n_val_samples == -1 else min(n_val_samples, val_count)
+    n_test_samples = (
+        test_count if n_test_samples == -1 else min(n_test_samples, test_count)
+    )
+
+    print(
+        f"Selecting {n_train_samples} train, {n_val_samples} validation, and {n_test_samples} test samples"
+    )
+
+    train_samples = metadata_df[metadata_df["split"] == "train"].sample(
+        n_train_samples, random_state=random_state
+    )
+    val_samples = metadata_df[metadata_df["split"] == "validation"].sample(
+        n_val_samples, random_state=random_state
+    )
+    test_samples = metadata_df[metadata_df["split"] == "test"].sample(
+        n_test_samples, random_state=random_state
+    )
+    subset_df = pd.concat([train_samples, val_samples, test_samples])
+
+    result_df = create_spacenet2_masks(
+        subset_df,
+        src_root=root_dir,
+        output_root=save_dir,
+        copy_originals=True,
+        visualize_samples=False,
+        # num_vis_samples=4,
+    )
+    return result_df
+
+
 def main():
     """Generate SpaceNet2 Benchmark."""
     parser = argparse.ArgumentParser()
@@ -555,27 +712,36 @@ def main():
     if os.path.exists(result_path):
         result_df = pd.read_parquet(result_path)
     else:
-        result_df = create_spacenet2_masks(
+        # result_df = create_spacenet2_masks(
+        #     full_df,
+        #     src_root=args.root,
+        #     output_root=args.root,
+        #     copy_originals=False,
+        #     visualize_samples=False,
+        #     # num_vis_samples=4,
+        # )
+        result_df = create_geobench_version(
             full_df,
-            src_root=args.root,
-            output_root=args.root,
-            copy_originals=False,
-            visualize_samples=False,
-            # num_vis_samples=4,
+            n_train_samples=4000,
+            n_val_samples=-1,
+            n_test_samples=-1,
+            root_dir=args.root,
+            save_dir=args.save_dir,
         )
 
         result_df.to_parquet(result_path, index=False)
 
+    tortilla_name = "geobench_spacenet2.tortilla"
+    create_tortilla(args.root, result_df, args.save_dir, tortilla_name=tortilla_name)
+
     create_unittest_subset(
         data_dir=args.save_dir,
-        tortilla_pattern="SpaceNet2.*.part.tortilla",
+        tortilla_pattern=f"{tortilla_name.split('.')[0]}.part.tortilla",
         test_dir_name="spacenet2",
         n_train_samples=2,
         n_val_samples=1,
         n_test_samples=1,
     )
-
-    # create_tortilla(args.root, result_df, args.save_dir)
 
     # for city in full_df["area"].unique():
     #     plot_sample_locations(

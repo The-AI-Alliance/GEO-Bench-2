@@ -23,8 +23,10 @@ from matplotlib.colors import LinearSegmentedColormap
 import numpy as np
 from geobench_v2.generate_benchmark.utils import (
     plot_sample_locations,
-    create_subset_from_tortilla,
+    create_unittest_subset,
 )
+
+from rasterio.enums import Resampling
 
 
 def extract_date_from_patch_id(patch_id: str) -> str:
@@ -63,15 +65,13 @@ def process_row(args: tuple) -> dict[str, Any]:
     Returns:
         Dictionary with patch_id, lon, and lat
     """
-    row, root, dir_file_names = args
+    row, root, dir_name = args
     patch_id = row["patch_id"]
     date = extract_date_from_patch_id(patch_id)
     patch_dir = "_".join(patch_id.split("_")[0:-2])
 
     # Find the first TIF file in the patch directory
-    path_pattern = os.path.join(
-        root, dir_file_names["s2"], patch_dir, patch_id, "*.tif"
-    )
+    path_pattern = os.path.join(root, dir_name, patch_dir, patch_id, "*.tif")
     paths = glob.glob(path_pattern)
 
     if not paths:
@@ -114,7 +114,7 @@ def generate_metadata_df(root_dir, num_workers: int = 8) -> pd.DataFrame:
 
     # Prepare arguments for parallel processing
     args_list = [
-        (row, ds.root, ds.dir_file_names) for _, row in full_metadata_df.iterrows()
+        (row, root_dir, "BigEarthNet-S2") for _, row in full_metadata_df.iterrows()
     ]
 
     # Process in parallel with progress bar
@@ -136,7 +136,7 @@ def generate_metadata_df(root_dir, num_workers: int = 8) -> pd.DataFrame:
     return metadata_df
 
 
-def create_tortilla(root_dir, metadata_df, save_dir):
+def create_tortilla(root_dir, metadata_df, save_dir, tortilla_name):
     """Create a tortilla version of the dataset."""
 
     tortilla_dir = os.path.join(save_dir, "tortilla")
@@ -249,8 +249,198 @@ def create_tortilla(root_dir, metadata_df, save_dir):
     # create final taco file
     final_samples = tacotoolbox.tortilla.datamodel.Samples(samples=samples)
     tacotoolbox.tortilla.create(
-        final_samples, os.path.join(save_dir, "FullBenV2.tortilla"), quiet=True
+        final_samples, os.path.join(save_dir, tortilla_name), quiet=True
     )
+
+
+def create_geobench_version(
+    metadata_df: pd.DataFrame,
+    n_train_samples: int,
+    n_val_samples: int,
+    n_test_samples: int,
+    root_dir: str,
+    save_dir: str,
+) -> None:
+    """Create a GeoBench version of the dataset.
+    Args:
+        metadata_df: DataFrame with metadata including geolocation for each patch
+        n_train_samples: Number of final training samples, -1 means all
+        n_val_samples: Number of final validation samples, -1 means all
+        n_test_samples: Number of final test samples, -1 means all
+        root_dir: Root directory for the dataset
+        save_dir: Directory to save the GeoBench version
+    """
+    random_state = 24
+
+    # Step 1: Subsample procedure
+    # Handle -1 case which means "use all samples"
+    train_count = len(metadata_df[metadata_df["split"] == "train"])
+    val_count = len(metadata_df[metadata_df["split"] == "validation"])
+    test_count = len(metadata_df[metadata_df["split"] == "test"])
+
+    n_train_samples = (
+        train_count if n_train_samples == -1 else min(n_train_samples, train_count)
+    )
+    n_val_samples = val_count if n_val_samples == -1 else min(n_val_samples, val_count)
+    n_test_samples = (
+        test_count if n_test_samples == -1 else min(n_test_samples, test_count)
+    )
+
+    print(
+        f"Selecting {n_train_samples} train, {n_val_samples} validation, and {n_test_samples} test samples"
+    )
+
+    train_samples = metadata_df[metadata_df["split"] == "train"].sample(
+        n_train_samples, random_state=random_state
+    )
+    val_samples = metadata_df[metadata_df["split"] == "validation"].sample(
+        n_val_samples, random_state=random_state
+    )
+    test_samples = metadata_df[metadata_df["split"] == "test"].sample(
+        n_test_samples, random_state=random_state
+    )
+    subset_df = pd.concat([train_samples, val_samples, test_samples])
+
+    # Step 2: Write data in optimized geotiff format to the save_dir
+    # Create directories for each split
+    for split in ["train", "validation", "test"]:
+        os.makedirs(os.path.join(save_dir, split, "S1"), exist_ok=True)
+        os.makedirs(os.path.join(save_dir, split, "S2"), exist_ok=True)
+
+    subset_df["s1_path"] = None
+    subset_df["s2_path"] = None
+
+    for idx, row in tqdm(
+        subset_df.iterrows(), total=len(subset_df), desc="Creating optimized GeoTIFFs"
+    ):
+        split = row["split"]
+
+        s1_bands = ["VH", "VV"]
+        s1_patch_id = row["s1_name"]
+        s1_patch_dir = "_".join(s1_patch_id.split("_")[0:-3])
+        s1_dir = os.path.join(root_dir, "BigEarthNet-S1", s1_patch_dir, s1_patch_id)
+
+        s1_band_paths = [
+            os.path.join(s1_dir, f"{s1_patch_id}_{band}.tif") for band in s1_bands
+        ]
+
+        s1_output_path = os.path.join(save_dir, split, "S1", f"{s1_patch_id}.tif")
+        subset_df.at[idx, "s1_path"] = os.path.join(split, "S1", f"{s1_patch_id}.tif")
+
+        with rasterio.open(s1_band_paths[0]) as src:
+            height = src.height
+            width = src.width
+            crs = src.crs
+            transform = src.transform
+            dtype = src.dtypes[0]
+
+            s1_profile = {
+                "driver": "GTiff",
+                "height": height,
+                "width": width,
+                "count": 2,  # VH, VV
+                "dtype": dtype,
+                "tiled": True,
+                "blockxsize": 64,
+                "blockysize": 64,
+                "interleave": "pixel",
+                "compress": "zstd",
+                "zstd_level": 22,
+                "predictor": 2,
+                "crs": crs,
+                "transform": transform,
+            }
+
+        s1_data = []
+        for path in s1_band_paths:
+            with rasterio.open(path) as src:
+                s1_data.append(src.read(1))
+
+        s1_data_array = np.stack(s1_data)
+
+        with rasterio.open(s1_output_path, "w", **s1_profile) as dst:
+            dst.write(s1_data_array)
+
+        # --- Process S2 data ---
+        s2_bands = [
+            "B01",
+            "B02",
+            "B03",
+            "B04",
+            "B05",
+            "B06",
+            "B07",
+            "B08",
+            "B8A",
+            "B09",
+            "B11",
+            "B12",
+        ]
+        s2_patch_id = row["patch_id"]
+        s2_patch_dir = "_".join(s2_patch_id.split("_")[0:-2])
+        s2_dir = os.path.join(root_dir, "BigEarthNet-S2", s2_patch_dir, s2_patch_id)
+
+        # Get paths for S2 bands
+        s2_band_paths = [
+            os.path.join(s2_dir, f"{s2_patch_id}_{band}.tif") for band in s2_bands
+        ]
+
+        # Create destination path for consolidated S2 file
+        s2_output_path = os.path.join(save_dir, split, "S2", f"{s2_patch_id}.tif")
+        subset_df.at[idx, "s2_path"] = os.path.join(split, "S2", f"{s2_patch_id}.tif")
+
+        # Read metadata from first band to setup the output profile
+        with rasterio.open(s2_band_paths[0]) as src:
+            crs = src.crs
+            transform = src.transform
+            dtype = src.dtypes[0]
+
+            # Create optimized profile for S2 data - 12 bands
+            s2_profile = {
+                "driver": "GTiff",
+                "height": 120,
+                "width": 120,
+                "count": 12,  # 12 S2 bands
+                "dtype": dtype,
+                "tiled": True,
+                "blockxsize": 128,
+                "blockysize": 128,
+                "interleave": "pixel",
+                "compress": "zstd",
+                "zstd_level": 22,
+                "predictor": 2,
+                "crs": crs,
+                "transform": transform,
+            }
+
+        # Read S2 bands and write to consolidated file
+        s2_data = []
+        for path in s2_band_paths:
+            with rasterio.open(path) as src:
+                array = src.read(
+                    indexes=1,
+                    out_shape=(120, 120),
+                    out_dtype="int32",
+                    resampling=Resampling.bilinear,
+                )
+                s2_data.append(array)
+
+        s2_data_array = np.stack(s2_data)
+
+        with rasterio.open(s2_output_path, "w", **s2_profile) as dst:
+            dst.write(s2_data_array)
+
+    subset_df.to_parquet(
+        os.path.join(save_dir, "geobench_benv2_optimized.parquet"), index=False
+    )
+    print(f"Created optimized dataset with {len(subset_df)} samples")
+
+    # Step 3: Create the tortilla version of the dataset using the updated paths
+    create_tortilla(
+        save_dir, subset_df, save_dir, tortilla_name="geobench_benv2.tortilla"
+    )
+
+    return subset_df
 
 
 def main():
@@ -278,21 +468,25 @@ def main():
 
     # create_tortilla(args.root, metadata_df, args.save_dir)
 
-    taco_glob = sorted(
-        glob.glob(os.path.join(args.save_dir, "FullBenV2.*.part.tortilla"))
+    create_geobench_version(
+        metadata_df=metadata_df,
+        n_train_samples=20000,
+        n_val_samples=4000,
+        n_test_samples=4000,
+        root_dir=args.root,
+        save_dir=args.save_dir,
     )
-    taco_ben = tacoreader.load(taco_glob)
 
-    # create unit test subset
-    unit_test_taco = create_subset_from_tortilla(
-        taco_ben, n_train_samples=4, n_val_samples=2, n_test_samples=2
-    )
-    script_dir = os.path.dirname(os.path.abspath(__file__))
-    repo_root = os.path.dirname(os.path.dirname(script_dir))
-    test_data_dir = os.path.join(repo_root, "tests", "data", "benv2")
-    os.makedirs(test_data_dir, exist_ok=True)
-    tacoreader.compile(
-        dataframe=unit_test_taco, output=os.path.join(test_data_dir, "benv2.tortilla")
+    import pdb
+
+    pdb.set_trace()
+    create_unittest_subset(
+        data_dir=args.save_dir,
+        tortilla_pattern="FullBenV2.*.part.tortilla",
+        test_dir_name="benv2",
+        n_train_samples=4,
+        n_val_samples=2,
+        n_test_samples=2,
     )
 
 
