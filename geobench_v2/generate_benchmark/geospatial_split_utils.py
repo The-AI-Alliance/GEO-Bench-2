@@ -19,10 +19,13 @@ from tqdm import tqdm
 import rasterio
 import re
 from rasterio.windows import Window
+from rasterio.enums import Compression
 
 import matplotlib.pyplot as plt
 from matplotlib.patches import Rectangle
 import matplotlib.gridspec as gridspec
+import numpy as np
+from skimage.transform import resize
 
 
 def dataframe_to_geodataframe(
@@ -1061,6 +1064,7 @@ def split_geospatial_tiles_into_patches(
     modal_path_dict: dict[str, list[str]],
     output_dir: str,
     patch_size: tuple[int, int] = (512, 512),
+    block_size: tuple[int, int] = (512, 512),
     stride: tuple[int, int] | None = None,
     output_format: str = "tif",
     patch_id_prefix: str = "p",
@@ -1075,6 +1079,7 @@ def split_geospatial_tiles_into_patches(
         modal_path_dict: Dictionary mapping modality names to lists of image paths
         output_dir: Directory to save patches and metadata
         patch_size: Size of the patches (height, width)
+        block_size: Size of the blocks (height, width) to write tiff profile with
         stride: Step size between patches (height, width)
         output_format: Output file format (e.g., 'tif')
         patch_id_prefix: Prefix for patch IDs
@@ -1086,8 +1091,7 @@ def split_geospatial_tiles_into_patches(
     Returns:
         DataFrame containing metadata for all created patches
     """
-    import numpy as np
-    from skimage.transform import resize
+    blockxsize, blockysize = block_size
 
     modalities = list(modal_path_dict.keys())
     mask_modality = "mask"
@@ -1339,15 +1343,22 @@ def split_geospatial_tiles_into_patches(
                         try:
                             if modality == mask_modality:
                                 patch_data = mask_data
-
+                                # Set standard profile based on requirements
                                 patch_meta = {
-                                    "driver": "GTiff",
-                                    "height": patch_size[0],
-                                    "width": patch_size[1],
-                                    "count": 1,
-                                    "dtype": np.uint8,
-                                    "crs": src_crs,
-                                    "transform": patch_transform,
+                                    'driver': 'GTiff',
+                                    'compress': Compression.lzw,
+                                    'interleave': 'pixel',
+                                    'tiled': True,
+                                    'blockxsize': blockxsize,
+                                    'blockysize': blockysize,
+                                    'predictor': 2,
+                                    'zlevel': 9,
+                                    'count': patch_data.shape[0],
+                                    'dtype': patch_data.dtype,
+                                    'crs': src_crs,
+                                    'transform': patch_transform,
+                                    'width': patch_size[1],
+                                    'height': patch_size[0],
                                 }
                             else:
                                 if modality_tiles[modality] is not None:
@@ -1356,30 +1367,45 @@ def split_geospatial_tiles_into_patches(
                                         row_start : row_start + patch_size[0],
                                         col_start : col_start + patch_size[1],
                                     ]
-
-                                    with rasterio.open(
-                                        modal_img_paths[modality]
-                                    ) as src:
-                                        patch_meta = src.meta.copy()
-                                        patch_meta.update(
-                                            {
-                                                "height": patch_size[0],
-                                                "width": patch_size[1],
-                                                "transform": patch_transform,
-                                                "count": patch_data.shape[0],
-                                            }
-                                        )
+                                    
+                                    # Set standard profile based on requirements
+                                    patch_meta = {
+                                        'driver': 'GTiff',
+                                        'compress': Compression.lzw,
+                                        'interleave': 'pixel',
+                                        'tiled': True,
+                                        'blockxsize': blockxsize,
+                                        'blockysize': blockysize,
+                                        'predictor': 2,
+                                        'zlevel': 9,
+                                        'count': patch_data.shape[0],
+                                        'dtype': patch_data.dtype,
+                                        'crs': src_crs,
+                                        'transform': patch_transform,
+                                        'width': patch_size[1],
+                                        'height': patch_size[0],
+                                    }
                                 else:
                                     with rasterio.open(modality_path) as src:
                                         patch_data = src.read(window=window)
-                                        patch_meta = src.meta.copy()
-                                        patch_meta.update(
-                                            {
-                                                "height": patch_size[0],
-                                                "width": patch_size[1],
-                                                "transform": patch_transform,
-                                            }
-                                        )
+                                        
+                                        # Set standard profile based on requirements
+                                        patch_meta = {
+                                            'driver': 'GTiff',
+                                            'compress': Compression.lzw,
+                                            'interleave': 'pixel',
+                                            'tiled': True,
+                                            'blockxsize': blockxsize,
+                                            'blockysize': blockysize,
+                                            'predictor': 2,
+                                            'zlevel': 9,
+                                            'count': patch_data.shape[0],
+                                            'dtype': patch_data.dtype,
+                                            'crs': src_crs,
+                                            'transform': patch_transform,
+                                            'width': patch_size[1],
+                                            'height': patch_size[0],
+                                        }
 
                             with rasterio.open(patch_path, "w", **patch_meta) as dst:
                                 dst.write(patch_data)
