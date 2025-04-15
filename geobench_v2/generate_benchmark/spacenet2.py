@@ -626,8 +626,6 @@ def create_geobench_version(
     """
     random_state = 24
 
-    # Step 1: Subsample procedure
-    # Handle -1 case which means "use all samples"
     train_count = len(metadata_df[metadata_df["split"] == "train"])
     val_count = len(metadata_df[metadata_df["split"] == "validation"])
     test_count = len(metadata_df[metadata_df["split"] == "test"])
@@ -691,19 +689,19 @@ def main():
     full_df = create_city_based_checkerboard_splits(metadata_df)
 
     result_path = os.path.join(args.save_dir, "geobench_spacenet2.parquet")
-    # if os.path.exists(result_path):
-    #     result_df = pd.read_parquet(result_path)
-    # else:
-    result_df = create_geobench_version(
-        full_df,
-        n_train_samples=4000,
-        n_val_samples=-1,
-        n_test_samples=-1,
-        root_dir=args.root,
-        save_dir=args.save_dir,
-    )
+    if os.path.exists(result_path):
+        result_df = pd.read_parquet(result_path)
+    else:
+        result_df = create_geobench_version(
+            full_df,
+            n_train_samples=4000,
+            n_val_samples=-1,
+            n_test_samples=-1,
+            root_dir=args.root,
+            save_dir=args.save_dir,
+        )
 
-    result_df.to_parquet(result_path, index=False)
+        result_df.to_parquet(result_path, index=False)
 
     tortilla_name = "geobench_spacenet2.tortilla"
 

@@ -867,11 +867,11 @@ def main():
     if not os.path.exists(args.save_dir):
         os.makedirs(args.save_dir)
 
-    # if os.path.exists(metadata_path):
-    #     metadata_df = pd.read_parquet(metadata_path)
-    # else:
-    metadata_df = generate_metadata_df(args.root)
-    metadata_df.to_parquet(metadata_path)
+    if os.path.exists(metadata_path):
+        metadata_df = pd.read_parquet(metadata_path)
+    else:
+        metadata_df = generate_metadata_df(args.root)
+        metadata_df.to_parquet(metadata_path)
 
     metadata_df_with_split = create_geographic_splits_spacenet7(
         metadata_df, train_ratio=0.7, val_ratio=0.1, test_ratio=0.2, random_state=0
@@ -887,26 +887,26 @@ def main():
 
     geobench_df_path = os.path.join(args.save_dir, "geobench_spacenet7_patches.parquet")
 
-    # if os.path.exists(geobench_df_path):
-    #     patches_df = pd.read_parquet(geobench_df_path)
-    # else:
-    patches_df = create_geobench_version(
-        metadata_df_with_split,
-        n_train_samples=4000,
-        n_val_samples=-1,
-        n_test_samples=-1,
-        root_dir=args.root,
-        save_dir=args.save_dir,
-    )
-    patches_df.to_parquet(geobench_df_path)
+    if os.path.exists(geobench_df_path):
+        patches_df = pd.read_parquet(geobench_df_path)
+    else:
+        patches_df = create_geobench_version(
+            metadata_df_with_split,
+            n_train_samples=4000,
+            n_val_samples=-1,
+            n_test_samples=-1,
+            root_dir=args.root,
+            save_dir=args.save_dir,
+        )
+        patches_df.to_parquet(geobench_df_path)
 
     tortilla_name = "geobench_spacenet7.tortilla"
-    create_tortilla(
-        os.path.join(os.path.dirname(args.root), "patches"),
-        patches_df,
-        os.path.join(args.save_dir, "tortilla"),
-        tortilla_name=tortilla_name,
-    )
+    # create_tortilla(
+    #     os.path.join(os.path.dirname(args.root), "patches"),
+    #     patches_df,
+    #     os.path.join(args.save_dir, "tortilla"),
+    #     tortilla_name=tortilla_name,
+    # )
 
     create_unittest_subset(
         data_dir=args.save_dir,
