@@ -1345,20 +1345,20 @@ def split_geospatial_tiles_into_patches(
                                 patch_data = mask_data
                                 # Set standard profile based on requirements
                                 patch_meta = {
-                                    'driver': 'GTiff',
-                                    'compress': Compression.lzw,
-                                    'interleave': 'pixel',
-                                    'tiled': True,
-                                    'blockxsize': blockxsize,
-                                    'blockysize': blockysize,
-                                    'predictor': 2,
-                                    'zlevel': 9,
-                                    'count': patch_data.shape[0],
-                                    'dtype': patch_data.dtype,
-                                    'crs': src_crs,
-                                    'transform': patch_transform,
-                                    'width': patch_size[1],
-                                    'height': patch_size[0],
+                                    "driver": "GTiff",
+                                    "compress": Compression.lzw,
+                                    "interleave": "pixel",
+                                    "tiled": True,
+                                    "blockxsize": blockxsize,
+                                    "blockysize": blockysize,
+                                    "predictor": 2,
+                                    "zlevel": 9,
+                                    "count": patch_data.shape[0],
+                                    "dtype": patch_data.dtype,
+                                    "crs": src_crs,
+                                    "transform": patch_transform,
+                                    "width": patch_size[1],
+                                    "height": patch_size[0],
                                 }
                             else:
                                 if modality_tiles[modality] is not None:
@@ -1367,44 +1367,44 @@ def split_geospatial_tiles_into_patches(
                                         row_start : row_start + patch_size[0],
                                         col_start : col_start + patch_size[1],
                                     ]
-                                    
+
                                     # Set standard profile based on requirements
                                     patch_meta = {
-                                        'driver': 'GTiff',
-                                        'compress': Compression.lzw,
-                                        'interleave': 'pixel',
-                                        'tiled': True,
-                                        'blockxsize': blockxsize,
-                                        'blockysize': blockysize,
-                                        'predictor': 2,
-                                        'zlevel': 9,
-                                        'count': patch_data.shape[0],
-                                        'dtype': patch_data.dtype,
-                                        'crs': src_crs,
-                                        'transform': patch_transform,
-                                        'width': patch_size[1],
-                                        'height': patch_size[0],
+                                        "driver": "GTiff",
+                                        "compress": Compression.lzw,
+                                        "interleave": "pixel",
+                                        "tiled": True,
+                                        "blockxsize": blockxsize,
+                                        "blockysize": blockysize,
+                                        "predictor": 2,
+                                        "zlevel": 9,
+                                        "count": patch_data.shape[0],
+                                        "dtype": patch_data.dtype,
+                                        "crs": src_crs,
+                                        "transform": patch_transform,
+                                        "width": patch_size[1],
+                                        "height": patch_size[0],
                                     }
                                 else:
                                     with rasterio.open(modality_path) as src:
                                         patch_data = src.read(window=window)
-                                        
+
                                         # Set standard profile based on requirements
                                         patch_meta = {
-                                            'driver': 'GTiff',
-                                            'compress': Compression.lzw,
-                                            'interleave': 'pixel',
-                                            'tiled': True,
-                                            'blockxsize': blockxsize,
-                                            'blockysize': blockysize,
-                                            'predictor': 2,
-                                            'zlevel': 9,
-                                            'count': patch_data.shape[0],
-                                            'dtype': patch_data.dtype,
-                                            'crs': src_crs,
-                                            'transform': patch_transform,
-                                            'width': patch_size[1],
-                                            'height': patch_size[0],
+                                            "driver": "GTiff",
+                                            "compress": Compression.lzw,
+                                            "interleave": "pixel",
+                                            "tiled": True,
+                                            "blockxsize": blockxsize,
+                                            "blockysize": blockysize,
+                                            "predictor": 2,
+                                            "zlevel": 9,
+                                            "count": patch_data.shape[0],
+                                            "dtype": patch_data.dtype,
+                                            "crs": src_crs,
+                                            "transform": patch_transform,
+                                            "width": patch_size[1],
+                                            "height": patch_size[0],
                                         }
 
                             with rasterio.open(patch_path, "w", **patch_meta) as dst:
@@ -2163,440 +2163,6 @@ def create_geospatial_temporal_split(
             print(f"  {areas}")
 
     return df
-
-
-def split_spacenet7_into_patches(
-    root_dir: str,
-    metadata_df: pd.DataFrame,
-    output_dir: str,
-    patch_size: tuple[int, int] = (512, 512),
-) -> pd.DataFrame:
-    """Split SpaceNet7 images and labels into patches of specified size.
-
-    Args:
-        root_dir: Root directory of SpaceNet7 dataset
-        metadata_df: DataFrame with image/label paths and metadata
-        output_dir: Directory to save patches and metadata
-        patch_size: Size of patches to create (height, width)
-
-    Returns:
-        DataFrame with metadata for all created patches
-    """
-    os.makedirs(output_dir, exist_ok=True)
-
-    img_dir = os.path.join(output_dir, "images")
-    mask_dir = os.path.join(output_dir, "masks")
-    os.makedirs(img_dir, exist_ok=True)
-    os.makedirs(mask_dir, exist_ok=True)
-
-    all_patch_metadata = []
-
-    for idx, row in tqdm(
-        metadata_df.iterrows(), total=len(metadata_df), desc="Creating patches"
-    ):
-        img_path = os.path.join(root_dir, row["image_path"])
-        label_path = os.path.join(root_dir, row["labels_path"])
-
-        img_filename = os.path.basename(img_path)
-        img_basename = os.path.splitext(img_filename)[0]
-
-        with rasterio.open(img_path) as img_src:
-            image = img_src.read()
-            img_meta = img_src.meta.copy()
-            src_height, src_width = img_src.height, img_src.width
-            src_crs = img_src.crs
-            src_transform = img_src.transform
-
-            gdf = gpd.read_file(label_path)
-            if len(gdf) > 0 and not gdf.empty:
-                if gdf.crs is None:
-                    gdf.set_crs(src_crs, inplace=True)
-                elif gdf.crs != src_crs:
-                    gdf = gdf.to_crs(src_crs)
-
-                label_shapes = [
-                    (geom, 1)
-                    for geom in gdf.geometry
-                    if geom is not None and not geom.is_empty
-                ]
-
-                label_mask = rasterize(
-                    label_shapes,
-                    out_shape=(src_height, src_width),
-                    transform=src_transform,
-                    fill=0,
-                    dtype=np.uint8,
-                    all_touched=False,
-                )
-                label_mask = label_mask[np.newaxis, :, :]
-            else:
-                label_mask = np.zeros((1, src_height, src_width), dtype=np.uint8)
-
-        num_patches_h = 2
-        num_patches_w = 2
-
-        patch_info_list = []
-        for i in range(num_patches_h):
-            for j in range(num_patches_w):
-                # Calculate window position with possible overlap for odd-sized images
-                row_start = i * (src_height // num_patches_h)
-                if i == 1 and src_height < num_patches_h * patch_size[0]:
-                    # Ensure the second patch gets full size by overlapping
-                    row_start = src_height - patch_size[0]
-
-                col_start = j * (src_width // num_patches_w)
-                if j == 1 and src_width < num_patches_w * patch_size[1]:
-                    # Ensure the second patch gets full size by overlapping
-                    col_start = src_width - patch_size[1]
-
-                # Ensure window is within bounds
-                row_end = min(row_start + patch_size[0], src_height)
-                col_end = min(col_start + patch_size[1], src_width)
-
-                img_patch = image[:, row_start:row_end, col_start:col_end]
-                mask_patch = label_mask[:, row_start:row_end, col_start:col_end]
-
-                patch_transform = rasterio.transform.from_origin(
-                    src_transform.c + col_start * src_transform.a,
-                    src_transform.f + row_start * src_transform.e,
-                    src_transform.a,
-                    src_transform.e,
-                )
-
-                patch_id = f"{img_basename}_p{i}{j}"
-
-                img_patch_path = os.path.join(img_dir, f"{patch_id}.tif")
-                mask_patch_path = os.path.join(mask_dir, f"{patch_id}.tif")
-
-                patch_meta = img_meta.copy()
-                patch_meta.update(
-                    {
-                        "height": patch_size[0],
-                        "width": patch_size[1],
-                        "transform": patch_transform,
-                    }
-                )
-
-                with rasterio.open(img_patch_path, "w", **patch_meta) as dst:
-                    dst.write(img_patch)
-
-                mask_meta = patch_meta.copy()
-                mask_meta.update({"count": 1, "dtype": np.uint8})
-
-                with rasterio.open(mask_patch_path, "w", **mask_meta) as dst:
-                    dst.write(mask_patch)
-
-                patch_bounds = rasterio.transform.array_bounds(
-                    patch_size[0], patch_size[1], patch_transform
-                )
-                west, south, east, north = patch_bounds
-                center_x = (west + east) / 2
-                center_y = (north + south) / 2
-
-                lon, lat = center_x, center_y
-                if src_crs and not src_crs.is_geographic:
-                    from pyproj import Transformer
-
-                    transformer = Transformer.from_crs(
-                        src_crs, "EPSG:4326", always_xy=True
-                    )
-                    lon, lat = transformer.transform(center_x, center_y)
-
-                patch_metadata = {
-                    "source_img_file": img_filename,
-                    "source_mask_file": os.path.basename(label_path),
-                    "patch_id": patch_id,
-                    "images_path": os.path.relpath(img_patch_path, start=output_dir),
-                    "mask_path": os.path.relpath(mask_patch_path, start=output_dir),
-                    "lon": lon,
-                    "lat": lat,
-                    "height_px": patch_size[0],
-                    "width_px": patch_size[1],
-                    "crs": str(src_crs),
-                    "row": i,
-                    "col": j,
-                    "row_px": row_start,
-                    "col_px": col_start,
-                    "date": row["date"],
-                    "year": row["year"],
-                    "month": row["month"],
-                    "aoi": row["aoi"],
-                }
-
-                patch_info_list.append(
-                    ((img_patch, mask_patch), i, j, row_start, col_start)
-                )
-
-                all_patch_metadata.append(patch_metadata)
-
-        # vis_dir = os.path.join(output_dir, "visualizations")
-        # os.makedirs(vis_dir, exist_ok=True)
-        # vis_path = os.path.join(vis_dir, f"{img_basename}_patches.png")
-
-        # visualize_spacenet7_patches(
-        #     image,
-        #     label_mask,
-        #     patch_info_list,
-        #     output_path=vis_path
-        # )
-        # import pdb
-        # pdb.set_trace()
-
-    patches_df = pd.DataFrame(all_patch_metadata)
-
-    metadata_path = os.path.join(output_dir, "patch_metadata.parquet")
-    patches_df.to_parquet(metadata_path, index=False)
-
-    print(f"Created {len(patches_df)} patches from {len(metadata_df)} source images")
-    print(f"Patch metadata saved to {metadata_path}")
-
-    pos_patches = patches_df[patches_df["is_positive"] == True]
-    pos_pct = len(pos_patches) / len(patches_df) * 100 if len(patches_df) > 0 else 0
-    print(f"Positive patches: {len(pos_patches)} ({pos_pct:.1f}%)")
-
-    return patches_df
-
-
-def visualize_spacenet7_patches(
-    image_data, mask_data, patches_info, output_path=None, figsize=(22, 8)
-):
-    """Visualize SpaceNet7 original images and their patches.
-
-    Args:
-        image_data: Full-sized RGB image data
-        mask_data: Full-sized binary mask data
-        patches_info: List of tuples (patch_id, row, col, row_px, col_px) for each patch
-        output_path: Path to save the visualization (optional)
-        figsize: Figure size (width, height)
-    """
-    import matplotlib.pyplot as plt
-    import matplotlib.gridspec as gridspec
-    from matplotlib.patches import Rectangle
-    import matplotlib.patches as mpatches
-
-    fig = plt.figure(figsize=figsize)
-    gs = gridspec.GridSpec(2, 5, figure=fig, wspace=0.05, hspace=0.2)
-
-    patch_colors = ["r", "g", "b", "y"]
-
-    ax_img = fig.add_subplot(gs[0, 0])
-    if image_data.shape[0] >= 3:
-        img_display = np.stack([image_data[i] for i in range(3)], axis=2)
-        if img_display.dtype != np.uint8:
-            img_display = np.clip(img_display / np.percentile(img_display, 99), 0, 1)
-    else:
-        img_display = image_data[0]
-        if img_display.dtype != np.uint8:
-            img_display = np.clip(img_display / np.percentile(img_display, 99), 0, 1)
-
-    ax_img.imshow(img_display)
-    ax_img.set_title("Original Image")
-    ax_img.axis("off")
-
-    ax_mask = fig.add_subplot(gs[1, 0])
-    mask_display = mask_data[0] if mask_data.shape[0] == 1 else mask_data
-    ax_mask.imshow(mask_display, cmap="gray")
-    ax_mask.set_title("Original Building Mask")
-    ax_mask.axis("off")
-
-    building_pixels = np.sum(mask_display > 0)
-    total_pixels = mask_display.size
-    building_pct = 100 * building_pixels / total_pixels
-
-    legend_patches = [
-        mpatches.Patch(
-            color="black",
-            label=f"Background: {total_pixels - building_pixels} px ({100 - building_pct:.1f}%)",
-        ),
-        mpatches.Patch(
-            color="white",
-            label=f"Buildings: {building_pixels} px ({building_pct:.1f}%)",
-        ),
-    ]
-    ax_mask.legend(
-        handles=legend_patches, loc="lower right", fontsize=8, framealpha=0.7
-    )
-
-    for i, (patch_id, row, col, row_px, col_px) in enumerate(patches_info[:4]):
-        if i == 0:
-            patch_height, patch_width = patch_id[0].shape[1], patch_id[0].shape[2]
-
-        ax_img_patch = fig.add_subplot(gs[0, i + 1])
-        if patch_id[0].shape[0] >= 3:
-            img_patch_display = np.stack([patch_id[0][j] for j in range(3)], axis=2)
-            if img_patch_display.dtype != np.uint8:
-                img_patch_display = np.clip(
-                    img_patch_display / np.percentile(img_patch_display, 99), 0, 1
-                )
-        else:
-            img_patch_display = patch_id[0][0]
-            if img_patch_display.dtype != np.uint8:
-                img_patch_display = np.clip(
-                    img_patch_display / np.percentile(img_patch_display, 99), 0, 1
-                )
-
-        ax_img_patch.imshow(img_patch_display)
-        ax_img_patch.set_title(
-            f"Image Patch ({row},{col})", color=patch_colors[i % len(patch_colors)]
-        )
-        for spine in ax_img_patch.spines.values():
-            spine.set_color(patch_colors[i % len(patch_colors)])
-            spine.set_linewidth(3)
-        ax_img_patch.axis("off")
-
-        ax_mask_patch = fig.add_subplot(gs[1, i + 1])
-        mask_patch_display = patch_id[1][0]
-        ax_mask_patch.imshow(mask_patch_display, cmap="gray")
-        ax_mask_patch.set_title(
-            f"Mask Patch ({row},{col})", color=patch_colors[i % len(patch_colors)]
-        )
-        for spine in ax_mask_patch.spines.values():
-            spine.set_color(patch_colors[i % len(patch_colors)])
-            spine.set_linewidth(3)
-        ax_mask_patch.axis("off")
-
-        patch_building_pixels = np.sum(mask_patch_display > 0)
-        patch_total_pixels = mask_patch_display.size
-        patch_building_pct = 100 * patch_building_pixels / patch_total_pixels
-
-        ax_mask_patch.text(
-            0.98,
-            0.02,
-            f"Buildings: {patch_building_pct:.1f}%",
-            transform=ax_mask_patch.transAxes,
-            ha="right",
-            va="bottom",
-            fontsize=8,
-            color="white",
-            bbox=dict(facecolor="black", alpha=0.7, boxstyle="round,pad=0.3"),
-        )
-
-        rect_img = Rectangle(
-            (col_px, row_px),
-            patch_width,
-            patch_height,
-            linewidth=2,
-            edgecolor=patch_colors[i % len(patch_colors)],
-            facecolor="none",
-            alpha=0.8,
-        )
-        ax_img.add_patch(rect_img)
-
-        ax_img.text(
-            col_px + patch_width // 2,
-            row_px + patch_height // 2,
-            f"{row},{col}",
-            color="white",
-            ha="center",
-            va="center",
-            fontsize=10,
-            fontweight="bold",
-            bbox=dict(facecolor="black", alpha=0.5, pad=0.5, boxstyle="round"),
-        )
-
-        rect_mask = Rectangle(
-            (col_px, row_px),
-            patch_width,
-            patch_height,
-            linewidth=2,
-            edgecolor=patch_colors[i % len(patch_colors)],
-            facecolor="none",
-            alpha=0.8,
-        )
-        ax_mask.add_patch(rect_mask)
-
-        ax_mask.text(
-            col_px + patch_width // 2,
-            row_px + patch_height // 2,
-            f"{row},{col}",
-            color="white",
-            ha="center",
-            va="center",
-            fontsize=10,
-            fontweight="bold",
-            bbox=dict(facecolor="black", alpha=0.5, pad=0.5, boxstyle="round"),
-        )
-
-    fig.text(
-        0.01,
-        0.01,
-        f"Overall Building Coverage: {building_pct:.2f}%\nTotal Patches: {len(patches_info)}",
-        fontsize=10,
-        bbox=dict(facecolor="white", alpha=0.8, boxstyle="round"),
-    )
-
-    plt.tight_layout()
-
-    if output_path:
-        plt.savefig(output_path, dpi=150, bbox_inches="tight")
-        print(f"Visualization saved to {output_path}")
-    else:
-        plt.show()
-
-    plt.close(fig)
-
-
-def create_geographic_splits_spacenet7(
-    df: pd.DataFrame,
-    train_ratio: float = 0.7,
-    val_ratio: float = 0.1,
-    test_ratio: float = 0.2,
-    aoi_col: str = "aoi",
-    random_state: int = 42,
-) -> pd.DataFrame:
-    """Create train/val/test splits by assigning AOIs to maintain geographic separation.
-
-    Args:
-        df: DataFrame with patch metadata
-        train_ratio: Ratio of data for training
-        val_ratio: Ratio of data for validation
-        test_ratio: Ratio of data for testing
-        aoi_col: Column name for area of interest
-        random_state: Random seed
-
-    Returns:
-        DataFrame with added 'split' column
-    """
-    import numpy as np
-
-    df_copy = df.copy()
-
-    aoi_counts = df_copy.groupby(aoi_col).size().reset_index(name="count")
-    total_samples = aoi_counts["count"].sum()
-
-    target_test = int(total_samples * test_ratio)
-    target_val = int(total_samples * val_ratio)
-    target_train = total_samples - target_test - target_val
-    np.random.seed(random_state)
-    aoi_counts = aoi_counts.sample(frac=1, random_state=random_state)
-
-    aoi_counts["split"] = "train"
-
-    curr_test, curr_val = 0, 0
-
-    for idx, row in aoi_counts.iterrows():
-        if curr_test < target_test:
-            aoi_counts.loc[idx, "split"] = "test"
-            curr_test += row["count"]
-        elif curr_val < target_val:
-            aoi_counts.loc[idx, "split"] = "validation"
-            curr_val += row["count"]
-        else:
-            break
-
-    aoi_split_map = dict(zip(aoi_counts[aoi_col], aoi_counts["split"]))
-
-    df_copy["split"] = df_copy[aoi_col].map(aoi_split_map)
-
-    split_counts = df_copy["split"].value_counts()
-    print("\nSplit statistics:")
-    for split in ["train", "validation", "test"]:
-        if split in split_counts:
-            count = split_counts[split]
-            pct = 100 * count / len(df_copy)
-            print(f"{split}: {count} samples ({pct:.1f}%)")
-
-    return df_copy
 
 
 def create_mmflood_patches(

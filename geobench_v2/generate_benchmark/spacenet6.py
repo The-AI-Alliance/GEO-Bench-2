@@ -49,7 +49,7 @@ from rasterio.features import rasterize
 
 def process_spacenet6_tile(args):
     """Process a single SpaceNet6 tile into patches.
-    
+
     Args:
         args: Tuple containing:
             - idx: Row index
@@ -62,47 +62,60 @@ def process_spacenet6_tile(args):
             - stride: Step size between patches
             - output_format: Output file format
             - patch_id_prefix: Prefix for patch IDs
-    
+
     Returns:
         List of patch metadata dictionaries
     """
-    idx, row, root_dir, output_dir, patch_size, blockxsize, blockysize, stride, output_format, patch_id_prefix = args
-    
+    (
+        idx,
+        row,
+        root_dir,
+        output_dir,
+        patch_size,
+        blockxsize,
+        blockysize,
+        stride,
+        output_format,
+        patch_id_prefix,
+    ) = args
+
     ps_rgbnir_dir = os.path.join(output_dir, "ps-rgbnir")
     sar_intensity_dir = os.path.join(output_dir, "sar_intensity")
     mask_dir = os.path.join(output_dir, "mask")
-    
+
     result_metadata = []
-    
+
     try:
         ps_rgbnir_path = os.path.join(root_dir, row["ps_rgbnir_path"])
         sar_intensity_path = os.path.join(root_dir, row["sar_intensity_path"])
         mask_path = os.path.join(root_dir, row["mask_path"])
-        
-        tile_basename = os.path.basename(ps_rgbnir_path).split('.')[0]
-        
+
+        tile_basename = os.path.basename(ps_rgbnir_path).split(".")[0]
+
         with rasterio.open(ps_rgbnir_path) as src:
             ps_profile = src.profile.copy()
             height, width = src.height, src.width
             transform = src.transform
             crs = src.crs
             ps_data = src.read()
-        
+
         with rasterio.open(sar_intensity_path) as src:
             sar_profile = src.profile.copy()
             sar_data = src.read()
-        
+
         gdf = gpd.read_file(mask_path)
         building_polygons = []
-        
+
         if len(gdf) > 0:
             if gdf.crs != crs:
                 gdf = gdf.to_crs(crs)
-            
+
             building_polygons = [
-                (geom, 1) for geom in gdf.geometry if geom is not None and not geom.is_empty
+                (geom, 1)
+                for geom in gdf.geometry
+                if geom is not None and not geom.is_empty
             ]
-        
+
         building_mask = rasterize(
             building_polygons,
             out_shape=(height, width),
@@ -111,127 +124,136 @@ def process_spacenet6_tile(args):
             dtype=np.uint8,
             all_touched=True,
         )
-        
+
         building_mask = building_mask[np.newaxis, :, :]
-        
+
         patches_per_dim_h = max(1, (height - patch_size[0] + stride[0]) // stride[0])
         patches_per_dim_w = max(1, (width - patch_size[1] + stride[1]) // stride[1])
-        
+
         for i in range(patches_per_dim_h):
             for j in range(patches_per_dim_w):
                 row_start = i * stride[0]
                 col_start = j * stride[1]
-                
+
                 if row_start + patch_size[0] > height:
                     row_start = max(0, height - patch_size[0])
                 if col_start + patch_size[1] > width:
                     col_start = max(0, width - patch_size[1])
-                
+
                 window = Window(col_start, row_start, patch_size[1], patch_size[0])
                 patch_transform = rasterio.windows.transform(window, transform)
-                
-                mask_patch = building_mask[:, 
-                                          row_start:row_start + patch_size[0], 
-                                          col_start:col_start + patch_size[1]]
-                
+
+                mask_patch = building_mask[
+                    :,
+                    row_start : row_start + patch_size[0],
+                    col_start : col_start + patch_size[1],
+                ]
+
                 building_ratio = np.sum(mask_patch > 0) / mask_patch.size
-                
+
                 patch_id = f"{patch_id_prefix}{tile_basename}_{i:03d}_{j:03d}"
-                
+
                 ps_patch_filename = f"{patch_id}_ps-rgbnir.{output_format}"
                 sar_patch_filename = f"{patch_id}_sar-intensity.{output_format}"
                 mask_patch_filename = f"{patch_id}_mask.{output_format}"
-                
+
                 ps_patch_path = os.path.join(ps_rgbnir_dir, ps_patch_filename)
                 sar_patch_path = os.path.join(sar_intensity_dir, sar_patch_filename)
                 mask_patch_path = os.path.join(mask_dir, mask_patch_filename)
-                
-                ps_patch = ps_data[:, 
-                                  row_start:row_start + patch_size[0], 
-                                  col_start:col_start + patch_size[1]]
-                
-                sar_patch = sar_data[:, 
-                                    row_start:row_start + patch_size[0], 
-                                    col_start:col_start + patch_size[1]]
-                
+
+                ps_patch = ps_data[
+                    :,
+                    row_start : row_start + patch_size[0],
+                    col_start : col_start + patch_size[1],
+                ]
+
+                sar_patch = sar_data[
+                    :,
+                    row_start : row_start + patch_size[0],
+                    col_start : col_start + patch_size[1],
+                ]
+
                 ps_out_profile = {
-                    'driver': 'GTiff',
-                    'height': patch_size[0],
-                    'width': patch_size[1],
-                    'count': ps_patch.shape[0],
-                    'dtype': ps_patch.dtype,
-                    'tiled': True,
-                    'blockxsize': blockxsize,
-                    'blockysize': blockysize,
-                    'interleave': 'pixel',
-                    'compress': 'zstd',
-                    'zstd_level': 22,
-                    'predictor': 2,
-                    'crs': crs,
-                    'transform': patch_transform
+                    "driver": "GTiff",
+                    "height": patch_size[0],
+                    "width": patch_size[1],
+                    "count": ps_patch.shape[0],
+                    "dtype": ps_patch.dtype,
+                    "tiled": True,
+                    "blockxsize": blockxsize,
+                    "blockysize": blockysize,
+                    "interleave": "pixel",
+                    "compress": "zstd",
+                    "zstd_level": 22,
+                    "predictor": 2,
+                    "crs": crs,
+                    "transform": patch_transform,
                 }
-                
+
                 sar_out_profile = {
-                    'driver': 'GTiff',
-                    'height': patch_size[0],
-                    'width': patch_size[1],
-                    'count': sar_patch.shape[0],
-                    'dtype': sar_patch.dtype,
-                    'tiled': True,
-                    'blockxsize': blockxsize,
-                    'blockysize': blockysize,
-                    'interleave': 'pixel',
-                    'compress': 'zstd',
-                    'zstd_level': 22,
-                    'predictor': 2,
-                    'crs': crs,
-                    'transform': patch_transform
+                    "driver": "GTiff",
+                    "height": patch_size[0],
+                    "width": patch_size[1],
+                    "count": sar_patch.shape[0],
+                    "dtype": sar_patch.dtype,
+                    "tiled": True,
+                    "blockxsize": blockxsize,
+                    "blockysize": blockysize,
+                    "interleave": "pixel",
+                    "compress": "zstd",
+                    "zstd_level": 22,
+                    "predictor": 2,
+                    "crs": crs,
+                    "transform": patch_transform,
                 }
-                
+
                 mask_out_profile = {
-                    'driver': 'GTiff',
-                    'height': patch_size[0],
-                    'width': patch_size[1],
-                    'count': 1,
-                    'dtype': 'uint8',
-                    'tiled': True,
-                    'blockxsize': blockxsize,
-                    'blockysize': blockysize,
-                    'interleave': 'pixel',
-                    'compress': 'zstd',
-                    'zstd_level': 22,
-                    'predictor': 2,
-                    'crs': crs,
-                    'transform': patch_transform
+                    "driver": "GTiff",
+                    "height": patch_size[0],
+                    "width": patch_size[1],
+                    "count": 1,
+                    "dtype": "uint8",
+                    "tiled": True,
+                    "blockxsize": blockxsize,
+                    "blockysize": blockysize,
+                    "interleave": "pixel",
+                    "compress": "zstd",
+                    "zstd_level": 22,
+                    "predictor": 2,
+                    "crs": crs,
+                    "transform": patch_transform,
                 }
-                
-                with rasterio.open(ps_patch_path, 'w', **ps_out_profile) as dst:
+
+                with rasterio.open(ps_patch_path, "w", **ps_out_profile) as dst:
                     dst.write(ps_patch)
-                
-                with rasterio.open(sar_patch_path, 'w', **sar_out_profile) as dst:
+
+                with rasterio.open(sar_patch_path, "w", **sar_out_profile) as dst:
                     dst.write(sar_patch)
-                
-                with rasterio.open(mask_patch_path, 'w', **mask_out_profile) as dst:
+
+                with rasterio.open(mask_patch_path, "w", **mask_out_profile) as dst:
                     dst.write(mask_patch)
-                
+
                 patch_bounds = rasterio.windows.bounds(window, transform)
                 west, south, east, north = patch_bounds
-                
+
                 center_x = (west + east) / 2
                 center_y = (south + north) / 2
-                
+
                 lon, lat = None, None
                 if crs.is_projected:
                     try:
                         from pyproj import Transformer
-                        transformer = Transformer.from_crs(crs, "EPSG:4326", always_xy=True)
+
+                        transformer = Transformer.from_crs(
+                            crs, "EPSG:4326", always_xy=True
+                        )
                         lon, lat = transformer.transform(center_x, center_y)
                     except Exception as e:
                         print(f"Error transforming coordinates: {e}")
                         lon, lat = None, None
                 else:
                     lon, lat = center_x, center_y
-                
+
                 patch_metadata = {
                     "source_img_file": os.path.basename(ps_rgbnir_path),
                     "source_mask_file": os.path.basename(mask_path),
@@ -248,16 +270,18 @@ def process_spacenet6_tile(args):
                     "building_ratio": float(building_ratio),
                     "is_positive": building_ratio > 0,
                     "ps_rgbnir_path": os.path.join("ps-rgbnir", ps_patch_filename),
-                    "sar_intensity_path": os.path.join("sar_intensity", sar_patch_filename),
+                    "sar_intensity_path": os.path.join(
+                        "sar_intensity", sar_patch_filename
+                    ),
                     "mask_path": os.path.join("mask", mask_patch_filename),
                     "split": row["split"] if "split" in row else "train",
-                    "date": row["date"] if "date" in row else None
+                    "date": row["date"] if "date" in row else None,
                 }
-                
+
                 result_metadata.append(patch_metadata)
-        
+
         return result_metadata
-    
+
     except Exception as e:
         print(f"Error processing tile {idx}: {e}")
         return []
@@ -272,10 +296,10 @@ def split_spacenet6_into_patches(
     stride: tuple[int, int] | None = None,
     output_format: str = "tif",
     patch_id_prefix: str = "p",
-    num_workers: int = 8
+    num_workers: int = 8,
 ) -> pd.DataFrame:
     """Split SpaceNet6 images and building annotations into smaller patches.
-    
+
     Args:
         metadata_df: DataFrame with SpaceNet6 metadata including paths
         root_dir: Root directory of the dataset
@@ -286,84 +310,114 @@ def split_spacenet6_into_patches(
         output_format: Output file format (e.g., 'tif')
         patch_id_prefix: Prefix for patch IDs
         num_workers: Number of parallel processes to use
-    
+
     Returns:
         DataFrame containing metadata for all created patches
     """
     from concurrent.futures import ProcessPoolExecutor
     from rasterio.enums import Compression
     from rasterio.features import rasterize
-    
+
     blockxsize, blockysize = block_size
     blockxsize = blockxsize - (blockxsize % 16) if blockxsize % 16 != 0 else blockxsize
     blockysize = blockysize - (blockysize % 16) if blockysize % 16 != 0 else blockysize
-    
+
     if stride is None:
         stride = patch_size
-    
+
     os.makedirs(output_dir, exist_ok=True)
     ps_rgbnir_dir = os.path.join(output_dir, "ps-rgbnir")
     sar_intensity_dir = os.path.join(output_dir, "sar_intensity")
     mask_dir = os.path.join(output_dir, "mask")
-    
+
     os.makedirs(ps_rgbnir_dir, exist_ok=True)
     os.makedirs(sar_intensity_dir, exist_ok=True)
     os.makedirs(mask_dir, exist_ok=True)
-    
+
     # Process tiles in parallel
     all_patch_metadata = []
-    
+
     # Determine batch size for better progress tracking
     batch_size = max(1, min(100, len(metadata_df) // (num_workers * 2)))
-    batches = [metadata_df.iloc[i:i+batch_size] for i in range(0, len(metadata_df), batch_size)]
-    
+    batches = [
+        metadata_df.iloc[i : i + batch_size]
+        for i in range(0, len(metadata_df), batch_size)
+    ]
+
     for batch_idx, batch in enumerate(batches):
-        print(f"Processing batch {batch_idx+1}/{len(batches)}")
-        
+        print(f"Processing batch {batch_idx + 1}/{len(batches)}")
+
         tasks = [
-            (idx, row, root_dir, output_dir, patch_size, blockxsize, blockysize, 
-             stride, output_format, patch_id_prefix) 
+            (
+                idx,
+                row,
+                root_dir,
+                output_dir,
+                patch_size,
+                blockxsize,
+                blockysize,
+                stride,
+                output_format,
+                patch_id_prefix,
+            )
             for idx, row in batch.iterrows()
         ]
-        
+
         with ProcessPoolExecutor(max_workers=num_workers) as executor:
-            results = list(tqdm(
-                executor.map(process_spacenet6_tile, tasks),
-                total=len(tasks),
-                desc=f"Processing batch {batch_idx+1}/{len(batches)}"
-            ))
-            
+            results = list(
+                tqdm(
+                    executor.map(process_spacenet6_tile, tasks),
+                    total=len(tasks),
+                    desc=f"Processing batch {batch_idx + 1}/{len(batches)}",
+                )
+            )
+
             # Flatten results
             for result_list in results:
                 all_patch_metadata.extend(result_list)
-    
+
     patches_df = pd.DataFrame(all_patch_metadata)
 
     metadata_path = os.path.join(output_dir, "patch_metadata.parquet")
     patches_df.to_parquet(metadata_path, index=False)
-    
+
     print(f"Created {len(patches_df)} patches from {len(metadata_df)} source tiles")
     print(f"Patch metadata saved to {metadata_path}")
-    
+
     pos_patches = patches_df[patches_df["is_positive"] == True]
     neg_patches = patches_df[patches_df["is_positive"] == False]
     pos_pct = len(pos_patches) / len(patches_df) * 100 if len(patches_df) > 0 else 0
     neg_pct = len(neg_patches) / len(patches_df) * 100 if len(patches_df) > 0 else 0
     print(f"Patches with buildings: {len(pos_patches)} ({pos_pct:.1f}%)")
     print(f"Patches without buildings: {len(neg_patches)} ({neg_pct:.1f}%)")
-    
-    building_ratio_counts = patches_df['building_ratio'].value_counts(bins=10).sort_index()
+
+    building_ratio_counts = (
+        patches_df["building_ratio"].value_counts(bins=10).sort_index()
+    )
     print("\nBuilding ratio distribution:")
     for i, (index, count) in enumerate(building_ratio_counts.items()):
-        print(f"  {index.left:.3f}-{index.right:.3f}: {count} patches ({100*count/len(patches_df):.1f}%)")
+        print(
+            f"  {index.left:.3f}-{index.right:.3f}: {count} patches ({100 * count / len(patches_df):.1f}%)"
+        )
 
-    
     return patches_df
+
 
 def generate_metadata_df(root: str) -> pd.DataFrame:
     """Generate metadata DataFrame for SpaceNet6 dataset."""
-    
-    label_paths = glob.glob(os.path.join(root, "SN6_buildings", "train", "train", "AOI_11_Rotterdam", "geojson_buildings", "*.geojson"), recursive=True)
+
+    label_paths = glob.glob(
+        os.path.join(
+            root,
+            "SN6_buildings",
+            "train",
+            "train",
+            "AOI_11_Rotterdam",
+            "geojson_buildings",
+            "*.geojson",
+        ),
+        recursive=True,
+    )
 
     df = pd.DataFrame(label_paths, columns=["mask_path"])
 
@@ -397,7 +451,9 @@ def generate_metadata_df(root: str) -> pd.DataFrame:
 
         return lng, lat, date, height_px, width_px
 
-    df["lon"], df["lat"], df["date"], df["height_px"], df["width_px"] = zip(*df["ps_rgbnir_path"].apply(extract_lng_lat))
+    df["lon"], df["lat"], df["date"], df["height_px"], df["width_px"] = zip(
+        *df["ps_rgbnir_path"].apply(extract_lng_lat)
+    )
 
     # make path relative
     df["mask_path"] = df["mask_path"].str.replace(root, "")
@@ -482,11 +538,9 @@ def create_tortilla(root_dir, df, save_dir, tortilla_name):
     # create final taco file
     final_samples = tacotoolbox.tortilla.datamodel.Samples(samples=samples)
     tacotoolbox.tortilla.create(
-        final_samples,
-        os.path.join(save_dir, tortilla_name),
-        quiet=True,
-        nworkers=4,
+        final_samples, os.path.join(save_dir, tortilla_name), quiet=True, nworkers=4
     )
+
 
 def create_geobench_version(
     metadata_df: pd.DataFrame,
@@ -507,7 +561,6 @@ def create_geobench_version(
     """
     random_state = 24
 
-
     patch_size = (450, 450)
     stride = (449, 449)
 
@@ -516,12 +569,11 @@ def create_geobench_version(
         root_dir=root_dir,
         output_dir=save_dir,
         patch_size=patch_size,
-        block_size=(448,448),
+        block_size=(448, 448),
         stride=stride,
     )
 
     patches_df = patches_df[patches_df["valid_ratio"] > 0.4].reset_index(drop=True)
-
 
     # Step 1: Subsample procedure
     # Handle -1 case which means "use all samples"
@@ -551,7 +603,6 @@ def create_geobench_version(
         n_test_samples, random_state=random_state
     )
     subset_df = pd.concat([train_samples, val_samples, test_samples])
-
 
     return subset_df
 
@@ -612,7 +663,9 @@ def main():
     )
 
     tortilla_name = "geobench_spacenet6.tortilla"
-    create_tortilla(args.save_dir, subset_df, args.save_dir, tortilla_name=tortilla_name)
+    create_tortilla(
+        args.save_dir, subset_df, args.save_dir, tortilla_name=tortilla_name
+    )
 
     create_unittest_subset(
         data_dir=args.save_dir,
@@ -622,7 +675,6 @@ def main():
         n_val_samples=1,
         n_test_samples=1,
     )
-
 
 
 if __name__ == "__main__":

@@ -171,10 +171,10 @@ def create_city_based_checkerboard_splits(
 # Define the worker function for processing each sample outside the main function
 def process_spacenet2_sample(args):
     """Process a single SpaceNet2 sample to create masks and copy images.
-    
+
     Args:
         args: Tuple containing (idx, row, src_root, output_root, copy_originals)
-    
+
     Returns:
         Dictionary with processing results
     """
@@ -182,48 +182,48 @@ def process_spacenet2_sample(args):
     label_path = os.path.join(src_root, row["label_path"])
     pan_path = os.path.join(src_root, row["pan_path"])
     split = row["split"]
-    
+
     # Extract image ID for naming
     img_id = (
         os.path.basename(row["label_path"])
         .replace("buildings_", "")
         .replace(".geojson", "")
     )
-    
+
     # Create output paths for masks
     semantic_mask_name = f"semantic_{img_id}.tif"
     instance_mask_name = f"instance_{img_id}.tif"
     semantic_mask_path = os.path.join("semantic_masks", semantic_mask_name)
     instance_mask_path = os.path.join("instance_masks", instance_mask_name)
-    
+
     # Read metadata from source image for profile creation
     with rasterio.open(pan_path) as src:
         height, width = src.height, src.width
         transform = src.transform
         crs = src.crs
-    
+
     # Create standardized profile with optimal compression settings
     base_profile = {
-        'driver': 'GTiff',
-        'height': height,
-        'width': width,
-        'tiled': True,
-        'blockxsize': 512,
-        'blockysize': 512,
-        'interleave': 'band',  # Using band interleave instead of pixel
-        'compress': 'lzw',     # Using lzw compression for better compatibility
-        'predictor': 2,
-        'zlevel': 9,
-        'crs': crs,
-        'transform': transform
+        "driver": "GTiff",
+        "height": height,
+        "width": width,
+        "tiled": True,
+        "blockxsize": 512,
+        "blockysize": 512,
+        "interleave": "band",  # Using band interleave instead of pixel
+        "compress": "lzw",  # Using lzw compression for better compatibility
+        "predictor": 2,
+        "zlevel": 9,
+        "crs": crs,
+        "transform": transform,
     }
-    
+
     # Create semantic mask
     gdf = gpd.read_file(label_path)
     valid_geoms = [
         geom for geom in gdf.geometry if geom is not None and not geom.is_empty
     ]
-    
+
     semantic_mask = rasterize(
         [(geom, 1) for geom in valid_geoms],
         out_shape=(height, width),
@@ -232,7 +232,7 @@ def process_spacenet2_sample(args):
         dtype=np.uint8,
         all_touched=True,
     )
-    
+
     # Create instance mask
     instance_mask = np.zeros((height, width), dtype=np.uint16)
     for i, geom in enumerate(valid_geoms, start=1):
@@ -245,45 +245,45 @@ def process_spacenet2_sample(args):
             all_touched=True,
         )
         instance_mask = np.maximum(instance_mask, building_mask)
-    
+
     # Create profiles for masks
     semantic_profile = base_profile.copy()
-    semantic_profile.update(count=1, dtype='uint8', nodata=0)
-    
+    semantic_profile.update(count=1, dtype="uint8", nodata=0)
+
     instance_profile = base_profile.copy()
-    instance_profile.update(count=1, dtype='uint16', nodata=0)
-    
+    instance_profile.update(count=1, dtype="uint16", nodata=0)
+
     # Write masks
     with rasterio.open(
         os.path.join(output_root, semantic_mask_path), "w", **semantic_profile
     ) as dst:
         dst.write(semantic_mask[np.newaxis, :, :])
-    
+
     with rasterio.open(
         os.path.join(output_root, instance_mask_path), "w", **instance_profile
     ) as dst:
         dst.write(instance_mask[np.newaxis, :, :])
-    
+
     result = {
         "idx": idx,
         "semantic_mask_path": semantic_mask_path,
         "instance_mask_path": instance_mask_path,
     }
-    
+
     # Handle original images if requested
     if copy_originals:
         # Process panchromatic image
         pan_img_name = os.path.basename(row["pan_path"])
         new_pan_path = os.path.join("PAN", pan_img_name)
-        
+
         # Process multispectral image
         ps_ms_img_name = os.path.basename(row["ps-ms_path"])
         new_ps_ms_path = os.path.join("MUL-PanSharpen", ps_ms_img_name)
-        
+
         # Process RGB image
         ps_rgb_img_name = os.path.basename(row["ps-rgb_path"])
         new_ps_rgb_path = os.path.join("RGB-PanSharpen", ps_rgb_img_name)
-        
+
         # Copy and convert images using a safer approach
         try:
             # Copy panchromatic image
@@ -291,41 +291,41 @@ def process_spacenet2_sample(args):
                 pan_data = src.read()
                 pan_profile = base_profile.copy()
                 pan_profile.update(count=pan_data.shape[0], dtype=pan_data.dtype)
-                
+
                 with rasterio.open(
                     os.path.join(output_root, new_pan_path), "w", **pan_profile
                 ) as dst:
                     dst.write(pan_data)
-            
+
             # Copy multispectral image
             with rasterio.open(os.path.join(src_root, row["ps-ms_path"])) as src:
                 ms_data = src.read()
                 ms_profile = base_profile.copy()
                 ms_profile.update(count=ms_data.shape[0], dtype=ms_data.dtype)
-                
+
                 with rasterio.open(
                     os.path.join(output_root, new_ps_ms_path), "w", **ms_profile
                 ) as dst:
                     dst.write(ms_data)
-            
+
             # Copy RGB image
             with rasterio.open(os.path.join(src_root, row["ps-rgb_path"])) as src:
                 rgb_data = src.read()
                 rgb_profile = base_profile.copy()
                 rgb_profile.update(count=rgb_data.shape[0], dtype=rgb_data.dtype)
-                
+
                 with rasterio.open(
                     os.path.join(output_root, new_ps_rgb_path), "w", **rgb_profile
                 ) as dst:
                     dst.write(rgb_data)
-            
+
             result["pan_path_new"] = new_pan_path
             result["ps-ms_path_new"] = new_ps_ms_path
             result["ps-rgb_path_new"] = new_ps_rgb_path
-        
+
         except Exception as e:
             print(f"Error processing images for {img_id}: {str(e)}")
-    
+
     return result
 
 
@@ -349,7 +349,7 @@ def create_spacenet2_masks(
         Updated DataFrame with added mask paths
     """
     from concurrent.futures import ProcessPoolExecutor
-    
+
     result_df = df.copy()
     os.makedirs(output_root, exist_ok=True)
 
@@ -364,11 +364,11 @@ def create_spacenet2_masks(
         for img_type in ["PAN", "MUL-PanSharpen", "RGB-PanSharpen"]:
             img_dir = os.path.join(output_root, img_type)
             os.makedirs(img_dir, exist_ok=True)
-    
+
     # Initialize new columns for paths
     result_df["semantic_mask_path"] = None
     result_df["instance_mask_path"] = None
-    
+
     if copy_originals:
         result_df["pan_path_new"] = None
         result_df["ps-ms_path_new"] = None
@@ -376,44 +376,54 @@ def create_spacenet2_masks(
 
     # Use process pool for parallel execution
     print(f"Starting parallel processing with {num_workers} workers")
-    
+
     # Process chunks of the dataframe to reduce memory overhead
     chunk_size = min(500, len(df))
-    chunks = [df.iloc[i:i+chunk_size] for i in range(0, len(df), chunk_size)]
-    
+    chunks = [df.iloc[i : i + chunk_size] for i in range(0, len(df), chunk_size)]
+
     for chunk_idx, chunk in enumerate(chunks):
-        print(f"Processing chunk {chunk_idx+1}/{len(chunks)} ({len(chunk)} samples)")
-        
+        print(f"Processing chunk {chunk_idx + 1}/{len(chunks)} ({len(chunk)} samples)")
+
         # Prepare arguments for each task
-        tasks = [(idx, row, src_root, output_root, copy_originals) 
-                for idx, row in chunk.iterrows()]
-        
+        tasks = [
+            (idx, row, src_root, output_root, copy_originals)
+            for idx, row in chunk.iterrows()
+        ]
+
         with ProcessPoolExecutor(max_workers=num_workers) as executor:
             # Submit all tasks
-            futures = [executor.submit(process_spacenet2_sample, task) for task in tasks]
-            
+            futures = [
+                executor.submit(process_spacenet2_sample, task) for task in tasks
+            ]
+
             # Collect results and update DataFrame
-            for future in tqdm(futures, total=len(futures), desc=f"Processing chunk {chunk_idx+1}"):
+            for future in tqdm(
+                futures, total=len(futures), desc=f"Processing chunk {chunk_idx + 1}"
+            ):
                 try:
                     result = future.result()
                     idx = result["idx"]
-                    
+
                     # Update DataFrame with paths
-                    result_df.at[idx, "semantic_mask_path"] = result["semantic_mask_path"]
-                    result_df.at[idx, "instance_mask_path"] = result["instance_mask_path"]
-                    
+                    result_df.at[idx, "semantic_mask_path"] = result[
+                        "semantic_mask_path"
+                    ]
+                    result_df.at[idx, "instance_mask_path"] = result[
+                        "instance_mask_path"
+                    ]
+
                     if copy_originals and "pan_path_new" in result:
                         result_df.at[idx, "pan_path"] = result["pan_path_new"]
                         result_df.at[idx, "ps-ms_path"] = result["ps-ms_path_new"]
                         result_df.at[idx, "ps-rgb_path"] = result["ps-rgb_path_new"]
                 except Exception as e:
                     print(f"Error processing task: {str(e)}")
-    
+
     # Save metadata
     result_df.to_parquet(
         os.path.join(output_root, "spacenet2_metadata.parquet"), index=False
     )
-    
+
     # Print summary
     semantic_count = len(result_df[~result_df["semantic_mask_path"].isna()])
     instance_count = len(result_df[~result_df["instance_mask_path"].isna()])
@@ -424,7 +434,7 @@ def create_spacenet2_masks(
         print(
             f"Copied and optimized {len(df)} original images with new profile settings"
         )
-    
+
     return result_df
 
 
@@ -650,7 +660,7 @@ def create_geobench_version(
         src_root=root_dir,
         output_root=save_dir,
         copy_originals=True,
-        num_workers=8
+        num_workers=8,
     )
     return result_df
 
@@ -696,8 +706,10 @@ def main():
     result_df.to_parquet(result_path, index=False)
 
     tortilla_name = "geobench_spacenet2.tortilla"
-    
-    create_tortilla(args.save_dir, result_df, args.save_dir, tortilla_name=tortilla_name)
+
+    create_tortilla(
+        args.save_dir, result_df, args.save_dir, tortilla_name=tortilla_name
+    )
 
     create_unittest_subset(
         data_dir=args.save_dir,
