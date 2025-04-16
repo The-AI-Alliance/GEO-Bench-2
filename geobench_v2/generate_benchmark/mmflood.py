@@ -265,7 +265,7 @@ def process_mmflood_patch(args):
                 "blockysize": min(512, patch_size),
                 "interleave": "pixel",
                 "compress": "zstd",
-                "zstd_level": 22,
+                "zstd_level": 13,
                 "predictor": 2,
                 "crs": modalities_profiles[modality]["crs"],
                 "transform": patch_transform,
