@@ -334,6 +334,54 @@ def create_subset_from_tortilla(
     return subset_taco
 
 
+def create_subset_from_df(
+    metadata_df: pd.DataFrame,
+    n_train_samples: int,
+    n_val_samples: int,
+    n_test_samples: int,
+    random_state: int = 42,
+) -> pd.DataFrame:
+    """Create a subset of a DataFrame based on the specified number of samples for each split.
+
+    Args:
+        metadata_df: DataFrame containing metadata with a 'split' column
+        n_train_samples: Number of training samples to include in the subset
+        n_val_samples: Number of validation samples to include in the subset
+        n_test_samples: Number of test samples to include in the subset
+        random_state: Random seed for reproducibility
+
+    Returns:
+        A DataFrame containing the selected subset of samples
+    """
+    train_count = len(metadata_df[metadata_df["split"] == "train"])
+    val_count = len(metadata_df[metadata_df["split"] == "validation"])
+    test_count = len(metadata_df[metadata_df["split"] == "test"])
+
+    n_train_samples = (
+        train_count if n_train_samples == -1 else min(n_train_samples, train_count)
+    )
+    n_val_samples = val_count if n_val_samples == -1 else min(n_val_samples, val_count)
+    n_test_samples = (
+        test_count if n_test_samples == -1 else min(n_test_samples, test_count)
+    )
+
+    print(
+        f"Selecting {n_train_samples} train, {n_val_samples} validation, and {n_test_samples} test samples"
+    )
+
+    train_samples = metadata_df[metadata_df["split"] == "train"].sample(
+        n_train_samples, random_state=random_state
+    )
+    val_samples = metadata_df[metadata_df["split"] == "validation"].sample(
+        n_val_samples, random_state=random_state
+    )
+    test_samples = metadata_df[metadata_df["split"] == "test"].sample(
+        n_test_samples, random_state=random_state
+    )
+    subset_df = pd.concat([train_samples, val_samples, test_samples])
+    return subset_df
+
+
 def create_unittest_subset(
     data_dir: str,
     tortilla_pattern: str,

@@ -24,6 +24,7 @@ from rasterio.windows import Window
 from geobench_v2.generate_benchmark.utils import (
     plot_sample_locations,
     create_unittest_subset,
+    create_subset_from_df,
 )
 from geobench_v2.generate_benchmark.geospatial_split_utils import (
     visualize_checkerboard_pattern,
@@ -502,7 +503,7 @@ def create_tortilla(root_dir, df, save_dir, tortilla_name):
     os.makedirs(tortilla_dir, exist_ok=True)
 
     for idx, row in tqdm(df.iterrows(), total=len(df), desc="Creating tortilla"):
-        modalities = ["PRE-event", "POST-event", "mask"]
+        modalities = ["pre_image", "post_image", "mask"]
         modality_samples = []
 
         for modality in modalities:
@@ -523,8 +524,9 @@ def create_tortilla(root_dir, df, save_dir, tortilla_name):
                 },
                 lon=row["lon"],
                 lat=row["lat"],
-                source_img_file=row["source_img_file"],
-                source_mask_file=row["source_mask_file"],
+                source_mask_file=row["source_mask"],
+                source_pre_img_file=row["source_pre_img"],
+                source_post_img_file=row["source_post_img"],
                 patch_id=row["patch_id"],
                 region=row["region"],
             )
@@ -560,8 +562,9 @@ def create_tortilla(root_dir, df, save_dir, tortilla_name):
             data_split=sample_data["tortilla:data_split"],
             lon=sample_data["lon"],
             lat=sample_data["lat"],
-            source_img_file=sample_data["source_img_file"],
             source_mask_file=sample_data["source_mask_file"],
+            source_pre_img_file=sample_data["source_pre_img_file"],
+            source_post_img_file=sample_data["source_post_img_file"],
             patch_id=sample_data["patch_id"],
             region=sample_data["region"],
         )
@@ -593,32 +596,9 @@ def create_geobench_version(
     """
     random_state = 24
 
-    train_count = len(metadata_df[metadata_df["split"] == "train"])
-    val_count = len(metadata_df[metadata_df["split"] == "validation"])
-    test_count = len(metadata_df[metadata_df["split"] == "test"])
-
-    n_train_samples = (
-        train_count if n_train_samples == -1 else min(n_train_samples, train_count)
+    subset_df = create_subset_from_df(
+        metadata_df, n_train_samples, n_val_samples, n_test_samples, random_state
     )
-    n_val_samples = val_count if n_val_samples == -1 else min(n_val_samples, val_count)
-    n_test_samples = (
-        test_count if n_test_samples == -1 else min(n_test_samples, test_count)
-    )
-
-    print(
-        f"Selecting {n_train_samples} train, {n_val_samples} validation, and {n_test_samples} test samples"
-    )
-
-    train_samples = metadata_df[metadata_df["split"] == "train"].sample(
-        n_train_samples, random_state=random_state
-    )
-    val_samples = metadata_df[metadata_df["split"] == "validation"].sample(
-        n_val_samples, random_state=random_state
-    )
-    test_samples = metadata_df[metadata_df["split"] == "test"].sample(
-        n_test_samples, random_state=random_state
-    )
-    subset_df = pd.concat([train_samples, val_samples, test_samples])
 
     patch_size = (512, 512)
     stride = (511, 511)
@@ -659,11 +639,11 @@ def main():
     if not os.path.exists(args.save_dir):
         os.makedirs(args.save_dir)
 
-    # if os.path.exists(metadata_path):
-    #     metadata_df = pd.read_parquet(metadata_path)
-    # else:
-    metadata_df = generate_metadata_df(args.root)
-    metadata_df.to_parquet(metadata_path)
+    if os.path.exists(metadata_path):
+        metadata_df = pd.read_parquet(metadata_path)
+    else:
+        metadata_df = generate_metadata_df(args.root)
+        metadata_df.to_parquet(metadata_path)
 
     df_with_assigned_split = geographic_distance_split(
         metadata_df, n_clusters=8, random_state=42
@@ -677,18 +657,18 @@ def main():
     )
 
     result_df_path = os.path.join(args.save_dir, "spacenet8_patches.parquet")
-    # if os.path.exists(result_df_path):
-    #     result_df = pd.read_parquet(result_df_path)
-    # else:
-    result_df = create_geobench_version(
-        df_with_assigned_split,
-        n_train_samples=4000,
-        n_val_samples=-1,
-        n_test_samples=-1,
-        root_dir=args.root,
-        save_dir=args.save_dir,
-    )
-    result_df.to_parquet(result_df_path)
+    if os.path.exists(result_df_path):
+        result_df = pd.read_parquet(result_df_path)
+    else:
+        result_df = create_geobench_version(
+            df_with_assigned_split,
+            n_train_samples=4000,
+            n_val_samples=-1,
+            n_test_samples=-1,
+            root_dir=args.root,
+            save_dir=args.save_dir,
+        )
+        result_df.to_parquet(result_df_path)
 
     tortilla_name = "geobench_spacenet8.tortilla"
     create_tortilla(args.save_dir, result_df, args.save_dir, tortilla_name)

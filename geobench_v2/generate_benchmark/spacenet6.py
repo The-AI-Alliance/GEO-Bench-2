@@ -20,6 +20,9 @@ import tacoreader
 import glob
 import numpy as np
 
+from concurrent.futures import ProcessPoolExecutor
+from rasterio.enums import Compression
+from rasterio.features import rasterize
 
 from geobench_v2.generate_benchmark.geospatial_split_utils import (
     show_samples_per_valid_ratio,
@@ -98,10 +101,12 @@ def process_spacenet6_tile(args):
             transform = src.transform
             crs = src.crs
             ps_data = src.read()
+            ps_nodata = src.nodata
 
         with rasterio.open(sar_intensity_path) as src:
             sar_profile = src.profile.copy()
             sar_data = src.read()
+            sar_nodata = src.nodata
 
         gdf = gpd.read_file(mask_path)
         building_polygons = []
@@ -143,11 +148,30 @@ def process_spacenet6_tile(args):
                 window = Window(col_start, row_start, patch_size[1], patch_size[0])
                 patch_transform = rasterio.windows.transform(window, transform)
 
+                # Extract patches
+                ps_patch = ps_data[
+                    :,
+                    row_start : row_start + patch_size[0],
+                    col_start : col_start + patch_size[1],
+                ]
+
+                sar_patch = sar_data[
+                    :,
+                    row_start : row_start + patch_size[0],
+                    col_start : col_start + patch_size[1],
+                ]
+
                 mask_patch = building_mask[
                     :,
                     row_start : row_start + patch_size[0],
                     col_start : col_start + patch_size[1],
                 ]
+
+                # Calculate valid data ratio for this specific patch
+                if ps_nodata is not None:
+                    patch_valid_ratio = np.sum(ps_patch != ps_nodata) / ps_patch.size
+                else:
+                    patch_valid_ratio = 1.0
 
                 building_ratio = np.sum(mask_patch > 0) / mask_patch.size
 
@@ -160,18 +184,6 @@ def process_spacenet6_tile(args):
                 ps_patch_path = os.path.join(ps_rgbnir_dir, ps_patch_filename)
                 sar_patch_path = os.path.join(sar_intensity_dir, sar_patch_filename)
                 mask_patch_path = os.path.join(mask_dir, mask_patch_filename)
-
-                ps_patch = ps_data[
-                    :,
-                    row_start : row_start + patch_size[0],
-                    col_start : col_start + patch_size[1],
-                ]
-
-                sar_patch = sar_data[
-                    :,
-                    row_start : row_start + patch_size[0],
-                    col_start : col_start + patch_size[1],
-                ]
 
                 ps_out_profile = {
                     "driver": "GTiff",
@@ -268,6 +280,9 @@ def process_spacenet6_tile(args):
                     "row_px": row_start,
                     "col_px": col_start,
                     "building_ratio": float(building_ratio),
+                    "valid_ratio": float(
+                        patch_valid_ratio
+                    ),  # Add valid ratio to metadata
                     "is_positive": building_ratio > 0,
                     "ps_rgbnir_path": os.path.join("ps-rgbnir", ps_patch_filename),
                     "sar_intensity_path": os.path.join(
@@ -284,6 +299,9 @@ def process_spacenet6_tile(args):
 
     except Exception as e:
         print(f"Error processing tile {idx}: {e}")
+        import traceback
+
+        traceback.print_exc()
         return []
 
 
@@ -314,9 +332,6 @@ def split_spacenet6_into_patches(
     Returns:
         DataFrame containing metadata for all created patches
     """
-    from concurrent.futures import ProcessPoolExecutor
-    from rasterio.enums import Compression
-    from rasterio.features import rasterize
 
     blockxsize, blockysize = block_size
     blockxsize = blockxsize - (blockxsize % 16) if blockxsize % 16 != 0 else blockxsize
@@ -472,7 +487,7 @@ def create_tortilla(root_dir, df, save_dir, tortilla_name):
     os.makedirs(tortilla_dir, exist_ok=True)
 
     for idx, row in tqdm(df.iterrows(), total=len(df), desc="Creating tortilla"):
-        modalities = ["PS-RGBNIR", "SAR-Intensity", "mask"]
+        modalities = ["ps_rgbnir", "sar_intensity", "mask"]
         modality_samples = []
 
         for modality in modalities:
@@ -564,19 +579,22 @@ def create_geobench_version(
     patch_size = (450, 450)
     stride = (449, 449)
 
-    patches_df = split_spacenet6_into_patches(
-        metadata_df=metadata_df,
-        root_dir=root_dir,
-        output_dir=save_dir,
-        patch_size=patch_size,
-        block_size=(448, 448),
-        stride=stride,
-    )
+    results_path = os.path.join(save_dir, "patch_metadata.parquet")
+
+    if os.path.exists(results_path):
+        patches_df = pd.read_parquet(results_path)
+    else:
+        patches_df = split_spacenet6_into_patches(
+            metadata_df=metadata_df,
+            root_dir=root_dir,
+            output_dir=save_dir,
+            patch_size=patch_size,
+            block_size=(448, 448),
+            stride=stride,
+        )
 
     patches_df = patches_df[patches_df["valid_ratio"] > 0.4].reset_index(drop=True)
 
-    # Step 1: Subsample procedure
-    # Handle -1 case which means "use all samples"
     train_count = len(patches_df[patches_df["split"] == "train"])
     val_count = len(patches_df[patches_df["split"] == "validation"])
     test_count = len(patches_df[patches_df["split"] == "test"])
@@ -631,12 +649,6 @@ def main():
     metadata_df = generate_metadata_df(args.root)
     metadata_df.to_parquet(metadata_path)
 
-    plot_sample_locations(
-        metadata_df,
-        os.path.join(args.save_dir, "sample_locations.png"),
-        buffer_degrees=1.0,
-    )
-
     checker_split_df = checkerboard_split(
         metadata_df,
         n_blocks_x=13,
@@ -653,23 +665,34 @@ def main():
         buffer_degrees=0.05,
     )
 
-    subset_df = create_geobench_version(
+    plot_sample_locations(
         checker_split_df,
-        n_train_samples=4000,
-        n_val_samples=-1,
-        n_test_samples=-1,
-        root_dir=args.root,
-        save_dir=args.save_dir,
+        os.path.join(args.save_dir, "sample_locations.png"),
+        buffer_degrees=1.0,
     )
+
+    results_path = os.path.join(args.save_dir, "geoebench_spacenet6.parquet")
+    if os.path.exists(results_path):
+        result_df = pd.read_parquet(results_path)
+    else:
+        result_df = create_geobench_version(
+            checker_split_df,
+            n_train_samples=4000,
+            n_val_samples=-1,
+            n_test_samples=-1,
+            root_dir=args.root,
+            save_dir=args.save_dir,
+        )
+        result_df.to_parquet(results_path)
 
     tortilla_name = "geobench_spacenet6.tortilla"
     create_tortilla(
-        args.save_dir, subset_df, args.save_dir, tortilla_name=tortilla_name
+        args.save_dir, result_df, args.save_dir, tortilla_name=tortilla_name
     )
 
     create_unittest_subset(
         data_dir=args.save_dir,
-        tortilla_pattern=f"{tortilla_name.split('.')[0]}.part.*.tortilla",
+        tortilla_pattern=f"{tortilla_name.split('.')[0]}.*.part.tortilla",
         test_dir_name="spacenet6",
         n_train_samples=2,
         n_val_samples=1,
