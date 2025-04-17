@@ -1,12 +1,16 @@
+# Copyright (c) 2025 GeoBenchV2. All rights reserved.
+# Licensed under the Apache License 2.0.
+
+"""Test CaFFe Dataset."""
+
 import pytest
 from geobench_v2.datamodules import GeoBenchCaFFeDataModule
+from geobench_v2.datasets.caffe import GeoBenchCaFFe
 
-
-@pytest.fixture
-def data_root():
-    """Path to test data directory."""
-    # return "/mnt/rg_climate_benchmark/data/datasets_segmentation/Caffe"
-    return "/mnt/rg_climate_benchmark/data/geobenchV2/caffe"
+import matplotlib.pyplot as plt
+import os
+from typing import Sequence
+from pytest import MonkeyPatch
 
 
 @pytest.fixture
@@ -16,33 +20,46 @@ def band_order():
 
 
 @pytest.fixture
-def datamodule(data_root, band_order):
+def datamodule(monkeypatch: MonkeyPatch, band_order: dict[str, Sequence[str | float]]):
     """Initialize CaFFe datamodule with test configuration."""
-    return GeoBenchCaFFeDataModule(
-        img_size=74,
-        batch_size=32,
-        eval_batch_size=64,
+    monkeypatch.setattr(GeoBenchCaFFe, "paths", ["caffe.tortilla"])
+    dm = GeoBenchCaFFeDataModule(
+        img_size=512,
+        batch_size=4,
+        eval_batch_size=2,
         num_workers=0,
         pin_memory=False,
         band_order=band_order,
-        root=data_root,
+        root=os.path.join("tests", "data", "caffe"),
         metadata=["lon", "lat"],
     )
+    dm.setup("fit")
+    dm.setup("test")
+
+    return dm
 
 
 class TestCaFFeDataModule:
     """Test cases for CaFFe datamodule functionality."""
 
+    def test_loaders(self, datamodule):
+        """Test if dataloaders are created successfully."""
+        assert len(datamodule.train_dataloader()) > 0
+        assert len(datamodule.val_dataloader()) > 0
+        assert len(datamodule.test_dataloader()) > 0
+
     def test_batch_dimensions(self, datamodule):
         """Test if batches have correct dimensions."""
-        datamodule.setup("fit")
         train_batch = next(iter(datamodule.train_dataloader()))
         assert train_batch["image"].shape[0] == datamodule.batch_size
         assert train_batch["image"].shape[1] == len(datamodule.band_order)
-        assert train_batch["image"].shape[2] == 74
         assert train_batch["image"].shape[3] == datamodule.img_size
 
-        assert train_batch["mask"].shape == (datamodule.batch_size, 74, 74)
+        assert train_batch["mask"].shape == (
+            datamodule.batch_size,
+            datamodule.img_size,
+            datamodule.img_size,
+        )
 
         assert "lon" in train_batch
         assert "lat" in train_batch
@@ -54,3 +71,11 @@ class TestCaFFeDataModule:
         assert len(datamodule.band_order) == 3
         assert isinstance(datamodule.band_order[1], float)
         assert datamodule.band_order[1] == 0.0
+
+    def test_batch_visualization(self, datamodule):
+        """Test batch visualization."""
+        fig, batch = datamodule.visualize_batch("train")
+        assert isinstance(fig, plt.Figure)
+        assert isinstance(batch, dict)
+
+        fig.savefig(os.path.join("tests", "data", "caffe", "test_batch.png"))

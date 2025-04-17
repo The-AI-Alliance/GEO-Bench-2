@@ -457,7 +457,9 @@ class DatasetBandRegistry:
     )
 
     CAFFE = ModalityConfig(
-        bands=SensorBandRegistry.GRAYSCALE.bands, default_order=["gray"]
+        bands=SensorBandRegistry.GRAYSCALE.bands,
+        default_order=["gray"],
+        plot_bands=["gray"],
     )
 
     EVERWATCH = ModalityConfig(

@@ -610,7 +610,6 @@ def main():
     )
 
 
-
 if __name__ == "__main__":
     # full pipeline todo
     # RAW DATA download automation to merge the metadata inof
