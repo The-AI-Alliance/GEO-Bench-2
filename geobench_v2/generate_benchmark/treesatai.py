@@ -11,12 +11,12 @@ import argparse
 import rasterio
 from tqdm import tqdm
 import re
-from geobench_v2.generate_benchmark.utils import plot_sample_locations
 import tacotoolbox
 import tacoreader
 import glob
 import numpy as np
 import json
+import concurrent
 
 
 from geobench_v2.generate_benchmark.geospatial_split_utils import (
@@ -32,7 +32,8 @@ from geobench_v2.generate_benchmark.geospatial_split_utils import (
 
 from geobench_v2.generate_benchmark.utils import (
     plot_sample_locations,
-    create_subset_from_tortilla,
+    create_subset_from_df,
+    create_unittest_subset,
 )
 
 from typing import List, Tuple, Dict, Any, Optional, Union
@@ -110,7 +111,7 @@ def generate_metadata_df(root: str) -> pd.DataFrame:
     return df
 
 
-def create_tortilla(root_dir, df, save_dir):
+def create_tortilla(root_dir, df, save_dir, tortilla_name):
     """Create a tortilla version of the dataset."""
 
     tortilla_dir = os.path.join(save_dir, "tortilla")
@@ -160,7 +161,7 @@ def create_tortilla(root_dir, df, save_dir):
                     lat=row["lat"],
                     species_labels=row["species"],
                     dist_labels=row["dist"],
-                    source_path=row["path"],
+                    source_path=row["original_path"],
                     ts_path=row["sentinel-ts_path"],
                 )
 
@@ -206,11 +207,133 @@ def create_tortilla(root_dir, df, save_dir):
     # create final taco file
     final_samples = tacotoolbox.tortilla.datamodel.Samples(samples=samples)
     tacotoolbox.tortilla.create(
-        final_samples,
-        os.path.join(save_dir, "TreeSatAI.tortilla"),
-        quiet=True,
-        nworkers=4,
+        final_samples, os.path.join(save_dir, tortilla_name), quiet=True, nworkers=4
     )
+
+
+def process_treesatai_sample(args):
+    """Process a single TreeSatAI sample by rewriting with optimized profile."""
+    idx, row, root_dir, save_dir = args
+
+    try:
+        modalities = ["aerial", "s1", "s2"]
+        result = {
+            "IMG_ID": row["IMG_ID"],
+            "species": row["species"],
+            "dist": row["dist"],
+            "YEAR": row["YEAR"],
+            "lon": row["lon"],
+            "lat": row["lat"],
+            "original_path": row["path"],
+            "split": row["split"],
+            "sentinel-ts_path": row["sentinel-ts_path"],
+        }
+
+        for modality in modalities:
+            src_path = os.path.join(root_dir, row[f"{modality}_path"])
+            if not os.path.exists(src_path):
+                continue
+
+            # Create output directory
+            modality_dir = os.path.join(save_dir, modality)
+            os.makedirs(modality_dir, exist_ok=True)
+
+            # Create output filename
+            dst_filename = f"{row['IMG_ID']}_{modality}.tif"
+            dst_path = os.path.join(modality_dir, dst_filename)
+
+            with rasterio.open(src_path) as src:
+                data = src.read()
+                count = data.shape[0]
+                crs = src.crs
+                transform = src.transform
+
+                optimized_profile = {
+                    "driver": "GTiff",
+                    "height": 304,
+                    "width": 304,
+                    "count": count,
+                    "dtype": "uint8" if modality == "aerial" else "uint16",
+                    "tiled": True,
+                    "blockxsize": 304,
+                    "blockysize": 304,
+                    "interleave": "pixel",
+                    "compress": "zstd",
+                    "zstd_level": 13,
+                    "predictor": 2,
+                    "crs": crs,
+                    "transform": transform,
+                }
+
+                with rasterio.open(dst_path, "w", **optimized_profile) as dst:
+                    dst.write(data)
+
+            result[f"{modality}_path"] = os.path.relpath(dst_path, start=save_dir)
+
+        return result
+
+    except Exception as e:
+        print(f"Error processing sample {idx} (IMG_ID: {row.get('IMG_ID', '')}: {e}")
+        import traceback
+
+        traceback.print_exc()
+        return None
+
+
+def optimize_treesatai_dataset(metadata_df, root_dir, save_dir, num_workers=8):
+    """Rewrite TreeSatAI dataset with optimized GeoTIFF profiles."""
+    os.makedirs(save_dir, exist_ok=True)
+
+    tasks = [(idx, row, root_dir, save_dir) for idx, row in metadata_df.iterrows()]
+    results = []
+
+    with concurrent.futures.ProcessPoolExecutor(max_workers=num_workers) as executor:
+        list_of_results = list(
+            tqdm(
+                executor.map(process_treesatai_sample, tasks),
+                total=len(tasks),
+                desc="Optimizing TreeSatAI samples",
+            )
+        )
+
+        for result in list_of_results:
+            if result is not None:
+                results.append(result)
+
+    optimized_df = pd.DataFrame(results)
+
+    metadata_path = os.path.join(save_dir, "optimized_treesatai_metadata.parquet")
+    optimized_df.to_parquet(metadata_path)
+
+    print(f"Processed {len(optimized_df)} samples successfully")
+
+    return optimized_df
+
+
+def create_geobench_version(
+    metadata_df: pd.DataFrame,
+    n_train_samples: int,
+    n_val_samples: int,
+    n_test_samples: int,
+) -> None:
+    """Create a GeoBench version of the dataset.
+    Args:
+        metadata_df: DataFrame with metadata including geolocation for each patch
+        n_train_samples: Number of final training samples, -1 means all
+        n_val_samples: Number of final validation samples, -1 means all
+        n_test_samples: Number of final test samples, -1 means all
+    """
+    random_state = 24
+
+    subset_df = create_subset_from_df(
+        metadata_df,
+        n_train_samples=n_train_samples,
+        n_val_samples=n_val_samples,
+        n_test_samples=n_test_samples,
+        random_state=random_state,
+    )
+
+    return subset_df
 
 
 def main():
@@ -237,15 +360,11 @@ def main():
         metadata_df = generate_metadata_df(args.root)
         metadata_df.to_parquet(metadata_path)
 
-    # plot_sample_locations(
-    #     metadata_df,
-    #     os.path.join(args.save_dir, "sample_locations.png"),
-    #     dataset_name="TreeSatAI",
-    # )
-
     metadata_df.drop(columns="split", inplace=True)
 
-    final_metadata_path = os.path.join(args.save_dir, "geobench_treesatai.parquet")
+    final_metadata_path = os.path.join(
+        args.save_dir, "geobench_treesatai_split.parquet"
+    )
     if os.path.exists(final_metadata_path):
         final_metadata_df = pd.read_parquet(final_metadata_path)
     else:
@@ -263,23 +382,39 @@ def main():
         output_path=os.path.join(args.save_dir, "checkerboard_split.png"),
     )
 
-    # create_tortilla(args.root, final_metadata_path, args.save_dir)
+    # optimized dataset
+    optimized_path = os.path.join(args.save_dir, "geobench_treesatai.parquet")
+    if os.path.exists(optimized_path):
+        optimized_df = pd.read_parquet(optimized_path)
+    else:
+        subset_df = create_geobench_version(
+            metadata_df=final_metadata_df,
+            n_train_samples=2000,
+            n_val_samples=4000,
+            n_test_samples=4000,
+        )
+        optimized_df = optimize_treesatai_dataset(
+            metadata_df=subset_df, root_dir=args.root, save_dir=args.save_dir
+        )
+        optimized_df.to_parquet(optimized_path)
 
-    taco_treesatai = tacoreader.load(
-        [os.path.join(args.save_dir, "TreeSatAI.tortilla")]
+    # Create a tortilla version of the dataset
+    tortilla_name = "geobench_treesatai.tortilla"
+
+    create_tortilla(
+        root_dir=args.save_dir,
+        df=optimized_df,
+        save_dir=args.save_dir,
+        tortilla_name=tortilla_name,
     )
 
-    # create unit test subset
-    unit_test_taco = create_subset_from_tortilla(
-        taco_treesatai, n_train_samples=4, n_val_samples=2, n_test_samples=2
-    )
-    script_dir = os.path.dirname(os.path.abspath(__file__))
-    repo_root = os.path.dirname(os.path.dirname(script_dir))
-    test_data_dir = os.path.join(repo_root, "tests", "data", "treesatai")
-    os.makedirs(test_data_dir, exist_ok=True)
-    tacoreader.compile(
-        dataframe=unit_test_taco,
-        output=os.path.join(test_data_dir, "treesatai.tortilla"),
+    create_unittest_subset(
+        data_dir=args.save_dir,
+        tortilla_pattern=tortilla_name,
+        test_dir_name="treesatai",
+        n_train_samples=4,
+        n_val_samples=2,
+        n_test_samples=2,
     )
 
 
