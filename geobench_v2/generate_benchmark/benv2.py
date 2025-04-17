@@ -24,6 +24,7 @@ import numpy as np
 from geobench_v2.generate_benchmark.utils import (
     plot_sample_locations,
     create_unittest_subset,
+    create_subset_from_df,
 )
 
 from rasterio.enums import Resampling
@@ -145,48 +146,18 @@ def create_tortilla(root_dir, metadata_df, save_dir, tortilla_name):
     for idx, row in tqdm(
         metadata_df.iterrows(), total=len(metadata_df), desc="Creating tortilla"
     ):
+        modalities = ["s1", "s2"]
+
         modality_samples = []
 
-        # S1 band modalities
-        s1_bands = ["VH", "VV"]
+        for modality in modalities:
+            path = os.path.join(root_dir, row[modality + "_path"])
 
-        patch_id = row["s1_name"]
-        patch_dir = "_".join(patch_id.split("_")[0:-3])
-
-        s1_dir = os.path.join(root_dir, "BigEarthNet-S1", patch_dir, patch_id)
-        s1_paths = [os.path.join(s1_dir, f"{patch_id}_{band}.tif") for band in s1_bands]
-
-        # S2 band modalities
-        s2_bands = [
-            "B01",
-            "B02",
-            "B03",
-            "B04",
-            "B05",
-            "B06",
-            "B07",
-            "B08",
-            "B8A",
-            "B09",
-            "B11",
-            "B12",
-        ]
-
-        patch_id = row["patch_id"]
-        patch_dir = "_".join(patch_id.split("_")[0:-2])
-        s2_dir = os.path.join(root_dir, "BigEarthNet-S2", patch_dir, patch_id)
-
-        s2_paths = [os.path.join(s2_dir, f"{patch_id}_{band}.tif") for band in s2_bands]
-
-        # for path in [*s1_paths, *s2_paths]:
-        #     assert os.path.exists(path), f"{path} does not exist"
-
-        for band_name, path in zip(s1_bands + s2_bands, s1_paths + s2_paths):
             with rasterio.open(path) as src:
                 profile = src.profile
 
             sample = tacotoolbox.tortilla.datamodel.Sample(
-                id=band_name,
+                id=modality,
                 path=path,
                 file_format="GTiff",
                 data_split=row["split"],
@@ -271,41 +242,16 @@ def create_geobench_version(
         save_dir: Directory to save the GeoBench version
     """
     random_state = 24
-
-    # Step 1: Subsample procedure
-    # Handle -1 case which means "use all samples"
-    train_count = len(metadata_df[metadata_df["split"] == "train"])
-    val_count = len(metadata_df[metadata_df["split"] == "validation"])
-    test_count = len(metadata_df[metadata_df["split"] == "test"])
-
-    n_train_samples = (
-        train_count if n_train_samples == -1 else min(n_train_samples, train_count)
-    )
-    n_val_samples = val_count if n_val_samples == -1 else min(n_val_samples, val_count)
-    n_test_samples = (
-        test_count if n_test_samples == -1 else min(n_test_samples, test_count)
+    subset_df = create_subset_from_df(
+        metadata_df,
+        n_train_samples=n_train_samples,
+        n_val_samples=n_val_samples,
+        n_test_samples=n_test_samples,
+        random_state=random_state,
     )
 
-    print(
-        f"Selecting {n_train_samples} train, {n_val_samples} validation, and {n_test_samples} test samples"
-    )
-
-    train_samples = metadata_df[metadata_df["split"] == "train"].sample(
-        n_train_samples, random_state=random_state
-    )
-    val_samples = metadata_df[metadata_df["split"] == "validation"].sample(
-        n_val_samples, random_state=random_state
-    )
-    test_samples = metadata_df[metadata_df["split"] == "test"].sample(
-        n_test_samples, random_state=random_state
-    )
-    subset_df = pd.concat([train_samples, val_samples, test_samples])
-
-    # Step 2: Write data in optimized geotiff format to the save_dir
-    # Create directories for each split
-    for split in ["train", "validation", "test"]:
-        os.makedirs(os.path.join(save_dir, split, "S1"), exist_ok=True)
-        os.makedirs(os.path.join(save_dir, split, "S2"), exist_ok=True)
+    os.makedirs(os.path.join(save_dir, "S1"), exist_ok=True)
+    os.makedirs(os.path.join(save_dir, "S2"), exist_ok=True)
 
     subset_df["s1_path"] = None
     subset_df["s2_path"] = None
@@ -324,8 +270,8 @@ def create_geobench_version(
             os.path.join(s1_dir, f"{s1_patch_id}_{band}.tif") for band in s1_bands
         ]
 
-        s1_output_path = os.path.join(save_dir, split, "S1", f"{s1_patch_id}.tif")
-        subset_df.at[idx, "s1_path"] = os.path.join(split, "S1", f"{s1_patch_id}.tif")
+        s1_output_path = os.path.join(save_dir, "S1", f"{s1_patch_id}.tif")
+        subset_df.at[idx, "s1_path"] = os.path.join("S1", f"{s1_patch_id}.tif")
 
         with rasterio.open(s1_band_paths[0]) as src:
             height = src.height
@@ -339,13 +285,13 @@ def create_geobench_version(
                 "height": height,
                 "width": width,
                 "count": 2,  # VH, VV
-                "dtype": dtype,
+                "dtype": "uint16",
                 "tiled": True,
                 "blockxsize": 64,
                 "blockysize": 64,
                 "interleave": "pixel",
                 "compress": "zstd",
-                "zstd_level": 22,
+                "zstd_level": 13,
                 "predictor": 2,
                 "crs": crs,
                 "transform": transform,
@@ -386,8 +332,8 @@ def create_geobench_version(
         ]
 
         # Create destination path for consolidated S2 file
-        s2_output_path = os.path.join(save_dir, split, "S2", f"{s2_patch_id}.tif")
-        subset_df.at[idx, "s2_path"] = os.path.join(split, "S2", f"{s2_patch_id}.tif")
+        s2_output_path = os.path.join(save_dir, "S2", f"{s2_patch_id}.tif")
+        subset_df.at[idx, "s2_path"] = os.path.join("S2", f"{s2_patch_id}.tif")
 
         # Read metadata from first band to setup the output profile
         with rasterio.open(s2_band_paths[0]) as src:
@@ -401,13 +347,13 @@ def create_geobench_version(
                 "height": 120,
                 "width": 120,
                 "count": 12,  # 12 S2 bands
-                "dtype": dtype,
+                "dtype": "uint16",
                 "tiled": True,
                 "blockxsize": 128,
                 "blockysize": 128,
                 "interleave": "pixel",
                 "compress": "zstd",
-                "zstd_level": 22,
+                "zstd_level": 13,
                 "predictor": 2,
                 "crs": crs,
                 "transform": transform,
@@ -430,15 +376,7 @@ def create_geobench_version(
         with rasterio.open(s2_output_path, "w", **s2_profile) as dst:
             dst.write(s2_data_array)
 
-    subset_df.to_parquet(
-        os.path.join(save_dir, "geobench_benv2_optimized.parquet"), index=False
-    )
     print(f"Created optimized dataset with {len(subset_df)} samples")
-
-    # Step 3: Create the tortilla version of the dataset using the updated paths
-    create_tortilla(
-        save_dir, subset_df, save_dir, tortilla_name="geobench_benv2.tortilla"
-    )
 
     return subset_df
 
@@ -466,23 +404,28 @@ def main():
     else:
         metadata_df = pd.read_parquet(new_metadata_path)
 
-    # create_tortilla(args.root, metadata_df, args.save_dir)
+    result_df_path = os.path.join(args.save_dir, "geobench_benv2_optimized.parquet")
+    if os.path.exists(result_df_path):
+        result_df = pd.read_parquet(result_df_path)
+    else:
+        result_df = create_geobench_version(
+            metadata_df=metadata_df,
+            n_train_samples=20000,
+            n_val_samples=4000,
+            n_test_samples=4000,
+            root_dir=args.root,
+            save_dir=args.save_dir,
+        )
+        result_df.to_parquet(result_df_path)
 
-    create_geobench_version(
-        metadata_df=metadata_df,
-        n_train_samples=20000,
-        n_val_samples=4000,
-        n_test_samples=4000,
-        root_dir=args.root,
-        save_dir=args.save_dir,
+    tortilla_name = "geobench_benv2.tortilla"
+    create_tortilla(
+        args.save_dir, result_df, args.save_dir, tortilla_name=tortilla_name
     )
 
-    import pdb
-
-    pdb.set_trace()
     create_unittest_subset(
         data_dir=args.save_dir,
-        tortilla_pattern="FullBenV2.*.part.tortilla",
+        tortilla_pattern=tortilla_name,
         test_dir_name="benv2",
         n_train_samples=4,
         n_val_samples=2,
