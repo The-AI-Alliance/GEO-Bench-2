@@ -35,7 +35,7 @@ import json
 from pathlib import Path
 from argparse import ArgumentParser
 import pickle
-import cv2
+from PIL import Image
 from sklearn.model_selection import train_test_split
 
 
@@ -137,7 +137,8 @@ def process_files_for_coordinates(
         coord_system = img_metadata["Coordinate system"]
 
         try:
-            image = cv2.imread(file.__str__(), cv2.IMREAD_GRAYSCALE)
+            # image = cv2.imread(file.__str__(), cv2.IMREAD_GRAYSCALE)
+            image = Image.open(file.__str__())
             if image is not None:
                 orig_height, orig_width = image.shape
             else:
@@ -429,13 +430,6 @@ def generate_metadata_df(root) -> pd.DataFrame:
     return df
 
 
-def create_unit_test_subset() -> None:
-    """Create a subset of CaFFe dataset for GeoBench unit tests."""
-
-    # create random images etc that respect the structure of the dataset in minimal format
-    pass
-
-
 def main():
     """Generate CaFFe Benchmark."""
     parser = argparse.ArgumentParser()
@@ -467,6 +461,13 @@ def main():
     #     s=5,
     #     alpha=0.7
     # )
+    verify_df = verify_coordinates_in_metadata(
+        metadata_df, os.path.join(args.root), num_samples=1000
+    )
+
+    import pdb
+
+    pdb.set_trace()
 
     create_geobench_ds(
         "/mnt/rg_climate_benchmark/data/datasets_segmentation/Caffe/caffe",
