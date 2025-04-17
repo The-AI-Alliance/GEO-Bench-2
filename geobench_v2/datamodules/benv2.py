@@ -26,10 +26,11 @@ class GeoBenchBENV2DataModule(GeoBenchClassificationDataModule):
         "FullBenV2.0000.part.tortilla",
         "FullBenV2.0001.part.tortilla",
         "FullBenV2.0002.part.tortilla",
-    )   
+    )
+
     def __init__(
         self,
-        img_size: int,
+        img_size: int = 120,
         band_order: Sequence[float | str] = GeoBenchBENV2.band_default_order,
         batch_size: int = 32,
         eval_batch_size: int = 64,
@@ -71,7 +72,9 @@ class GeoBenchBENV2DataModule(GeoBenchClassificationDataModule):
         Returns:
             pandas DataFrame with metadata.
         """
-        self.data_df = tacoreader.load([os.path.join(self.kwargs["root"], f) for f in self.paths])
+        self.data_df = tacoreader.load(
+            [os.path.join(self.kwargs["root"], f) for f in self.paths]
+        )
         return self.data_df
 
     def visualize_batch(
@@ -97,10 +100,4 @@ class GeoBenchBENV2DataModule(GeoBenchClassificationDataModule):
         alpha: float = 0.5,
         s: float = 0.5,
     ) -> None:
-
-        return super().visualize_geospatial_distribution(
-            split_column=split_column,
-        )
-
-
-        
+        return super().visualize_geospatial_distribution(split_column=split_column)

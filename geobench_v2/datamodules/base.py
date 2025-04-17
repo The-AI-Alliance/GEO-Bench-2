@@ -184,11 +184,11 @@ class GeoBenchDataModule(LightningDataModule, ABC):
         s: float = 0.5,
     ) -> None:
         """Visualize the geospatial distribution of dataset samples on a map.
-        
-        Creates a plot showing the geographic locations of samples, colored by dataset split 
+
+        Creates a plot showing the geographic locations of samples, colored by dataset split
         (train, validation, test). This helps to understand the spatial distribution
         and potential geographic biases in the dataset.
-        
+
         Args:
             split_column: Column name in the metadata DataFrame that indicates the dataset split.
             buffer_degrees: Buffer around the data extent in degrees
@@ -197,19 +197,23 @@ class GeoBenchDataModule(LightningDataModule, ABC):
             alpha: Transparency of plotted points
             s: Size of plotted points
         """
-        if not hasattr(self, 'data_df') or self.data_df is None:
+        if not hasattr(self, "data_df") or self.data_df is None:
             raise ValueError("data_df not available in the datamodule")
 
         data_df = self.data_df.copy()
-        
-        if 'lat' not in data_df.columns or 'lon' not in data_df.columns:
-            if 'latitude' in data_df.columns and 'longitude' in data_df.columns:
-                data_df.rename(columns={'latitude': 'lat', 'longitude': 'lon'}, inplace=True)
+
+        if "lat" not in data_df.columns or "lon" not in data_df.columns:
+            if "latitude" in data_df.columns and "longitude" in data_df.columns:
+                data_df.rename(
+                    columns={"latitude": "lat", "longitude": "lon"}, inplace=True
+                )
             else:
-                raise ValueError("Metadata is missing required latitude and longitude information")
-        
-        dataset_name = self.__class__.__name__.replace('DataModule', '')
-        
+                raise ValueError(
+                    "Metadata is missing required latitude and longitude information"
+                )
+
+        dataset_name = self.__class__.__name__.replace("DataModule", "")
+
         min_lon = data_df["lon"].min() - buffer_degrees
         max_lon = data_df["lon"].max() + buffer_degrees
         min_lat = data_df["lat"].min() - buffer_degrees
@@ -219,23 +223,23 @@ class GeoBenchDataModule(LightningDataModule, ABC):
         max_lon = min(180, max_lon)
         min_lat = max(-90, min_lat)
         max_lat = min(90, max_lat)
-        
+
         print(
             f"Map extent: Longitude [{min_lon:.2f}° to {max_lon:.2f}°], "
             f"Latitude [{min_lat:.2f}° to {max_lat:.2f}°]"
         )
-        
+
         fig = plt.figure(figsize=(12, 10))
 
         lon_extent = max_lon - min_lon
         lat_extent = max_lat - min_lat
-        
+
         if lon_extent > 180:
             projection = ccrs.Robinson()
         else:
             central_lon = (min_lon + max_lon) / 2
             central_lat = (min_lat + max_lat) / 2
-            
+
             if lat_extent > 60:
                 projection = ccrs.AlbersEqualArea(
                     central_longitude=central_lon, central_latitude=central_lat
@@ -244,24 +248,22 @@ class GeoBenchDataModule(LightningDataModule, ABC):
                 projection = ccrs.LambertConformal(
                     central_longitude=central_lon, central_latitude=central_lat
                 )
-        
+
         ax = plt.axes(projection=projection)
         ax.set_extent([min_lon, max_lon, min_lat, max_lat], crs=ccrs.PlateCarree())
-        
+
         scale = "50m"
         ax.add_feature(cfeature.LAND.with_scale(scale), facecolor="lightgray")
         ax.add_feature(cfeature.OCEAN.with_scale(scale), facecolor="lightblue")
         ax.add_feature(cfeature.COASTLINE.with_scale(scale), linewidth=0.8)
         ax.add_feature(cfeature.BORDERS.with_scale(scale), linewidth=0.8, linestyle=":")
-        
+
         if max_lon - min_lon < 90:
             ax.add_feature(cfeature.RIVERS, linewidth=0.2, alpha=0.5)
             ax.add_feature(cfeature.LAKES, facecolor="lightblue", alpha=0.5)
-        
 
         splits = data_df[split_column].unique()
         print(f"Found {len(splits)} dataset splits: {', '.join(map(str, splits))}")
-        
 
         split_colors = {
             "train": "blue",
@@ -269,7 +271,7 @@ class GeoBenchDataModule(LightningDataModule, ABC):
             "validation": "green",
             "test": "red",
         }
-        
+
         legend_elements = []
 
         for split in splits:
@@ -296,16 +298,16 @@ class GeoBenchDataModule(LightningDataModule, ABC):
                         label=f"{split} (n={len(split_data)})",
                     )
                 )
-        
+
         ax.legend(handles=legend_elements, loc="lower right", title="Dataset Splits")
         title = f"Geographic Distribution of {dataset_name} Samples by Split"
-        
+
         gl = ax.gridlines(
             draw_labels=True, linewidth=0.5, color="gray", alpha=0.5, linestyle="--"
         )
         gl.top_labels = False
         gl.right_labels = False
-        
+
         plt.title(title, fontsize=14)
 
         return fig
