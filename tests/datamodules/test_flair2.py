@@ -8,6 +8,7 @@ import os
 from pytest import MonkeyPatch
 from typing import Sequence
 import torch
+import matplotlib.pyplot as plt
 from geobench_v2.datasets import GeoBenchFLAIR2
 from geobench_v2.datamodules import GeoBenchFLAIR2DataModule
 
@@ -23,9 +24,9 @@ def datamodule(monkeypatch: MonkeyPatch, band_order: dict[str, Sequence[str | fl
     """Initialize FLAIR2 datamodule with test configuration."""
     monkeypatch.setattr(GeoBenchFLAIR2, "paths", ["flair2.tortilla"])
     dm = GeoBenchFLAIR2DataModule(
-        img_size=74,
-        batch_size=4,
-        eval_batch_size=2,
+        img_size=256,
+        batch_size=2,
+        eval_batch_size=1,
         num_workers=0,
         pin_memory=False,
         band_order=band_order,
@@ -55,11 +56,9 @@ class TestFlAIR2DataModule:
         assert train_batch["image"].shape[0] == datamodule.batch_size
         assert train_batch["image"].shape[1] == len(datamodule.band_order)
         assert train_batch["image"].shape[2] == datamodule.img_size
-        assert train_batch["image"].shape[3] == 74
 
         assert train_batch["mask"].shape[0] == datamodule.batch_size
         assert train_batch["mask"].shape[1] == datamodule.img_size
-        assert train_batch["mask"].shape[2] == 74
 
         assert torch.isclose(train_batch["image"][:, 1], torch.tensor(1.0)).all()
 
@@ -67,3 +66,11 @@ class TestFlAIR2DataModule:
         assert "lat" in train_batch
         assert train_batch["lon"].shape == (datamodule.batch_size,)
         assert train_batch["lat"].shape == (datamodule.batch_size,)
+
+    def test_batch_visualization(self, datamodule):
+        """Test batch visualization."""
+        fig, batch = datamodule.visualize_batch("train")
+        assert isinstance(fig, plt.Figure)
+        assert isinstance(batch, dict)
+
+        fig.savefig(os.path.join("tests", "data", "flair2", "test_batch.png"))

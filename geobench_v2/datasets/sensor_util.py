@@ -31,6 +31,7 @@ class ModalityConfig:
     bands: Dict[str, BandConfig]
     default_order: List[str]  # Default band order for this modality
     native_resolution: Optional[int] = None  # Native resolution in meters
+    plot_bands: Optional[Sequence[str]] = None  # Bands to be plotted
 
     # Add band_to_modality mapping for consistency with MultiModalConfig
     @property
@@ -65,6 +66,7 @@ class MultiModalConfig:
     modalities: Dict[str, ModalityConfig]
     default_order: List[str]  # Default band order across all modalities
     band_to_modality: Dict[str, str]  # Maps band names to their modality
+    plot_bands: Optional[Sequence[str]] = None  # Bands to be plotted
 
 
 class SensorType(Enum):
@@ -565,6 +567,7 @@ class DatasetBandRegistry:
             "elevation": BandConfig("elevation", ["elevation"], wavelength=None),
         },
         default_order=["r", "g", "b", "nir", "elevation"],
+        plot_bands=["r", "g", "b"],
     )
 
     # CLOUDSEN12 has cloudsen12-l1c Sentinel2 data is actually just a single ModalityConfig

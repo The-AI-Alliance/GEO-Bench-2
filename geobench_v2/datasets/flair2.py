@@ -22,8 +22,7 @@ from shapely import wkt
 class GeoBenchFLAIR2(GeoBenchBaseDataset):
     """Implementation of FLAIR 2 Aerial dataset."""
 
-    classes = [
-        "background",
+    classes = (
         "building",
         "pervious surface",
         "impervious surface",
@@ -31,18 +30,13 @@ class GeoBenchFLAIR2(GeoBenchBaseDataset):
         "water",
         "coniferous",
         "deciduous",
+        "brushwood",
         "vineyard",
         "herbaceous vegetation",
         "agricultural land",
         "plowed land",
-        "swimming_pool",
-        "snow",
-        "clear cut",
-        "mixed",
-        "ligneous",
-        "greenhouse",
         "other",
-    ]
+    )
 
     num_classes = len(classes)
 
@@ -139,7 +133,7 @@ class GeoBenchFLAIR2(GeoBenchBaseDataset):
         mask = torch.from_numpy(mask).long()
         # replace values > 13 with 13 as "other" class
         mask[mask > 13] = 13
-        # shift the classes to start from 0
+        # shift the classes to start from 0 so class values will be 0-12
         mask -= 1
 
         image_dict = self.rearrange_bands(image, self.band_order)

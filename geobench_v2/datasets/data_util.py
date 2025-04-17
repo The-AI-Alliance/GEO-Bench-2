@@ -450,8 +450,11 @@ class MultiModalNormalizer(DataNormalizer):
         """
         result = {}
         for key, tensor in data.items():
-            result[key] = self._denormalize_tensor(
-                tensor, self.means[key], self.stds[key]
-            )
+            if key in self.means:
+                result[key] = self._denormalize_tensor(
+                    tensor, self.means[key], self.stds[key]
+                )
+            else:
+                result[key] = tensor
 
         return result
