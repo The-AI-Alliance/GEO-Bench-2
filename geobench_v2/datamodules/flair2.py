@@ -116,7 +116,6 @@ class GeoBenchFLAIR2DataModule(GeoBenchSegmentationDataModule):
         ]
         images = images[:, rgb_indices, :, :]
 
-        # Create figure with 3 columns: image, mask, and legend
         fig, axes = plt.subplots(
             n_samples,
             3,

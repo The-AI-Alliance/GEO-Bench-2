@@ -8,11 +8,12 @@ import os
 from pytest import MonkeyPatch
 from typing import Sequence
 import torch
+import matplotlib.pyplot as plt
 from geobench_v2.datasets import GeoBenchSpaceNet7
 from geobench_v2.datamodules import GeoBenchSpaceNet7DataModule
 
 
-@pytest.fixture(params=[["red", 0.0, "blue", "nir"]])
+@pytest.fixture(params=[["red", 0.0, "blue", "nir", "green"]])
 def band_order(request):
     """Parameterized band configuration with different configurations."""
     return request.param
@@ -23,7 +24,7 @@ def datamodule(monkeypatch: MonkeyPatch, band_order: dict[str, Sequence[str | fl
     """Initialize SpaceNet7 datamodule with test configuration."""
     monkeypatch.setattr(GeoBenchSpaceNet7, "paths", ["spacenet7.tortilla"])
     dm = GeoBenchSpaceNet7DataModule(
-        img_size=74,
+        img_size=256,
         batch_size=2,
         eval_batch_size=1,
         num_workers=0,
@@ -55,12 +56,11 @@ class TestSpaceNet7DataModule:
         assert train_batch["image"].shape[0] == datamodule.batch_size
         assert train_batch["image"].shape[1] == len(datamodule.band_order)
         assert train_batch["image"].shape[2] == datamodule.img_size
-        assert train_batch["image"].shape[3] == 74
+        assert train_batch["image"].shape[3] == datamodule.img_size
 
         assert train_batch["mask"].shape[0] == datamodule.batch_size
-        assert train_batch["mask"].shape[1] == 1
+        assert train_batch["mask"].shape[1] == datamodule.img_size
         assert train_batch["mask"].shape[2] == datamodule.img_size
-        assert train_batch["mask"].shape[3] == 74
 
         assert torch.isclose(train_batch["image"][:, 1], torch.tensor(0.0)).all()
 
@@ -68,3 +68,11 @@ class TestSpaceNet7DataModule:
         assert "lat" in train_batch
         assert train_batch["lon"].shape == (datamodule.batch_size,)
         assert train_batch["lat"].shape == (datamodule.batch_size,)
+
+    def test_batch_visualization(self, datamodule):
+        """Test batch visualization."""
+        fig, batch = datamodule.visualize_batch("train")
+        assert isinstance(fig, plt.Figure)
+        assert isinstance(batch, dict)
+
+        fig.savefig(os.path.join("tests", "data", "spacenet7", "test_batch.png"))

@@ -160,7 +160,7 @@ class GeoBenchSpaceNet6DataModule(GeoBenchSegmentationDataModule):
         from matplotlib.colors import ListedColormap
 
         class_colors = [colors[i] for i in range(len(colors))]
-        flood_cmap = ListedColormap(class_colors)
+        build_cmap = ListedColormap(class_colors)
 
         for i in range(n_samples):
             for j, (mod, modality_img) in enumerate(modalities.items()):
@@ -189,7 +189,7 @@ class GeoBenchSpaceNet6DataModule(GeoBenchSegmentationDataModule):
 
             ax = axes[i, -1]
             mask_img = masks[i].cpu().numpy()
-            im = ax.imshow(mask_img, cmap=flood_cmap, vmin=0, vmax=2)
+            im = ax.imshow(mask_img, cmap=build_cmap, vmin=0, vmax=2)
             ax.set_title("Building Mask" if i == 0 else "", fontsize=20)
             ax.axis("off")
 

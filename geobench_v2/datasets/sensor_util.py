@@ -560,7 +560,9 @@ class DatasetBandRegistry:
     )
 
     SPACENET7 = ModalityConfig(
-        bands=SensorBandRegistry.RGBN.bands, default_order=["r", "g", "b", "nir"]
+        bands=SensorBandRegistry.RGBN.bands,
+        default_order=["r", "g", "b", "nir"],
+        plot_bands=["r", "g", "b"],
     )
 
     SPACENET8 = ModalityConfig(

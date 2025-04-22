@@ -155,9 +155,8 @@ class GeoBenchSpaceNet6(GeoBenchBaseDataset):
         with rasterio.open(mask_path) as src:
             mask = src.read()
 
-        # We add 1 to the mask to map the current {background, building} labels to
-        # the values {1, 2}. This is necessary because we add 0 padding to the
-        # mask that we want to ignore in the loss function.
+        # We add 1 to the mask to map the current {background, building} labels to have a
+        # true background class.
         mask = torch.from_numpy(mask).long().squeeze(0) + 1
 
         if masked_no_data is not None:
