@@ -109,10 +109,10 @@ class GeoBenchSpaceNet7DataModule(GeoBenchSegmentationDataModule):
             if band in self.band_order
         ]
         images = images[:, rgb_indices, :, :]
-        # Create figure with 3 columns: image, mask, and legend
+
         fig, axes = plt.subplots(
             n_samples,
-            3,
+            2,
             figsize=(12, 3 * n_samples),
             gridspec_kw={"width_ratios": [1, 1, 0.5]},
         )

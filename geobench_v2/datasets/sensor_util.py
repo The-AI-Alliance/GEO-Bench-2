@@ -565,9 +565,10 @@ class DatasetBandRegistry:
         plot_bands=["r", "g", "b"],
     )
 
-    SPACENET8 = ModalityConfig(
-        bands=SensorBandRegistry.RGB.bands, default_order=["r", "g", "b"]
-    )
+    # SPACENET8 = ModalityConfig(
+    #     bands=SensorBandRegistry.RGB.bands, default_order=["r", "g", "b"], plot_bands=["r", "g", "b"]
+    # )
+    SPACENET8 = SensorBandRegistry.RGB
 
     # flair 2 has rgbn and elevation bands
     FLAIR2 = ModalityConfig(

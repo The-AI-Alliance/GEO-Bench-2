@@ -362,6 +362,7 @@ def create_unittest_subset(
     n_train_samples: int,
     n_val_samples: int,
     n_test_samples: int,
+    random_state: int = 42,
 ) -> None:
     """Create a unittest version tortilla.
 
@@ -383,7 +384,7 @@ def create_unittest_subset(
         n_train_samples=n_train_samples,
         n_val_samples=n_val_samples,
         n_test_samples=n_test_samples,
-        random_state=41,
+        random_state=random_state,
         split_column="tortilla:data_split",
     )
     script_dir = os.path.dirname(os.path.abspath(__file__))

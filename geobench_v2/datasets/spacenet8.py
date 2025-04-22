@@ -117,7 +117,7 @@ class GeoBenchSpaceNet8(GeoBenchBaseDataset):
 
         image_pre = torch.from_numpy(pre_image).float()
         image_post = torch.from_numpy(post_image).float()
-        mask = torch.from_numpy(mask).long()
+        mask = torch.from_numpy(mask).long().squeeze(0)
 
         image_pre = self.rearrange_bands(image_pre, self.band_order)
         image_pre = self.data_normalizer(image_pre)
@@ -127,15 +127,15 @@ class GeoBenchSpaceNet8(GeoBenchBaseDataset):
         sample["image_pre"] = image_pre["image"]
         sample["image_post"] = image_post["image"]
 
-        sample["mask"] = mask
-
         if self.return_stacked_image:
             sample = {
                 "image": torch.cat(
                     [img for key, img in sample.items() if key.startswith("image_")], 0
-                ),
-                "mask": sample["mask"],
+                )
             }
+
+        sample["mask"] = mask
+
         if self.transforms is not None:
             sample = self.transforms(sample)
 
