@@ -161,7 +161,7 @@ class GeoBenchSpaceNet2(GeoBenchBaseDataset):
             with rasterio.open(segmentation_path) as mask_src:
                 mask: np.ndarray = mask_src.read()
 
-        sample["mask"] = torch.from_numpy(mask).long()
+        sample["mask"] = torch.from_numpy(mask).long().squeeze(0)
 
         if self.transforms is not None:
             sample = self.transforms(sample)

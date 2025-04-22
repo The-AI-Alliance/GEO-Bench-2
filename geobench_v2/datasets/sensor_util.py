@@ -497,10 +497,12 @@ class DatasetBandRegistry:
                     "nir1",
                     "nir2",
                 ],
+                plot_bands=["red", "green", "blue"],
             ),
             "pan": ModalityConfig(
                 bands={"pan": BandConfig("pan", ["pan"], wavelength=0.54)},
                 default_order=["pan"],
+                plot_bands=["pan"],
             ),
         },
         default_order=[
