@@ -139,9 +139,9 @@ class GeoBenchMMFlood(GeoBenchBaseDataset):
             mask = src.read()
 
         # add 1 to the mask to map classes to 1, and 2 and have 0 as no-data class
-        mask = torch.from_numpy(mask).long() + 1
+        mask = torch.from_numpy(mask).long().squeeze(0) + 1
 
-        mask[..., nan_mask] = 0
+        mask[nan_mask] = 0
 
         sample["mask"] = mask
 
