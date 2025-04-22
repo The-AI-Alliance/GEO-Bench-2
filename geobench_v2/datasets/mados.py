@@ -144,25 +144,19 @@ class GeoBenchMADOS(GeoBenchBaseDataset):
         """
         sample: dict[str, Tensor] = {}
         sample_row = self.data_df.read(idx)
+        with rasterio.open(sample_row.read(0)) as src:
+            s2_img = src.read()
 
-        images = []
-        for idx, band in enumerate(self.band_default_order):
-            with rasterio.open(sample_row.read(idx)) as dataset:
-                array = dataset.read(
-                    indexes=1, out_shape=(240, 240), resampling=Resampling.bilinear
-                )
-                images.append(array)
+        img = torch.from_numpy(s2_img).float()
 
-        images = torch.from_numpy(np.stack(images)).float()
-
-        img_dict = self.rearrange_bands(images, self.band_order)
+        img_dict = self.rearrange_bands(img, self.band_order)
         img_dict = self.data_normalizer(img_dict)
 
         sample.update(img_dict)
 
-        with rasterio.open(sample_row.read(11)) as src:
+        with rasterio.open(sample_row.read(-1)) as src:
             mask = src.read()
-        mask = torch.from_numpy(mask).long()
+        mask = torch.from_numpy(mask).long().squeeze(0)
         sample["mask"] = mask
 
         if self.transforms is not None:

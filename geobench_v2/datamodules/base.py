@@ -128,6 +128,8 @@ class GeoBenchDataModule(LightningDataModule, ABC):
 
         self.data_normalizer = self.train_dataset.data_normalizer
 
+        self.band_order = self.train_dataset.band_order
+
         if hasattr(self.train_dataset, "num_classes"):
             self.num_classes = self.train_dataset.num_classes
             self.class_names = self.train_dataset.classes

@@ -864,6 +864,7 @@ class DatasetBandRegistry:
             "B12",
         ],
         native_resolution=10,
+        plot_bands=["B04", "B03", "B02"],
     )
 
     # has rgbn planet imagery, 8 sentinel 1 bands and 12 sentinel 2 bands
