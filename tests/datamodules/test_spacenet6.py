@@ -8,11 +8,13 @@ import pytest
 from typing import Sequence, Dict, Union
 import torch
 from pytest import MonkeyPatch
+import matplotlib.pyplot as plt
+
 from geobench_v2.datasets import GeoBenchSpaceNet6
 from geobench_v2.datamodules import GeoBenchSpaceNet6DataModule
 
 
-@pytest.fixture(params=[{"rgbn": ["r", "g", 0.2], "sar": ["hh", 1.0, "vh"]}])
+@pytest.fixture(params=[{"rgbn": ["r", "g", 0.2, "b"], "sar": ["vv", 1.0, "vh"]}])
 def band_order(request):
     """Parameterized band configuration with different configurations."""
     return request.param
@@ -25,7 +27,7 @@ def datamodule(
     """Initialize SpaceNet6 datamodule with test configuration."""
     monkeypatch.setattr(GeoBenchSpaceNet6, "paths", ["spacenet6.tortilla"])
     dm = GeoBenchSpaceNet6DataModule(
-        img_size=74,
+        img_size=256,
         batch_size=2,
         eval_batch_size=1,
         num_workers=0,
@@ -66,7 +68,6 @@ class TestSpaceNet6DataModule:
 
         expected_dims["mask"] = (
             datamodule.batch_size,
-            1,
             datamodule.img_size,
             datamodule.img_size,
         )
@@ -89,3 +90,11 @@ class TestSpaceNet6DataModule:
         assert "lat" in train_batch
         assert train_batch["lon"].shape == (datamodule.batch_size,)
         assert train_batch["lat"].shape == (datamodule.batch_size,)
+
+    def test_batch_visualization(self, datamodule):
+        """Test batch visualization."""
+        fig, batch = datamodule.visualize_batch("train")
+        assert isinstance(fig, plt.Figure)
+        assert isinstance(batch, dict)
+
+        fig.savefig(os.path.join("tests", "data", "spacenet6", "test_batch.png"))

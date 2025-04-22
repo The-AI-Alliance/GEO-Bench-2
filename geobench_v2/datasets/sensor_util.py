@@ -96,6 +96,7 @@ class SensorBandRegistry:
             "b": BandConfig("blue", ["b", "blue", "BLUE"], wavelength=0.490),
         },
         default_order=["r", "g", "b"],
+        plot_bands=["r", "g", "b"],
     )
 
     RGBN = ModalityConfig(
@@ -104,6 +105,7 @@ class SensorBandRegistry:
             "nir": BandConfig("nir", ["nir", "NIR", "near_infrared"], wavelength=0.842),
         },
         default_order=["r", "g", "b", "nir"],
+        plot_bands=["r", "g", "b"],
     )
 
     SENTINEL2 = ModalityConfig(
@@ -541,6 +543,7 @@ class DatasetBandRegistry:
                     "vh": BandConfig("vh", ["VH"], wavelength=0.056),
                 },
                 default_order=["hh", "hv", "vv", "vh"],
+                plot_bands=["vv", "vh"],
             ),
         },
         default_order=["r", "g", "b", "nir", "hh", "hv", "vv", "vh"],

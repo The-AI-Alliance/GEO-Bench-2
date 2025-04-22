@@ -69,7 +69,7 @@ class GeoBenchSpaceNet6(GeoBenchBaseDataset):
         "SpaceNet6.0002.part.tortilla",
     ]
 
-    classes = ("background", "no_building", "building")
+    classes = ("background", "no-building", "building")
 
     num_classes = len(classes)
 
@@ -132,11 +132,14 @@ class GeoBenchSpaceNet6(GeoBenchBaseDataset):
         if "rgbn" in self.band_order:
             with rasterio.open(ps_rgbn_path) as src:
                 rgbn_img = src.read()
+                # if all values across channels are 0, get mask
+                masked_no_data = np.all(rgbn_img == 0, axis=0)
 
             rgbn_img = torch.from_numpy(rgbn_img).float()
             img_dict["rgbn"] = rgbn_img
         else:
             rgbn_img = None
+            masked_no_data = None
 
         if "sar" in self.band_order:
             with rasterio.open(sar_intensity_path) as src:
@@ -155,7 +158,11 @@ class GeoBenchSpaceNet6(GeoBenchBaseDataset):
         # We add 1 to the mask to map the current {background, building} labels to
         # the values {1, 2}. This is necessary because we add 0 padding to the
         # mask that we want to ignore in the loss function.
-        mask = torch.from_numpy(mask).long() + 1
+        mask = torch.from_numpy(mask).long().squeeze(0) + 1
+
+        if masked_no_data is not None:
+            # if all values across channels are 0, set mask to 0
+            mask[masked_no_data] = 0
 
         sample.update(image_dict)
         sample["mask"] = mask

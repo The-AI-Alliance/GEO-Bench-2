@@ -77,7 +77,7 @@ class GeoBenchSpaceNet2(GeoBenchBaseDataset):
         "SpaceNet2.0004.part.tortilla",
     ]
 
-    classes = ("background", "building")
+    classes = ("background", "no-building", "building")
 
     num_classes = len(classes)
 
@@ -161,7 +161,9 @@ class GeoBenchSpaceNet2(GeoBenchBaseDataset):
             with rasterio.open(segmentation_path) as mask_src:
                 mask: np.ndarray = mask_src.read()
 
-        sample["mask"] = torch.from_numpy(mask).long().squeeze(0)
+        # We add 1 to the mask to map the current {background, building} labels to
+        # the values {1, 2}. to have a true background class.
+        sample["mask"] = torch.from_numpy(mask).long().squeeze(0) + 1
 
         if self.transforms is not None:
             sample = self.transforms(sample)

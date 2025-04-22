@@ -142,9 +142,8 @@ class GeoBenchSpaceNet2DataModule(GeoBenchSegmentationDataModule):
             int(cls) for cls in unique_classes if cls < len(self.class_names)
         ]
 
-        colors = {0: "black", 1: "gray", 2: "blue"}
+        colors = {0: "black", 1: "white", 2: "gray"}
         # make a cmap from the colors for the numerical classes
-        from matplotlib.colors import ListedColormap
 
         class_colors = [colors[i] for i in range(len(colors))]
         flood_cmap = ListedColormap(class_colors)
@@ -162,7 +161,7 @@ class GeoBenchSpaceNet2DataModule(GeoBenchSegmentationDataModule):
             ax = axes[i, -1]
             mask_img = masks[i].cpu().numpy()
             im = ax.imshow(mask_img, cmap=flood_cmap, vmin=0, vmax=2)
-            ax.set_title("Flood Mask" if i == 0 else "", fontsize=20)
+            ax.set_title("Building Mask" if i == 0 else "", fontsize=20)
             ax.axis("off")
 
             if i == 0:
