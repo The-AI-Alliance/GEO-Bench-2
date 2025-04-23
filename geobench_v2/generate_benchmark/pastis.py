@@ -14,7 +14,7 @@ import tacoreader
 import glob
 from tqdm import tqdm
 
-from geobench_v2.generate_benchmark.utils import plot_sample_locations
+from geobench_v2.generate_benchmark.utils import plot_sample_locations, create_subset_from_df, create_unittest_subset
 
 
 def create_subset(ds: PASTIS, metadata_df: pd.DataFrame, save_dir: str) -> None:
@@ -117,7 +117,7 @@ def generate_metadata_df(ds: PASTIS) -> pd.DataFrame:
     return final_gdf
 
 
-def create_tortilla(root_dir, df, save_dir) -> None:
+def create_tortilla(root_dir, df, save_dir, tortilla_name) -> None:
     """Create a subset of PASTIS dataset for Tortilla Benchmark."""
 
     tortilla_dir = os.path.join(save_dir, "tortilla")
@@ -130,10 +130,6 @@ def create_tortilla(root_dir, df, save_dir) -> None:
         for modality in modalities:
             path = os.path.join(root_dir, row[modality + "_path"])
             # start date
-
-            import pdb
-
-            pdb.set_trace()
 
             sample = tacotoolbox.tortilla.datamodel.Sample(
                 id=modality,
@@ -195,8 +191,39 @@ def create_tortilla(root_dir, df, save_dir) -> None:
     # create final taco file
     final_samples = tacotoolbox.tortilla.datamodel.Samples(samples=samples)
     tacotoolbox.tortilla.create(
-        final_samples, os.path.join(save_dir, "Pastis.tortilla"), quiet=True, nworkers=4
+        final_samples, os.path.join(save_dir, tortilla_name), quiet=True, nworkers=4
     )
+
+
+def create_geobench_version(
+    metadata_df: pd.DataFrame,
+    n_train_samples: int,
+    n_val_samples: int,
+    n_test_samples: int,
+) -> pd.DataFrame:
+    """Create a GeoBench version of the dataset.
+    Args:
+        metadata_df: DataFrame with metadata including geolocation for each patch
+        n_train_samples: Number of final training samples, -1 means all
+        n_val_samples: Number of final validation samples, -1 means all
+        n_test_samples: Number of final test samples, -1 means all
+        root_dir: Root directory for FLAIR2 dataset
+        save_dir: Directory to save the subset benchmark data
+        block_size: Size of blocks for optimized GeoTIFF writing
+        num_workers: Number of parallel workers
+    """
+
+    random_state = 24
+
+    subset_df = create_subset_from_df(
+        metadata_df,
+        n_train_samples=n_train_samples,
+        n_val_samples=n_val_samples,
+        n_test_samples=n_test_samples,
+        random_state=random_state,
+    )
+
+    return subset_df
 
 
 def create_unit_test_subset() -> None:
@@ -221,14 +248,36 @@ def main():
     os.makedirs(args.save_dir, exist_ok=True)
     orig_dataset = PASTIS(root=args.root, download=False)
 
-    metadata_path = os.path.join(args.save_dir, "geobench_pastis.parquet")
-    # if os.path.exists(metadata_path):
-    #     metadata_df = pd.read_parquet(metadata_path)
-    # else:
-    metadata_df = generate_metadata_df(orig_dataset)
-    metadata_df.to_parquet(metadata_path)
+    metadata_path = os.path.join(args.save_dir, "geobench_metadata.parquet")
+    if os.path.exists(metadata_path):
+        metadata_df = pd.read_parquet(metadata_path)
+    else:
+        metadata_df = generate_metadata_df(orig_dataset)
+        metadata_df.to_parquet(metadata_path)
 
-    create_tortilla(args.root, metadata_df, args.save_dir)
+    result_path = os.path.join(args.save_dir, "geobench_pastis.parquet")
+    if os.path.exists(result_path):
+        result_df = pd.read_parquet(result_path)
+    else:
+        result_df = create_geobench_version(
+            metadata_df,
+            n_train_samples=4000,
+            n_val_samples=1000,
+            n_test_samples=2000,
+        )
+        result_df.to_parquet(result_path)
+
+    tortilla_name = "geobench_pastis.tortilla"
+    create_tortilla(args.root, result_df, args.save_dir, tortilla_name)
+
+    create_unittest_subset(
+        data_dir=args.save_dir,
+        tortilla_pattern=tortilla_name,
+        test_dir_name="pastis",
+        n_train_samples=4,
+        n_val_samples=2,
+        n_test_samples=2,
+    )
 
     plot_sample_locations(
         metadata_df,
