@@ -114,26 +114,65 @@ def process_spacenet8_tile(args):
             elif gdf.crs != crs:
                 gdf = gdf.to_crs(crs)
 
-            # Create mask from road vectors - distinguish between flooded and non-flooded roads
-            road_shapes = []
-            for _, feature in gdf.iterrows():
-                if feature.geometry is not None and not feature.geometry.is_empty:
-                    # Check if the feature has a 'flood' attribute or similar
-                    if "flood" in feature and feature["flood"] > 0:
-                        road_shapes.append((feature.geometry, 2))  # Flooded roads = 2
-                    else:
-                        road_shapes.append(
-                            (feature.geometry, 1)
-                        )  # Non-flooded roads = 1
+            street_not_flooded = gdf[
+                (gdf["flooded"] != "yes")
+                & (gdf["highway"].notna())
+                & (gdf["building"].isna())
+            ]
 
-            if road_shapes:
+            street_flooded = gdf[
+                (gdf["flooded"] == "yes")
+                & (gdf["highway"].notna())
+                & (gdf["building"].isna())
+            ]
+
+            building_not_flooded = gdf[
+                (gdf["flooded"] != "yes") & (gdf["building"].notna())
+            ]
+
+            building_flooded = gdf[
+                (gdf["flooded"] == "yes") & (gdf["building"].notna())
+            ]
+
+            street_not_flooded_shapes = [
+                (geom, 1)
+                for geom in street_not_flooded.geometry
+                if geom is not None and not geom.is_empty
+            ]
+
+            street_flooded_shapes = [
+                (geom, 2)
+                for geom in street_flooded.geometry
+                if geom is not None and not geom.is_empty
+            ]
+
+            building_not_flooded_shapes = [
+                (geom, 3)
+                for geom in building_not_flooded.geometry
+                if geom is not None and not geom.is_empty
+            ]
+
+            building_flooded_shapes = [
+                (geom, 4)
+                for geom in building_flooded.geometry
+                if geom is not None and not geom.is_empty
+            ]
+
+            all_shapes = (
+                street_not_flooded_shapes
+                + building_not_flooded_shapes
+                + street_flooded_shapes
+                + building_flooded_shapes
+            )
+
+            if all_shapes:
                 mask_data = rasterize(
-                    road_shapes,
+                    all_shapes,
                     out_shape=(height, width),
                     transform=transform,
                     fill=0,
                     dtype=np.uint8,
-                    all_touched=False,
+                    all_touched=True,
                 )
                 mask_data = mask_data[np.newaxis, :, :]
 
@@ -176,11 +215,11 @@ def process_spacenet8_tile(args):
                     col_start : col_start + patch_size[1],
                 ]
 
-                # Calculate road coverage
-                road_ratio = np.sum(mask_patch > 0) / mask_patch.size
-                flood_ratio = (
-                    np.sum(mask_patch == 2) / mask_patch.size if 2 in mask_patch else 0
-                )
+                # compute road (classes 1 and 2 ) and flood class (classes 3 and 4) ratio
+                all_road_ratio = np.sum(mask_patch == 1) + np.sum(mask_patch == 2)
+                road_ratio = all_road_ratio / (patch_size[0] * patch_size[1])
+                all_flood_ratio = np.sum(mask_patch == 3) + np.sum(mask_patch == 4)
+                flood_ratio = all_flood_ratio / (patch_size[0] * patch_size[1])
 
                 patch_id = f"{patch_id_prefix}{tile_basename}_{i:03d}_{j:03d}"
 
@@ -211,7 +250,7 @@ def process_spacenet8_tile(args):
                     "blockysize": blockysize,
                     "interleave": "pixel",
                     "compress": "zstd",
-                    "zstd_level": 22,
+                    "zstd_level": 13,
                     "predictor": 2,
                     "crs": crs,
                     "transform": patch_transform,
@@ -350,8 +389,6 @@ def split_spacenet8_into_patches(
     from concurrent.futures import ProcessPoolExecutor
 
     blockxsize, blockysize = block_size
-    blockxsize = blockxsize - (blockxsize % 16) if blockxsize % 16 != 0 else blockxsize
-    blockysize = blockysize - (blockysize % 16) if blockysize % 16 != 0 else blockysize
 
     if stride is None:
         stride = patch_size
@@ -365,47 +402,38 @@ def split_spacenet8_into_patches(
     for directory in [pre_image_dir, post_image_dir, mask_dir]:
         os.makedirs(directory, exist_ok=True)
 
-    all_patch_metadata = []
-
-    batch_size = max(1, min(100, len(metadata_df) // (num_workers * 2)))
-    batches = [
-        metadata_df.iloc[i : i + batch_size]
-        for i in range(0, len(metadata_df), batch_size)
+    tasks = [
+        (
+            idx,
+            row,
+            root_dir,
+            output_dir,
+            patch_size,
+            blockxsize,
+            blockysize,
+            stride,
+            output_format,
+            patch_id_prefix,
+            buffer_top,
+            buffer_left,
+            buffer_bottom,
+            buffer_right,
+        )
+        for idx, row in metadata_df.iterrows()
     ]
 
-    for batch_idx, batch in enumerate(batches):
-        print(f"Processing batch {batch_idx + 1}/{len(batches)}")
-
-        tasks = [
-            (
-                idx,
-                row,
-                root_dir,
-                output_dir,
-                patch_size,
-                blockxsize,
-                blockysize,
-                stride,
-                output_format,
-                patch_id_prefix,
-                buffer_top,
-                buffer_left,
-                buffer_bottom,
-                buffer_right,
+    all_patch_metadata = []
+    with ProcessPoolExecutor(max_workers=num_workers) as executor:
+        results = list(
+            tqdm(
+                executor.map(process_spacenet8_tile, tasks),
+                total=len(tasks),
+                desc="Processing SpaceNet8 tiles",
             )
-            for idx, row in batch.iterrows()
-        ]
+        )
 
-        with ProcessPoolExecutor(max_workers=num_workers) as executor:
-            results = list(
-                tqdm(
-                    executor.map(process_spacenet8_tile, tasks),
-                    total=len(tasks),
-                    desc=f"Processing batch {batch_idx + 1}/{len(batches)}",
-                )
-            )
-
-            for result_list in results:
+        for result_list in results:
+            if result_list:
                 all_patch_metadata.extend(result_list)
 
     patches_df = pd.DataFrame(all_patch_metadata)
@@ -657,18 +685,18 @@ def main():
     )
 
     result_df_path = os.path.join(args.save_dir, "spacenet8_patches.parquet")
-    if os.path.exists(result_df_path):
-        result_df = pd.read_parquet(result_df_path)
-    else:
-        result_df = create_geobench_version(
-            df_with_assigned_split,
-            n_train_samples=4000,
-            n_val_samples=-1,
-            n_test_samples=-1,
-            root_dir=args.root,
-            save_dir=args.save_dir,
-        )
-        result_df.to_parquet(result_df_path)
+    # if os.path.exists(result_df_path):
+    #     result_df = pd.read_parquet(result_df_path)
+    # else:
+    result_df = create_geobench_version(
+        df_with_assigned_split,
+        n_train_samples=-1,
+        n_val_samples=-1,
+        n_test_samples=-1,
+        root_dir=args.root,
+        save_dir=args.save_dir,
+    )
+    result_df.to_parquet(result_df_path)
 
     tortilla_name = "geobench_spacenet8.tortilla"
     create_tortilla(args.save_dir, result_df, args.save_dir, tortilla_name)
@@ -677,9 +705,10 @@ def main():
         data_dir=args.save_dir,
         tortilla_pattern=tortilla_name,
         test_dir_name="spacenet8",
-        n_train_samples=2,
-        n_val_samples=1,
-        n_test_samples=1,
+        n_train_samples=4,
+        n_val_samples=2,
+        n_test_samples=2,
+        random_state=23,
     )
 
 
