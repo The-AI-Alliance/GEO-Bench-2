@@ -8,6 +8,7 @@ import os
 import pytest
 from typing import Sequence
 import torch
+import matplotlib.pyplot as plt
 from pytest import MonkeyPatch
 from geobench_v2.datasets import GeoBenchBENV2
 from geobench_v2.datamodules import GeoBenchBENV2DataModule
@@ -78,3 +79,11 @@ class TestBENV2DataModule:
         assert "lat" in train_batch
         assert train_batch["lon"].shape == (datamodule.batch_size,)
         assert train_batch["lat"].shape == (datamodule.batch_size,)
+
+    def test_batch_visualization(self, datamodule):
+        """Test batch visualization."""
+        fig, batch = datamodule.visualize_batch("train")
+        assert isinstance(fig, plt.Figure)
+        assert isinstance(batch, dict)
+
+        fig.savefig(os.path.join("tests", "data", "benv2", "test_batch.png"))

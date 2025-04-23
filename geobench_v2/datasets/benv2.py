@@ -98,8 +98,7 @@ class GeoBenchBENV2(GeoBenchBaseDataset):
         "Permanent crops",
         "Pastures",
         "Complex cultivation patterns",
-        "Land principally occupied by agriculture, with significant areas of"
-        " natural vegetation",
+        "Land principally occupied by agriculture, with significant areas of natural vegetation",
         "Agro-forestry areas",
         "Broad-leaved forest",
         "Coniferous forest",
@@ -172,16 +171,20 @@ class GeoBenchBENV2(GeoBenchBaseDataset):
 
         sample_row = self.data_df.read(index)
 
-        # order is VH, VV
-        s1_paths = [sample_row.read(i) for i in range(0, 2)]
-        s2_paths = [sample_row.read(i) for i in range(2, 14)]
+        # order is vv, vh
+        s1_path = sample_row.read(0)
+        s2_path = sample_row.read(1)
 
         data: dict[str, Tensor] = {}
 
         if "s1" in self.band_order:
-            data["s1"] = self._load_image(s1_paths)
+            with rasterio.open(s1_path) as src:
+                s1_img = src.read()
+            data["s1"] = torch.from_numpy(s1_img).float()
         if "s2" in self.band_order:
-            data["s2"] = self._load_image(s2_paths)
+            with rasterio.open(s2_path) as src:
+                s2_img = src.read()
+            data["s2"] = torch.from_numpy(s2_img).float()
 
         # Rearrange bands and normalize
         img = self.rearrange_bands(data, self.band_order)
@@ -200,8 +203,10 @@ class GeoBenchBENV2(GeoBenchBaseDataset):
 
         sample["label"] = self._load_target(sample_row.iloc[0]["labels"])
 
-        sample["lat"] = torch.tensor(sample_row.iloc[0]["lat"])
-        sample["lon"] = torch.tensor(sample_row.iloc[0]["lon"])
+        if "lon" in self.metadata:
+            sample["lon"] = torch.tensor(sample_row.iloc[0]["lon"])
+        if "lat" in self.metadata:
+            sample["lat"] = torch.tensor(sample_row.iloc[0]["lat"])
 
         return sample
 
@@ -219,25 +224,3 @@ class GeoBenchBENV2(GeoBenchBaseDataset):
         image_target = torch.zeros(self.num_classes, dtype=torch.long)
         image_target[indices] = 1
         return image_target
-
-    def _load_image(self, paths: list[str]) -> Tensor:
-        """Load the image for a single image.
-
-        Args:
-            paths: list of paths to the images
-
-        Returns:
-            the image
-        """
-        images = []
-        for path in paths:
-            with rasterio.open(path) as dataset:
-                array = dataset.read(
-                    indexes=1,
-                    out_shape=(120, 120),
-                    out_dtype="int32",
-                    resampling=Resampling.bilinear,
-                )
-                images.append(array)
-
-        return torch.from_numpy(np.stack(images, axis=0)).float()

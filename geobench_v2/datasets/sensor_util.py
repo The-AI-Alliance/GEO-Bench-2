@@ -168,6 +168,7 @@ class SensorBandRegistry:
             "B12",
         ],
         native_resolution=10,
+        plot_bands=["B04", "B03", "B02"],
     )
 
     SENTINEL1 = ModalityConfig(
@@ -176,6 +177,7 @@ class SensorBandRegistry:
             "VH": BandConfig("vh", ["cross_pol"], wavelength=0.056, resolution=10),
         },
         default_order=["VV", "VH"],
+        plot_bands=["VV", "VH"],
         native_resolution=10,
     )
 

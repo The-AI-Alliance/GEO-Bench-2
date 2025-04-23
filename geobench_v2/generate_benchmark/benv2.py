@@ -224,42 +224,23 @@ def create_tortilla(root_dir, metadata_df, save_dir, tortilla_name):
     )
 
 
-def create_geobench_version(
-    metadata_df: pd.DataFrame,
-    n_train_samples: int,
-    n_val_samples: int,
-    n_test_samples: int,
-    root_dir: str,
-    save_dir: str,
-) -> None:
-    """Create a GeoBench version of the dataset.
+def process_sample(args):
+    """Process a single BigEarthNet sample to create optimized GeoTIFF files.
+
     Args:
-        metadata_df: DataFrame with metadata including geolocation for each patch
-        n_train_samples: Number of final training samples, -1 means all
-        n_val_samples: Number of final validation samples, -1 means all
-        n_test_samples: Number of final test samples, -1 means all
-        root_dir: Root directory for the dataset
-        save_dir: Directory to save the GeoBench version
+        args: Dictionary containing sample information and paths
+
+    Returns:
+        Dictionary with updated paths and processing status
     """
-    random_state = 24
-    subset_df = create_subset_from_df(
-        metadata_df,
-        n_train_samples=n_train_samples,
-        n_val_samples=n_val_samples,
-        n_test_samples=n_test_samples,
-        random_state=random_state,
-    )
-
-    os.makedirs(os.path.join(save_dir, "S1"), exist_ok=True)
-    os.makedirs(os.path.join(save_dir, "S2"), exist_ok=True)
-
-    subset_df["s1_path"] = None
-    subset_df["s2_path"] = None
-
-    for idx, row in tqdm(
-        subset_df.iterrows(), total=len(subset_df), desc="Creating optimized GeoTIFFs"
-    ):
-        split = row["split"]
+    try:
+        idx, row, root_dir, save_dir = (
+            args["idx"],
+            args["row"],
+            args["root_dir"],
+            args["save_dir"],
+        )
+        result = {"idx": idx, "s1_path": None, "s2_path": None, "status": "success"}
 
         s1_bands = ["VH", "VV"]
         s1_patch_id = row["s1_name"]
@@ -271,14 +252,13 @@ def create_geobench_version(
         ]
 
         s1_output_path = os.path.join(save_dir, "S1", f"{s1_patch_id}.tif")
-        subset_df.at[idx, "s1_path"] = os.path.join("S1", f"{s1_patch_id}.tif")
+        result["s1_path"] = os.path.join("S1", f"{s1_patch_id}.tif")
 
         with rasterio.open(s1_band_paths[0]) as src:
             height = src.height
             width = src.width
             crs = src.crs
             transform = src.transform
-            dtype = src.dtypes[0]
 
             s1_profile = {
                 "driver": "GTiff",
@@ -307,7 +287,6 @@ def create_geobench_version(
         with rasterio.open(s1_output_path, "w", **s1_profile) as dst:
             dst.write(s1_data_array)
 
-        # --- Process S2 data ---
         s2_bands = [
             "B01",
             "B02",
@@ -326,22 +305,17 @@ def create_geobench_version(
         s2_patch_dir = "_".join(s2_patch_id.split("_")[0:-2])
         s2_dir = os.path.join(root_dir, "BigEarthNet-S2", s2_patch_dir, s2_patch_id)
 
-        # Get paths for S2 bands
         s2_band_paths = [
             os.path.join(s2_dir, f"{s2_patch_id}_{band}.tif") for band in s2_bands
         ]
 
-        # Create destination path for consolidated S2 file
         s2_output_path = os.path.join(save_dir, "S2", f"{s2_patch_id}.tif")
-        subset_df.at[idx, "s2_path"] = os.path.join("S2", f"{s2_patch_id}.tif")
+        result["s2_path"] = os.path.join("S2", f"{s2_patch_id}.tif")
 
-        # Read metadata from first band to setup the output profile
         with rasterio.open(s2_band_paths[0]) as src:
             crs = src.crs
             transform = src.transform
-            dtype = src.dtypes[0]
 
-            # Create optimized profile for S2 data - 12 bands
             s2_profile = {
                 "driver": "GTiff",
                 "height": 120,
@@ -359,7 +333,6 @@ def create_geobench_version(
                 "transform": transform,
             }
 
-        # Read S2 bands and write to consolidated file
         s2_data = []
         for path in s2_band_paths:
             with rasterio.open(path) as src:
@@ -376,7 +349,94 @@ def create_geobench_version(
         with rasterio.open(s2_output_path, "w", **s2_profile) as dst:
             dst.write(s2_data_array)
 
-    print(f"Created optimized dataset with {len(subset_df)} samples")
+        return result
+
+    except Exception as e:
+        return {
+            "idx": idx,
+            "s1_path": None,
+            "s2_path": None,
+            "status": "error",
+            "error_message": str(e),
+        }
+
+
+def create_optimized_geotiffs(
+    metadata_df: pd.DataFrame, root_dir: str, save_dir: str, num_workers: int = 8
+) -> pd.DataFrame:
+    """Create optimized GeoTIFF files for BigEarthNet dataset using parallel processing.
+
+    Args:
+        metadata_df: DataFrame with metadata including geolocation for each patch
+        root_dir: Root directory for the dataset
+        save_dir: Directory to save the optimized files
+        num_workers: Number of parallel workers to use
+
+    Returns:
+        DataFrame with updated paths to optimized files
+    """
+    os.makedirs(os.path.join(save_dir, "S1"), exist_ok=True)
+    os.makedirs(os.path.join(save_dir, "S2"), exist_ok=True)
+
+    result_df = metadata_df.copy()
+    result_df["s1_path"] = None
+    result_df["s2_path"] = None
+
+    task_args = []
+    for idx, row in result_df.iterrows():
+        task_args.append(
+            {"idx": idx, "row": row, "root_dir": root_dir, "save_dir": save_dir}
+        )
+
+    with concurrent.futures.ProcessPoolExecutor(max_workers=num_workers) as executor:
+        results = list(
+            tqdm(
+                executor.map(process_sample, task_args),
+                total=len(task_args),
+                desc="Creating optimized GeoTIFFs",
+            )
+        )
+
+    for result in results:
+        idx = result["idx"]
+        if result["status"] == "success":
+            result_df.at[idx, "s1_path"] = result["s1_path"]
+            result_df.at[idx, "s2_path"] = result["s2_path"]
+        else:
+            print(
+                f"Error processing sample {idx}: {result.get('error_message', 'Unknown error')}"
+            )
+
+    success_count = sum(1 for r in results if r["status"] == "success")
+    error_count = len(results) - success_count
+    print(
+        f"Processed {len(results)} samples: {success_count} successful, {error_count} failed"
+    )
+
+    return result_df
+
+
+def create_geobench_version(
+    metadata_df: pd.DataFrame,
+    n_train_samples: int,
+    n_val_samples: int,
+    n_test_samples: int,
+) -> None:
+    """Create a GeoBench version of the dataset.
+    Args:
+        metadata_df: DataFrame with metadata including geolocation for each patch
+        n_train_samples: Number of final training samples, -1 means all
+        n_val_samples: Number of final validation samples, -1 means all
+        n_test_samples: Number of final test samples, -1 means all
+    """
+    random_state = 24
+    subset_df = create_subset_from_df(
+        metadata_df,
+        n_train_samples=n_train_samples,
+        n_val_samples=n_val_samples,
+        n_test_samples=n_test_samples,
+        random_state=random_state,
+    )
 
     return subset_df
 
@@ -405,18 +465,19 @@ def main():
         metadata_df = pd.read_parquet(new_metadata_path)
 
     result_df_path = os.path.join(args.save_dir, "geobench_benv2_optimized.parquet")
-    if os.path.exists(result_df_path):
-        result_df = pd.read_parquet(result_df_path)
-    else:
-        result_df = create_geobench_version(
-            metadata_df=metadata_df,
-            n_train_samples=20000,
-            n_val_samples=4000,
-            n_test_samples=4000,
-            root_dir=args.root,
-            save_dir=args.save_dir,
-        )
-        result_df.to_parquet(result_df_path)
+    # if os.path.exists(result_df_path):
+    #     result_df = pd.read_parquet(result_df_path)
+    # else:
+    result_df = create_geobench_version(
+        metadata_df=metadata_df,
+        n_train_samples=20000,
+        n_val_samples=4000,
+        n_test_samples=4000,
+    )
+    result_df = create_optimized_geotiffs(
+        metadata_df=result_df, root_dir=args.root, save_dir=args.save_dir, num_workers=8
+    )
+    result_df.to_parquet(result_df_path)
 
     tortilla_name = "geobench_benv2.tortilla"
     create_tortilla(
