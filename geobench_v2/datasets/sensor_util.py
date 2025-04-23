@@ -657,10 +657,12 @@ class DatasetBandRegistry:
                     "vh": BandConfig("vh", ["VH"], wavelength=0.056),
                 },
                 default_order=["vv", "vh"],
+                plot_bands=["vv", "vh"],
             ),
             "dem": ModalityConfig(
                 bands={"dem": BandConfig("dem", ["elevation", "dem"], wavelength=None)},
                 default_order=["dem"],
+                plot_bands=["dem"],
             ),
         },
         default_order=["vv", "vh", "dem"],

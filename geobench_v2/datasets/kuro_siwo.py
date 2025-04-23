@@ -44,10 +44,18 @@ class GeoBenchKuroSiwo(GeoBenchBaseDataset):
         "stds": {"vv": 0.0427, "vh": 0.0215, "dem": 1410.8382},
     }
 
-    classes = ("No Water", "Permanent Water", "Flood", "No Data")
+    # classes = ("No Water", "Permanent Water", "Flood", "No Data")
+    classes = ("No Data", "No Water", "Permanent Water", "Flood")
+
+    num_classes = len(classes)
 
     # TODO should move no-data to 0 and have that as ignore_index
-    num_classes = len(classes)
+    CLASS_MAPPING = {
+        0: 1,  # No Water -> 1
+        1: 2,  # Permanent Water -> 2
+        2: 3,  # Flood -> 3
+        3: 0,  # No Data -> 0
+    }
 
     paths = [
         "kurosiwo.0000.part.tortilla",
@@ -56,6 +64,7 @@ class GeoBenchKuroSiwo(GeoBenchBaseDataset):
         "kurosiwo.0003.part.tortilla",
         "kurosiwo.0004.part.tortilla",
         "kurosiwo.0005.part.tortilla",
+        # "geobench_kuro_siwo.tortilla",
     ]
 
     def __init__(
@@ -85,6 +94,9 @@ class GeoBenchKuroSiwo(GeoBenchBaseDataset):
             transforms=transforms,
             metadata=None,
         )
+        import pdb
+
+        pdb.set_trace()
         self.return_stacked_image = return_stacked_image
 
     def __getitem__(self, index: int) -> dict[str, Tensor]:
@@ -100,59 +112,56 @@ class GeoBenchKuroSiwo(GeoBenchBaseDataset):
 
         sample_row = self.data_df.read(index)
 
-        pre_event_1_vv_path = sample_row.read(0)
-        pre_event_1_vh_path = sample_row.read(1)
-        pre_event_2_vv_path = sample_row.read(2)
-        pre_event_2_vh_path = sample_row.read(3)
-        post_event_vv_path = sample_row.read(4)
-        post_event_vh_path = sample_row.read(5)
-        dem_path = sample_row.read(6)
-        mask_path = sample_row.read(7)
-        invalid_data_path = sample_row.read(8)
+        pre_event_1_path = sample_row.read(0)
+        pre_event_2_path = sample_row.read(1)
+        post_event_path = sample_row.read(2)
+        dem_path = sample_row.read(3)
+        mask_path = sample_row.read(4)
+        invalid_data_path = sample_row.read(5)
 
-        with (
-            rasterio.open(pre_event_1_vv_path) as pre_event_1_vv_src,
-            rasterio.open(pre_event_1_vh_path) as pre_event_1_vh_src,
-            rasterio.open(pre_event_2_vv_path) as pre_event_2_vv_src,
-            rasterio.open(pre_event_2_vh_path) as pre_event_2_vh_src,
-            rasterio.open(post_event_vv_path) as post_event_vv_src,
-            rasterio.open(post_event_vh_path) as post_event_vh_src,
-            rasterio.open(dem_path) as dem_src,
-            rasterio.open(mask_path) as mask_src,
-            rasterio.open(invalid_data_path) as invalid_data_src,
-        ):
-            pre_event_1_vv: np.ndarray = pre_event_1_vv_src.read(out_dtype="float32")
-            pre_event_1_vh: np.ndarray = pre_event_1_vh_src.read(out_dtype="float32")
-            pre_event_2_vv: np.ndarray = pre_event_2_vv_src.read(out_dtype="float32")
-            pre_event_2_vh: np.ndarray = pre_event_2_vh_src.read(out_dtype="float32")
-            post_event_vv: np.ndarray = post_event_vv_src.read(out_dtype="float32")
-            post_event_vh: np.ndarray = post_event_vh_src.read(out_dtype="float32")
-            dem: np.ndarray = dem_src.read(out_dtype="float32")
-            mask: np.ndarray = mask_src.read()
-            invalid_data: np.ndarray = invalid_data_src.read()
+        with rasterio.open(invalid_data_path) as src:
+            invalid_data = src.read()
 
         invalid_data_tensor = torch.from_numpy(invalid_data).long()
+
         sample["invalid_data"] = invalid_data_tensor
         invalid_mask = invalid_data_tensor
 
-        def process_sar_image(vv: np.ndarray, vh: np.ndarray) -> Tensor:
-            image = torch.cat([torch.from_numpy(vv), torch.from_numpy(vh)])
+        def process_sar_image(image) -> Tensor:
             image = self.rearrange_bands({"sar": image}, self.band_order["sar"])
             normalized = self.data_normalizer({"image_sar": image["image"]})
             return normalized["image_sar"] * invalid_mask
 
         if "sar" in self.band_order:
-            sample["image_pre_1"] = process_sar_image(pre_event_1_vv, pre_event_1_vh)
-            sample["image_pre_2"] = process_sar_image(pre_event_2_vv, pre_event_2_vh)
-            sample["image_post"] = process_sar_image(post_event_vv, post_event_vh)
+            with rasterio.open(pre_event_1_path) as src:
+                pre_event_1_img = src.read()
+                pre_event_1_img = torch.from_numpy(pre_event_1_img)
+            with rasterio.open(pre_event_2_path) as src:
+                pre_event_2_img = src.read()
+                pre_event_2_img = torch.from_numpy(pre_event_2_img)
+            with rasterio.open(post_event_path) as src:
+                post_event_img = src.read()
+                post_event_img = torch.from_numpy(post_event_img)
+            sample["image_pre_1"] = process_sar_image(pre_event_1_img)
+            sample["image_pre_2"] = process_sar_image(pre_event_2_img)
+            sample["image_post"] = process_sar_image(post_event_img)
 
         if "dem" in self.band_order:
+            with rasterio.open(dem_path) as src:
+                dem = src.read()
             image_dem = torch.from_numpy(dem)
             image_dem = self.rearrange_bands({"dem": image_dem}, self.band_order["dem"])
             image_dem = self.data_normalizer({"image_dem": image_dem["image"]})
             sample["image_dem"] = image_dem["image_dem"] * invalid_mask
 
-        sample["mask"] = torch.from_numpy(mask).long()
+        with rasterio.open(mask_path) as src:
+            mask = src.read()
+        original_mask = torch.from_numpy(mask).long().squeeze(0)
+        remapped_mask = torch.zeros_like(original_mask)
+        for orig_class, new_class in self.CLASS_MAPPING.items():
+            remapped_mask[original_mask == orig_class] = new_class
+
+        sample["mask"] = remapped_mask
 
         if self.transforms is not None:
             sample = self.transforms(sample)

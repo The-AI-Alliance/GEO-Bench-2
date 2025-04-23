@@ -97,16 +97,6 @@ class GeoBenchSpaceNet2DataModule(GeoBenchSegmentationDataModule):
 
         modalities = {}
 
-        # assert that bands are present
-        exists = []
-        for mod in self.band_order.keys():
-            mod_bands = self.dataset_band_config.modalities[mod].bands
-            mod_bands = [True for band in mod_bands if band in self.band_order[mod]]
-            if all(mod_bands):
-                exists.append(True)
-            else:
-                exists.append(False)
-
         for mod in self.band_order.keys():
             mod_plot_bands = self.dataset_band_config.modalities[mod].plot_bands
             missing_bands = [
