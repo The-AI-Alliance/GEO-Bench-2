@@ -469,9 +469,7 @@ class DatasetBandRegistry:
         plot_bands=["gray"],
     )
 
-    EVERWATCH = ModalityConfig(
-        bands=SensorBandRegistry.RGB.bands, default_order=["r", "g", "b"]
-    )
+    EVERWATCH = SensorBandRegistry.RGB
 
     FOTW = ModalityConfig(
         bands=SensorBandRegistry.RGBN.bands, default_order=["r", "g", "b", "nir"]
