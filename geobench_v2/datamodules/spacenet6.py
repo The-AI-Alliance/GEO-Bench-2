@@ -15,6 +15,7 @@ import numpy as np
 from torchgeo.datasets.utils import percentile_normalization
 from einops import rearrange
 import matplotlib.pyplot as plt
+from matplotlib.colors import ListedColormap
 
 from geobench_v2.datasets import GeoBenchSpaceNet6
 
@@ -156,9 +157,6 @@ class GeoBenchSpaceNet6DataModule(GeoBenchSegmentationDataModule):
         ]
 
         colors = {0: "black", 1: "gray", 2: "blue"}
-        # make a cmap from the colors for the numerical classes
-        from matplotlib.colors import ListedColormap
-
         class_colors = [colors[i] for i in range(len(colors))]
         build_cmap = ListedColormap(class_colors)
 

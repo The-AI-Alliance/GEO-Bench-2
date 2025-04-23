@@ -372,6 +372,7 @@ class DatasetBandRegistry:
                     "B11",
                     "B12",
                 ],
+                plot_bands=["B04", "B03", "B02"],
                 native_resolution=10,
             ),
             "s1_asc": ModalityConfig(
@@ -397,6 +398,7 @@ class DatasetBandRegistry:
                 },
                 default_order=["VV_asc", "VH_asc", "VV/VH_asc"],
                 native_resolution=10,
+                plot_bands=["VV_asc", "VH_asc"],
             ),
             "s1_desc": ModalityConfig(
                 bands={
@@ -420,6 +422,7 @@ class DatasetBandRegistry:
                     ),
                 },
                 default_order=["VV_desc", "VH_desc", "VV/VH_desc"],
+                plot_bands=["VV_desc", "VH_desc"],
                 native_resolution=10,
             ),
         },

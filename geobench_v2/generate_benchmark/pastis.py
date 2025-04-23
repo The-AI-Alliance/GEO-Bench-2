@@ -14,7 +14,11 @@ import tacoreader
 import glob
 from tqdm import tqdm
 
-from geobench_v2.generate_benchmark.utils import plot_sample_locations, create_subset_from_df, create_unittest_subset
+from geobench_v2.generate_benchmark.utils import (
+    plot_sample_locations,
+    create_subset_from_df,
+    create_unittest_subset,
+)
 
 
 def create_subset(ds: PASTIS, metadata_df: pd.DataFrame, save_dir: str) -> None:
@@ -260,10 +264,7 @@ def main():
         result_df = pd.read_parquet(result_path)
     else:
         result_df = create_geobench_version(
-            metadata_df,
-            n_train_samples=4000,
-            n_val_samples=1000,
-            n_test_samples=2000,
+            metadata_df, n_train_samples=4000, n_val_samples=1000, n_test_samples=2000
         )
         result_df.to_parquet(result_path)
 
