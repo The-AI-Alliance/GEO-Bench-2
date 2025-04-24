@@ -1035,6 +1035,8 @@ class DatasetBandRegistry:
         band_to_modality={"r": "aerial", "g": "aerial", "b": "aerial", "sar": "sar"},
     )
 
+    QFABRIC = SensorBandRegistry.RGB
+
     WINDTURBINE = ModalityConfig(
         bands={
             "r": BandConfig("red", ["r", "red", "RED"], wavelength=0.665),
