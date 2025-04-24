@@ -991,9 +991,7 @@ class DatasetBandRegistry:
         native_resolution=10,
     )
 
-    DOTAV2 = ModalityConfig(
-        bands=SensorBandRegistry.RGB.bands, default_order=["r", "g", "b"]
-    )
+    DOTAV2 = SensorBandRegistry.RGB
 
     MMFLOOD = MultiModalConfig(
         modalities={
