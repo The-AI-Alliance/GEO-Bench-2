@@ -496,7 +496,7 @@ class DatasetBandRegistry:
             "vh": "sar",
         },
     )
-    
+
     SPACENET7 = ModalityConfig(
         bands=SensorBandRegistry.RGBN.bands, default_order=["r", "g", "b", "nir"]
     )
@@ -969,6 +969,8 @@ class DatasetBandRegistry:
         default_order=["r", "g", "b", "sar"],
         band_to_modality={"r": "aerial", "g": "aerial", "b": "aerial", "sar": "sar"},
     )
+
+    QFABRIC = SensorBandRegistry.RGB
 
     @classmethod
     def get_dataset_config(

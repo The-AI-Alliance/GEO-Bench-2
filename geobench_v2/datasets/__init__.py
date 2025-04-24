@@ -24,6 +24,7 @@ from .dynamic_earthnet import GeoBenchDynamicEarthNet
 from .sen4agrinet import GeoBenchSen4AgriNet
 from .mmflood import GeoBenchMMFlood
 from .bright import GeoBenchBRIGHT
+from .qfabric import GeoBenchQFabric
 
 __all__ = (
     "GeoBenchCaFFe",

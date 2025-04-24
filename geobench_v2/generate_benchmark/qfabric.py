@@ -445,18 +445,22 @@ def process_sample(args):
 
             status_mask_paths.append(status_path)
 
-        patches_info.append(
-            {
-                "patch_id": patch_id,
-                "window": str(window),
-                "position": str(position),
-                "image_paths": image_patch_paths,
-                "change_type_path": change_type_path,
-                "status_paths": status_mask_paths,
-                "change_type_ratio": change_type_ratio,
-                "status_ratios": status_ratios,
-            }
-        )
+        patch_info = {
+            "patch_id": patch_id,
+            "window": str(window),
+            "position": str(position),
+            "image_paths": image_patch_paths,
+            "change_type_path": change_type_path,
+            "status_paths": status_mask_paths,
+            "change_type_ratio": change_type_ratio,
+            "split": row["split"],
+        }
+
+        # Add individual status ratio columns
+        for img_idx, ratio in status_ratios.items():
+            patch_info[f"status_ratio_{img_idx}"] = ratio
+
+        patches_info.append(patch_info)
 
     return {
         "sample_idx": sample_idx,
@@ -544,6 +548,8 @@ def process_qfabric_dataset(
     patches_data = []
     for result in results:
         if result["status"] == "success" and "patches" in result:
+            metadata_row = metadata_df.loc[result["sample_idx"]]
+
             for patch in result["patches"]:
                 patch_info = {
                     "sample_idx": result["sample_idx"],
@@ -552,8 +558,17 @@ def process_qfabric_dataset(
                     "lat": result.get("lat"),
                     "change_type_path": patch["change_type_path"],
                     "change_type_ratio": patch["change_type_ratio"],
-                    "status_ratios": patch["status_ratios"],
+                    "split": patch["split"],
                 }
+                patch_info["status_ratio"] = {
+                    f"status_ratio_{i}": patch.get(f"status_ratio_{i}", 0.0)
+                    for i in range(5)
+                }
+
+                for i in range(5):
+                    date_key = f"img_{i}_date"
+                    if date_key in metadata_row:
+                        patch_info[f"image_{i}_date"] = metadata_row[date_key]
 
                 for i, img_path in enumerate(patch["image_paths"]):
                     patch_info[f"image_{i}_path"] = img_path
@@ -564,6 +579,19 @@ def process_qfabric_dataset(
                 patches_data.append(patch_info)
 
     patches_df = pd.DataFrame(patches_data)
+
+    patches_df["change_type_path"] = patches_df["change_type_path"].apply(
+        lambda x: x.replace(output_dir, "").lstrip("/")
+    )
+
+    for i in range(5):
+        patches_df[f"status_{i}_path"] = patches_df[f"status_{i}_path"].apply(
+            lambda x: x.replace(output_dir, "").lstrip("/")
+        )
+        patches_df[f"image_{i}_path"] = patches_df[f"image_{i}_path"].apply(
+            lambda x: x.replace(output_dir, "").lstrip("/")
+        )
+
     return patches_df
 
 
@@ -574,13 +602,30 @@ def create_tortilla(root_dir, df, save_dir, tortilla_name):
     os.makedirs(tortilla_dir, exist_ok=True)
 
     for idx, row in tqdm(df.iterrows(), total=len(df), desc="Creating tortilla"):
-        modalities = ["PS-RGBNIR", "SAR-Intensity", "mask"]
+        modalities = [
+            "image_0",
+            "image_1",
+            "image_2",
+            "image_3",
+            "image_4",
+            "status_0",
+            "status_1",
+            "status_2",
+            "status_3",
+            "status_4",
+            "change_type",
+        ]
         modality_samples = []
 
         for modality in modalities:
             path = os.path.join(root_dir, row[modality + "_path"])
             with rasterio.open(path) as src:
                 profile = src.profile
+
+            if modality.startswith("image_"):
+                date = row[modality + "_date"].split(" ")[0]
+            else:
+                date = row["image_4_date"].split(" ")[0]
 
             sample = tacotoolbox.tortilla.datamodel.Sample(
                 id=modality,
@@ -591,13 +636,12 @@ def create_tortilla(root_dir, df, save_dir, tortilla_name):
                     "crs": "EPSG:" + str(profile["crs"].to_epsg()),
                     "geotransform": profile["transform"].to_gdal(),
                     "raster_shape": (profile["height"], profile["width"]),
-                    "time_start": row["date"],
+                    "time_start": date,
                 },
                 lon=row["lon"],
                 lat=row["lat"],
-                source_img_file=row["source_img_file"],
-                source_mask_file=row["source_mask_file"],
                 patch_id=row["patch_id"],
+                orig_sample_idx=row["sample_idx"],
             )
 
             modality_samples.append(sample)
@@ -631,8 +675,6 @@ def create_tortilla(root_dir, df, save_dir, tortilla_name):
             data_split=sample_data["tortilla:data_split"],
             lon=sample_data["lon"],
             lat=sample_data["lat"],
-            source_img_file=sample_data["source_img_file"],
-            source_mask_file=sample_data["source_mask_file"],
             patch_id=sample_data["patch_id"],
         )
         samples.append(sample_tortilla)
@@ -696,14 +738,9 @@ def main():
     #     patches_df = pd.read_parquet(patches_path)
     # else:
     patches_df = process_qfabric_dataset(
-        metadata_df, args.root, args.save_dir, patch_size=2048, num_workers=2
+        metadata_df, args.root, args.save_dir, patch_size=2048, num_workers=16
     )
     patches_df.to_parquet(patches_path)
-
-    import pdb
-
-    pdb.set_trace()
-    # create geobench_version
 
     tortilla_name = "geobench_qfabric.tortilla"
     create_tortilla(args.save_dir, patches_df, args.save_dir, tortilla_name)
