@@ -7,6 +7,7 @@ from torch import Tensor
 from pathlib import Path
 from typing import Sequence, Type
 import torch.nn as nn
+from shapely import wkt
 
 from .sensor_util import DatasetBandRegistry
 from .base import GeoBenchBaseDataset
@@ -119,6 +120,8 @@ class GeoBenchTreeSatAI(GeoBenchBaseDataset):
 
     num_classes: int = len(classes)
 
+    valid_metadata = ("lat", "lon")
+
     def __init__(
         self,
         root: Path,
@@ -126,10 +129,10 @@ class GeoBenchTreeSatAI(GeoBenchBaseDataset):
         band_order: dict[str, Sequence[str]] = {"aerial": ["r", "g", "b"]},
         data_normalizer: Type[nn.Module] = MultiModalNormalizer,
         transforms: nn.Module | None = None,
+        metadata: Sequence[str] | None = None,
         include_ts: bool = False,
         num_time_steps: int = None,
         return_stacked_image: bool = False,
-        **kwargs,
     ) -> None:
         """Initialize TreeSatAI dataset.
 
@@ -143,10 +146,11 @@ class GeoBenchTreeSatAI(GeoBenchBaseDataset):
             data_normalizer: The data normalizer to apply to the data, defaults to :class:`data_util.MultiModalNormalizer`,
                 which applies z-score normalization to each band.
             transforms:
+            metadata: metadata names to be returned as part of the sample in the
+                __getitem__ method. If None, no metadata is returned.
             include_ts: whether or not to return the time series in data loading
             num_time_steps: number of last time steps to return in the ts data
             return_stacked_image: if true, returns a single image tensor with all modalities stacked in band_order
-            **kwargs: Additional keyword arguments passed to ``torchgeo.datasets.TreeSatAI``
         """
         super().__init__(
             root=root,
@@ -154,6 +158,7 @@ class GeoBenchTreeSatAI(GeoBenchBaseDataset):
             band_order=band_order,
             data_normalizer=data_normalizer,
             transforms=transforms,
+            metadata=metadata,
         )
 
         self.include_ts = include_ts
@@ -205,9 +210,6 @@ class GeoBenchTreeSatAI(GeoBenchBaseDataset):
         img_dict = self.data_normalizer(img_dict)
 
         sample.update(img_dict)
-        sample["label"] = self._format_label(
-            sample_row.iloc[0]["species_labels"], sample_row.iloc[0]["dist_labels"]
-        )
 
         # only resize the aerial image
         if self.transforms is not None:
@@ -245,30 +247,33 @@ class GeoBenchTreeSatAI(GeoBenchBaseDataset):
                     -self.num_time_steps :
                 ]
 
-        if return_stacked_image:
-            stacked_image = []
-            for mod in self.band_order:
-                if mod == "s1":
-                    stacked_image.append(sample["image_s1"])
-                if mod == "s2":
-                    stacked_image.append(sample["image_s2"])
-                if mod == "aerial":
-                    stacked_image.append(sample["image_aerial"])
-            output = {}
-            output["image"] = torch.cat(stacked_image, 0)
-            output["label"] = sample["label"] 
-        else:
-            output = sample
+        if self.return_stacked_image:
+            sample = {
+                "image": torch.cat(
+                    [sample[f"image_{key}"] for key in self.band_order.keys()], 0
+                )
+            }
 
-        if self.include_ts:
-            metadata = ["image_s1_asc_ts", "image_s1_des_ts", "image_s2_ts"]
-            for key in metadata:
-                if key not in output:
-                    output[key] = sample[key]
+        sample["label"] = self._format_label(
+            sample_row.iloc[0]["species_labels"], sample_row.iloc[0]["dist_labels"]
+        )
 
-        return output
+        point = wkt.loads(sample_row.iloc[0]["stac:centroid"])
+        lon, lat = point.x, point.y
+        sample["lon"], sample["lat"] = torch.tensor(lon), torch.tensor(lat)
 
-        return output
+        if "lon" in self.metadata:
+            sample["lon"] = torch.tensor(lon)
+        if "lat" in self.metadata:
+            sample["lat"] = torch.tensor(lat)
+
+        # if self.include_ts:
+        #     metadata = ["image_s1_asc_ts", "image_s1_des_ts", "image_s2_ts"]
+        #     for key in metadata:
+        #         if key not in output:
+        #             output[key] = sample[key]
+
+        return sample
 
     def _format_label(
         self, class_labels: list[str], dist_labels: list[float]
@@ -284,10 +289,5 @@ class GeoBenchTreeSatAI(GeoBenchBaseDataset):
         """
         label = torch.zeros(len(self.classes))
         for name in class_labels:
-            try:
-                label[self.classes.index(name)] = 1
-            except:
-                import pdb
-
-                pdb.set_trace()
+            label[self.classes.index(name)] = 1
         return label

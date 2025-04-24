@@ -1,51 +1,64 @@
 # Copyright (c) 2025 GeoBenchV2. All rights reserved.
 # Licensed under the Apache License 2.0.
 
+"""MADOS Tests."""
+
 import pytest
+import os
+from pytest import MonkeyPatch
+from typing import Sequence
+import torch
+from geobench_v2.datasets import GeoBenchMADOS
 from geobench_v2.datamodules import GeoBenchMADOSDataModule
 
 
-@pytest.fixture
-def data_root():
-    """Path to test data directory."""
-    return "/mnt/rg_climate_benchmark/data/geobenchV2/mados"
+@pytest.fixture(params=[["red", "blue", "B07", 0.0]])
+def band_order(request):
+    """Parameterized band configuration with different configurations."""
+    return request.param
 
 
 @pytest.fixture
-def band_order():
-    """Test band configuration with RGB bands."""
-    return ["red", "green", 1.0, "blue", "B07"]
-
-
-@pytest.fixture
-def datamodule(data_root, band_order):
+def datamodule(monkeypatch: MonkeyPatch, band_order: dict[str, Sequence[str | float]]):
     """Initialize MADOS datamodule with test configuration."""
-    return GeoBenchMADOSDataModule(
+    monkeypatch.setattr(GeoBenchMADOS, "paths", ["mados.tortilla"])
+    dm = GeoBenchMADOSDataModule(
         img_size=74,
-        batch_size=32,
-        eval_batch_size=64,
+        batch_size=4,
+        eval_batch_size=2,
         num_workers=0,
         pin_memory=False,
         band_order=band_order,
-        root=data_root,
+        root=os.path.join("tests", "data", "mados"),
     )
+    dm.setup("fit")
+    dm.setup("test")
+
+    return dm
 
 
 class TestMADOSDataModule:
     """Test cases for MADOS datamodule functionality."""
 
-    def test_batch_dimensions(self, datamodule):
-        """Test if batches have correct dimensions."""
-        datamodule.setup("fit")
+    def test_loaders(self, datamodule):
+        """Test if dataloaders are created successfully."""
+        assert len(datamodule.train_dataloader()) > 0
+        assert len(datamodule.val_dataloader()) > 0
+        assert len(datamodule.test_dataloader()) > 0
+
+    def test_load_batch_and_check_dims(self, datamodule):
+        """Test loading a batch."""
         train_batch = next(iter(datamodule.train_dataloader()))
+        assert isinstance(train_batch, dict)
 
         assert train_batch["image"].shape[0] == datamodule.batch_size
         assert train_batch["image"].shape[1] == len(datamodule.band_order)
-        assert train_batch["image"].shape[2] == 74
-        assert train_batch["image"].shape[3] == datamodule.img_size
+        assert train_batch["image"].shape[2] == datamodule.img_size
+        assert train_batch["image"].shape[3] == 74
 
-    def test_band_order_resolution(self, datamodule):
-        """Test if band order is correctly resolved."""
-        assert len(datamodule.band_order) == 5
-        assert isinstance(datamodule.band_order[2], float)
-        assert datamodule.band_order[2] == 1.0
+        assert train_batch["mask"].shape[0] == datamodule.batch_size
+        assert train_batch["mask"].shape[1] == 1
+        assert train_batch["mask"].shape[2] == datamodule.img_size
+        assert train_batch["mask"].shape[3] == 74
+
+        assert torch.isclose(train_batch["image"][:, 3], torch.tensor(0.0)).all()

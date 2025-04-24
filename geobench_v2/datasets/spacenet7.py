@@ -6,7 +6,8 @@
 from torch import Tensor
 from torchgeo.datasets import SpaceNet7
 from pathlib import Path
-from typing import Type
+from typing import Type, Sequence
+from shapely import wkt
 
 from .sensor_util import DatasetBandRegistry
 from .data_util import MultiModalNormalizer
@@ -40,6 +41,8 @@ class GeoBenchSpaceNet7(GeoBenchBaseDataset):
 
     num_classes = len(classes)
 
+    valid_metadata = ("lat", "lon")
+
     def __init__(
         self,
         root: Path,
@@ -47,7 +50,7 @@ class GeoBenchSpaceNet7(GeoBenchBaseDataset):
         band_order: list[str] = band_default_order,
         data_normalizer: Type[nn.Module] = MultiModalNormalizer,
         transforms: nn.Module = None,
-        **kwargs,
+        metadata: Sequence[str] | None = None,
     ) -> None:
         """Initialize SpaceNet7 dataset.
 
@@ -58,7 +61,10 @@ class GeoBenchSpaceNet7(GeoBenchBaseDataset):
                 specify ['red', 'green', 'blue', 'blue', 'blue'], the dataset would return images with 5 channels
                 in that order. This is useful for models that expect a certain band order, or
                 test the impact of band order on model performance.
-            **kwargs: Additional keyword arguments passed to ``SpaceNet7``
+            data_normalizer: The data normalizer to apply to the data, defaults to :class:`data_util.MultiModalNormalizer`,
+            transforms: The transforms to apply to the data, defaults to None
+            metadata: metadata names to be returned as part of the sample in the
+                __getitem__ method. If None, no metadata is returned.
         """
         super().__init__(
             root=root,
@@ -66,6 +72,7 @@ class GeoBenchSpaceNet7(GeoBenchBaseDataset):
             band_order=band_order,
             data_normalizer=data_normalizer,
             transforms=transforms,
+            metadata=metadata,
         )
         # TODO how to setup for time-series prediction
 
@@ -101,5 +108,13 @@ class GeoBenchSpaceNet7(GeoBenchBaseDataset):
 
         if self.transforms is not None:
             sample = self.transforms(sample)
+
+        point = wkt.loads(sample_row.iloc[0]["stac:centroid"])
+        lon, lat = point.x, point.y
+
+        if "lon" in self.metadata:
+            sample["lon"] = torch.tensor(lon)
+        if "lat" in self.metadata:
+            sample["lat"] = torch.tensor(lat)
 
         return sample

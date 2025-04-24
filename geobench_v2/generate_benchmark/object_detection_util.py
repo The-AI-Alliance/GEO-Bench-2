@@ -7,6 +7,19 @@ import matplotlib.patches as patches
 from tqdm import tqdm
 import argparse
 from pathlib import Path
+import matplotlib.pyplot as plt
+import matplotlib.patches as patches
+import random
+import numpy as np
+from PIL import Image, ImageDraw, ImageFont
+import os
+import shutil
+import concurrent.futures
+from tqdm.auto import tqdm
+import os
+from PIL import Image
+import pandas as pd
+import shutil
 
 
 def process_everwatch_dataset(image_dir, annotations_df, output_dir, target_size=512):
@@ -109,107 +122,128 @@ def process_dotav2_dataset(df, input_dir, output_dir, target_size=512, num_worke
         target_size: Target patch size (default: 512)
         num_workers: Number of parallel workers (default: 8)
     """
-    import concurrent.futures
-    from tqdm.auto import tqdm
-    import os
-    from PIL import Image
-    import pandas as pd
-    import shutil
-
     # datsat only has train/val split
     # rename val to test and shift validation samples from remaining train
     df.loc[df["split"] == "val", "split"] = "test"
 
-    # train should be 70% of the total dataset and val 10% of the total dataset
     total_samples = len(df)
     train_samples = int(0.7 * total_samples)
     val_samples = int(0.1 * total_samples)
 
-    # randomly with seed change #val_samples samples from train to val
-    train_indices = df[df["split"] == "train"].index
-    rng = np.random.default_rng(42)
-    val_indices = rng.choice(train_indices, val_samples, replace=False)
-    df.loc[val_indices, "split"] = "val"
+    df["original_image_base"] = df["image_path"].apply(
+        lambda x: os.path.basename(x).split(".")[0]
+    )
 
-    for split in df["split"].unique():
-        if os.path.exists(os.path.join(output_dir, split)):
-            shutil.rmtree(os.path.join(output_dir, split))
-        os.makedirs(os.path.join(output_dir, split, "images"), exist_ok=True)
-        os.makedirs(os.path.join(output_dir, split, "annotations"), exist_ok=True)
+    total_samples = len(df)
+    target_val_ratio = 0.10
+
+    train_source_images = df[df["split"] == "train"]["original_image_base"].unique()
+    np.random.seed(42)
+    np.random.shuffle(train_source_images)
+
+    source_counts = df[df["split"] == "train"].groupby("original_image_base").size()
+    total_train_samples = source_counts.sum()
+
+    target_val_samples = int(total_samples * target_val_ratio)
+
+    val_sources = []
+    current_val_samples = 0
+
+    for source in train_source_images:
+        if current_val_samples < target_val_samples:
+            val_sources.append(source)
+            current_val_samples += source_counts.get(source, 0)
+        else:
+            break
+
+    df.loc[
+        df["original_image_base"].isin(val_sources) & (df["split"] == "train"), "split"
+    ] = "validation"
+
+    split_counts = df["split"].value_counts()
+    print(f"\nSplit distribution:")
+    print(
+        f"Train: {split_counts.get('train', 0)} samples ({100 * split_counts.get('train', 0) / total_samples:.1f}%)"
+    )
+    print(
+        f"Validation: {split_counts.get('validation', 0)} samples ({100 * split_counts.get('validation', 0) / total_samples:.1f}%)"
+    )
+    print(
+        f"Test: {split_counts.get('test', 0)} samples ({100 * split_counts.get('test', 0) / total_samples:.1f}%)"
+    )
+
+    source_split_check = df.groupby("original_image_base")["split"].nunique()
+    mixed_sources = source_split_check[source_split_check > 1]
+    if len(mixed_sources) > 0:
+        print(
+            f"Warning: {len(mixed_sources)} source images have patches in multiple splits!"
+        )
+    else:
+        print("All patches from the same source image are in the same split.")
+
+    # for split in df["split"].unique():
+    #     if os.path.exists(os.path.join(output_dir, split)):
+    #         shutil.rmtree(os.path.join(output_dir, split))
+    os.makedirs(os.path.join(output_dir, "images"), exist_ok=True)
+    os.makedirs(os.path.join(output_dir, "annotations"), exist_ok=True)
 
     def process_row(row_tuple):
         idx, row = row_tuple
-        try:
-            # Load the original image
-            img_path = os.path.join(input_dir, row["image_path"])
-            img = Image.open(img_path)
-            base_filename = os.path.splitext(os.path.basename(row["image_path"]))[0]
+        img_path = os.path.join(input_dir, row["image_path"])
+        img = Image.open(img_path)
+        base_filename = os.path.splitext(os.path.basename(row["image_path"]))[0]
 
-            if row["strategy"] == "resize":
-                output_filename = f"{base_filename}.png"
-            else:
-                output_filename = f"{base_filename}_patch{row['patch_id']:02d}.png"
+        if row["strategy"] == "resize":
+            output_filename = f"{base_filename}.png"
+        else:
+            output_filename = f"{base_filename}_patch{row['patch_id']:02d}.png"
 
-            output_img_path = os.path.join(
-                output_dir, row["split"], "images", output_filename
-            )
-            output_label_path = os.path.join(
-                output_dir,
-                row["split"],
-                "annotations",
-                f"{os.path.splitext(output_filename)[0]}.txt",
-            )
+        output_img_path = os.path.join(output_dir, "images", output_filename)
+        output_label_path = os.path.join(
+            output_dir, "annotations", f"{os.path.splitext(output_filename)[0]}.txt"
+        )
 
-            x1, y1, x2, y2 = row["patch_coords"]
-            patch_img = img.crop((x1, y1, x2, y2))
+        x1, y1, x2, y2 = row["patch_coords"]
+        patch_img = img.crop((x1, y1, x2, y2))
 
-            orig_width, orig_height = patch_img.size
+        orig_width, orig_height = patch_img.size
 
-            patch_img = patch_img.resize(
-                (target_size, target_size), Image.Resampling.LANCZOS
-            )
-            patch_img.save(output_img_path, format="PNG", optimize=True)
+        patch_img = patch_img.resize(
+            (target_size, target_size), Image.Resampling.LANCZOS
+        )
+        patch_img.save(output_img_path, format="PNG", optimize=True)
 
-            with open(output_label_path, "w") as f:
-                for ann in row["patch_annotations"]:
-                    class_name = ann["class_name"]
-                    difficult = ann.get("difficult", 0)
-                    target_points = []
-                    for px_rel, py_rel in ann["points"]:
-                        px_abs = px_rel * target_size
-                        py_abs = py_rel * target_size
-                        target_points.append((px_abs, py_abs))
+        with open(output_label_path, "w") as f:
+            for ann in row["patch_annotations"]:
+                class_name = ann["class_name"]
+                difficult = ann.get("difficult", 0)
+                target_points = []
+                for px_rel, py_rel in ann["points"]:
+                    px_abs = px_rel * target_size
+                    py_abs = py_rel * target_size
+                    target_points.append((px_abs, py_abs))
 
-                    # DOTAV2 format: x1 y1 x2 y2 x3 y3 x4 y4 class_name difficult
-                    coord_str = " ".join(
-                        [f"{px:.1f} {py:.1f}" for px, py in target_points]
-                    )
-                    f.write(f"{coord_str} {class_name} {difficult}\n")
+                # DOTAV2 format: x1 y1 x2 y2 x3 y3 x4 y4 class_name difficult
+                coord_str = " ".join([f"{px:.1f} {py:.1f}" for px, py in target_points])
+                f.write(f"{coord_str} {class_name} {difficult}\n")
 
-            return {
-                "original_image": row["image_path"],
-                "processed_image": os.path.join(
-                    row["split"], "images", output_filename
-                ),
-                "processed_label": os.path.join(
-                    row["split"],
-                    "annotations",
-                    f"{os.path.splitext(output_filename)[0]}.txt",
-                ),
-                "strategy": row["strategy"],
-                "patch_id": row["patch_id"],
-                "annotation_count": row.get("patch_annotation_count", 0),
-                "split": row["split"],
-                "original_width": row["width"],
-                "original_height": row["height"],
-                "patch_width": x2 - x1,
-                "patch_height": y2 - y1,
-                "scale_factor_x": target_size / (x2 - x1),
-                "scale_factor_y": target_size / (y2 - y1),
-            }
-        except Exception as e:
-            print(f"Error processing row {idx}: {str(e)}")
-            return None
+        return {
+            "original_image": row["image_path"],
+            "processed_image": os.path.join("images", output_filename),
+            "processed_label": os.path.join(
+                "annotations", f"{os.path.splitext(output_filename)[0]}.txt"
+            ),
+            "strategy": row["strategy"],
+            "patch_id": row["patch_id"],
+            "annotation_count": row.get("patch_annotation_count", 0),
+            "split": row["split"],
+            "original_width": row["width"],
+            "original_height": row["height"],
+            "patch_width": x2 - x1,
+            "patch_height": y2 - y1,
+            "scale_factor_x": target_size / (x2 - x1),
+            "scale_factor_y": target_size / (y2 - y1),
+        }
 
     total_items = len(df)
     processed_records = []
@@ -232,7 +266,8 @@ def process_dotav2_dataset(df, input_dir, output_dir, target_size=512, num_worke
 
     print(f"Processed {len(processed_df)} images/patches:")
     print(f"  Train: {len(processed_df[processed_df['split'] == 'train'])}")
-    print(f"  Val: {len(processed_df[processed_df['split'] == 'val'])}")
+    print(f"  Val: {len(processed_df[processed_df['split'] == 'validation'])}")
+    print(f"  Test: {len(processed_df[processed_df['split'] == 'test'])}")
 
     return processed_df
 
@@ -248,14 +283,6 @@ def visualize_processing_results(df, input_dir, output_dir, num_samples=20, seed
         num_samples: Number of random samples to visualize
         seed: Random seed for reproducibility
     """
-    import matplotlib.pyplot as plt
-    import matplotlib.patches as patches
-    import random
-    import numpy as np
-    from PIL import Image, ImageDraw, ImageFont
-    import os
-    import shutil
-
     random.seed(seed)
     np.random.seed(seed)
     vis_dir = os.path.join(output_dir, "visualizations")
@@ -265,7 +292,6 @@ def visualize_processing_results(df, input_dir, output_dir, num_samples=20, seed
 
     image_groups = df.groupby("original_image")
 
-    # Get a list of all unique original images
     unique_images = list(image_groups.groups.keys())
 
     multi_patch_images = [
@@ -363,30 +389,23 @@ def visualize_processing_results(df, input_dir, output_dir, num_samples=20, seed
                         text_position = (min(x1, x2, x3, x4), min(y1, y2, y3, y4) - 10)
                         draw.text(text_position, class_name, fill=color)
 
-        # Create a visualization image that will contain both original and processed images
         num_patches = len(patches_df)
 
-        # Determine layout based on number of patches
         if num_patches <= 1:
-            # Side by side: original and 1 patch
-            vis_width = original_image.width + 512 + 30  # Add padding
+            vis_width = original_image.width + 512 + 30
             vis_height = max(original_image.height, 512) + 20
             grid_cols = 2
             grid_rows = 1
         elif num_patches <= 4:
-            # Original on left, 2x2 grid of patches on right
-            patch_display_size = 512  # Each patch size for display
+            patch_display_size = 512
             vis_width = original_image.width + (2 * patch_display_size) + 40
             vis_height = max(original_image.height, 2 * patch_display_size + 30)
-            grid_cols = 3  # Original + 2 columns of patches
-            grid_rows = 2  # Up to 2 rows of patches
+            grid_cols = 3
+            grid_rows = 2
         else:
-            # Original on top, patches in grid below
-            patch_display_size = 384  # Smaller size for many patches
+            patch_display_size = 384
             grid_cols = min(4, num_patches)
-            grid_rows = (
-                num_patches + grid_cols - 1
-            ) // grid_cols + 1  # +1 for original
+            grid_rows = (num_patches + grid_cols - 1) // grid_cols + 1
             vis_width = max(original_image.width, grid_cols * patch_display_size + 30)
             vis_height = (
                 original_image.height + ((grid_rows - 1) * patch_display_size) + 40

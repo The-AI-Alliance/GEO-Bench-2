@@ -83,6 +83,7 @@ class GeoBenchKuroSiwo(GeoBenchBaseDataset):
             band_order=band_order,
             data_normalizer=data_normalizer,
             transforms=transforms,
+            metadata=None,
         )
         self.return_stacked_image = return_stacked_image
 
@@ -139,7 +140,7 @@ class GeoBenchKuroSiwo(GeoBenchBaseDataset):
             image = self.rearrange_bands({"sar": image}, self.band_order["sar"])
             normalized = self.data_normalizer({"image_sar": image["image"]})
             return normalized["image_sar"] * invalid_mask
-        
+
         if "sar" in self.band_order:
             sample["image_pre_1"] = process_sar_image(pre_event_1_vv, pre_event_1_vh)
             sample["image_pre_2"] = process_sar_image(pre_event_2_vv, pre_event_2_vh)
@@ -157,17 +158,15 @@ class GeoBenchKuroSiwo(GeoBenchBaseDataset):
             sample = self.transforms(sample)
 
         if self.return_stacked_image:
-            stacked_image = []
-            for mod in self.band_order:
-                if mod == "sar":
-                    stacked_image.append(sample["image_pre_1"])
-                    stacked_image.append(sample["image_pre_1"])
-                    stacked_image.append(sample["image_post"])
-                if mod == "dem":
-                    stacked_image.append(sample["image_dem"])
-            output = {}
-            output["image"] = torch.cat(stacked_image, 0)
-            output["mask"] =  sample["mask"] 
-        else:
-            output = sample 
-        return output
+            modality_keys = {
+                "sar": ["image_pre_1", "image_pre_2", "image_post"],
+                "dem": ["image_dem"],
+            }
+            stacked_images = [
+                sample[key]
+                for modality in self.band_order
+                for key in modality_keys.get(modality, [])
+            ]
+            sample = {"image": torch.cat(stacked_images, dim=0), "mask": sample["mask"]}
+
+        return sample

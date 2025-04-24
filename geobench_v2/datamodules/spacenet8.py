@@ -20,8 +20,6 @@ import torch.nn as nn
 class GeoBenchSpaceNet8DataModule(GeoBenchSegmentationDataModule):
     """GeoBench SpaceNet8 Data Module."""
 
-    #
-
     def __init__(
         self,
         img_size: int = 512,

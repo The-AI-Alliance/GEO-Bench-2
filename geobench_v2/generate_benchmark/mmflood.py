@@ -11,7 +11,10 @@ import argparse
 import rasterio
 from tqdm import tqdm
 import re
-from geobench_v2.generate_benchmark.utils import plot_sample_locations
+from geobench_v2.generate_benchmark.utils import (
+    plot_sample_locations,
+    create_unittest_subset,
+)
 import tacotoolbox
 import tacoreader
 import glob
@@ -231,8 +234,17 @@ def main():
 
         patch_metadata_df.to_parquet(path)
 
-    create_tortilla(
-        os.path.join(args.root, "patches"), patch_metadata_df, args.save_dir
+    # create_tortilla(
+    #     os.path.join(args.root, "patches"), patch_metadata_df, args.save_dir
+    # )
+
+    create_unittest_subset(
+        data_dir=args.save_dir,
+        tortilla_pattern="MMFlood.tortilla",
+        test_dir_name="mmflood",
+        n_train_samples=4,
+        n_val_samples=2,
+        n_test_samples=2,
     )
 
 

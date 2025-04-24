@@ -5,7 +5,7 @@
 
 import torch.nn as nn
 from torch import Tensor
-from typing import Type, Literal
+from typing import Type, Literal, Sequence
 import rasterio
 from torchgeo.datasets import NonGeoDataset
 import tacoreader
@@ -29,6 +29,7 @@ class GeoBenchBaseDataset(NonGeoDataset, DataUtilsMixin):
         band_order: list[str],
         data_normalizer: Type[nn.Module] = MultiModalNormalizer,
         transforms: nn.Module = None,
+        metadata: Sequence[str] | None = None,
     ) -> None:
         """Initialize the dataset.
         Args:
@@ -37,14 +38,22 @@ class GeoBenchBaseDataset(NonGeoDataset, DataUtilsMixin):
             band_order:
             data_normalizer
             transform: A composition of transformations to apply to the data
+            metadata: metadata names to be returned as part of the sample in the
+                __getitem__ method. If None, no metadata is returned.
         """
         super().__init__()
         self.root = root
         self.split = split
         self.band_order = band_order
         self.transforms = transforms
+        if metadata is None:
+            self.metadata = []
+        else:
+            self.metadata = metadata
 
         self.data_df = tacoreader.load([os.path.join(root, f) for f in self.paths])
+        if split == "val":
+            split == "validation"
         self.data_df = self.data_df[
             self.data_df["tortilla:data_split"] == split
         ].reset_index(drop=True)

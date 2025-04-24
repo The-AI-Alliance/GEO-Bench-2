@@ -7,6 +7,7 @@ from .caffe import GeoBenchCaFFeDataModule
 from .fotw import GeoBenchFieldsOfTheWorldDataModule
 from .pastis import GeoBenchPASTISDataModule
 from .resisc45 import GeoBenchRESISC45DataModule
+from .spacenet2 import GeoBenchSpaceNet2DataModule
 from .spacenet6 import GeoBenchSpaceNet6DataModule
 from .spacenet7 import GeoBenchSpaceNet7DataModule
 from .spacenet8 import GeoBenchSpaceNet8DataModule
@@ -25,6 +26,7 @@ from .sen4agrinet import GeoBenchSen4AgriNetDataModule
 from .mmflood import GeoBenchMMFloodDataModule
 from .bright import GeoBenchBRIGHTDataModule
 from .qfabric import GeoBenchQFabricDataModule
+from .wind_turbine import GeoBenchWindTurbineDataModule
 
 from .base import (
     GeoBenchClassificationDataModule,
@@ -38,6 +40,7 @@ __all__ = (
     "GeoBenchFieldsOfTheWorldDataModule",
     "GeoBenchPASTISDataModule",
     "GeoBenchRESISC45DataModule",
+    "GeoBenchSpaceNet2DataModule",
     "GeoBenchSpaceNet6DataModule",
     "GeoBenchSpaceNet7DataModule",
     "GeoBenchSpaceNet8DataModule",
@@ -59,4 +62,5 @@ __all__ = (
     "GeoBenchMMFloodDataModule",
     "GeoBenchBRIGHTDataModule",
     "GeoBenchQFabricDataModule",
+    "GeoBenchWindTurbineDataModule",
 )

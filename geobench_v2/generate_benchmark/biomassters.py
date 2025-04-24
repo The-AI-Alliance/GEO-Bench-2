@@ -17,6 +17,8 @@ import tacoreader
 import glob
 import numpy as np
 from sklearn.model_selection import train_test_split
+from skimage.transform import resize
+import shutil
 
 
 from geobench_v2.generate_benchmark.geospatial_split_utils import (
@@ -197,6 +199,162 @@ def create_tortilla(root_dir, df, save_dir):
     )
 
 
+def create_test_subset(
+    root_dir: str,
+    df: pd.DataFrame,
+    save_dir: str,
+    num_train_samples: int = 4,
+    num_val_samples: int = 2,
+    num_test_samples: int = 2,
+) -> None:
+    """Create a test subset of the BioMassters dataset with downsampled 32x32 images.
+
+    Args:
+        root_dir: Root directory containing original BioMassters data
+        df: DataFrame with BioMassters metadata
+        save_dir: Directory to save the downsampled test subset
+        num_train_samples: Number of training samples to include
+        num_val_samples: Number of validation samples to include
+        num_test_samples: Number of test samples to include
+    """
+    test_dir = os.path.join(save_dir, "unittest")
+    test_features_dir = os.path.join(test_dir, "test_features")
+    test_agbm_dir = os.path.join(test_dir, "test_agbm")
+    train_features_dir = os.path.join(test_dir, "train_features")
+    train_agbm_dir = os.path.join(test_dir, "train_agbm")
+
+    for directory in [
+        test_dir,
+        test_features_dir,
+        test_agbm_dir,
+        train_features_dir,
+        train_agbm_dir,
+    ]:
+        os.makedirs(directory, exist_ok=True)
+
+    train_df = df[df["split"] == "train"].sample(num_train_samples, random_state=42)
+    val_df = df[df["split"] == "validation"].sample(num_val_samples, random_state=42)
+    test_df = df[df["split"] == "test"].sample(num_test_samples, random_state=42)
+
+    subset_df = pd.concat([train_df, val_df, test_df]).reset_index(drop=True)
+    print(
+        f"Created subset with {len(subset_df)} samples: {num_train_samples} train, {num_val_samples} validation, {num_test_samples} test"
+    )
+
+    subset_metadata = []
+
+    for idx, row in tqdm(
+        subset_df.iterrows(), total=len(subset_df), desc="Creating downsampled subset"
+    ):
+        chip_id = row["chip_id"]
+        split = row["split"]
+
+        features_dir = test_features_dir if split == "test" else train_features_dir
+        agbm_dir = test_agbm_dir if split == "test" else train_agbm_dir
+
+        s1_paths = []
+        s1_months = []
+        for s1_path, s1_month in zip(row["S1_paths"], row["S1_months"]):
+            with rasterio.open(os.path.join(root_dir, s1_path)) as src:
+                profile = src.profile.copy()
+                data = src.read()
+
+                data_small = np.zeros((data.shape[0], 32, 32), dtype=data.dtype)
+                for band_idx in range(data.shape[0]):
+                    data_small[band_idx] = resize(
+                        data[band_idx], (32, 32), preserve_range=True
+                    ).astype(data.dtype)
+
+                profile.update(height=32, width=32)
+                filename = os.path.basename(s1_path)
+                new_path = os.path.join(features_dir, f"small_{filename}")
+
+                with rasterio.open(new_path, "w", **profile) as dst:
+                    dst.write(data_small)
+
+                rel_path = os.path.relpath(new_path, test_dir)
+                s1_paths.append(rel_path)
+                s1_months.append(s1_month)
+
+        s2_paths = []
+        s2_months = []
+        for s2_path, s2_month in zip(row["S2_paths"], row["S2_months"]):
+            with rasterio.open(os.path.join(root_dir, s2_path)) as src:
+                profile = src.profile.copy()
+                data = src.read()
+
+                data_small = np.zeros((data.shape[0], 32, 32), dtype=data.dtype)
+                for band_idx in range(data.shape[0]):
+                    data_small[band_idx] = resize(
+                        data[band_idx], (32, 32), preserve_range=True
+                    ).astype(data.dtype)
+
+                profile.update(height=32, width=32)
+                filename = os.path.basename(s2_path)
+                new_path = os.path.join(features_dir, f"small_{filename}")
+
+                with rasterio.open(new_path, "w", **profile) as dst:
+                    dst.write(data_small)
+
+                rel_path = os.path.relpath(new_path, test_dir)
+                s2_paths.append(rel_path)
+                s2_months.append(s2_month)
+
+        with rasterio.open(os.path.join(root_dir, row["agbm_path"])) as src:
+            profile = src.profile.copy()
+            data = src.read()
+
+            data_small = np.zeros((data.shape[0], 32, 32), dtype=data.dtype)
+            for band_idx in range(data.shape[0]):
+                data_small[band_idx] = resize(
+                    data[band_idx], (32, 32), preserve_range=True
+                ).astype(data.dtype)
+
+            profile.update(height=32, width=32)
+            filename = os.path.basename(row["agbm_path"])
+            new_agbm_path = os.path.join(agbm_dir, f"small_{filename}")
+
+            with rasterio.open(new_agbm_path, "w", **profile) as dst:
+                dst.write(data_small)
+
+            rel_agbm_path = os.path.relpath(new_agbm_path, test_dir)
+
+        subset_metadata.append(
+            {
+                "chip_id": chip_id,
+                "split": split,
+                "S1_paths": s1_paths,
+                "S1_months": s1_months,
+                "S2_paths": s2_paths,
+                "S2_months": s2_months,
+                "agbm_path": rel_agbm_path,
+                "num_S1_images": len(s1_paths),
+                "num_S2_images": len(s2_paths),
+            }
+        )
+
+    subset_df = pd.DataFrame(subset_metadata)
+    subset_df.to_parquet(os.path.join(test_dir, "subset_metadata.parquet"))
+
+    create_tortilla(test_dir, subset_df, os.path.join(save_dir, "unittest"))
+
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    repo_root = os.path.dirname(os.path.dirname(script_dir))
+    test_data_dir = os.path.join(repo_root, "tests", "data", "biomassters")
+    os.makedirs(test_data_dir, exist_ok=True)
+
+    tortilla_path = os.path.join(save_dir, "unittest", "BioMassters.tortilla")
+
+    size_mb = os.path.getsize(tortilla_path) / (1024 * 1024)
+    print(f"Tortilla file size: {size_mb:.2f} MB")
+    shutil.copy(tortilla_path, os.path.join(test_data_dir, "biomassters.tortilla"))
+
+    print(f"Test subset created successfully at {test_dir}")
+    print(
+        f"Tortilla file copied to {os.path.join(test_data_dir, 'biomassters.tortilla')}"
+    )
+
+
 def main():
     """Generate BioMassters Benchmark."""
     parser = argparse.ArgumentParser()
@@ -222,20 +380,23 @@ def main():
     else:
         metadata_df = generate_metadata_df(args.root)
         metadata_df.to_parquet(metadata_path)
-    # def check_sentinel_paths(row, sensor):
-    #     paths = row[f"{sensor}_paths"]
-    #     for path in paths:
-    #         if not os.path.exists(os.path.join(args.root, path)):
-    #             print(f"Path {path} does not exist")
-    #             return False
-    #     return True
 
-    # metadata_df["S1_paths_exist"] = metadata_df.apply(lambda x: check_sentinel_paths(x, "S1"), axis=1)
-    # metadata_df["S2_paths_exist"] = metadata_df.apply(lambda x: check_sentinel_paths(x, "S2"), axis=1)
+    create_test_subset(
+        args.root,
+        metadata_df,
+        save_dir=args.save_dir,
+        num_train_samples=4,
+        num_val_samples=2,
+        num_test_samples=2,
+    )
 
-    create_tortilla(args.root, metadata_df, args.save_dir)
+    import pdb
 
-    taco = tacoreader.load(os.path.join(args.save_dir, "BioMassters.tortilla"))
+    pdb.set_trace()
+
+    # create_tortilla(args.root, metadata_df, args.save_dir)
+
+    # taco = tacoreader.load(os.path.join(args.save_dir, "BioMassters.tortilla"))
     import pdb
 
     pdb.set_trace()

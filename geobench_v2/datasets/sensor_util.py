@@ -470,6 +470,59 @@ class DatasetBandRegistry:
         bands=SensorBandRegistry.RGB.bands, default_order=["r", "g", "b"]
     )
 
+    SPACENET2 = MultiModalConfig(
+        modalities={
+            "worldview": ModalityConfig(
+                bands={
+                    "coastal": BandConfig("coastal", ["coastal"], wavelength=0.44),
+                    "blue": BandConfig("blue", ["blue", "b"], wavelength=0.48),
+                    "green": BandConfig("green", ["green", "g"], wavelength=0.56),
+                    "yellow": BandConfig("yellow", ["yellow"], wavelength=0.59),
+                    "red": BandConfig("red", ["red", "r"], wavelength=0.66),
+                    "red_edge": BandConfig("red_edge", ["red_edge"], wavelength=0.73),
+                    "nir1": BandConfig("nir1", ["nir1"], wavelength=0.84),
+                    "nir2": BandConfig("nir2", ["nir2"], wavelength=0.91),
+                },
+                default_order=[
+                    "coastal",
+                    "blue",
+                    "green",
+                    "yellow",
+                    "red",
+                    "red_edge",
+                    "nir1",
+                    "nir2",
+                ],
+            ),
+            "pan": ModalityConfig(
+                bands={"pan": BandConfig("pan", ["pan"], wavelength=0.54)},
+                default_order=["pan"],
+            ),
+        },
+        default_order=[
+            "coastal",
+            "blue",
+            "green",
+            "yellow",
+            "red",
+            "red_edge",
+            "nir1",
+            "nir2",
+            "pan",
+        ],
+        band_to_modality={
+            "coastal": "worldview",
+            "blue": "worldview",
+            "green": "worldview",
+            "yellow": "worldview",
+            "red": "worldview",
+            "red_edge": "worldview",
+            "nir1": "worldview",
+            "nir2": "worldview",
+            "pan": "pan",
+        },
+    )
+
     # spacenet 6 is multimodal with rgbn and sar intensity bands (HH, HV,VH, and VV)
     SPACENET6 = MultiModalConfig(
         modalities={
@@ -971,6 +1024,15 @@ class DatasetBandRegistry:
     )
 
     QFABRIC = SensorBandRegistry.RGB
+
+    WINDTURBINE = ModalityConfig(
+        bands={
+            "r": BandConfig("red", ["r", "red", "RED"], wavelength=0.665),
+            "g": BandConfig("green", ["g", "green", "GREEN"], wavelength=0.560),
+            "b": BandConfig("blue", ["b", "blue", "BLUE"], wavelength=0.490),
+        },
+        default_order=["r", "g", "b"],
+    )
 
     @classmethod
     def get_dataset_config(

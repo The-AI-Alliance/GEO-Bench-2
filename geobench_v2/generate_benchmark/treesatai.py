@@ -30,6 +30,11 @@ from geobench_v2.generate_benchmark.geospatial_split_utils import (
     visualize_distance_clusters,
 )
 
+from geobench_v2.generate_benchmark.utils import (
+    plot_sample_locations,
+    create_subset_from_tortilla,
+)
+
 from typing import List, Tuple, Dict, Any, Optional, Union
 import os
 import re
@@ -221,7 +226,7 @@ def main():
     )
     args = parser.parse_args()
 
-    metadata_path = os.path.join(args.save_dir, "geobench_treesatai.parquet")
+    metadata_path = os.path.join(args.save_dir, "geobench_treesatai_metadata.parquet")
 
     if not os.path.exists(args.save_dir):
         os.makedirs(args.save_dir)
@@ -240,26 +245,42 @@ def main():
 
     metadata_df.drop(columns="split", inplace=True)
 
-    checker_split_df = checkerboard_split(
-        df=metadata_df,
-        n_blocks_x=10,
-        n_blocks_y=10,
-        pattern="balanced",
-        random_state=42,
-    )
+    final_metadata_path = os.path.join(args.save_dir, "geobench_treesatai.parquet")
+    if os.path.exists(final_metadata_path):
+        final_metadata_df = pd.read_parquet(final_metadata_path)
+    else:
+        final_metadata_df = checkerboard_split(
+            df=metadata_df,
+            n_blocks_x=10,
+            n_blocks_y=10,
+            pattern="balanced",
+            random_state=42,
+        )
+        final_metadata_df.to_parquet(final_metadata_path)
 
     visualize_geospatial_split(
-        checker_split_df,
+        final_metadata_df,
         output_path=os.path.join(args.save_dir, "checkerboard_split.png"),
     )
 
-    create_tortilla(args.root, checker_split_df, args.save_dir)
+    # create_tortilla(args.root, final_metadata_path, args.save_dir)
 
-    taco = tacoreader.load(
-        "/mnt/rg_climate_benchmark/data/geobenchV2/treesatai/TreeSatAI.tortilla"
+    taco_treesatai = tacoreader.load(
+        [os.path.join(args.save_dir, "TreeSatAI.tortilla")]
     )
 
-    sample = taco.read(0)
+    # create unit test subset
+    unit_test_taco = create_subset_from_tortilla(
+        taco_treesatai, n_train_samples=4, n_val_samples=2, n_test_samples=2
+    )
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    repo_root = os.path.dirname(os.path.dirname(script_dir))
+    test_data_dir = os.path.join(repo_root, "tests", "data", "treesatai")
+    os.makedirs(test_data_dir, exist_ok=True)
+    tacoreader.compile(
+        dataframe=unit_test_taco,
+        output=os.path.join(test_data_dir, "treesatai.tortilla"),
+    )
 
 
 if __name__ == "__main__":
