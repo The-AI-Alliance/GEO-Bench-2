@@ -16,16 +16,10 @@ import tacoreader
 import glob
 import numpy as np
 
-
-from geobench_v2.generate_benchmark.geospatial_split_utils import (
-    show_samples_per_valid_ratio,
-    split_geospatial_tiles_into_patches,
-    visualize_checkerboard_pattern,
-    visualize_geospatial_split,
-    checkerboard_split,
-    geographic_buffer_split,
-    geographic_distance_split,
-    visualize_distance_clusters,
+from geobench_v2.generate_benchmark.utils import (
+    plot_sample_locations,
+    create_unittest_subset,
+    create_subset_from_df,
 )
 
 from typing import List, Tuple, Dict, Any, Optional, Union
@@ -685,30 +679,30 @@ def create_tortilla(root_dir, df, save_dir, tortilla_name):
     )
 
 
-# def create_geobench_version(
-#     metadata_df: pd.DataFrame,
-#     n_train_samples: int,
-#     n_val_samples: int,
-#     n_test_samples: int,
-# ) -> None:
-#     """Create a GeoBench version of the dataset.
-#     Args:
-#         metadata_df: DataFrame with metadata including geolocation for each patch
-#         n_train_samples: Number of final training samples, -1 means all
-#         n_val_samples: Number of final validation samples, -1 means all
-#         n_test_samples: Number of final test samples, -1 means all
-#     """
-#     random_state = 24
+def create_geobench_version(
+    metadata_df: pd.DataFrame,
+    n_train_samples: int,
+    n_val_samples: int,
+    n_test_samples: int,
+) -> None:
+    """Create a GeoBench version of the dataset.
+    Args:
+        metadata_df: DataFrame with metadata including geolocation for each patch
+        n_train_samples: Number of final training samples, -1 means all
+        n_val_samples: Number of final validation samples, -1 means all
+        n_test_samples: Number of final test samples, -1 means all
+    """
+    random_state = 24
 
-#     subset_df = create_subset_from_df(
-#         metadata_df,
-#         n_train_samples=n_train_samples,
-#         n_val_samples=n_val_samples,
-#         n_test_samples=n_test_samples,
-#         random_state=random_state,
-#     )
+    subset_df = create_subset_from_df(
+        metadata_df,
+        n_train_samples=n_train_samples,
+        n_val_samples=n_val_samples,
+        n_test_samples=n_test_samples,
+        random_state=random_state,
+    )
 
-#     return subset_df
+    return subset_df
 
 
 def main():
@@ -740,16 +734,22 @@ def main():
     patches_df = process_qfabric_dataset(
         metadata_df, args.root, args.save_dir, patch_size=2048, num_workers=16
     )
+    patches_df = create_geobench_version(
+        patches_df, n_train_samples=4000, n_val_samples=1000, n_test_samples=2000
+    )
     patches_df.to_parquet(patches_path)
 
     tortilla_name = "geobench_qfabric.tortilla"
     create_tortilla(args.save_dir, patches_df, args.save_dir, tortilla_name)
 
-    import pdb
-
-    pdb.set_trace()
-
-    print(0)
+    create_unittest_subset(
+        data_dir=args.save_dir,
+        tortilla_pattern=tortilla_name,
+        test_dir_name="qfabric",
+        n_train_samples=2,
+        n_val_samples=1,
+        n_test_samples=1,
+    )
 
 
 if __name__ == "__main__":

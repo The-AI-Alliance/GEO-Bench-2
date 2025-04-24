@@ -42,8 +42,28 @@ class GeoBenchQFabric(GeoBenchBaseDataset):
 
     paths = ["geobench_qfabric.tortilla"]
 
-    classes = ("no-data", "no-flood", "flood")
+    classes = (
+        "background",
+        "residential",
+        "commercial",
+        "industrial",
+        "road",
+        "demolition",
+        "mega projects",
+    )
 
+    status_classes = (
+        "background",
+        "prior construction",
+        "greenland",
+        "land cleared",
+        "excavation",
+        "materials dumped",
+        "construction started",
+        "construction midway",
+        "construction done",
+        "operational",
+    )
     num_classes = len(classes)
 
     def __init__(
