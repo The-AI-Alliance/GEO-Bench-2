@@ -134,7 +134,11 @@ class GeoBenchBENV2DataModule(GeoBenchClassificationDataModule):
         elif num_modalities == 1:
             axes = axes.reshape(-1, 1)
 
-        label_indices = batch["label"][indices].nonzero().squeeze(1).tolist()
+        labels = batch["label"][indices]
+        sample_labels = []
+        for i in range(n_samples):
+            present_labels = torch.where(labels[i] == 1)[0].cpu().tolist()
+            sample_labels.append(present_labels)
 
         for i in range(n_samples):
             for j, (mod, modality_img) in enumerate(modalities.items()):
@@ -156,19 +160,12 @@ class GeoBenchBENV2DataModule(GeoBenchClassificationDataModule):
                 else:
                     img = percentile_normalization(plot_img, lower=2, upper=98)
 
-                try:
-                    ax = axes[i, j]
-                except:
-                    import pdb
-
-                    pdb.set_trace()
-
+                ax = axes[i, j]
                 ax.imshow(img)
                 ax.set_title(f"{mod} image" if i == 0 else "", fontsize=20)
                 ax.axis("off")
 
-            sample_labels = label_indices[i]
-            label_names = [self.class_names[label] for label in sample_labels]
+            label_names = [self.class_names[label] for label in sample_labels[i]]
             suptitle = f"Labels: {', \n'.join(label_names)}"
             ax = axes[i, -1]
             ax.set_title(suptitle, fontsize=8)

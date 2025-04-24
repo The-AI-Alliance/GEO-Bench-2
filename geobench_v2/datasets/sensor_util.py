@@ -760,15 +760,7 @@ class DatasetBandRegistry:
 
     TREESATAI = MultiModalConfig(
         modalities={
-            "aerial": ModalityConfig(
-                bands={
-                    "nir": BandConfig("nir", ["IR", "NIR"], wavelength=None),
-                    "g": BandConfig("g", ["G", "green", "GREEN"], wavelength=None),
-                    "b": BandConfig("b", ["B", "blue", "BLUE"], wavelength=None),
-                    "r": BandConfig("r", ["R", "red", "RED"], wavelength=None),
-                },
-                default_order=["nir", "g", "b", "r"],
-            ),
+            "aerial": SensorBandRegistry.RGBN,
             "s1": ModalityConfig(
                 bands={
                     "vv": BandConfig("vv", ["VV", "vv"], wavelength=None),

@@ -5,6 +5,7 @@
 
 import os
 import pytest
+import matplotlib.pyplot as plt
 from typing import Sequence
 import torch
 from pytest import MonkeyPatch
@@ -19,7 +20,7 @@ from geobench_v2.datamodules import GeoBenchTreeSatAIDataModule
         #     "s2": ["B02", "B03", "B04", 0.0],
         #     "s1": ["VV", "VH", -1.0],
         # },
-        {"aerial": ["r", "g", "b"]}
+        {"aerial": ["r", "g", 0.0, "b"]}
     ]
 )
 def band_order(request):
@@ -85,7 +86,7 @@ class TestTreeSatAIDataModule:
         expected_dims = {
             f"image_{modality}": (
                 datamodule.batch_size,
-                len([b for b in band_names if isinstance(b, str)]),
+                len(band_names),
                 datamodule.img_size,
                 datamodule.img_size,
             )
@@ -111,6 +112,14 @@ class TestTreeSatAIDataModule:
         assert "lat" in train_batch
         assert train_batch["lon"].shape == (datamodule.batch_size,)
         assert train_batch["lat"].shape == (datamodule.batch_size,)
+
+    def test_batch_visualization(self, datamodule):
+        """Test batch visualization."""
+        fig, batch = datamodule.visualize_batch("train")
+        assert isinstance(fig, plt.Figure)
+        assert isinstance(batch, dict)
+
+        fig.savefig(os.path.join("tests", "data", "treesatai", "test_batch.png"))
 
     # def test_time_series_output(self, ts_datamodule):
     #     """Test time series output dimensions."""
