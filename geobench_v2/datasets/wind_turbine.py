@@ -118,7 +118,8 @@ class GeoBenchWindTurbine(NonGeoDataset, DataUtilsMixin):
 
         boxes, labels = self._load_target(label_path)
 
-        sample["bbox_xyxy"] = boxes
+        # absolute coordinates
+        sample["bbox_xyxy"] = boxes * image.shape[1]
         sample["label"] = labels
 
         if self.transforms is not None:

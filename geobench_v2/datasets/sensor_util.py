@@ -1037,14 +1037,7 @@ class DatasetBandRegistry:
 
     QFABRIC = SensorBandRegistry.RGB
 
-    WINDTURBINE = ModalityConfig(
-        bands={
-            "r": BandConfig("red", ["r", "red", "RED"], wavelength=0.665),
-            "g": BandConfig("green", ["g", "green", "GREEN"], wavelength=0.560),
-            "b": BandConfig("blue", ["b", "blue", "BLUE"], wavelength=0.490),
-        },
-        default_order=["r", "g", "b"],
-    )
+    WINDTURBINE = SensorBandRegistry.RGB
 
     @classmethod
     def get_dataset_config(
