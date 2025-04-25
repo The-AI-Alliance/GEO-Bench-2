@@ -40,7 +40,8 @@ class GeoBenchSpaceNet8(GeoBenchBaseDataset):
 
     band_default_order = ("red", "green", "blue")
 
-    paths = ["SpaceNet8.tortilla"]
+    # paths = ["SpaceNet8.tortilla"]
+    paths = ["geobench_spacenet8.tortilla"]
 
     classes = (
         "background",
@@ -49,7 +50,6 @@ class GeoBenchSpaceNet8(GeoBenchBaseDataset):
         "building (not flooded)",
         "building (flooded)",
     )
-
     num_classes = len(classes)
 
     valid_metadata = ("lat", "lon")

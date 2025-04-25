@@ -77,6 +77,12 @@ class GeoBenchSpaceNet2(GeoBenchBaseDataset):
         "SpaceNet2.0004.part.tortilla",
     ]
 
+    paths = [
+        "geobench_spacenet2.0000.part.tortilla",
+        "geobench_spacenet2.0001.part.tortilla",
+        "geobench_spacenet2.0002.part.tortilla",
+    ]
+
     classes = ("background", "no-building", "building")
 
     num_classes = len(classes)

@@ -58,13 +58,13 @@ class GeoBenchKuroSiwo(GeoBenchBaseDataset):
     }
 
     paths = [
-        "kurosiwo.0000.part.tortilla",
-        "kurosiwo.0001.part.tortilla",
-        "kurosiwo.0002.part.tortilla",
-        "kurosiwo.0003.part.tortilla",
-        "kurosiwo.0004.part.tortilla",
-        "kurosiwo.0005.part.tortilla",
-        # "geobench_kuro_siwo.tortilla",
+        # "kurosiwo.0000.part.tortilla",
+        # "kurosiwo.0001.part.tortilla",
+        # "kurosiwo.0002.part.tortilla",
+        # "kurosiwo.0003.part.tortilla",
+        # "kurosiwo.0004.part.tortilla",
+        # "kurosiwo.0005.part.tortilla",
+        "geobench_kuro_siwo.tortilla"
     ]
 
     def __init__(
@@ -94,9 +94,6 @@ class GeoBenchKuroSiwo(GeoBenchBaseDataset):
             transforms=transforms,
             metadata=None,
         )
-        import pdb
-
-        pdb.set_trace()
         self.return_stacked_image = return_stacked_image
 
     def __getitem__(self, index: int) -> dict[str, Tensor]:

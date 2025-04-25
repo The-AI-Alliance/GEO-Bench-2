@@ -43,7 +43,7 @@ class GeoBenchQFabric(GeoBenchBaseDataset):
     paths = ["geobench_qfabric.tortilla"]
 
     # add an extra background class here
-    change_classes = (
+    classes = (
         "residential",
         "commercial",
         "industrial",

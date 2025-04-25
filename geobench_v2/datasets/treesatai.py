@@ -32,7 +32,8 @@ class GeoBenchTreeSatAI(GeoBenchBaseDataset):
     *
     """
 
-    paths = ["TreeSatAI.tortilla"]
+    # paths = ["TreeSatAI.tortilla"]
+    paths = ["geobench_treesatai.tortilla"]
 
     dataset_band_config = DatasetBandRegistry.TREESATAI
 

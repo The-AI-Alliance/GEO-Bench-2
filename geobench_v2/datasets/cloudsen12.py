@@ -87,7 +87,8 @@ class GeoBenchCloudSen12(GeoBenchBaseDataset):
 
     # taco_name = "geobench_cloudsen12.taco"
 
-    paths = ["geobench_cloudsen12-l2a.taco"]
+    # paths = ["geobench_cloudsen12-l2a.taco"]
+    paths = ["geobench_cloudsen12.taco"]
 
     valid_metadata = ("lat", "lon")
 

@@ -305,7 +305,32 @@ class DatasetBandRegistry:
 
     BENV2 = MultiModalConfig(
         modalities={
-            "s2": SensorBandRegistry.SENTINEL2,
+            "s2": ModalityConfig(
+                bands={
+                    k: v
+                    for k, v in SensorBandRegistry.SENTINEL2.bands.items()
+                    if k
+                    not in [
+                        "B10"  # all bands except b10
+                    ]
+                },
+                default_order=[
+                    "B01",
+                    "B02",
+                    "B03",
+                    "B04",
+                    "B05",
+                    "B06",
+                    "B07",
+                    "B08",
+                    "B8A",
+                    "B09",
+                    "B11",
+                    "B12",
+                ],
+                plot_bands=["B04", "B03", "B02"],
+                native_resolution=10,
+            ),
             "s1": SensorBandRegistry.SENTINEL1,
         },
         default_order=[

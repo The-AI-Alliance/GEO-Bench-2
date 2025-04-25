@@ -35,7 +35,8 @@ class GeoBenchSpaceNet7(GeoBenchBaseDataset):
 
     band_default_order = ("red", "green", "blue")
 
-    paths = ["SpaceNet7.tortilla"]
+    # paths = ["SpaceNet7.tortilla"]
+    paths = ["geobench_spacenet7.tortilla"]
 
     classes = ("background", "no-building", "building")
 

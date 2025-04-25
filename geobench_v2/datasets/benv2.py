@@ -46,10 +46,7 @@ class GeoBenchBENV2(GeoBenchBaseDataset):
             "B11",
             "B12",
         ),
-        "s1": (
-            "VV",
-            "VH",
-        )
+        "s1": ("VV", "VH"),
     }
 
     dataset_band_config = DatasetBandRegistry.BENV2
@@ -89,11 +86,13 @@ class GeoBenchBENV2(GeoBenchBaseDataset):
         },
     }
 
-    paths: Sequence[str] = (
-        "FullBenV2.0000.part.tortilla",
-        "FullBenV2.0001.part.tortilla",
-        "FullBenV2.0002.part.tortilla",
-    )
+    # paths: Sequence[str] = (
+    #     "FullBenV2.0000.part.tortilla",
+    #     "FullBenV2.0001.part.tortilla",
+    #     "FullBenV2.0002.part.tortilla",
+    # )
+
+    paths: Sequence[str] = ["geobench_benv2.tortilla"]
 
     label_names: Sequence[str] = (
         "Urban fabric",

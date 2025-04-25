@@ -65,14 +65,16 @@ class GeoBenchFLAIR2(GeoBenchBaseDataset):
 
     band_default_order = ("r", "g", "b", "nir", "elevation")
 
-    paths: Sequence[str] = (
-        "FullFlair2.0000.part.tortilla",
-        "FullFlair2.0001.part.tortilla",
-        "FullFlair2.0002.part.tortilla",
-        "FullFlair2.0003.part.tortilla",
-        "FullFlair2.0004.part.tortilla",
-        "FullFlair2.0005.part.tortilla",
-    )
+    # paths: Sequence[str] = (
+    #     "FullFlair2.0000.part.tortilla",
+    #     "FullFlair2.0001.part.tortilla",
+    #     "FullFlair2.0002.part.tortilla",
+    #     "FullFlair2.0003.part.tortilla",
+    #     "FullFlair2.0004.part.tortilla",
+    #     "FullFlair2.0005.part.tortilla",
+    # )
+
+    paths: Sequence[str] = ["geobench_flair2.tortilla"]
 
     valid_metadata = ("lat", "lon")
 

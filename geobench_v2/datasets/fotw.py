@@ -38,12 +38,14 @@ class GeoBenchFieldsOfTheWorld(GeoBenchBaseDataset):
         "means": {"r": 0.0, "g": 0.0, "b": 0.0, "nir": 0.0},
         "stds": {"r": 3000.0, "g": 3000.0, "b": 3000.0, "nir": 3000.0},
     }
-    paths = [
-        "FullFOTW.0000.part.tortilla",
-        "FullFOTW.0001.part.tortilla",
-        "FullFOTW.0002.part.tortilla",
-        "FullFOTW.0003.part.tortilla",
-    ]
+    # paths = [
+    #     "FullFOTW.0000.part.tortilla",
+    #     "FullFOTW.0001.part.tortilla",
+    #     "FullFOTW.0002.part.tortilla",
+    #     "FullFOTW.0003.part.tortilla",
+    # ]
+
+    paths = ["geobench_fotw.tortilla"]
 
     classes = ("background", "field", "field-boundary")
     num_classes = len(classes)

@@ -42,7 +42,8 @@ class GeoBenchMMFlood(GeoBenchBaseDataset):
         "stds": {"vv": 1.0, "vh": 1.0, "hydro": 1.0, "dem": 100.0},
     }
 
-    paths = ["MMFlood.tortilla"]
+    # paths = ["MMFlood.tortilla"]
+    paths = ["geobench_mmflood.tortilla"]
 
     classes = ("no-data", "no-flood", "flood")
 

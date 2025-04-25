@@ -63,10 +63,14 @@ class GeoBenchSpaceNet6(GeoBenchBaseDataset):
         },
     }
 
+    # paths = [
+    #     "SpaceNet6.0000.part.tortilla",
+    #     "SpaceNet6.0001.part.tortilla",
+    #     "SpaceNet6.0002.part.tortilla",
+    # ]
     paths = [
-        "SpaceNet6.0000.part.tortilla",
-        "SpaceNet6.0001.part.tortilla",
-        "SpaceNet6.0002.part.tortilla",
+        "geobench_spacenet6.0000.part.tortilla",
+        "geobench_spacenet6.0001.part.tortilla",
     ]
 
     classes = ("background", "no-building", "building")
