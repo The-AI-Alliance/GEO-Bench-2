@@ -36,21 +36,22 @@ from geobench_v2.datamodules import (
 
 
 ALL_DATAMODULES = [
-    # GeoBenchCaFFeDataModule,
-    # GeoBenchFieldsOfTheWorldDataModule,
-    # GeoBenchSpaceNet2DataModule,
-    # GeoBenchSpaceNet6DataModule,
-    # GeoBenchSpaceNet7DataModule,
-    # GeoBenchSpaceNet8DataModule,
-    # GeoBenchBENV2DataModule,
-    # GeoBenchFLAIR2DataModule,
-    # GeoBenchCloudSen12DataModule,
-    # GeoBenchTreeSatAIDataModule,
-    # GeoBenchMADOSDataModule,
-    # GeoBenchBioMasstersDataModule,
-    # GeoBenchMMFloodDataModule,
-    # GeoBenchKuroSiwoDataModule,
+    GeoBenchCaFFeDataModule,
+    GeoBenchFieldsOfTheWorldDataModule,
+    GeoBenchSpaceNet2DataModule,
+    GeoBenchSpaceNet6DataModule,
+    GeoBenchSpaceNet7DataModule,
+    GeoBenchSpaceNet8DataModule,
+    GeoBenchBENV2DataModule,
+    GeoBenchFLAIR2DataModule,
+    GeoBenchCloudSen12DataModule,
+    GeoBenchTreeSatAIDataModule,
+    GeoBenchMADOSDataModule,
+    GeoBenchBioMasstersDataModule,
+    GeoBenchMMFloodDataModule,
+    GeoBenchKuroSiwoDataModule,
     GeoBenchPASTISDataModule
+    
     # WIP
     # GeoBenchBRIGHTDataModule,
     # GeoBenchDynamicEarthNetDataModule,
