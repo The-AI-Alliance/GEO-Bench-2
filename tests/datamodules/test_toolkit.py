@@ -50,8 +50,7 @@ ALL_DATAMODULES = [
     GeoBenchBioMasstersDataModule,
     GeoBenchMMFloodDataModule,
     GeoBenchKuroSiwoDataModule,
-    GeoBenchPASTISDataModule
-    
+    GeoBenchPASTISDataModule,
     # WIP
     # GeoBenchBRIGHTDataModule,
     # GeoBenchDynamicEarthNetDataModule,

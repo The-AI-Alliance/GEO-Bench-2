@@ -115,15 +115,16 @@ class GeoBenchDynamicEarthNet(GeoBenchBaseDataset):
     # daily returns all available days between 28 and 30 days
     # single returns the 30th day
 
-    classes = (
-        "impervious surfaces",
-        "water",
-        "soil",
-        "agriculture",
-        "wetlands",
-        "snow & ice",
-        "forest & other vegetation",
-    )
+    # new order of classes
+    class_names = [
+        "Impervious surfaces",
+        "Agriculture",
+        "Forest & other vegetation",
+        "Wetlands",
+        "Soil",
+        "Water",
+        "Snow & ice",
+    ]
 
     num_classes = len(classes)
 
@@ -222,6 +223,8 @@ class GeoBenchDynamicEarthNet(GeoBenchBaseDataset):
 
         with rasterio.open(sample_row.read(-1)) as src:
             label = src.read()
+
+        # can be changed with updated classes
         # https://github.com/aysim/dynnet/blob/1e7d90294b54f52744ae2b35db10b4d0a48d093d/data/utae_dynamicen.py#L119
         mask = torch.zeros((label.shape[1], label.shape[2]), dtype=torch.int32)
         for i in range(7):

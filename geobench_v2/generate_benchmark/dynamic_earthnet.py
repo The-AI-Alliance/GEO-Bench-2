@@ -14,6 +14,15 @@ import glob
 from tqdm import tqdm
 import rasterio
 
+import os
+import pandas as pd
+import numpy as np
+import rasterio
+from rasterio.windows import Window
+import multiprocessing
+from functools import partial
+from tqdm import tqdm
+
 
 from geobench_v2.generate_benchmark.utils import plot_sample_locations
 from geobench_v2.generate_benchmark.geospatial_split_utils import (
@@ -26,6 +35,21 @@ import numpy as np
 
 
 # TODO add automatic download of dataset to have a starting point for benchmark generation
+
+# computed from temporal split function
+TRAIN_AREA_IDS = [
+    "4254_2915_13",
+    "6688_3456_13",
+    "7026_3201_13",
+    "2850_4139_13",
+    "6752_3115_13",
+    "2415_3082_13",
+    "4223_3246_13",
+    "2006_3280_13",
+    "5125_4049_13",
+]
+VALIDATION_AREA_IDS = ["3002_4273_13", "7513_4968_13"]
+TEST_AREA_IDS = ["2528_4620_13", "4791_3920_13", "2459_4406_13", "5926_3715_13"]
 
 
 def generate_metadata_df(root: str) -> pd.DataFrame:
@@ -149,7 +173,10 @@ def generate_metadata_df(root: str) -> pd.DataFrame:
     ]
     df.rename(columns={"aerial_path": "planet_path"}, inplace=True)
 
-    df = df[~df["planet_missing"]].reset_index(drop=True)
+    # exclude rows where grouped by new_id, not all s1_missing or s2_missing or planet_missing are False
+    df = df[
+        (~df["planet_missing"]) & (~df["s1_missing"]) & (~df["s2_missing"])
+    ].reset_index(drop=True)
 
     print("Extracting coordinates from raster files...")
 
@@ -160,6 +187,12 @@ def generate_metadata_df(root: str) -> pd.DataFrame:
 
     coords = df.apply(extract_lng_lat, axis=1)
     df["lon"], df["lat"] = zip(*coords)
+
+    # based on area id assing split
+    df["split"] = "train"
+    df.loc[df["area_id"].isin(TRAIN_AREA_IDS), "split"] = "train"
+    df.loc[df["area_id"].isin(VALIDATION_AREA_IDS), "split"] = "validation"
+    df.loc[df["area_id"].isin(TEST_AREA_IDS), "split"] = "test"
 
     return df
 
@@ -347,6 +380,260 @@ def create_tortilla(root_dir, df, save_dir):
     )
 
 
+def process_dynamic_earthnet(metadata_df, input_root, output_root, num_workers=8):
+    """Process DynamicEarthNet dataset - first unique S1/S2/labels, then Planet images."""
+    os.makedirs(output_root, exist_ok=True)
+
+    modality_dirs = {
+        "planet": os.path.join(output_root, "planet"),
+        "s1": os.path.join(output_root, "s1"),
+        "s2": os.path.join(output_root, "s2"),
+        "label": os.path.join(output_root, "labels"),
+    }
+
+    for directory in modality_dirs.values():
+        os.makedirs(directory, exist_ok=True)
+
+    patch_positions = [
+        (0, 0),  # top-left
+        (0, 512),  # top-right
+        (512, 0),  # bottom-left
+        (512, 512),  # bottom-right
+    ]
+
+    unique_ids = metadata_df.drop_duplicates(subset=["new_id"]).reset_index(drop=True)
+    print(f"Found {len(unique_ids)} unique location-month combinations")
+
+    patch_mappings = {"s1": {}, "s2": {}, "label": {}}
+
+    with multiprocessing.Pool(num_workers) as pool:
+        for modality in ["s1", "s2", "label"]:
+            print(f"Processing unique {modality} files...")
+
+            process_func = partial(
+                process_single_modality,
+                input_root=input_root,
+                output_dir=modality_dirs[modality],
+                patch_positions=patch_positions,
+                modality=modality,
+            )
+
+            results = list(
+                tqdm(
+                    pool.imap(process_func, unique_ids.to_dict("records")),
+                    total=len(unique_ids),
+                    desc=f"Processing {modality} files",
+                )
+            )
+
+            for result in results:
+                if result and not result.get("error"):
+                    patch_mappings[modality][result["original_path"]] = result[
+                        "patches"
+                    ]
+
+    print("Stage 2: Processing Planet images...")
+
+    with multiprocessing.Pool(num_workers) as pool:
+        process_func = partial(
+            process_planet,
+            input_root=input_root,
+            output_dir=modality_dirs["planet"],
+            patch_mappings=patch_mappings,
+            patch_positions=patch_positions,
+        )
+
+        planet_results = list(
+            tqdm(
+                pool.imap(process_func, metadata_df.to_dict("records")),
+                total=len(metadata_df),
+                desc="Processing Planet images",
+            )
+        )
+
+    flat_results = []
+    for result in planet_results:
+        if result and not isinstance(result, list):
+            flat_results.append(result)
+        elif result and isinstance(result, list):
+            flat_results.extend(result)
+
+    updated_df = pd.DataFrame(flat_results)
+
+    return updated_df
+
+
+def process_single_modality(record, input_root, output_dir, patch_positions, modality):
+    """Process a single modality file (S1, S2, or Label) and create patches."""
+    sample_id = f"{record['area_id']}_{record['range_id']}_{record['lat_id']}_{record['year_month']}"
+
+    path_key = f"{modality}_path"
+    input_path = os.path.join(input_root, record[path_key])
+
+    with rasterio.open(input_path) as src:
+        crs = src.crs
+        transform = src.transform
+        dtype = src.dtypes[0]
+        count = src.count
+
+        patch_results = []
+
+        for patch_idx, (row_off, col_off) in enumerate(patch_positions):
+            window = Window(col_off, row_off, 512, 512)
+            window_transform = rasterio.windows.transform(window, transform)
+
+            patch_data = src.read(window=window)
+
+            if modality == "label" and patch_data.shape[0] > 1:
+                # create single channel mask
+                # https://github.com/aysim/dynnet/blob/1e7d90294b54f52744ae2b35db10b4d0a48d093d/data/utae_dynamicen.py#L119
+                single_channel_mask = np.zeros(
+                    (patch_data.shape[1], patch_data.shape[2]), dtype=np.uint8
+                )
+
+                for i in range(7):
+                    single_channel_mask[patch_data[i] == 255] = i
+
+                patch_data = single_channel_mask[np.newaxis, :, :]
+                count = 1
+
+            output_filename = f"{sample_id}_patch{patch_idx}.tif"
+            output_path = os.path.join(output_dir, output_filename)
+
+            profile = {
+                "driver": "GTiff",
+                "height": 512,
+                "width": 512,
+                "count": count if modality != "label" else 1,
+                "dtype": dtype if modality != "label" else "uint8",
+                "tiled": True,
+                "blockxsize": 512,
+                "blockysize": 512,
+                "interleave": "pixel",
+                "compress": "zstd",
+                "zstd_level": 13,
+                "predictor": 2,
+                "crs": crs,
+                "transform": window_transform,
+            }
+
+            with rasterio.open(output_path, "w", **profile) as dst:
+                dst.write(patch_data)
+
+            rel_path = os.path.relpath(output_path, os.path.dirname(output_dir))
+            patch_results.append({"patch_idx": patch_idx, "path": rel_path})
+
+    return {"original_path": record[path_key], "patches": patch_results}
+
+
+def process_planet(record, input_root, output_dir, patch_mappings, patch_positions):
+    """Process a Planet image and associate with pre-processed S1, S2, and label patches."""
+
+    sample_id = f"{record['area_id']}_{record['range_id']}_{record['lat_id']}_{record['year_month']}"
+    planet_date = record.get("planet_date", "")
+
+    s1_patches = patch_mappings["s1"].get(record["s1_path"], [])
+    s2_patches = patch_mappings["s2"].get(record["s2_path"], [])
+    label_patches = patch_mappings["label"].get(record["label_path"], [])
+
+    s1_indices = {p["patch_idx"] for p in s1_patches}
+    s2_indices = {p["patch_idx"] for p in s2_patches}
+    label_indices = {p["patch_idx"] for p in label_patches}
+
+    common_indices = s1_indices & s2_indices & label_indices
+
+    # Create mapping for easy lookup
+    s1_map = {
+        p["patch_idx"]: p["path"]
+        for p in s1_patches
+        if p["patch_idx"] in common_indices
+    }
+    s2_map = {
+        p["patch_idx"]: p["path"]
+        for p in s2_patches
+        if p["patch_idx"] in common_indices
+    }
+    label_map = {
+        p["patch_idx"]: p["path"]
+        for p in label_patches
+        if p["patch_idx"] in common_indices
+    }
+
+    input_path = os.path.join(input_root, record["planet_path"])
+    if not os.path.exists(input_path):
+        return None
+
+    results = []
+
+    with rasterio.open(input_path) as src:
+        transform = src.transform
+
+        for patch_idx in common_indices:
+            row_off, col_off = patch_positions[patch_idx]
+            window = Window(col_off, row_off, 512, 512)
+            window_transform = rasterio.windows.transform(window, transform)
+
+            patch_data = src.read(window=window)
+
+            date_str = planet_date.replace("-", "_")
+            output_filename = f"{sample_id}_{date_str}_patch{patch_idx}.tif"
+            output_path = os.path.join(output_dir, output_filename)
+
+            profile = {
+                "driver": "GTiff",
+                "height": 512,
+                "width": 512,
+                "count": patch_data.shape[0],
+                "dtype": patch_data.dtype,
+                "tiled": True,
+                "blockxsize": 512,
+                "blockysize": 512,
+                "interleave": "pixel",
+                "compress": "zstd",
+                "zstd_level": 13,
+                "predictor": 2,
+                "crs": src.crs,
+                "transform": window_transform,
+            }
+
+            with rasterio.open(output_path, "w", **profile) as dst:
+                dst.write(patch_data)
+
+            rel_path = os.path.relpath(output_path, os.path.dirname(output_dir))
+            result = {
+                "original_id": sample_id,
+                "patch_id": f"{sample_id}_patch{patch_idx}",
+                "patch_position": patch_idx,
+                "split": record["split"],
+                "planet_path": rel_path,
+                "s1_path": s1_map[patch_idx],
+                "s2_path": s2_map[patch_idx],
+                "label_path": label_map[patch_idx],
+                "planet_date": planet_date,
+            }
+
+            results.append(result)
+
+    return results
+
+
+def create_dynamic_earthnet_patches(
+    input_root, output_root, metadata_df, num_workers=8
+):
+    """Main function to create GeoBench version of DynamicEarthNet."""
+    os.makedirs(output_root, exist_ok=True)
+
+    updated_df = process_dynamic_earthnet(
+        metadata_df, input_root, output_root, num_workers=num_workers
+    )
+
+    print(
+        f"Created {len(updated_df)} patch records from {len(metadata_df.drop_duplicates(subset=['new_id']))} unique time-series"
+    )
+
+    return updated_df
+
+
 def create_test_subset(
     root_dir: str,
     df: pd.DataFrame,
@@ -479,6 +766,216 @@ def create_test_subset(
     )
 
 
+def visualize_dynamic_earthnet_patches(
+    patches_df, output_root, num_samples=3, save_dir=None
+):
+    """Visualize patches from the DynamicEarthNet dataset to check correctness."""
+    import matplotlib.pyplot as plt
+    import numpy as np
+    import rasterio
+    import random
+    import os
+    from matplotlib.colors import ListedColormap
+
+    if save_dir and os.path.exists(save_dir):
+        shutil.rmtree(save_dir)
+
+    if save_dir and not os.path.exists(save_dir):
+        os.makedirs(save_dir)
+
+    # Select random samples with complete data
+    complete_samples = patches_df[
+        patches_df["planet_path"].notna()
+        & patches_df["s1_path"].notna()
+        & patches_df["s2_path"].notna()
+        & patches_df["label_path"].notna()
+    ]
+
+    if len(complete_samples) == 0:
+        print("No complete samples found for visualization")
+        return
+
+    sample_ids = random.sample(
+        list(complete_samples["patch_id"].unique()),
+        min(num_samples, len(complete_samples["patch_id"].unique())),
+    )
+
+    # Define colormap for labels - use meaningful colors for each land cover type
+    # Based on the provided class names (colors adjusted for visibility)
+    label_colors = [
+        (0.3, 0.3, 0.3),  # Impervious surfaces - dark gray
+        (1.0, 1.0, 0.0),  # Agriculture - yellow
+        (0.0, 0.8, 0.0),  # Forest & other vegetation - green
+        (0.0, 0.8, 0.8),  # Wetlands - cyan
+        (0.8, 0.7, 0.5),  # Soil - brown
+        (0.0, 0.5, 1.0),  # Water - blue
+        (1.0, 1.0, 1.0),  # Snow & ice - white
+    ]
+    label_cmap = ListedColormap(label_colors)
+
+    # Use the provided class names
+    class_names = [
+        "Impervious surfaces",
+        "Agriculture",
+        "Forest & other vegetation",
+        "Wetlands",
+        "Soil",
+        "Water",
+        "Snow & ice",
+    ]
+
+    for sample_id in sample_ids:
+        sample = patches_df[patches_df["patch_id"] == sample_id].iloc[0]
+
+        fig, axes = plt.subplots(1, 4, figsize=(20, 5))
+        fig.suptitle(f"Sample: {sample_id} (Split: {sample['split']})", fontsize=14)
+
+        # Planet image (RGB)
+        with rasterio.open(os.path.join(output_root, sample["planet_path"])) as src:
+            planet_data = src.read()
+
+        # Display RGB bands for Planet (assuming typical order)
+        rgb_bands = (
+            planet_data[[2, 1, 0], :, :] if planet_data.shape[0] >= 3 else planet_data
+        )
+        rgb = np.transpose(rgb_bands, (1, 2, 0)).astype(np.float32)
+        # Normalize for visualization
+        p2, p98 = np.percentile(rgb, (2, 98))
+        rgb_norm = np.clip((rgb - p2) / (p98 - p2), 0, 1)
+
+        axes[0].imshow(rgb_norm)
+        axes[0].set_title("Planet (RGB)")
+        axes[0].axis("off")
+
+        # Sentinel-1 (display first band)
+        with rasterio.open(os.path.join(output_root, sample["s1_path"])) as src:
+            s1_data = src.read(1)
+
+        s1_norm = np.clip(
+            (s1_data - np.percentile(s1_data, 2))
+            / (np.percentile(s1_data, 98) - np.percentile(s1_data, 2)),
+            0,
+            1,
+        )
+        axes[1].imshow(s1_norm, cmap="gray")
+        axes[1].set_title("Sentinel-1 (Band 1)")
+        axes[1].axis("off")
+
+        # Sentinel-2 (display RGB if available, otherwise first band)
+        with rasterio.open(os.path.join(output_root, sample["s2_path"])) as src:
+            s2_data = src.read()
+
+        if s2_data.shape[0] >= 3:
+            s2_rgb = np.transpose(s2_data[[3, 2, 1], :, :], (1, 2, 0)).astype(
+                np.float32
+            )
+            p2, p98 = np.percentile(s2_rgb, (2, 98))
+            s2_norm = np.clip((s2_rgb - p2) / (p98 - p2), 0, 1)
+            axes[2].imshow(s2_norm)
+            axes[2].set_title("Sentinel-2 (RGB)")
+        else:
+            s2_norm = np.clip(
+                (s2_data[0] - np.percentile(s2_data[0], 2))
+                / (np.percentile(s2_data[0], 98) - np.percentile(s2_data[0], 2)),
+                0,
+                1,
+            )
+            axes[2].imshow(s2_norm, cmap="gray")
+            axes[2].set_title("Sentinel-2 (Band 1)")
+
+        axes[2].axis("off")
+
+        # Label
+        with rasterio.open(os.path.join(output_root, sample["label_path"])) as src:
+            label_data = src.read(1)
+
+        # Get all unique values for legend
+        unique_values = np.unique(label_data)
+
+        print(unique_values)
+
+        # Display the label with custom colormap - no masking
+        label_img = axes[3].imshow(label_data, cmap=label_cmap, vmin=0, vmax=6)
+        axes[3].set_title("Land Cover Label")
+        axes[3].axis("off")
+
+        # Add legend for ALL values present in the label
+        if len(unique_values) > 0:
+            from matplotlib.patches import Patch
+
+            legend_elements = [
+                Patch(
+                    facecolor=label_colors[val],
+                    edgecolor="black",
+                    label=f"{val}: {class_names[val]}",
+                )
+                for val in unique_values
+            ]
+
+            axes[3].legend(handles=legend_elements, loc="lower right", fontsize=8)
+
+        plt.tight_layout()
+
+        if save_dir:
+            plt.savefig(
+                os.path.join(save_dir, f"sample_{sample_id}.png"),
+                dpi=150,
+                bbox_inches="tight",
+            )
+            plt.close()
+        else:
+            plt.show()
+
+    print(f"Visualized {len(sample_ids)} samples")
+
+
+def create_geobench_subset(patches_df, train_series=10, val_series=5, test_series=5):
+    """
+    Create a subset of the dataset with specified number of unique time-series per split.
+
+    Args:
+        patches_df: DataFrame with patch information
+        train_series: Number of unique time-series to select from training set
+        val_series: Number of unique time-series to select from validation set
+        test_series: Number of unique time-series to select from test set
+
+    Returns:
+        DataFrame containing the selected subset
+    """
+    patches_df["base_id"] = patches_df["patch_id"].apply(
+        lambda x: "_".join(x.split("_")[:-1])
+    )
+
+    train_ids = patches_df[patches_df["split"] == "train"]["base_id"].unique()
+    val_ids = patches_df[patches_df["split"] == "validation"]["base_id"].unique()
+    test_ids = patches_df[patches_df["split"] == "test"]["base_id"].unique()
+
+    # set a random generator to be reproducible
+    rng = np.random.default_rng(42)
+    selected_train = rng.choice(
+        train_ids, min(train_series, len(train_ids)), replace=False
+    )
+    selected_val = rng.choice(val_ids, min(val_series, len(val_ids)), replace=False)
+    selected_test = rng.choice(test_ids, min(test_series, len(test_ids)), replace=False)
+
+    selected_ids = np.concatenate([selected_train, selected_val, selected_test])
+
+    subset_df = patches_df[patches_df["base_id"].isin(selected_ids)].copy()
+
+    print(f"Selected subset contains:")
+    print(
+        f"- {len(selected_train)} training time-series with {len(subset_df[subset_df['split'] == 'train'])} total samples"
+    )
+    print(
+        f"- {len(selected_val)} validation time-series with {len(subset_df[subset_df['split'] == 'validation'])} total samples"
+    )
+    print(
+        f"- {len(selected_test)} test time-series with {len(subset_df[subset_df['split'] == 'test'])} total samples"
+    )
+
+    return subset_df
+
+
 def main():
     """Generate DynamicEarthNet Benchmark."""
     parser = argparse.ArgumentParser()
@@ -494,7 +991,7 @@ def main():
     args = parser.parse_args()
     os.makedirs(args.save_dir, exist_ok=True)
 
-    metadata_path = os.path.join(args.save_dir, "geobench_dynamic_earthnet.parquet")
+    metadata_path = os.path.join(args.save_dir, "geobench_metadata.parquet")
     if os.path.exists(metadata_path):
         metadata_df = pd.read_parquet(metadata_path)
     else:
@@ -502,9 +999,47 @@ def main():
         metadata_df.to_parquet(metadata_path)
 
     # validate_metadata_with_geo(metadata_df)
-    df = create_geospatial_temporal_split(
-        metadata_df, val_ratio=0.1, test_ratio=0.2, random_seed=42
+    # df = create_geospatial_temporal_split(
+    #     metadata_df, val_ratio=0.1, test_ratio=0.2, random_seed=42
+    # )
+
+    patches_path = os.path.join(
+        args.save_dir, "geobench_dynamic_earthnet_patches.parquet"
     )
+
+    if os.path.exists(patches_path):
+        patches_df = pd.read_parquet(patches_path)
+    else:
+        patches_df = create_dynamic_earthnet_patches(
+            args.root, args.save_dir, metadata_df, num_workers=16
+        )
+        patches_df.to_parquet(patches_path)
+
+    subset_path = os.path.join(args.save_dir, "geobench_dynamic_earthnet.parquet")
+    if os.path.exists(subset_path):
+        subset_df = pd.read_parquet(subset_path)
+    else:
+        subset_df = create_geobench_subset(
+            patches_df, train_series=700, val_series=100, test_series=200
+        )
+
+    import pdb
+
+    pdb.set_trace()
+
+    # create_geobench_subset
+
+    # visualize_dir = os.path.join(args.save_dir, "visualizations")
+    # visualize_dynamic_earthnet_patches(
+    #     patches_df,
+    #     args.save_dir,
+    #     num_samples=25,
+    #     save_dir=visualize_dir
+    # )
+    # print(f"Patch visualizations saved to {visualize_dir}")
+
+    # import pdb
+    # pdb.set_trace()
 
     # plot_sample_locations(
     #     # treat each time-series as single sample
@@ -526,7 +1061,7 @@ def main():
 
     create_test_subset(
         args.root,
-        df,
+        subset_df,
         args.save_dir,
         num_train_samples=2,
         num_val_samples=1,
