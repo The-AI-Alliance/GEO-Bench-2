@@ -31,22 +31,26 @@ class GeoBenchBENV2(GeoBenchBaseDataset):
     - Return band wavelengths
     """
 
-    band_default_order = (
-        "B01",
-        "B02",
-        "B03",
-        "B04",
-        "B05",
-        "B06",
-        "B07",
-        "B08",
-        "B8A",
-        "B09",
-        "B11",
-        "B12",
-        "VV",
-        "VH",
-    )
+    band_default_order = {
+        "s2": (
+            "B01",
+            "B02",
+            "B03",
+            "B04",
+            "B05",
+            "B06",
+            "B07",
+            "B08",
+            "B8A",
+            "B09",
+            "B11",
+            "B12",
+        ),
+        "s1": (
+            "VV",
+            "VH",
+        )
+    }
 
     dataset_band_config = DatasetBandRegistry.BENV2
 
@@ -123,7 +127,7 @@ class GeoBenchBENV2(GeoBenchBaseDataset):
         self,
         root: Path,
         split: str,
-        band_order: dict[str, Sequence[float | str]] = ["B04", "B03", "B02"],
+        band_order: dict[str, Sequence[float | str]] = {"s2": ["B04", "B03", "B02"]},
         data_normalizer: Type[nn.Module] = MultiModalNormalizer,
         transforms: nn.Module | None = None,
         metadata: Sequence[str] = None,
