@@ -311,127 +311,535 @@ class DataNormalizer(nn.Module, ABC):
 
 
 class MultiModalNormalizer(DataNormalizer):
-    """Normalization module for single or multi-modal data."""
+    """
+    Normalization module for single or multi-modal data supporting mixed strategies.
+
+    Applies normalization per channel based on band configuration in the provided stats:
+    1. If 'clip_min' and 'clip_max' are defined for a band in stats:
+        a. Clips values to [clip_min, clip_max].
+        b. Rescales to the specified output_range ([0, 1], [0, 255], or [-1, 1]).
+    2. Otherwise (no clipping defined for the band):
+        a. Applies standard z-score normalization: (value - mean) / std.
+    3. Fill value bands (numeric values in band_order) are ignored and passed through unchanged.
+
+    Handles both single tensor input (if band_order is a list) and dictionary input
+    (if band_order is a dict mapping modalities to lists).
+    """
+
+    valid_ranges = ["zero_one", "zero_255", "neg_one_one"]
 
     def __init__(
         self,
         stats: dict[str, dict[str, float]],
         band_order: Union[list[Union[str, float]], dict[str, list[Union[str, float]]]],
+        output_range: str = "zero_one",
     ) -> None:
-        """Initialize normalizer.
+        """Initialize normalizer with optional band-specific clipping from stats.
+
+        Pre-calculates means, stds, clipping values, and masks for efficient processing.
 
         Args:
-            stats: dictionary containing mean and std for each band
-            band_order: Either a sequence of bands or dict mapping modalities to sequences
+            stats: Dictionary containing mean, std, and optional clip_min/clip_max for each band.
+                   Expected structure: {'means': {band: val}, 'stds': {band: val},
+                                       'clip_min': {band: val}, 'clip_max': {band: val}}
+                   clip_min/clip_max are optional.
+            band_order: Sequence of band names/fill values, or dict mapping modality names
+                        (e.g., "s1", "s2") to such sequences. Determines the channel order
+                        and identifies fill value channels.
+            output_range: Target range for normalized values *only when clipping is applied*:
+                         - "zero_one": [0, 1] (default)
+                         - "zero_255": [0, 255]
+                         - "neg_one_one": [-1, 1]
+                         Bands undergoing z-score normalization are not affected by this range.
+
+        Raises:
+            AssertionError: If output_range is not one of the valid options.
         """
         super().__init__(stats, band_order)
 
-        # Calculate mean and std tensors for each input key
+        if output_range not in self.valid_ranges:
+            raise AssertionError(
+                f"output_range must be one of {self.valid_ranges}, got {output_range}"
+            )
+        self.output_range = output_range
+
+        if output_range == "zero_255":
+            self.scale_factor = 255.0
+            self.shift_factor = 0.0
+        elif output_range == "neg_one_one":
+            self.scale_factor = 2.0
+            self.shift_factor = -1.0
+        else:  # "zero_one"
+            self.scale_factor = 1.0
+            self.shift_factor = 0.0
+
         self.means = {}
         self.stds = {}
+        self.clip_mins = {}
+        self.clip_maxs = {}
+        self.is_fill_value = {}
+        self.is_clipped_band = {}
 
         if isinstance(band_order, dict):
             for modality, bands in band_order.items():
-                means, stds = self._get_band_stats(bands)
-                self.means[f"image_{modality}"] = means
-                self.stds[f"image_{modality}"] = stds
+                key = f"image_{modality}"  # Assumes input dict keys follow this pattern
+                (self.means[key], self.stds[key], self.is_fill_value[key]) = (
+                    self._get_band_stats(bands)
+                )
+                (
+                    self.clip_mins[key],
+                    self.clip_maxs[key],
+                    self.is_clipped_band[key],
+                ) = self._get_clip_values(bands)
         else:
-            means, stds = self._get_band_stats(band_order)
-            self.means["image"] = means
-            self.stds["image"] = stds
+            key = "image"  # Assumes input dict key is "image" for single modality
+            (self.means[key], self.stds[key], self.is_fill_value[key]) = (
+                self._get_band_stats(band_order)
+            )
+            (self.clip_mins[key], self.clip_maxs[key], self.is_clipped_band[key]) = (
+                self._get_clip_values(band_order)
+            )
 
     def _get_band_stats(
         self, bands: Sequence[Union[str, float]]
-    ) -> tuple[Tensor, Tensor]:
-        """Extract mean and std values for specified bands.
+    ) -> tuple[Tensor, Tensor, Tensor]:
+        """Extract mean, std tensors and a boolean mask identifying fill value channels."""
+        means, stds, is_fill = [], [], []
+        for band in bands:
+            if isinstance(band, (int, float)):
+                means.append(0.0)
+                stds.append(1.0)
+                is_fill.append(True)
+            else:
+                # Ensure band exists in stats to avoid KeyError
+                if band not in self.stats.get(
+                    "means", {}
+                ) or band not in self.stats.get("stds", {}):
+                    raise ValueError(
+                        f"Band '{band}' not found in normalization statistics (means/stds)."
+                    )
+                means.append(self.stats["means"][band])
+                stds.append(self.stats["stds"][band])
+                is_fill.append(False)
+        return torch.tensor(means), torch.tensor(stds), torch.tensor(is_fill)
+
+    def _get_clip_values(
+        self, bands: Sequence[Union[str, float]]
+    ) -> tuple[Tensor, Tensor, Tensor]:
+        """Extract clip min/max tensors and a boolean mask identifying channels to be clipped."""
+        clip_mins, clip_maxs, is_clipped = [], [], []
+        # Check if clip stats exist at the top level
+        has_clip_min_stats = "clip_min" in self.stats
+        has_clip_max_stats = "clip_max" in self.stats
+        clip_min_dict = self.stats.get("clip_min", {})
+        clip_max_dict = self.stats.get("clip_max", {})
+
+        for band in bands:
+            has_band_clipping = False
+            if isinstance(band, (int, float)):
+                # Fill values are never clipped
+                clip_mins.append(float("-inf"))
+                clip_maxs.append(float("inf"))
+            elif (
+                has_clip_min_stats
+                and has_clip_max_stats
+                and band in clip_min_dict
+                and band in clip_max_dict
+            ):
+                # Clipping is defined for this specific band
+                clip_mins.append(clip_min_dict[band])
+                clip_maxs.append(clip_max_dict[band])
+                has_band_clipping = True
+            else:
+                # No clipping defined for this band (will use z-score)
+                clip_mins.append(float("-inf"))
+                clip_maxs.append(float("inf"))
+
+            is_clipped.append(has_band_clipping)
+
+        return (
+            torch.tensor(clip_mins),
+            torch.tensor(clip_maxs),
+            torch.tensor(is_clipped),
+        )
+
+    def _reshape_and_expand(
+        self, tensor_to_reshape: Tensor, target_tensor: Tensor
+    ) -> tuple[Tensor, Optional[Tensor]]:
+        """Reshape 1D stat/mask tensor and optionally expand boolean masks for broadcasting.
+
+        Args:
+            tensor_to_reshape: The 1D tensor (e.g., means, stds, mask) to reshape.
+            target_tensor: The data tensor whose dimensions determine the reshaping/expansion.
+
+        Returns:
+            A tuple containing:
+            - reshaped: The input tensor reshaped to be broadcastable with target_tensor
+                      (e.g., [C,1,1] for a [C,H,W] target).
+            - expanded: The reshaped tensor expanded to the full shape of target_tensor
+                        if tensor_to_reshape was boolean, otherwise None.
+        """
+        orig_dim = target_tensor.dim()
+        if orig_dim == 3:  # [C, H, W]
+            reshaped = tensor_to_reshape.view(-1, 1, 1)
+        elif orig_dim == 4:  # [T, C, H, W]
+            reshaped = tensor_to_reshape.view(1, -1, 1, 1)
+        elif orig_dim == 5:  # [B, T, C, H, W]
+            reshaped = tensor_to_reshape.view(1, 1, -1, 1, 1)
+        else:
+            raise ValueError(
+                f"Expected target tensor with 3, 4, or 5 dimensions, got {orig_dim}"
+            )
+
+        expanded = None
+        if tensor_to_reshape.dtype == torch.bool:
+            expanded = reshaped.expand_as(target_tensor)
+
+        return reshaped, expanded
+
+    def forward(self, data: dict[str, Tensor]) -> dict[str, Tensor]:
+        """Normalize input tensors based on per-channel configuration.
+
+        Iterates through the input dictionary. For keys matching the expected pattern
+        (e.g., "image", "image_modality"), applies normalization channel-wise:
+        - Fill value channels are ignored.
+        - Channels marked for clipping are clipped and scaled to `output_range`.
+        - Other channels are z-score normalized.
+        Keys not matching the pattern are passed through unchanged.
+
+        Args:
+            data: Dictionary mapping keys (e.g., "image", "image_s1") to tensors.
+
+        Returns:
+            Dictionary with normalized tensors under the same keys.
+        """
+        result = {}
+        for key, tensor in data.items():
+            if key not in self.means:
+                result[key] = tensor
+                continue
+
+            mean, std = self.means[key], self.stds[key]
+            clip_min, clip_max = self.clip_mins[key], self.clip_maxs[key]
+            is_fill, is_clipped = self.is_fill_value[key], self.is_clipped_band[key]
+
+            mean_r, _ = self._reshape_and_expand(mean, tensor)
+            std_r, _ = self._reshape_and_expand(std, tensor)
+            clip_min_r, _ = self._reshape_and_expand(clip_min, tensor)
+            clip_max_r, _ = self._reshape_and_expand(clip_max, tensor)
+            _, is_fill_e = self._reshape_and_expand(is_fill, tensor)
+            _, is_clipped_e = self._reshape_and_expand(is_clipped, tensor)
+
+            normalized_tensor = tensor.clone()
+
+            # Calculate clipped & scaled values (applied later via where)
+            clipped_vals = torch.clamp(tensor, min=clip_min_r, max=clip_max_r)
+            clipped_scaled_01 = (clipped_vals - clip_min_r) / (
+                clip_max_r - clip_min_r + 1e-6
+            )
+            clipped_final = clipped_scaled_01 * self.scale_factor + self.shift_factor
+
+            # Calculate z-score values (applied later via where)
+            z_score_vals = (tensor - mean_r) / (std_r + 1e-6)
+
+            # Apply z-score where not clipped and not fill
+            normalized_tensor = torch.where(
+                ~is_clipped_e & ~is_fill_e, z_score_vals, normalized_tensor
+            )
+            # Apply clipping where clipped and not fill
+            normalized_tensor = torch.where(
+                is_clipped_e & ~is_fill_e, clipped_final, normalized_tensor
+            )
+
+            result[key] = normalized_tensor
+
+        return result
+
+    def unnormalize(self, data: dict[str, Tensor]) -> dict[str, Tensor]:
+        """Unnormalize input tensors based on the original per-channel configuration.
+
+        Iterates through the input dictionary. For keys matching the expected pattern,
+        reverses the normalization channel-wise:
+        - Fill value channels are ignored.
+        - Channels originally clipped are unscaled from `output_range` and un-clipped.
+        - Other channels have inverse z-score applied.
+        Keys not matching the pattern are passed through unchanged.
+
+        Args:
+            data: Dictionary mapping keys to normalized tensors.
+
+        Returns:
+            Dictionary with unnormalized tensors under the same keys.
+        """
+        result = {}
+        for key, tensor in data.items():
+            if key not in self.means:
+                result[key] = tensor
+                continue
+
+            mean, std = self.means[key], self.stds[key]
+            clip_min, clip_max = self.clip_mins[key], self.clip_maxs[key]
+            is_fill, is_clipped = self.is_fill_value[key], self.is_clipped_band[key]
+
+            mean_r, _ = self._reshape_and_expand(mean, tensor)
+            std_r, _ = self._reshape_and_expand(std, tensor)
+            clip_min_r, _ = self._reshape_and_expand(clip_min, tensor)
+            clip_max_r, _ = self._reshape_and_expand(clip_max, tensor)
+            _, is_fill_e = self._reshape_and_expand(is_fill, tensor)
+            _, is_clipped_e = self._reshape_and_expand(is_clipped, tensor)
+
+            unnormalized_tensor = tensor.clone()
+
+            # Calculate un-clipped values (applied later via where)
+            unclipped_01 = tensor.clone()
+            if self.shift_factor != 0:
+                unclipped_01 = (unclipped_01 - self.shift_factor) / self.scale_factor
+            else:
+                unclipped_01 = unclipped_01 / self.scale_factor
+            unclipped_final = unclipped_01 * (clip_max_r - clip_min_r) + clip_min_r
+
+            # Calculate un-z-score values (applied later via where)
+            un_z_score_vals = tensor * (std_r + 1e-6) + mean_r
+
+            # Apply un-z-score where not clipped and not fill
+            unnormalized_tensor = torch.where(
+                ~is_clipped_e & ~is_fill_e, un_z_score_vals, unnormalized_tensor
+            )
+            # Apply un-clipping where clipped and not fill
+            unnormalized_tensor = torch.where(
+                is_clipped_e & ~is_fill_e, unclipped_final, unnormalized_tensor
+            )
+
+            result[key] = unnormalized_tensor
+
+        return result
+
+
+class SatMAENormalizer(DataNormalizer):
+    """
+    Normalization module for satellite imagery with SatMAE-style normalization.
+
+    Several papers have cited SatMAE for this normalization procedure:
+    - https://github.com/sustainlab-group/SatMAE/blob/e31c11fa1bef6f9a9aa3eb49e8637c8b8952ba5e/util/datasets.py#L358
+
+    They mention that the normalization is inspired from SeCO:
+    - https://github.com/ServiceNow/seasonal-contrast/blob/8285173ec205b64bc3e53b880344dd6c3f79fa7a/datasets/bigearthnet_dataset.py#L111
+
+    This normalization:
+    1. Clips values to [mean - 2*std, mean + 2*std] for non-fill bands
+    2. Rescales non-fill bands to one of: [0, 1], [0, 255], or [-1, 1] based on output_range
+    3. Leaves fill value bands untouched.
+
+    Normalizes data according to the band statistics provided in the stats dictionary, as well as the specified band order.
+    The band order can be a list of band names or a dictionary mapping modalities to lists of band names, and the procedure
+    will ignore any fill values in the band order.
+    """
+
+    valid_ranges = ["zero_one", "zero_255", "neg_one_one"]
+
+    def __init__(
+        self,
+        stats: dict[str, dict[str, float]],
+        band_order: Union[list[Union[str, float]], dict[str, list[Union[str, float]]]],
+        output_range: str = "zero_one",
+    ) -> None:
+        """Initialize SatMAE-style normalizer.
+
+        Args:
+            stats: Dictionary containing mean and std for each band
+            band_order: Either a sequence of bands or dict mapping modalities to sequences
+            output_range: Target range for normalized values:
+                         - "zero_one": [0, 1] (default, suitable for most models)
+                         - "zero_255": [0, 255] (matches original SeCo implementation)
+                         - "neg_one_one": [-1, 1] (useful for models expecting [-1, 1] inputs)
+
+        Raises:
+            AssertionError: If output_range is not one of the valid options
+        """
+        super().__init__(stats, band_order)
+
+        if output_range not in self.valid_ranges:
+            raise AssertionError(
+                f"output_range must be one of {self.valid_ranges}, got {output_range}"
+            )
+
+        self.output_range = output_range
+
+        if output_range == "zero_255":
+            self.scale_factor = 255.0
+            self.shift_factor = 0.0
+        elif output_range == "neg_one_one":
+            self.scale_factor = 2.0
+            self.shift_factor = -1.0
+        else:  # "zero_one"
+            self.scale_factor = 1.0
+            self.shift_factor = 0.0
+
+        self.means = {}
+        self.stds = {}
+        self.min_values = {}  # will be mean - 2*std
+        self.max_values = {}  # will be mean + 2*std
+        self.is_fill_value = {}  # Boolean mask for fill value channels
+
+        if isinstance(band_order, dict):
+            for modality, bands in band_order.items():
+                key = f"image_{modality}"
+                means, stds, is_fill = self._get_band_stats(bands)
+                self.means[key] = means
+                self.stds[key] = stds
+                self.min_values[key] = means - 2 * stds
+                self.max_values[key] = means + 2 * stds
+                self.is_fill_value[key] = is_fill
+        else:
+            key = "image"
+            means, stds, is_fill = self._get_band_stats(band_order)
+            self.means[key] = means
+            self.stds[key] = stds
+            self.min_values[key] = means - 2 * stds
+            self.max_values[key] = means + 2 * stds
+            self.is_fill_value[key] = is_fill
+
+    def _get_band_stats(
+        self, bands: Sequence[Union[str, float]]
+    ) -> tuple[Tensor, Tensor, Tensor]:
+        """Extract mean and std values for specified bands and identify fill values.
 
         Args:
             bands: Sequence of band names or fill values
 
         Returns:
-            Tuple of (mean_tensor, std_tensor)
+            Tuple of (mean_tensor, std_tensor, is_fill_value_tensor)
         """
-        means, stds = [], []
+        means, stds, is_fill = [], [], []
         for band in bands:
             if isinstance(band, (int, float)):
+                # Use 0 mean, 1 std for fill values, but mark them
                 means.append(0.0)
                 stds.append(1.0)
+                is_fill.append(True)
             else:
                 means.append(self.stats["means"][band])
                 stds.append(self.stats["stds"][band])
+                is_fill.append(False)
 
-        return torch.tensor(means), torch.tensor(stds)
+        return torch.tensor(means), torch.tensor(stds), torch.tensor(is_fill)
 
-    def _normalize_tensor(self, tensor: Tensor, mean: Tensor, std: Tensor) -> Tensor:
-        """Normalize a tensor along the channel dimension, handling different shapes.
+    def _normalize_tensor(
+        self, tensor: Tensor, min_value: Tensor, max_value: Tensor, is_fill: Tensor
+    ) -> Tensor:
+        """Apply SatMAE-style normalization to tensor, skipping fill value channels.
 
         Args:
-            tensor: Input tensor of shape [C, H, W] or [T, C, H, W]
-            mean: Mean values for each channel
-            std: Standard deviation values for each channel
+            tensor: Input tensor of shape [C, H, W], [T, C, H, W], or [B, T, C, H, W]
+            min_value: Min values for each channel (mean - 2*std)
+            max_value: Max values for each channel (mean + 2*std)
+            is_fill: Boolean tensor indicating which channels are fill values
 
         Returns:
-            Normalized tensor with same shape as input
+            Normalized tensor scaled to the specified output range
         """
-        orig_shape = tensor.shape
         orig_dim = tensor.dim()
+        orig_tensor = tensor
 
         if orig_dim == 3:  # [C, H, W]
-            mean_reshaped = mean.view(-1, 1, 1)
-            std_reshaped = std.view(-1, 1, 1)
-            return (tensor - mean_reshaped) / (std_reshaped + 1e-6)
-
+            min_reshaped = min_value.view(-1, 1, 1)
+            max_reshaped = max_value.view(-1, 1, 1)
+            fill_mask_reshaped = is_fill.view(-1, 1, 1)
+            channel_dim = 0
         elif orig_dim == 4:  # [T, C, H, W]
-            mean_reshaped = mean.view(1, -1, 1, 1)
-            std_reshaped = std.view(1, -1, 1, 1)
-            return (tensor - mean_reshaped) / (std_reshaped + 1e-6)
-
+            min_reshaped = min_value.view(1, -1, 1, 1)
+            max_reshaped = max_value.view(1, -1, 1, 1)
+            fill_mask_reshaped = is_fill.view(1, -1, 1, 1)
+            channel_dim = 1
         elif orig_dim == 5:  # [B, T, C, H, W]
-            mean_reshaped = mean.view(1, 1, -1, 1, 1)
-            std_reshaped = std.view(1, 1, -1, 1, 1)
-            return (tensor - mean_reshaped) / (std_reshaped + 1e-6)
-
+            min_reshaped = min_value.view(1, 1, -1, 1, 1)
+            max_reshaped = max_value.view(1, 1, -1, 1, 1)
+            fill_mask_reshaped = is_fill.view(1, 1, -1, 1, 1)
+            channel_dim = 2
         else:
             raise ValueError(
                 f"Expected tensor with 3, 4, or 5 dimensions, got {orig_dim}"
             )
 
-    def _denormalize_tensor(self, tensor: Tensor, mean: Tensor, std: Tensor) -> Tensor:
-        """Denormalize a tensor along the channel dimension, handling different shapes.
+        # apply sat mae normalization procedure to non-fill channels in the band order
+        fill_mask_expanded = fill_mask_reshaped.expand_as(tensor)
+        normalized = tensor.clone()
+
+        temp_normalized = (tensor - min_reshaped) / (max_reshaped - min_reshaped + 1e-6)
+        temp_normalized = torch.clamp(temp_normalized, 0, 1)
+
+        # Scale to target range if needed
+        if self.output_range != "zero_one":
+            temp_normalized = temp_normalized * self.scale_factor + self.shift_factor
+
+        # Apply calculated normalization only where it's NOT a fill value
+        normalized = torch.where(fill_mask_expanded, normalized, temp_normalized)
+
+        return normalized
+
+    def _denormalize_tensor(
+        self, tensor: Tensor, min_value: Tensor, max_value: Tensor, is_fill: Tensor
+    ) -> Tensor:
+        """Revert SatMAE-style normalization, skipping fill value channels.
 
         Args:
-            tensor: Input tensor of shape [C, H, W] or [T, C, H, W]
-            mean: Mean values for each channel
-            std: Standard deviation values for each channel
+            tensor: Input tensor with values in specified output range
+            min_value: Min values for each channel (mean - 2*std)
+            max_value: Max values for each channel (mean + 2*std)
+            is_fill: Boolean tensor indicating which channels are fill values
 
         Returns:
-            Denormalized tensor with same shape as input
+            Denormalized tensor in original value range
         """
-        orig_shape = tensor.shape
         orig_dim = tensor.dim()
+        orig_tensor = tensor
 
         if orig_dim == 3:  # [C, H, W]
-            mean_reshaped = mean.view(-1, 1, 1)
-            std_reshaped = std.view(-1, 1, 1)
-            return tensor * (std_reshaped + 1e-6) + mean_reshaped
-
+            min_reshaped = min_value.view(-1, 1, 1)
+            max_reshaped = max_value.view(-1, 1, 1)
+            fill_mask_reshaped = is_fill.view(-1, 1, 1)
+            channel_dim = 0
         elif orig_dim == 4:  # [T, C, H, W]
-            mean_reshaped = mean.view(1, -1, 1, 1)
-            std_reshaped = std.view(1, -1, 1, 1)
-            return tensor * (std_reshaped + 1e-6) + mean_reshaped
-
+            min_reshaped = min_value.view(1, -1, 1, 1)
+            max_reshaped = max_value.view(1, -1, 1, 1)
+            fill_mask_reshaped = is_fill.view(1, -1, 1, 1)
+            channel_dim = 1
         elif orig_dim == 5:  # [B, T, C, H, W]
-            mean_reshaped = mean.view(1, 1, -1, 1, 1)
-            std_reshaped = std.view(1, 1, -1, 1, 1)
-            return tensor * (std_reshaped + 1e-6) + mean_reshaped
-
+            min_reshaped = min_value.view(1, 1, -1, 1, 1)
+            max_reshaped = max_value.view(1, 1, -1, 1, 1)
+            fill_mask_reshaped = is_fill.view(1, 1, -1, 1, 1)
+            channel_dim = 2
         else:
             raise ValueError(
-                f"Expected tensor with 3,4, or 5 dimensions, got {orig_dim} and {orig_shape}"
+                f"Expected tensor with 3, 4, or 5 dimensions, got {orig_dim}"
             )
 
+        fill_mask_expanded = fill_mask_reshaped.expand_as(tensor)
+
+        # apply reverse procedure to non-fill channels in the band order
+        denormalized = tensor.clone()
+
+        # first, revert output range scaling
+        temp_denormalized = tensor.clone()
+        if self.output_range != "zero_one":
+            if self.shift_factor != 0:
+                temp_denormalized = (
+                    temp_denormalized - self.shift_factor
+                ) / self.scale_factor
+            else:
+                temp_denormalized = temp_denormalized / self.scale_factor
+
+        # second, revert min-max normalization
+        temp_denormalized = (
+            temp_denormalized * (max_reshaped - min_reshaped) + min_reshaped
+        )
+
+        denormalized = torch.where(fill_mask_expanded, denormalized, temp_denormalized)
+
+        return denormalized
+
     def forward(self, data: dict[str, Tensor]) -> dict[str, Tensor]:
-        """Normalize input tensors of shape [C, H, W] or [T, C, H, W].
+        """Apply SatMAE normalization to input tensors.
 
         Args:
             data: Dictionary mapping keys to tensors
@@ -443,14 +851,20 @@ class MultiModalNormalizer(DataNormalizer):
         """
         result = {}
         for key, tensor in data.items():
-            result[key] = self._normalize_tensor(
-                tensor, self.means[key], self.stds[key]
-            )
+            if key in self.min_values:
+                result[key] = self._normalize_tensor(
+                    tensor,
+                    self.min_values[key],
+                    self.max_values[key],
+                    self.is_fill_value[key],
+                )
+            else:
+                result[key] = tensor
 
         return result
 
     def unnormalize(self, data: dict[str, Tensor]) -> dict[str, Tensor]:
-        """Unnormalize input tensors of shape [C, H, W] or [T, C, H, W].
+        """Revert SatMAE normalization on input tensors.
 
         Args:
             data: Dictionary mapping keys to tensors
@@ -462,9 +876,12 @@ class MultiModalNormalizer(DataNormalizer):
         """
         result = {}
         for key, tensor in data.items():
-            if key in self.means:
+            if key in self.min_values:
                 result[key] = self._denormalize_tensor(
-                    tensor, self.means[key], self.stds[key]
+                    tensor,
+                    self.min_values[key],
+                    self.max_values[key],
+                    self.is_fill_value[key],
                 )
             else:
                 result[key] = tensor
