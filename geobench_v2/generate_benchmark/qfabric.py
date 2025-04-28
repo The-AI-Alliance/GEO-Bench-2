@@ -690,16 +690,16 @@ def create_full_masks(sample_idx, row, root_dir, output_dir):
         #     if poly.is_valid and not poly.is_empty:
         #         features.append((poly, int(val)))
 
-        if features:
-            # Rasterize WITHOUT providing a transform
-            # This is critical - polygons are already in pixel space
-            change_type_mask = rasterio.features.rasterize(
-                change_type_polys,
-                out_shape=(height, width),
-                fill=0,
-                dtype=np.uint8,
-                all_touched=True,
-            )
+        # if features:
+        # Rasterize WITHOUT providing a transform
+        # This is critical - polygons are already in pixel space
+        change_type_mask = rasterio.features.rasterize(
+            change_type_polys,
+            out_shape=(height, width),
+            fill=0,
+            dtype=np.uint8,
+            all_touched=True,
+        )
 
     # Use transform only when writing to file
     profile = {
@@ -726,15 +726,15 @@ def create_full_masks(sample_idx, row, root_dir, output_dir):
             #     if poly.is_valid and not poly.is_empty:
             #         features.append((poly, int(val)))
 
-            if features:
-                # Rasterize WITHOUT providing a transform
-                status_mask = rasterio.features.rasterize(
-                    change_status_polys[img_idx],
-                    out_shape=(height, width),
-                    fill=0,
-                    dtype=np.uint8,
-                    all_touched=True,
-                )
+            # if features:
+            # Rasterize WITHOUT providing a transform
+            status_mask = rasterio.features.rasterize(
+                change_status_polys[img_idx],
+                out_shape=(height, width),
+                fill=0,
+                dtype=np.uint8,
+                all_touched=True,
+            )
 
         with rasterio.open(status_path, "w", **profile) as dst:
             dst.write(status_mask[np.newaxis, :, :])

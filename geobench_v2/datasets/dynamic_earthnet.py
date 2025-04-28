@@ -116,7 +116,7 @@ class GeoBenchDynamicEarthNet(GeoBenchBaseDataset):
     # single returns the 30th day
 
     # new order of classes
-    class_names = [
+    classes = [
         "Impervious surfaces",
         "Agriculture",
         "Forest & other vegetation",

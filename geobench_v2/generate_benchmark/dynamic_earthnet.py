@@ -25,9 +25,6 @@ from tqdm import tqdm
 
 
 from geobench_v2.generate_benchmark.utils import plot_sample_locations
-from geobench_v2.generate_benchmark.geospatial_split_utils import (
-    create_geospatial_temporal_split,
-)
 
 from skimage.transform import resize
 import shutil
@@ -45,11 +42,162 @@ TRAIN_AREA_IDS = [
     "6752_3115_13",
     "2415_3082_13",
     "4223_3246_13",
+    "7513_4968_13",
     "2006_3280_13",
-    "5125_4049_13",
 ]
-VALIDATION_AREA_IDS = ["3002_4273_13", "7513_4968_13"]
-TEST_AREA_IDS = ["2528_4620_13", "4791_3920_13", "2459_4406_13", "5926_3715_13"]
+VALIDATION_AREA_IDS = ["5125_4049_13", "3002_4273_13", "2528_4620_13"]
+TEST_AREA_IDS = ["4791_3920_13", "2459_4406_13", "5926_3715_13"]
+
+
+def create_geospatial_temporal_split(
+    metadata_df, train_ratio=0.7, val_ratio=0.1, test_ratio=0.2, random_seed=42
+):
+    """Create geospatial and temporal split for DynamicEarthNet, ensuring global coverage in each split."""
+    import numpy as np
+    import pandas as pd
+    from sklearn.model_selection import train_test_split
+
+    np.random.seed(random_seed)
+
+    # Extract unique location-time combinations
+    location_time_df = metadata_df.drop_duplicates(subset=["new_id"]).copy()
+    print(f"Found {len(location_time_df)} unique location-time combinations")
+
+    # Group by location (area_id)
+    location_groups = location_time_df.groupby("area_id")
+
+    # Divide locations into train/val/test
+    # First randomly select locations
+    unique_locations = np.array(sorted(location_time_df["area_id"].unique()))
+    np.random.shuffle(unique_locations)
+
+    n_locations = len(unique_locations)
+    n_train_loc = int(n_locations * 0.6)
+    n_val_loc = int(n_locations * 0.2)
+
+    train_locations = unique_locations[:n_train_loc]
+    val_locations = unique_locations[n_train_loc : n_train_loc + n_val_loc]
+    test_locations = unique_locations[n_train_loc + n_val_loc :]
+
+    print(
+        f"Split locations: Train={len(train_locations)}, Val={len(val_locations)}, Test={len(test_locations)}"
+    )
+
+    # Create preliminary assignment based on locations
+    location_time_df["split_prelim"] = "unknown"
+    location_time_df.loc[
+        location_time_df["area_id"].isin(train_locations), "split_prelim"
+    ] = "train"
+    location_time_df.loc[
+        location_time_df["area_id"].isin(val_locations), "split_prelim"
+    ] = "validation"
+    location_time_df.loc[
+        location_time_df["area_id"].isin(test_locations), "split_prelim"
+    ] = "test"
+
+    # Check coverage across the world
+    location_time_df["lon_bin"] = pd.cut(location_time_df["lon"], bins=8, labels=False)
+    location_time_df["lat_bin"] = pd.cut(location_time_df["lat"], bins=8, labels=False)
+    location_time_df["geo_bin"] = (
+        location_time_df["lon_bin"].astype(str)
+        + "_"
+        + location_time_df["lat_bin"].astype(str)
+    )
+
+    # For each geographic bin, ensure all splits have some representation if possible
+    geo_bins = location_time_df["geo_bin"].unique()
+
+    for geo_bin in geo_bins:
+        bin_series = location_time_df[location_time_df["geo_bin"] == geo_bin]
+        bin_locations = bin_series["area_id"].unique()
+
+        if len(bin_locations) >= 3:
+            # If there are at least 3 locations in this bin, ensure each split has one
+            bin_splits = bin_series["split_prelim"].unique()
+            missing_splits = set(["train", "validation", "test"]) - set(bin_splits)
+
+            # For each missing split, reassign one location from train (or the largest split)
+            for missing_split in missing_splits:
+                source_split = "train" if "train" in bin_splits else bin_splits[0]
+                source_locs = bin_series[bin_series["split_prelim"] == source_split][
+                    "area_id"
+                ].unique()
+                loc_to_move = np.random.choice(source_locs)
+
+                # Update the split for this location
+                location_time_df.loc[
+                    location_time_df["area_id"] == loc_to_move, "split_prelim"
+                ] = missing_split
+
+                # Update tracking variables
+                bin_splits = np.append(bin_splits, missing_split)
+                if source_split == "train":
+                    train_locations = train_locations[train_locations != loc_to_move]
+                elif source_split == "validation":
+                    val_locations = val_locations[val_locations != loc_to_move]
+                else:
+                    test_locations = test_locations[test_locations != loc_to_move]
+
+                if missing_split == "train":
+                    train_locations = np.append(train_locations, loc_to_move)
+                elif missing_split == "validation":
+                    val_locations = np.append(val_locations, loc_to_move)
+                else:
+                    test_locations = np.append(test_locations, loc_to_move)
+
+    # Now apply temporal separation
+    # For locations with multiple time periods, ensure they're in same split
+    final_split_map = {}
+
+    for area_id, group in location_groups:
+        # Get the preliminary split assignment for this location
+        if area_id in train_locations:
+            split = "train"
+        elif area_id in val_locations:
+            split = "validation"
+        else:
+            split = "test"
+
+        # Assign all time periods for this location to the same split
+        for _, row in group.iterrows():
+            final_split_map[row["new_id"]] = split
+
+    # Apply the final split assignments
+    metadata_df["split"] = metadata_df["new_id"].map(final_split_map)
+
+    # Generate final AREA_IDs for reference
+    TRAIN_AREA_IDS = sorted(train_locations.tolist())
+    VALIDATION_AREA_IDS = sorted(val_locations.tolist())
+    TEST_AREA_IDS = sorted(test_locations.tolist())
+
+    print(
+        f"Final splits: Train={TRAIN_AREA_IDS},/n Val={VALIDATION_AREA_IDS},/n Test={TEST_AREA_IDS}"
+    )
+
+    # Print statistics
+    timeseries_counts = location_time_df.groupby("split_prelim").size()
+    print(f"Split timeseries counts: {timeseries_counts}")
+
+    sample_counts = metadata_df.groupby("split").size()
+    print(f"Split sample counts: {sample_counts}")
+
+    # Check global coverage of splits
+    metadata_df["lon_bin"] = pd.cut(
+        metadata_df["lon"], bins=4, labels=["West", "Mid-West", "Mid-East", "East"]
+    )
+    metadata_df["lat_bin"] = pd.cut(
+        metadata_df["lat"], bins=4, labels=["South", "Mid-South", "Mid-North", "North"]
+    )
+
+    geo_distribution = pd.crosstab(
+        [metadata_df["lon_bin"], metadata_df["lat_bin"]],
+        metadata_df["split"],
+        normalize="index",
+    )
+    print("\nGeographical distribution by region:")
+    print(geo_distribution)
+
+    return metadata_df, TRAIN_AREA_IDS, VALIDATION_AREA_IDS, TEST_AREA_IDS
 
 
 def generate_metadata_df(root: str) -> pd.DataFrame:
@@ -189,10 +337,9 @@ def generate_metadata_df(root: str) -> pd.DataFrame:
     df["lon"], df["lat"] = zip(*coords)
 
     # based on area id assing split
-    df["split"] = "train"
-    df.loc[df["area_id"].isin(TRAIN_AREA_IDS), "split"] = "train"
-    df.loc[df["area_id"].isin(VALIDATION_AREA_IDS), "split"] = "validation"
-    df.loc[df["area_id"].isin(TEST_AREA_IDS), "split"] = "test"
+    df, train_ids, val_ids, test_ids = create_geospatial_temporal_split(
+        df, train_ratio=0.7, val_ratio=0.1, test_ratio=0.2, random_seed=42
+    )
 
     return df
 
@@ -459,6 +606,12 @@ def process_dynamic_earthnet(metadata_df, input_root, output_root, num_workers=8
             flat_results.extend(result)
 
     updated_df = pd.DataFrame(flat_results)
+
+    updated_df["area_id"] = updated_df["patch_id"].apply(lambda x: x.split("-")[0][:-4])
+
+    updated_df["date"] = updated_df["planet_path"].apply(
+        lambda x: os.path.basename(x).split("_")[1].replace("-", "_")
+    )
 
     return updated_df
 
@@ -942,13 +1095,10 @@ def create_geobench_subset(patches_df, train_series=10, val_series=5, test_serie
     Returns:
         DataFrame containing the selected subset
     """
-    patches_df["base_id"] = patches_df["patch_id"].apply(
-        lambda x: "_".join(x.split("_")[:-1])
-    )
 
-    train_ids = patches_df[patches_df["split"] == "train"]["base_id"].unique()
-    val_ids = patches_df[patches_df["split"] == "validation"]["base_id"].unique()
-    test_ids = patches_df[patches_df["split"] == "test"]["base_id"].unique()
+    train_ids = patches_df[patches_df["split"] == "train"]["patch_id"].unique()
+    val_ids = patches_df[patches_df["split"] == "validation"]["patch_id"].unique()
+    test_ids = patches_df[patches_df["split"] == "test"]["patch_id"].unique()
 
     # set a random generator to be reproducible
     rng = np.random.default_rng(42)
@@ -960,7 +1110,7 @@ def create_geobench_subset(patches_df, train_series=10, val_series=5, test_serie
 
     selected_ids = np.concatenate([selected_train, selected_val, selected_test])
 
-    subset_df = patches_df[patches_df["base_id"].isin(selected_ids)].copy()
+    subset_df = patches_df[patches_df["patch_id"].isin(selected_ids)].copy()
 
     print(f"Selected subset contains:")
     print(
@@ -972,6 +1122,318 @@ def create_geobench_subset(patches_df, train_series=10, val_series=5, test_serie
     print(
         f"- {len(selected_test)} test time-series with {len(subset_df[subset_df['split'] == 'test'])} total samples"
     )
+
+    return subset_df
+
+
+def visualize_temporal_split(metadata_df, output_path=None):
+    """
+    Visualize the temporal distribution across train/validation/test splits.
+
+    Args:
+        metadata_df: DataFrame with metadata including date and split information
+        output_path: Path to save the visualization. If None, displays the plot
+    """
+    import matplotlib.pyplot as plt
+    import pandas as pd
+    import numpy as np
+    import matplotlib.dates as mdates
+    from matplotlib.colors import ListedColormap
+
+    # Convert date to datetime if it's not already
+    if not pd.api.types.is_datetime64_any_dtype(metadata_df["date"]):
+        metadata_df = metadata_df.copy()
+        metadata_df["date"] = pd.to_datetime(metadata_df["date"])
+
+    # Use 'new_id' as unique time-series identifier
+    unique_series = metadata_df.drop_duplicates(["new_id", "date"])
+
+    # Extract year and month for easier aggregation
+    unique_series["year"] = unique_series["date"].dt.year
+    unique_series["month"] = unique_series["date"].dt.month
+    unique_series["year_month"] = unique_series["date"].dt.strftime("%Y-%m")
+
+    # Create figure for temporal distribution
+    fig, axes = plt.subplots(3, 1, figsize=(15, 12), sharex=True)
+
+    # Color palette for consistency
+    colors = {"train": "#1f77b4", "validation": "#ff7f0e", "test": "#2ca02c"}
+
+    # Plot 1: Time Series Distribution by Month
+    monthly_counts = (
+        unique_series.groupby(["year_month", "split"]).size().unstack().fillna(0)
+    )
+    monthly_counts.plot(kind="bar", stacked=True, ax=axes[0], color=colors)
+    axes[0].set_title("Number of Time Series by Month and Split", fontsize=14)
+    axes[0].set_ylabel("Count", fontsize=12)
+    axes[0].legend(title="Split")
+
+    # Plot 2: Cumulative Distribution Over Time
+    sorted_months = sorted(unique_series["year_month"].unique())
+    cumulative_data = {split: [] for split in ["train", "validation", "test"]}
+
+    for ym in sorted_months:
+        for split in ["train", "validation", "test"]:
+            count = len(
+                unique_series[
+                    (unique_series["year_month"] <= ym)
+                    & (unique_series["split"] == split)
+                ]
+            )
+            cumulative_data[split].append(count)
+
+    for split, counts in cumulative_data.items():
+        axes[1].plot(
+            sorted_months, counts, label=split, color=colors[split], marker="o"
+        )
+
+    axes[1].set_title("Cumulative Time Series Over Time by Split", fontsize=14)
+    axes[1].set_ylabel("Cumulative Count", fontsize=12)
+    axes[1].grid(True, linestyle="--", alpha=0.7)
+    axes[1].legend(title="Split")
+
+    # Plot 3: Heatmap of temporal coverage
+    # Create a matrix of year, month, and split
+    heatmap_data = (
+        unique_series.groupby(["year", "month", "split"]).size().unstack(fill_value=0)
+    )
+
+    # Get the list of all years and months in the dataset
+    all_years = sorted(unique_series["year"].unique())
+
+    # Create a heatmap-like visualization
+    cmap = ListedColormap(["#ffffff", "#e6f2ff", "#99ccff", "#4da6ff", "#0066cc"])
+
+    # For each split, create a row in the heatmap
+    for i, split in enumerate(["train", "validation", "test"]):
+        split_data = np.zeros((len(all_years), 12))
+
+        for idx, year in enumerate(all_years):
+            for month in range(1, 13):
+                try:
+                    # Try to get the count for this year-month-split combination
+                    if (year, month) in heatmap_data.index:
+                        split_data[idx, month - 1] = heatmap_data.loc[
+                            (year, month), split
+                        ]
+                except:
+                    pass
+
+        # Plot the heatmap
+        im = axes[2].imshow(
+            split_data.T,
+            aspect="auto",
+            cmap=cmap,
+            extent=[0, len(all_years), 0, 3],
+            vmin=0,
+            vmax=max(1, np.max(split_data)),
+        )
+
+        # Add text annotations for non-zero values
+        for year_idx, year in enumerate(all_years):
+            for month in range(12):
+                if split_data[year_idx, month] > 0:
+                    axes[2].text(
+                        year_idx + 0.5,
+                        i + 0.5,
+                        f"{int(split_data[year_idx, month])}",
+                        ha="center",
+                        va="center",
+                        fontsize=9,
+                        color="black"
+                        if split_data[year_idx, month] < np.max(split_data) / 2
+                        else "white",
+                    )
+
+    # Set up the axis labels for the heatmap
+    axes[2].set_title("Temporal Coverage by Split (Counts of Time Series)", fontsize=14)
+    axes[2].set_yticks([0.5, 1.5, 2.5])
+    axes[2].set_yticklabels(["Train", "Validation", "Test"])
+    axes[2].set_xticks(np.arange(len(all_years)) + 0.5)
+    axes[2].set_xticklabels(all_years)
+    axes[2].set_xlabel("Year", fontsize=12)
+
+    # Add a colorbar
+    cbar = fig.colorbar(im, ax=axes[2], orientation="vertical", shrink=0.8)
+    cbar.set_label("Number of Time Series")
+
+    # Set x-axis formatting for all plots
+    for ax in axes[:2]:
+        ax.tick_params(axis="x", rotation=90)
+
+    plt.tight_layout()
+
+    if output_path:
+        plt.savefig(output_path, dpi=150, bbox_inches="tight")
+        print(f"Temporal split visualization saved to {output_path}")
+    else:
+        plt.show()
+
+
+def verify_split_disjointness(metadata_df):
+    """
+    Verify that train, validation, and test splits are disjoint in space-time.
+
+    For proper disjointness:
+    1. A location can appear in multiple splits only if the time periods are different
+    2. For any specific location, all observations in a given time period must be in the same split
+
+    Args:
+        metadata_df: DataFrame with metadata including lat, lon, date and split information
+
+    Returns:
+        True if splits are properly disjoint, False otherwise
+    """
+    from itertools import combinations
+    import pandas as pd
+
+    # Ensure date is datetime
+    if not pd.api.types.is_datetime64_any_dtype(metadata_df["planet_date"]):
+        metadata_df = metadata_df.copy()
+        metadata_df["planet_date"] = pd.to_datetime(metadata_df["planet_date"])
+
+    # Create a location identifier (approximately 10m resolution)
+    metadata_df["location_id"] = metadata_df["area_id"]
+
+    # Create location-time identifier
+    metadata_df["year_month"] = metadata_df["planet_date"].dt.strftime("%Y-%m")
+    metadata_df["location_time_id"] = (
+        metadata_df["location_id"] + "_" + metadata_df["year_month"]
+    )
+
+    # Get unique locations for each split
+    split_locations = {}
+    for split in ["train", "validation", "test"]:
+        split_data = metadata_df[metadata_df["split"] == split]
+        split_locations[split] = set(split_data["location_id"].unique())
+
+    # Initialize tracking variables
+    all_disjoint = True
+    location_temporal_violations = []
+
+    print("Checking space-time disjointness between splits...")
+    print("-" * 70)
+
+    # First, check for pure spatial overlap (just for information)
+    for split1, split2 in combinations(["train", "validation", "test"], 2):
+        location_overlap = split_locations[split1].intersection(split_locations[split2])
+        if location_overlap:
+            print(
+                f"NOTE: {split1} and {split2} share {len(location_overlap)} locations."
+            )
+            print(
+                f"      This is not necessarily an issue if different time periods are used."
+            )
+
+    print("-" * 70)
+
+    # The critical test: For each location, ensure its time periods are in only one split
+    print(
+        "Checking critical condition: For each location, time periods must be in only one split"
+    )
+
+    # Get a mapping of location -> year_month -> splits that contain it
+    location_time_splits = {}
+
+    for _, row in metadata_df.iterrows():
+        loc_id = row["location_id"]
+        ym = row["year_month"]
+        split = row["split"]
+
+        if loc_id not in location_time_splits:
+            location_time_splits[loc_id] = {}
+
+        if ym not in location_time_splits[loc_id]:
+            location_time_splits[loc_id][ym] = set()
+
+        location_time_splits[loc_id][ym].add(split)
+
+    # Check for violations (a time period for a location appearing in multiple splits)
+    violations = 0
+    for loc_id, time_splits in location_time_splits.items():
+        for ym, splits in time_splits.items():
+            if len(splits) > 1:
+                violations += 1
+                # Record the first few violations to report
+                if len(location_temporal_violations) < 5:
+                    location_temporal_violations.append((loc_id, ym, list(splits)))
+                all_disjoint = False
+
+    if violations > 0:
+        print(
+            f"WARNING: Found {violations} location-time combinations that appear in multiple splits!"
+        )
+        print("Examples of violations:")
+        for loc, ym, splits in location_temporal_violations:
+            print(f"  Location {loc}, time {ym} appears in splits: {', '.join(splits)}")
+        print(
+            "This violates the temporal disjointness criterion for proper evaluation."
+        )
+    else:
+        print("✅ All location-time combinations appear in only one split.")
+
+    print("-" * 70)
+
+    # Summarize findings
+    if all_disjoint:
+        print(
+            "SUCCESS: Space-time disjointness verified! Each location's time series is in only one split."
+        )
+    else:
+        print(
+            "FAILURE: Space-time disjointness violated. This can lead to data leakage."
+        )
+
+    # Distribution summary statistics
+    loc_counts = {split: len(locs) for split, locs in split_locations.items()}
+    print("\nSplit distribution summary:")
+    for split, count in loc_counts.items():
+        times = len(metadata_df[metadata_df["split"] == split]["year_month"].unique())
+        samples = len(metadata_df[metadata_df["split"] == split])
+        print(
+            f"{split}: {count} locations, {times} time periods, {samples} total samples"
+        )
+
+    return all_disjoint
+
+
+def add_coordinates_to_subset(subset_df, metadata_df):
+    """
+    Add lat/lon coordinates from metadata_df to subset_df based on matching location identifiers.
+
+    Args:
+        subset_df: DataFrame with patch information (output from create_geobench_subset)
+        metadata_df: Original metadata DataFrame with lat/lon information
+
+    Returns:
+        subset_df with added lat/lon columns
+    """
+
+    subset_df["location_id"] = subset_df["original_id"].apply(lambda x: x)
+
+    coord_map = {}
+    for _, row in metadata_df.iterrows():
+        if (
+            row["new_id"] not in coord_map
+            and not pd.isna(row["lon"])
+            and not pd.isna(row["lat"])
+        ):
+            coord_map[row["new_id"]] = (row["lon"], row["lat"])
+
+    def get_coords(location_id):
+        if location_id in coord_map:
+            return coord_map[location_id]
+        return (None, None)
+
+    coords = subset_df["location_id"].apply(get_coords)
+    subset_df["lon"], subset_df["lat"] = zip(*coords)
+
+    coord_count = subset_df.dropna(subset=["lon", "lat"]).shape[0]
+    print(
+        f"Added coordinates to {coord_count} out of {len(subset_df)} records ({coord_count / len(subset_df) * 100:.1f}%)"
+    )
+
+    subset_df = subset_df.drop(columns=["location_id"])
 
     return subset_df
 
@@ -998,34 +1460,33 @@ def main():
         metadata_df = generate_metadata_df(args.root)
         metadata_df.to_parquet(metadata_path)
 
-    # validate_metadata_with_geo(metadata_df)
-    # df = create_geospatial_temporal_split(
-    #     metadata_df, val_ratio=0.1, test_ratio=0.2, random_seed=42
-    # )
-
     patches_path = os.path.join(
         args.save_dir, "geobench_dynamic_earthnet_patches.parquet"
     )
 
-    if os.path.exists(patches_path):
-        patches_df = pd.read_parquet(patches_path)
-    else:
-        patches_df = create_dynamic_earthnet_patches(
-            args.root, args.save_dir, metadata_df, num_workers=16
-        )
-        patches_df.to_parquet(patches_path)
+    # if os.path.exists(patches_path):
+    #     patches_df = pd.read_parquet(patches_path)
+    # else:
+    patches_df = create_dynamic_earthnet_patches(
+        args.root, args.save_dir, metadata_df, num_workers=16
+    )
+    patches_df.to_parquet(patches_path)
 
     subset_path = os.path.join(args.save_dir, "geobench_dynamic_earthnet.parquet")
-    if os.path.exists(subset_path):
-        subset_df = pd.read_parquet(subset_path)
-    else:
-        subset_df = create_geobench_subset(
-            patches_df, train_series=700, val_series=100, test_series=200
-        )
+    # if os.path.exists(subset_path):
+    #     subset_df = pd.read_parquet(subset_path)
+    # else:
+    subset_df = create_geobench_subset(
+        patches_df, train_series=700, val_series=100, test_series=200
+    )
+
+    subset_df = add_coordinates_to_subset(subset_df, metadata_df)
+
+    verify_split_disjointness(subset_df)
 
     import pdb
-
     pdb.set_trace()
+
 
     # create_geobench_subset
 
