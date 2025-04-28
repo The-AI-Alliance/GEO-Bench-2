@@ -8,11 +8,12 @@ import os
 from pytest import MonkeyPatch
 from typing import Sequence
 import torch
+import matplotlib.pyplot as plt
 from geobench_v2.datasets import GeoBenchMADOS
 from geobench_v2.datamodules import GeoBenchMADOSDataModule
 
 
-@pytest.fixture(params=[["red", "blue", "B07", 0.0]])
+@pytest.fixture(params=[["red", "blue", "green", "B07", 0.0]])
 def band_order(request):
     """Parameterized band configuration with different configurations."""
     return request.param
@@ -23,7 +24,7 @@ def datamodule(monkeypatch: MonkeyPatch, band_order: dict[str, Sequence[str | fl
     """Initialize MADOS datamodule with test configuration."""
     monkeypatch.setattr(GeoBenchMADOS, "paths", ["mados.tortilla"])
     dm = GeoBenchMADOSDataModule(
-        img_size=74,
+        img_size=224,
         batch_size=4,
         eval_batch_size=2,
         num_workers=0,
@@ -54,11 +55,18 @@ class TestMADOSDataModule:
         assert train_batch["image"].shape[0] == datamodule.batch_size
         assert train_batch["image"].shape[1] == len(datamodule.band_order)
         assert train_batch["image"].shape[2] == datamodule.img_size
-        assert train_batch["image"].shape[3] == 74
+        assert train_batch["image"].shape[3] == datamodule.img_size
 
         assert train_batch["mask"].shape[0] == datamodule.batch_size
-        assert train_batch["mask"].shape[1] == 1
+        assert train_batch["mask"].shape[1] == datamodule.img_size
         assert train_batch["mask"].shape[2] == datamodule.img_size
-        assert train_batch["mask"].shape[3] == 74
 
-        assert torch.isclose(train_batch["image"][:, 3], torch.tensor(0.0)).all()
+        assert torch.isclose(train_batch["image"][:, 4], torch.tensor(0.0)).all()
+
+    def test_batch_visualization(self, datamodule):
+        """Test batch visualization."""
+        fig, batch = datamodule.visualize_batch("train")
+        assert isinstance(fig, plt.Figure)
+        assert isinstance(batch, dict)
+
+        fig.savefig(os.path.join("tests", "data", "mados", "test_batch.png"))

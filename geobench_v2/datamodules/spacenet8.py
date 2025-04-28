@@ -9,6 +9,10 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import os
 from torch import Tensor
+import torch
+import numpy as np
+from torchgeo.datasets.utils import percentile_normalization
+from einops import rearrange
 
 
 from geobench_v2.datasets import GeoBenchSpaceNet8
@@ -75,7 +79,129 @@ class GeoBenchSpaceNet8DataModule(GeoBenchSegmentationDataModule):
         Returns:
             The matplotlib figure and the batch of data
         """
-        pass
+        if split == "train":
+            batch = next(iter(self.train_dataloader()))
+        elif split == "validation":
+            batch = next(iter(self.val_dataloader()))
+        else:
+            batch = next(iter(self.test_dataloader()))
+
+        batch = self.data_normalizer.unnormalize(batch)
+
+        pre_images = batch["image_pre"]
+        post_images = batch["image_post"]
+        masks = batch["mask"]
+
+        # Print some debugging info about the masks
+        print(f"Masks shape: {masks.shape}")
+        print(f"Unique values in masks: {torch.unique(masks).cpu().numpy()}")
+
+        batch_size = pre_images.shape[0]
+        n_samples = min(8, batch_size)
+        indices = torch.randperm(batch_size)[:n_samples]
+
+        pre_images = pre_images[indices]
+        post_images = post_images[indices]
+        masks = masks[indices]
+
+        plot_bands = self.dataset_band_config.plot_bands
+        rgb_indices = [
+            self.band_order.index(band)
+            for band in plot_bands
+            if band in self.band_order
+        ]
+        pre_images = pre_images[:, rgb_indices, :, :]
+        post_images = post_images[:, rgb_indices, :, :]
+
+        fig, axes = plt.subplots(n_samples, 3, figsize=(12, 3 * n_samples))
+
+        if n_samples == 1:
+            axes = axes.reshape(1, -1)
+
+        # Get the unique classes in the masks
+        unique_classes = torch.unique(masks).cpu().numpy()
+        unique_classes = [
+            int(cls) for cls in unique_classes if cls < len(self.class_names)
+        ]
+
+        print(f"Unique classes after filtering: {unique_classes}")
+        print(f"Class names: {self.class_names}")
+
+        # Define colors that match our class definitions
+        colors = {
+            0: "#000000",  # Black for background
+            1: "#4daf4a",  # Green for road (not flooded)
+            2: "#377eb8",  # Blue for road (flooded)
+            3: "#e41a1c",  # Red for building (not flooded)
+            4: "#984ea3",  # Purple for building (flooded)
+        }
+
+        # Create colormap for all possible classes
+        from matplotlib.colors import ListedColormap
+
+        class_colors = [colors[i] for i in range(len(colors))]
+        flood_cmap = ListedColormap(class_colors)
+
+        for i in range(n_samples):
+            # Plot pre-event image
+            ax = axes[i, 0]
+            img = rearrange(pre_images[i], "c h w -> h w c").cpu().numpy()
+            img = percentile_normalization(img, lower=2, upper=98)
+            ax.imshow(img)
+            ax.set_title("Aerial Pre Image" if i == 0 else "")
+            ax.axis("off")
+
+            # Plot post-event image
+            ax = axes[i, 1]
+            img = rearrange(post_images[i], "c h w -> h w c").cpu().numpy()
+            img = percentile_normalization(img, lower=2, upper=98)
+            ax.imshow(img)
+            ax.set_title("Aerial Post Image" if i == 0 else "")
+            ax.axis("off")
+
+            # Plot mask with correct colormap
+            ax = axes[i, 2]
+            mask_img = masks[i].cpu().numpy()
+
+            # Debug info for this specific mask
+            mask_unique = np.unique(mask_img)
+            print(f"Sample {i}, mask unique values: {mask_unique}")
+
+            im = ax.imshow(mask_img, cmap=flood_cmap, vmin=0, vmax=4)
+            ax.set_title("Flood Mask" if i == 0 else "")
+            ax.axis("off")
+
+        # Create legend elements for classes that are actually present
+        legend_elements = []
+        for cls in unique_classes:
+            if cls in colors:
+                legend_elements.append(
+                    plt.Rectangle(
+                        (0, 0),
+                        1,
+                        1,
+                        color=colors[cls],
+                        label=f"{cls}: {self.class_names[cls]}"
+                        if cls < len(self.class_names)
+                        else f"Class {cls}",
+                    )
+                )
+
+        plt.tight_layout()
+
+        # Only add legend if we have legend elements
+        if legend_elements:
+            fig.legend(
+                handles=legend_elements,
+                loc="lower center",
+                bbox_to_anchor=(0.5, 0.01),
+                ncol=len(legend_elements),
+                frameon=True,
+                fontsize=12,
+            )
+            plt.subplots_adjust(bottom=0.1)
+
+        return fig, batch
 
     def visualize_geolocation_distribution(self) -> None:
         """Visualize the geolocation distribution of the dataset."""

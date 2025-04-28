@@ -2,6 +2,8 @@
 # Licensed under the Apache License 2.0.
 
 import pytest
+import os
+import matplotlib.pyplot as plt
 from geobench_v2.datamodules import GeoBenchWindTurbineDataModule
 
 
@@ -14,21 +16,24 @@ def data_root():
 @pytest.fixture
 def band_order():
     """Test band configuration with RGB and fill value."""
-    return ["red", "green", "blue", 0]
+    return ["red", "green", 0, "blue"]
 
 
 @pytest.fixture
 def datamodule(data_root, band_order):
     """Initialize WindTurbine datamodule with test configuration."""
-    return GeoBenchWindTurbineDataModule(
-        img_size=74,
-        batch_size=16,
-        eval_batch_size=64,
+    dm = GeoBenchWindTurbineDataModule(
+        img_size=512,
+        batch_size=8,
+        eval_batch_size=4,
         num_workers=0,
         pin_memory=False,
         band_order=band_order,
         root=data_root,
     )
+    dm.setup("fit")
+    dm.setup("test")
+    return dm
 
 
 class TestWindTurbineDataModule:
@@ -36,7 +41,6 @@ class TestWindTurbineDataModule:
 
     def test_batch_dimensions(self, datamodule):
         """Test if batches have correct dimensions."""
-        datamodule.setup("fit")
         train_batch = next(iter(datamodule.train_dataloader()))
         assert train_batch["image"].shape[0] == datamodule.batch_size
         assert train_batch["image"].shape[1] == len(datamodule.band_order)
@@ -49,4 +53,12 @@ class TestWindTurbineDataModule:
     def test_band_order_resolution(self, datamodule):
         """Test if band order is correctly resolved."""
         assert len(datamodule.band_order) == 4
-        assert datamodule.band_order[0] == "red"
+        assert datamodule.band_order[0] == "r"
+
+    def test_batch_visualization(self, datamodule):
+        """Test batch visualization."""
+        fig, batch = datamodule.visualize_batch("train")
+        assert isinstance(fig, plt.Figure)
+        assert isinstance(batch, dict)
+
+        fig.savefig(os.path.join("tests", "data", "windturbine", "test_batch.png"))

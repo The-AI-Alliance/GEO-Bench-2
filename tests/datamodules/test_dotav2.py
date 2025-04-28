@@ -1,7 +1,11 @@
 # Copyright (c) 2025 GeoBenchV2. All rights reserved.
 # Licensed under the Apache License 2.0.
 
+"""GeoBench DOTAV2 Tests."""
+
 import pytest
+import os
+import matplotlib.pyplot as plt
 from geobench_v2.datamodules import GeoBenchDOTAV2DataModule
 
 
@@ -20,14 +24,17 @@ def band_order():
 @pytest.fixture
 def datamodule(data_root, band_order):
     """Initialize DOTAV2 datamodule with test configuration."""
-    return GeoBenchDOTAV2DataModule(
-        batch_size=32,
-        eval_batch_size=64,
+    dm = GeoBenchDOTAV2DataModule(
+        batch_size=8,
+        eval_batch_size=4,
         num_workers=0,
         pin_memory=False,
         band_order=band_order,
         root=data_root,
     )
+    dm.setup("fit")
+    dm.setup("test")
+    return dm
 
 
 class TestDOTAV2DataModule:
@@ -49,3 +56,11 @@ class TestDOTAV2DataModule:
         assert len(datamodule.band_order) == 5
         assert isinstance(datamodule.band_order[3], int)
         assert datamodule.band_order[3] == 0
+
+    def test_batch_visualization(self, datamodule):
+        """Test batch visualization."""
+        fig, batch = datamodule.visualize_batch("train")
+        assert isinstance(fig, plt.Figure)
+        assert isinstance(batch, dict)
+
+        fig.savefig(os.path.join("tests", "data", "dotav2", "test_batch.png"))

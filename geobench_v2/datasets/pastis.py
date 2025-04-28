@@ -147,9 +147,6 @@ class GeoBenchPASTIS(PASTIS, DataUtilsMixin):
 
         self.band_order = self.validate_band_order(band_order)
 
-        self.data_normalizer = data_normalizer(
-            self.normalization_stats, self.band_order
-        )
         self.transforms = transforms
         self.num_time_steps = num_time_steps
 
@@ -165,6 +162,25 @@ class GeoBenchPASTIS(PASTIS, DataUtilsMixin):
         self.data_df = self.data_df[self.data_df["split"] == split].reset_index(
             drop=True
         )
+
+        if isinstance(data_normalizer, type):
+            print(f"Initializing normalizer from class: {data_normalizer.__name__}")
+            if issubclass(data_normalizer, DataNormalizer):
+                self.data_normalizer = data_normalizer(
+                    self.normalization_stats, self.band_order
+                )
+            else:
+                self.data_normalizer = data_normalizer()
+
+        elif callable(data_normalizer):
+            print(
+                f"Using provided pre-initialized normalizer instance: {data_normalizer.__class__.__name__}"
+            )
+            self.data_normalizer = data_normalizer
+        else:
+            raise TypeError(
+                f"data_normalizer must be a DataNormalizer subclass type or a callable instance. Got {type(data_normalizer)}"
+            )
 
     def __len__(self) -> int:
         """Return the length of the dataset."""

@@ -35,9 +35,10 @@ class GeoBenchSpaceNet7(GeoBenchBaseDataset):
 
     band_default_order = ("red", "green", "blue")
 
-    paths = ["SpaceNet7.tortilla"]
+    # paths = ["SpaceNet7.tortilla"]
+    paths = ["geobench_spacenet7.tortilla"]
 
-    classes = ("background", "building")
+    classes = ("background", "no-building", "building")
 
     num_classes = len(classes)
 
@@ -97,7 +98,9 @@ class GeoBenchSpaceNet7(GeoBenchBaseDataset):
             mask: np.ndarray = mask_src.read()
 
         image = torch.from_numpy(image).float()
-        mask = torch.from_numpy(mask).long()
+
+        # add 1 to mask to have a true background class
+        mask = torch.from_numpy(mask).long().squeeze(0) + 1
 
         image = self.rearrange_bands(image, self.band_order)
         image = self.data_normalizer(image)

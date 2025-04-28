@@ -8,6 +8,10 @@ from typing import Any, Sequence
 
 import pandas as pd
 from torch import Tensor
+import torch
+import numpy as np
+from einops import rearrange
+from torchgeo.datasets.utils import percentile_normalization
 import os
 import matplotlib.pyplot as plt
 
@@ -78,8 +82,85 @@ class GeoBenchTreeSatAIDataModule(GeoBenchClassificationDataModule):
 
         Returns:
             The matplotlib figure and the batch of data
+
+        Raises:
+            AssertionError: If bands needed for plotting are missing
         """
-        pass
+        if split == "train":
+            batch = next(iter(self.train_dataloader()))
+        elif split == "validation":
+            batch = next(iter(self.val_dataloader()))
+        else:
+            batch = next(iter(self.test_dataloader()))
+
+        batch = self.data_normalizer.unnormalize(batch)
+
+        batch_size = batch["label"].shape[0]
+        n_samples = min(8, batch_size)
+        indices = torch.randperm(batch_size)[:n_samples]
+
+        modalities = {}
+
+        for mod in self.band_order.keys():
+            mod_plot_bands = self.dataset_band_config.modalities[mod].plot_bands
+            missing_bands = [
+                band for band in mod_plot_bands if band not in self.band_order[mod]
+            ]
+            if missing_bands:
+                raise AssertionError(
+                    f"Plotting bands {missing_bands} for modality '{mod}' not found in band_order {self.band_order[mod]}"
+                )
+
+            # Get plot indices for bands that exist
+            mod_plot_indices = [
+                self.band_order[mod].index(band) for band in mod_plot_bands
+            ]
+            mod_images = batch[f"image_{mod}"][:, mod_plot_indices, :, :][indices]
+            mod_images = rearrange(mod_images, "b c h w -> b h w c").cpu().numpy()
+            modalities[mod] = mod_images
+
+        num_modalities = len(modalities)
+        fig, axes = plt.subplots(
+            n_samples,
+            num_modalities,
+            figsize=(num_modalities * 4, 3 * n_samples),
+            gridspec_kw={"width_ratios": num_modalities * [1]},
+        )
+
+        if n_samples == 1 and num_modalities == 1:
+            axes = np.array([[axes]])
+        elif n_samples == 1:
+            axes = axes.reshape(1, -1)
+        elif num_modalities == 1:
+            axes = axes.reshape(-1, 1)
+
+        labels = batch["label"][indices]
+        sample_labels = []
+        for i in range(n_samples):
+            present_labels = torch.where(labels[i] == 1)[0].cpu().tolist()
+            sample_labels.append(present_labels)
+
+        for i in range(n_samples):
+            for j, (mod, modality_img) in enumerate(modalities.items()):
+                plot_img = modality_img[i]
+
+                img = percentile_normalization(plot_img, lower=2, upper=98)
+
+                ax = axes[i, j]
+                ax.imshow(img)
+                ax.set_title(f"{mod} image" if i == 0 else "", fontsize=20)
+                ax.axis("off")
+
+            label_names = [self.class_names[label] for label in sample_labels[i]]
+            suptitle = f"Labels: {', \n'.join(label_names)}"
+            ax = axes[i, -1]
+            ax.set_title(suptitle, fontsize=8)
+
+        plt.tight_layout()
+
+        plt.subplots_adjust(bottom=0.1)
+
+        return fig, batch
 
     def visualize_geolocation_distribution(self) -> None:
         """Visualize the geolocation distribution of the dataset."""

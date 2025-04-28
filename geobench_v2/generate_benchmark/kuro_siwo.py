@@ -17,6 +17,7 @@ import json
 import os
 import gzip
 import pickle as pkl
+from datetime import datetime
 import matplotlib.pyplot as plt
 from tqdm import tqdm
 import numpy as np
@@ -25,17 +26,18 @@ from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 from geobench_v2.generate_benchmark.utils import (
     plot_sample_locations,
-    create_subset_from_tortilla,
+    create_subset_from_df,
+    create_unittest_subset,
 )
 
 
-# Constants
-OUTPUT_FOLDER = pathlib.Path(
-    "/mnt/rg_climate_benchmark/data/datasets_segmentation/kuro_siwo/taco_kuro_siwo"
-)
-MAIN_FOLDER = pathlib.Path("KuroSiwo")
-GRID_DATA_PATH = "/mnt/rg_climate_benchmark/data/datasets_segmentation/kuro_siwo/KuroSiwo/KuroV2_grid_dict_test_0_100.gz"
-FINAL_TACO_PATH = "kurosiwo.tortilla"
+from concurrent.futures import ProcessPoolExecutor
+import os
+import numpy as np
+import rasterio
+from pathlib import Path
+from tqdm import tqdm
+
 
 # Configuration mappings
 modality_mapper = {
@@ -139,123 +141,6 @@ def extract_grid_data(path):
             )
 
     return extracted
-
-
-def process_grid_samples(df, root):
-    for idx, row in tqdm(df.iterrows(), total=df.shape[0], desc="Processing"):
-        data_dir = os.path.join(
-            str(root), str(row["event_id"]), str(row["aoi"]), str(row["hex"])
-        )
-
-        if not os.path.exists(data_dir):
-            print(f"Warning: {data_dir} does not exist, skipping")
-            continue
-
-        # Read info.json
-        info_path = os.path.join(data_dir, "info.json")
-        info_json = json.load(open(info_path))
-
-        grid_id = info_json["grid_id"]
-        sample_sources = info_json["datasets"]
-        event_id = info_json["actid"]
-        aoi_id = info_json["aoiid"]
-
-        modality_samples = []
-
-        # Process each dataset modality
-        for key, val in sample_sources.items():
-            modality_path = os.path.join(data_dir, val["name"] + ".tif")
-            modality_type = val["name"].split("_")[0] + "_" + val["name"].split("_")[1]
-
-            with rio.open(modality_path) as src:
-                profile = src.profile
-
-            sample = tacotoolbox.tortilla.datamodel.Sample(
-                id=modality_mapper[modality_type],
-                path=modality_path,
-                file_format="GTiff",
-                data_split=row["split"],
-                stac_data={
-                    "crs": "EPSG:" + str(profile["crs"].to_epsg()),
-                    "geotransform": profile["transform"].to_gdal(),
-                    "raster_shape": (profile["height"], profile["width"]),
-                    "time_start": val["source_date"],
-                    "time_end": val["source_date"],
-                },
-                kurosiwo_actid=event_id,
-                kurosiwo_aoiid=aoi_id,
-                kurosiwo_grid_id=grid_id,
-                kurosiwo_flood_date=info_json["flood_date"],
-                kurosiwo_pcovered=info_json["pcovered"],
-                kurosiwo_pwater=info_json["pwater"],
-                kurosiwo_pflood=info_json["pflood"],
-            )
-            modality_samples.append(sample)
-
-        # Sort samples according to modality order
-        sorted_samples = []
-        for modality in modality_order:
-            for sample in modality_samples:
-                if sample.id == modality:
-                    sorted_samples.append(sample)
-                    break
-
-        # Create and save TACO samples
-        taco_samples = tacotoolbox.tortilla.datamodel.Samples(samples=sorted_samples)
-        samples_path = OUTPUT_FOLDER / (f"{event_id}_{aoi_id}_{grid_id}.tortilla")
-        tacotoolbox.tortilla.create(taco_samples, samples_path, quiet=True)
-
-
-def merge_tortilla_files():
-    all_tortilla_files = list(OUTPUT_FOLDER.glob("*.tortilla"))
-    samples = []
-
-    for idx, tortilla_file in tqdm(
-        enumerate(all_tortilla_files),
-        total=len(all_tortilla_files),
-        desc="Building taco",
-    ):
-        # Read the event data
-        sample_data = tacoreader.load(tortilla_file.as_posix())
-        sample_data_flood = sample_data[sample_data["tortilla:id"] == "event_vh"].iloc[
-            0
-        ]
-        pre_event_1 = sample_data[sample_data["tortilla:id"] == "pre_event_1_vh"].iloc[
-            0
-        ]
-        pre_event_2 = sample_data[sample_data["tortilla:id"] == "pre_event_2_vh"].iloc[
-            0
-        ]
-
-        # Get time delay between the pre-events and the event
-        pre_event_1_date = pd.to_datetime(pre_event_1["stac:time_start"], unit="s")
-        pre_event_2_date = pd.to_datetime(pre_event_2["stac:time_start"], unit="s")
-        event_date = pd.to_datetime(sample_data_flood["stac:time_start"], unit="s")
-
-        delay1 = (event_date - pre_event_1_date).days
-        delay2 = (event_date - pre_event_2_date).days
-
-        # Create sample
-        sample_tortilla = tacotoolbox.tortilla.datamodel.Sample(
-            id=tortilla_file.stem,
-            path=tortilla_file,
-            file_format="TORTILLA",
-            stac_data={
-                "crs": sample_data_flood["stac:crs"],
-                "geotransform": sample_data_flood["stac:geotransform"],
-                "raster_shape": sample_data_flood["stac:raster_shape"],
-                "time_start": sample_data_flood["stac:time_start"],
-                "time_end": sample_data_flood["stac:time_end"],
-            },
-            data_split=sample_data_flood["tortilla:data_split"],
-            kurosiwo_delay1=delay1,
-            kurosiwo_delay2=delay2,
-        )
-        samples.append(sample_tortilla)
-
-    # Create the final TACO file
-    samples = tacotoolbox.tortilla.datamodel.Samples(samples=samples)
-    tacotoolbox.tortilla.create(samples, FINAL_TACO_PATH, quiet=True)
 
 
 def visualize_complete_sample(sample, output_path=None):
@@ -381,6 +266,403 @@ def visualize_complete_sample(sample, output_path=None):
     return fig
 
 
+def process_kurosiwo_sample(task):
+    """Process a single KuroSiwo sample with optimized profiles."""
+
+    try:
+        sample_id = task["sample_id"]
+        output_dir = task["output_dir"]
+        input_dir = task["input_dir"]
+
+        output_paths = {
+            "pre_event_1": os.path.join(
+                output_dir, "pre_event_1", f"{sample_id}_pre_event_1.tif"
+            ),
+            "pre_event_2": os.path.join(
+                output_dir, "pre_event_2", f"{sample_id}_pre_event_2.tif"
+            ),
+            "post_event": os.path.join(
+                output_dir, "post_event", f"{sample_id}_post_event.tif"
+            ),
+            "dem": os.path.join(output_dir, "dem", f"{sample_id}_dem.tif"),
+            "mask": os.path.join(output_dir, "mask", f"{sample_id}_mask.tif"),
+            "invalid_data": os.path.join(
+                output_dir, "invalid_data", f"{sample_id}_invalid_data.tif"
+            ),
+        }
+
+        modality_configs = {
+            "pre_event_1": {
+                "inputs": [task["pre_event_1_vv_path"], task["pre_event_1_vh_path"]],
+                "combine": True,
+            },
+            "pre_event_2": {
+                "inputs": [task["pre_event_2_vv_path"], task["pre_event_2_vh_path"]],
+                "combine": True,
+            },
+            "post_event": {
+                "inputs": [task["post_event_vv_path"], task["post_event_vh_path"]],
+                "combine": True,
+            },
+            "dem": {"inputs": [task["dem_path"]], "combine": False},
+            "mask": {"inputs": [task["mask_path"]], "combine": False, "dtype": "uint8"},
+            "invalid_data": {
+                "inputs": [task["invalid_data_path"]],
+                "combine": False,
+                "dtype": "uint8",
+            },
+        }
+
+        profile_template = None
+        sample_crs = None
+        sample_transform = None
+        sample_height = None
+        sample_width = None
+
+        # Process each modality
+        for modality_name, config in modality_configs.items():
+            input_paths = [os.path.join(input_dir, path) for path in config["inputs"]]
+
+            # Read all input files
+            data_arrays = []
+            for in_path in input_paths:
+                with rasterio.open(in_path) as src:
+                    # Store metadata from first valid source
+                    if profile_template is None:
+                        profile_template = src.profile.copy()
+                        sample_crs = src.crs
+                        sample_transform = src.transform
+                        sample_height = src.height
+                        sample_width = src.width
+
+                    data_arrays.append(src.read())
+
+            # Stack data arrays if we need to combine them
+            if config["combine"] and len(data_arrays) > 1:
+                combined_data = np.vstack(data_arrays)
+            else:
+                combined_data = data_arrays[0]
+
+            out_profile = profile_template.copy()
+            out_profile.update(
+                {
+                    "driver": "GTiff",
+                    "height": sample_height,
+                    "width": sample_width,
+                    "count": combined_data.shape[0],
+                    "dtype": config.get("dtype", combined_data.dtype),
+                    "tiled": True,
+                    "blockxsize": sample_height,
+                    "blockysize": sample_width,
+                    "interleave": "pixel",
+                    "compress": "zstd",
+                    "zstd_level": 13,
+                    "predictor": 2,
+                    "crs": sample_crs,
+                    "transform": sample_transform,
+                }
+            )
+
+            out_path = output_paths[modality_name]
+            with rasterio.open(
+                out_path, "w", **{k: v for k, v in out_profile.items() if v is not None}
+            ) as dst:
+                dst.write(combined_data)
+
+        metadata = {
+            "sample_id": sample_id,
+            "data_split": task["data_split"],
+            "height": sample_height,
+            "width": sample_width,
+            "pcovered": task["pcovered"],
+            "pwater": task["pwater"],
+            "pflood": task["pflood"],
+            "event_id": task["event_id"],
+            "aoi": task["aoi"],
+            "flood_date": task["flood_date"],
+        }
+
+        for modality, path in output_paths.items():
+            metadata[f"{modality}_path"] = path if os.path.exists(path) else None
+
+        metadata.update(
+            {
+                "original_pre_event_1_vv_path": task["pre_event_1_vv_path"],
+                "original_pre_event_1_vh_path": task["pre_event_1_vh_path"],
+                "original_pre_event_2_vv_path": task["pre_event_2_vv_path"],
+                "original_pre_event_2_vh_path": task["pre_event_2_vh_path"],
+                "original_post_event_vv_path": task["post_event_vv_path"],
+                "original_post_event_vh_path": task["post_event_vh_path"],
+                "original_dem_path": task["dem_path"],
+                "original_mask_path": task["mask_path"],
+                "original_invalid_data_path": task["invalid_data_path"],
+            }
+        )
+
+        return metadata
+
+    except Exception as e:
+        import traceback
+
+        traceback.print_exc()
+        print(f"Error processing sample {task['sample_id']}: {e}")
+        return None
+
+
+def reprocess_kurosiwo_dataset(
+    metadata_df: pd.DataFrame, input_dir: str, output_dir: str, num_workers: int = 8
+) -> pd.DataFrame:
+    """Reprocess KuroSiwo samples with optimized profiles and combined modalities.
+
+    Args:
+        metadata_df: DataFrame with original sample metadata
+        input_dir: Directory containing original samples
+        output_dir: Directory to save optimized samples
+        block_size: Size of internal GeoTIFF blocks for optimal I/O
+        num_workers: Number of workers for parallel processing
+
+    Returns:
+        DataFrame with updated metadata pointing to optimized files
+    """
+    os.makedirs(output_dir, exist_ok=True)
+    os.makedirs(os.path.join(output_dir, "pre_event_1"), exist_ok=True)
+    os.makedirs(os.path.join(output_dir, "pre_event_2"), exist_ok=True)
+    os.makedirs(os.path.join(output_dir, "post_event"), exist_ok=True)
+    os.makedirs(os.path.join(output_dir, "dem"), exist_ok=True)
+    os.makedirs(os.path.join(output_dir, "mask"), exist_ok=True)
+    os.makedirs(os.path.join(output_dir, "invalid_data"), exist_ok=True)
+
+    tasks = []
+    for idx, row in metadata_df.iterrows():
+        task = {
+            "sample_id": f"sample_{idx}",
+            "pre_event_1_vv_path": row["pre_event_1_vv_path"],
+            "pre_event_1_vh_path": row["pre_event_1_vh_path"],
+            "pre_event_2_vv_path": row["pre_event_2_vv_path"],
+            "pre_event_2_vh_path": row["pre_event_2_vh_path"],
+            "post_event_vv_path": row["event_vv_path"],
+            "post_event_vh_path": row["event_vh_path"],
+            "dem_path": row["aux_dem_path"],
+            "mask_path": row["mask_path"],
+            "invalid_data_path": row["invalid_data_path"],
+            "data_split": row["split"],
+            "pcovered": row["pcovered"],
+            "pwater": row["pwater"],
+            "pflood": row["pflood"],
+            "event_id": row["event_id"],
+            "flood_date": row["flood_date"],
+            "aoi": row["aoi"],
+            "input_dir": input_dir,
+            "output_dir": output_dir,
+        }
+        tasks.append(task)
+
+    process_kurosiwo_sample(tasks[0])
+
+    results = []
+    with ProcessPoolExecutor(max_workers=num_workers) as executor:
+        futures = [executor.submit(process_kurosiwo_sample, task) for task in tasks]
+
+        for future in tqdm(futures, total=len(futures), desc="Processing samples"):
+            try:
+                result = future.result()
+                if result:
+                    results.append(result)
+            except Exception as e:
+                print(f"Error processing sample: {e}")
+
+    updated_metadata = pd.DataFrame(results)
+
+    updated_metadata_path = os.path.join(
+        output_dir, "kurosiwo_optimized_metadata.parquet"
+    )
+    updated_metadata.to_parquet(updated_metadata_path)
+    print(f"Saved optimized metadata to {updated_metadata_path}")
+
+    return updated_metadata
+
+
+def generate_metadata_df(root_dir: str) -> pd.DataFrame:
+    """Generate metadata DataFrame from the Kuro Siwo dataset."""
+
+    extracted_data = extract_grid_data(
+        os.path.join(root_dir, "KuroSiwo", "KuroV2_grid_dict_test_0_100.gz")
+    )
+    split_mapper = create_split_mapper()
+
+    df = pd.DataFrame(extracted_data)
+    df["split"] = df["event_id"].apply(lambda x: split_mapper[x])
+
+    def extract_paths(row):
+        data_dir = os.path.join(
+            str(root_dir),
+            "KuroSiwo",
+            str(row["event_id"]),
+            str(row["aoi"]),
+            str(row["hex"]),
+        )
+
+        info_path = os.path.join(data_dir, "info.json")
+        info_json = json.load(open(info_path))
+        sample_sources = info_json["datasets"]
+
+        meta_data = {}
+        for key, val in sample_sources.items():
+            modality_path = os.path.join(data_dir, val["name"] + ".tif")
+            modality_type = val["name"].split("_")[0] + "_" + val["name"].split("_")[1]
+            meta_data[modality_type] = modality_path
+
+        meta_data["pcovered"] = info_json["pcovered"]
+        meta_data["pwater"] = info_json["pwater"]
+        meta_data["pflood"] = info_json["pflood"]
+        meta_data["flood_date"] = info_json["flood_date"]
+        return meta_data
+
+    path_df = pd.DataFrame(df.apply(extract_paths, axis=1).tolist())
+    df = pd.concat([df, path_df], axis=1)
+
+    # use modality mapper to rename columns appended with "_path"
+    modality_mapper = {
+        "MK0_DEM": "aux_dem_path",
+        "MK0_SLOPE": "aux_slope_path",
+        "MK0_MLU": "mask_path",
+        "MK0_MNA": "invalid_data_path",
+        "SL1_IVV": "pre_event_2_vv_path",
+        "SL1_IVH": "pre_event_2_vh_path",
+        "SL2_IVV": "pre_event_1_vv_path",
+        "SL2_IVH": "pre_event_1_vh_path",
+        "MS1_IVV": "event_vv_path",
+        "MS1_IVH": "event_vh_path",
+    }
+    df.rename(columns=modality_mapper, inplace=True)
+
+    # make paths relative
+    for col in df.columns:
+        if col.endswith("_path"):
+            df[col] = df[col].apply(lambda x: x.replace(str(root_dir), ""))
+
+    return df
+
+
+def create_tortilla(df, root, save_dir, tortilla_name):
+    tortilla_dir = os.path.join(save_dir, "tortilla")
+    os.makedirs(tortilla_dir, exist_ok=True)
+
+    for idx, row in tqdm(df.iterrows(), total=len(df), desc="Creating tortilla"):
+        modalities = [
+            "pre_event_1",
+            "pre_event_2",
+            "post_event",
+            "dem",
+            "mask",
+            "invalid_data",
+        ]
+        modality_samples = []
+
+        for modality in modalities:
+            modality_path = os.path.join(root, row[modality + "_path"])
+
+            with rio.open(modality_path) as src:
+                profile = src.profile
+
+            date_obj = datetime.strptime(row["flood_date"], "%Y-%m-%d %H:%M:%S")
+            sample = tacotoolbox.tortilla.datamodel.Sample(
+                id=modality,
+                path=modality_path,
+                file_format="GTiff",
+                data_split=row["data_split"],
+                stac_data={
+                    "crs": "EPSG:" + str(profile["crs"].to_epsg()),
+                    "geotransform": profile["transform"].to_gdal(),
+                    "raster_shape": (profile["height"], profile["width"]),
+                    "time_start": row["flood_date"].split(" ")[0],
+                    "time_end": row["flood_date"].split(" ")[0],
+                },
+                actid=row["event_id"],
+                aoiid=row["aoi"],
+                flood_date=date_obj,
+                pcovered=row["pcovered"],
+                pwater=row["pwater"],
+                pflood=row["pflood"],
+            )
+
+            modality_samples.append(sample)
+
+        # Create and save TACO samples
+        taco_samples = tacotoolbox.tortilla.datamodel.Samples(samples=modality_samples)
+        samples_path = os.path.join(tortilla_dir, (f"{idx}.tortilla"))
+        tacotoolbox.tortilla.create(taco_samples, samples_path, quiet=True)
+
+    all_tortilla_files = sorted(glob(os.path.join(tortilla_dir, "*.tortilla")))
+    samples = []
+
+    for idx, tortilla_file in tqdm(
+        enumerate(all_tortilla_files),
+        total=len(all_tortilla_files),
+        desc="Building taco",
+    ):
+        sample_data = tacoreader.load(tortilla_file).iloc[0]
+
+        # Create sample
+        sample_tortilla = tacotoolbox.tortilla.datamodel.Sample(
+            id=str(idx),
+            path=tortilla_file,
+            file_format="TORTILLA",
+            stac_data={
+                "crs": sample_data["stac:crs"],
+                "geotransform": sample_data["stac:geotransform"],
+                "raster_shape": sample_data["stac:raster_shape"],
+                "time_start": sample_data["stac:time_start"],
+                "time_end": sample_data["stac:time_end"],
+            },
+            data_split=sample_data["tortilla:data_split"],
+            actid=sample_data["actid"],
+            aoiid=sample_data["aoiid"],
+            flood_date=sample_data["flood_date"],
+            pcovered=sample_data["pcovered"],
+            pwater=sample_data["pwater"],
+            pflood=sample_data["pflood"],
+        )
+        samples.append(sample_tortilla)
+
+    # Create the final TACO file
+    samples = tacotoolbox.tortilla.datamodel.Samples(samples=samples)
+    tacotoolbox.tortilla.create(
+        samples, os.path.join(save_dir, tortilla_name), quiet=True
+    )
+
+
+def create_geobench_version(
+    metadata_df: pd.DataFrame,
+    n_train_samples: int,
+    n_val_samples: int,
+    n_test_samples: int,
+) -> pd.DataFrame:
+    """Create a GeoBench version of the dataset.
+    Args:
+        metadata_df: DataFrame with metadata including geolocation for each patch
+        n_train_samples: Number of final training samples, -1 means all
+        n_val_samples: Number of final validation samples, -1 means all
+        n_test_samples: Number of final test samples, -1 means all
+        root_dir: Root directory for FLAIR2 dataset
+        save_dir: Directory to save the subset benchmark data
+        block_size: Size of blocks for optimized GeoTIFF writing
+        num_workers: Number of parallel workers
+    """
+
+    random_state = 24
+
+    subset_df = create_subset_from_df(
+        metadata_df,
+        n_train_samples=n_train_samples,
+        n_val_samples=n_val_samples,
+        n_test_samples=n_test_samples,
+        random_state=random_state,
+    )
+
+    return subset_df
+
+
 def main():
     """Generate KuroSiwo Benchmark."""
     parser = argparse.ArgumentParser()
@@ -394,46 +676,52 @@ def main():
     )
     args = parser.parse_args()
 
-    metadata_path = os.path.join(args.save_dir, "geobench_kuro_siwo.parquet")
+    os.makedirs(args.save_dir, exist_ok=True)
 
-    metadata_df = pd.read_parquet(metadata_path)
+    metadata_path = os.path.join(args.save_dir, "geobench_metadata.parquet")
+    if os.path.exists(metadata_path):
+        metadata_df = pd.read_parquet(metadata_path)
+    else:
+        metadata_df = generate_metadata_df(args.root)
+        metadata_df.to_parquet(metadata_path)
 
-    plot_sample_locations(
-        metadata_df,
-        os.path.join(args.save_dir, "sample_locations.png"),
-        split_column="tortilla:data_split",
-        dataset_name="Kuro Siwo",
+    result_df_path = os.path.join(args.save_dir, "geobench_kuro_siwo.parquet")
+
+    # if os.path.exists(result_df_path):
+    #     result_df = pd.read_parquet(result_df_path)
+    # else:
+    subset_df = create_geobench_version(
+        metadata_df, n_train_samples=4000, n_val_samples=1000, n_test_samples=2000
     )
 
-    # # Create output directory
-    # OUTPUT_FOLDER.mkdir(exist_ok=True)
-
-    # # Setup data and splits
-    # split_mapper = create_split_mapper()
-    # extracted_data = extract_grid_data(GRID_DATA_PATH)
-
-    # # Create dataframe and assign splits
-    # df = pd.DataFrame(extracted_data)
-    # df["split"] = df["event_id"].apply(lambda x: split_mapper[x])
-    # df.to_csv("full_df.csv", index=False)
-
-    # process_grid_samples(df, args.root)
-    # merge_tortilla_files()
-
-    taco_glob = sorted(glob(os.path.join(args.save_dir, "kurosiwo.*.part.tortilla")))
-    taco_ben = tacoreader.load(taco_glob)
-
-    # create unit test subset
-    unit_test_taco = create_subset_from_tortilla(
-        taco_ben, n_train_samples=4, n_val_samples=2, n_test_samples=2
+    result_df = reprocess_kurosiwo_dataset(
+        subset_df, input_dir=args.root, output_dir=args.save_dir, num_workers=1
     )
-    script_dir = os.path.dirname(os.path.abspath(__file__))
-    repo_root = os.path.dirname(os.path.dirname(script_dir))
-    test_data_dir = os.path.join(repo_root, "tests", "data", "kuro_siwo")
-    os.makedirs(test_data_dir, exist_ok=True)
-    tacoreader.compile(
-        dataframe=unit_test_taco,
-        output=os.path.join(test_data_dir, "kuro_siwo.tortilla"),
+    result_df.to_parquet(result_df_path)
+
+    # plot_sample_locations(
+    #     result_df,
+    #     os.path.join(args.save_dir, "sample_locations.png"),
+    #     split_column="tortilla:data_split",
+    #     dataset_name="Kuro Siwo",
+    # )
+
+    tortilla_name = "geobench_kuro_siwo.tortilla"
+
+    create_tortilla(
+        result_df,
+        root=args.save_dir,
+        save_dir=args.save_dir,
+        tortilla_name=tortilla_name,
+    )
+
+    create_unittest_subset(
+        data_dir=args.save_dir,
+        tortilla_pattern=tortilla_name,
+        test_dir_name="kuro_siwo",
+        n_train_samples=4,
+        n_val_samples=2,
+        n_test_samples=2,
     )
 
 

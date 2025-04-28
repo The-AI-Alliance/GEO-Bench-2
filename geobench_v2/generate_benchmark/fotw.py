@@ -14,7 +14,8 @@ from tqdm import tqdm
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from geobench_v2.generate_benchmark.utils import (
     plot_sample_locations,
-    create_subset_from_tortilla,
+    create_unittest_subset,
+    create_subset_from_df,
 )
 import matplotlib.pyplot as plt
 import cartopy.crs as ccrs
@@ -27,6 +28,7 @@ import tacotoolbox
 import tacoreader
 import glob
 import cartopy.io.shapereader as shpreader
+import concurrent
 
 
 TOTAL_N = 20000
@@ -48,56 +50,6 @@ CC_BY_COUNTRIES = (
     "spain",
     "vietnam",
 )
-
-
-def create_subset(
-    ds: FieldsOfTheWorld, df: pd.DataFrame, save_dir: str, random_state: int = 42
-) -> None:
-    """Create a subset of Fields of the World dataset. Creates a stratified
-    subset that maintains the train/val/test and country distribtion for a new TOTAL_N.
-
-    Args:
-        ds: Fields of the World dataset.
-        df: Metadata DataFrame.
-        save_dir: Directory to save the subset.
-    """
-    # based on the metadata_df create a subset of the dataset and copy it
-    # with the same structure to the save_dir
-    total_orig = len(df)
-
-    def sample_group(group):
-        """Determine how many samples to draw from this group."""
-        fraction = len(group) / total_orig
-        n_samples = int(round(fraction * TOTAL_N))
-        n_samples = min(n_samples, len(group))
-        if n_samples == 0 and len(group) > 0:
-            n_samples = 1
-        return group.sample(n=n_samples, random_state=random_state)
-
-    # Group by 'split' and 'country', then sample from each group.
-    subset = df.groupby(["split", "country"], group_keys=False).apply(sample_group)
-
-    # In case due to rounding the total number of samples is not exactly TOTAL_N,
-    # one might need to adjust. Here we reset index and trim or pad with extra samples:
-    subset = subset.reset_index(drop=True)
-    current_n = len(subset)
-    if current_n > TOTAL_N:
-        # Remove extra rows randomly
-        subset = subset.sample(n=TOTAL_N, random_state=random_state).reset_index(
-            drop=True
-        )
-    elif current_n < TOTAL_N:
-        # Optionally, add extra rows by oversampling from some groups (if desired)
-        extra_needed = TOTAL_N - current_n
-        # Here, we simply sample extra rows from the original dataset.
-        extra_samples = df.sample(n=extra_needed, random_state=random_state)
-        subset = (
-            pd.concat([subset, extra_samples])
-            .sample(frac=1, random_state=random_state)
-            .reset_index(drop=True)
-        )
-
-    return subset
 
 
 def copy_subset_files(ds, subset: pd.DataFrame, save_dir: str) -> None:
@@ -242,14 +194,9 @@ def generate_metadata_df(ds: FieldsOfTheWorld) -> pd.DataFrame:
         ]
     ).reset_index(drop=True)
 
+    overall_df["split"] = overall_df["split"].replace("val", "validation")
+
     return overall_df
-
-
-def create_unit_test_subset() -> None:
-    """Create a subset of Fields of the World dataset for GeoBench unit tests."""
-
-    # create random images etc that respect the structure of the dataset in minimal format
-    pass
 
 
 def plot_country_distribution(
@@ -292,7 +239,7 @@ def plot_country_distribution(
     ax.add_feature(cfeature.BORDERS, linewidth=0.3, linestyle="-", edgecolor="#888888")
 
     # Define color palette for splits
-    split_colors = {"train": "#1f77b4", "val": "#ff7f0e", "test": "#2ca02c"}
+    split_colors = {"train": "#1f77b4", "validation": "#ff7f0e", "test": "#2ca02c"}
 
     if highlight_countries:
         country_colormap = plt.cm.get_cmap("tab20", n_countries)
@@ -334,7 +281,7 @@ def plot_country_distribution(
         n_points = len(country_data)
         point_size = max(0.5, min(3.0, 50.0 / np.sqrt(n_points)))
 
-        for split in ["train", "val", "test"]:
+        for split in ["train", "validation", "test"]:
             split_data = country_data[country_data["split"] == split]
             if len(split_data) > 0:
                 ax.scatter(
@@ -526,7 +473,7 @@ def plot_country_distribution(
     )
 
     summary_text = f"Total: {total_samples:,} samples\n"
-    for split in ["train", "val", "test"]:
+    for split in ["train", "validation", "test"]:
         if split in metadata_df["split"].unique():
             count = metadata_df[metadata_df["split"] == split].shape[0]
             percentage = 100 * count / total_samples
@@ -552,10 +499,112 @@ def plot_country_distribution(
         plt.show()
 
 
-def create_tortilla(root_dir, df, save_dir):
-    """Create a tortilla version of the dataset."""
+def process_fotw_sample(args):
+    """Process a single Fields of the World sample by rewriting with optimized profile."""
+    idx, row, root_dir, save_dir = args
 
-    df["split"] = df["split"].replace("val", "validation")
+    try:
+        country = row["country"]
+        aoi_id = row["aoi_id"]
+
+        # Create output directories
+        for subdir in ["win_a", "win_b", "instance_mask", "semantic_3class_mask"]:
+            os.makedirs(os.path.join(save_dir, subdir), exist_ok=True)
+
+        result = {}
+        modalities = {
+            "win_a": row["win_a_path"],
+            "win_b": row["win_b_path"],
+            "instance_mask": row["instance_mask_path"],
+            "semantic_3class_mask": row["semantic_3class_mask_path"],
+        }
+
+        for modality, rel_path in modalities.items():
+            src_path = os.path.join(root_dir, rel_path)
+            if not os.path.exists(src_path):
+                continue
+
+            dst_filename = f"{country}_{aoi_id}_{modality}.tif"
+            dst_path = os.path.join(save_dir, modality, dst_filename)
+
+            with rasterio.open(src_path) as src:
+                data = src.read()
+
+                # instance mask as int 8
+                if modality == "instance_mask" and data.dtype not in [
+                    np.uint8,
+                    np.int8,
+                ]:
+                    data = data.astype(np.uint8)
+
+                optimized_profile = {
+                    "driver": "GTiff",
+                    "height": data.shape[1],
+                    "width": data.shape[2],
+                    "count": data.shape[0],
+                    "dtype": data.dtype,
+                    "tiled": True,
+                    "blockxsize": 256,
+                    "blockysize": 256,
+                    "interleave": "pixel",
+                    "compress": "zstd",
+                    "zstd_level": 13,
+                    "predictor": 2,
+                    "crs": src.crs,
+                    "transform": src.transform,
+                }
+
+                with rasterio.open(dst_path, "w", **optimized_profile) as dst:
+                    dst.write(data)
+
+            result[f"{modality}_path"] = os.path.relpath(dst_path, start=save_dir)
+
+        result["country"] = country
+        result["aoi_id"] = row["aoi_id"]
+        result["split"] = row["split"]
+        result["year_of_collection"] = row["year_of_collection"]
+        result["lon"] = row["lon"]
+        result["lat"] = row["lat"]
+
+        return result
+
+    except Exception as e:
+        print(
+            f"Error processing sample {idx} (country: {row.get('country', '')}, aoi_id: {row.get('aoi_id', '')}): {e}"
+        )
+        import traceback
+
+        traceback.print_exc()
+        return None
+
+
+def optimize_fotw_dataset(metadata_df, root_dir, save_dir, num_workers=1):
+    """Store FOTW dataset with optimized GeoTIFF profiles."""
+    os.makedirs(save_dir, exist_ok=True)
+
+    tasks = [(idx, row, root_dir, save_dir) for idx, row in metadata_df.iterrows()]
+    results = []
+
+    with concurrent.futures.ProcessPoolExecutor(max_workers=num_workers) as executor:
+        list_of_results = list(
+            tqdm(
+                executor.map(process_fotw_sample, tasks),
+                total=len(tasks),
+                desc="Optimizing FOTW samples",
+            )
+        )
+
+        for result in list_of_results:
+            if result is not None:
+                results.append(result)
+
+    optimized_df = pd.DataFrame(results)
+
+    return optimized_df
+
+
+def create_tortilla(root_dir, df, save_dir, tortilla_name):
+    """Create a tortilla version of the dataset."""
     tortilla_dir = os.path.join(save_dir, "tortilla")
     os.makedirs(tortilla_dir, exist_ok=True)
 
@@ -624,11 +673,34 @@ def create_tortilla(root_dir, df, save_dir):
     # create final taco file
     final_samples = tacotoolbox.tortilla.datamodel.Samples(samples=samples)
     tacotoolbox.tortilla.create(
-        final_samples,
-        os.path.join(save_dir, "FullFOTW.tortilla"),
-        quiet=True,
-        nworkers=4,
+        final_samples, os.path.join(save_dir, tortilla_name), quiet=True, nworkers=4
     )
+
+
+def create_geobench_version(
+    metadata_df: pd.DataFrame,
+    n_train_samples: int,
+    n_val_samples: int,
+    n_test_samples: int,
+) -> None:
+    """Create a GeoBench version of the dataset.
+    Args:
+        metadata_df: DataFrame with metadata including geolocation for each patch
+        n_train_samples: Number of final training samples, -1 means all
+        n_val_samples: Number of final validation samples, -1 means all
+        n_test_samples: Number of final test samples, -1 means all
+    """
+    random_state = 24
+
+    subset_df = create_subset_from_df(
+        metadata_df,
+        n_train_samples=n_train_samples,
+        n_val_samples=n_val_samples,
+        n_test_samples=n_test_samples,
+        random_state=random_state,
+    )
+
+    return subset_df
 
 
 def main():
@@ -659,31 +731,50 @@ def main():
     # assert that only CC_BY_COUNTRIES are present
     assert set(metadata_df["country"].unique()) == set(CC_BY_COUNTRIES)
 
-    # validate_metadata_with_geo(metadata_df)
-
-    # create_tortilla(args.root, metadata_df, args.save_dir)
-
     plot_country_distribution(
         metadata_df,
         output_path=os.path.join(args.save_dir, "country_distribution.png"),
         title="Fields of the World Dataset - Geographic Distribution",
     )
 
-    # create unit test subset
-    taco_glob = sorted(
-        glob.glob(os.path.join(args.save_dir, "FullFOTW.*.part.tortilla"))
-    )
-    taco_ben = tacoreader.load(taco_glob)
+    optimized_path = os.path.join(args.save_dir, "optimized.parquet")
+    if os.path.exists(optimized_path):
+        optimized_df = pd.read_parquet(optimized_path)
+    else:
+        optimized_df = optimize_fotw_dataset(
+            metadata_df,
+            root_dir=args.root,
+            save_dir=os.path.join(args.save_dir, "optimized"),
+            num_workers=8,
+        )
+        optimized_df.to_parquet(optimized_path)
 
-    unit_test_taco = create_subset_from_tortilla(
-        taco_ben, n_train_samples=4, n_val_samples=2, n_test_samples=2
+    # create geobench subset
+    results_df_path = os.path.join(args.save_dir, "geobench_fotw.parquet")
+    if os.path.exists(results_df_path):
+        results_df = pd.read_parquet(results_df_path)
+    else:
+        results_df = create_geobench_version(
+            optimized_df, n_train_samples=4000, n_val_samples=1000, n_test_samples=2000
+        )
+        results_df.to_parquet(results_df_path)
+
+    # create tortilla
+    tortilla_name = "geobench_fotw.tortilla"
+    create_tortilla(
+        root_dir=os.path.join(args.save_dir, "optimized"),
+        df=results_df,
+        save_dir=args.save_dir,
+        tortilla_name=tortilla_name,
     )
-    script_dir = os.path.dirname(os.path.abspath(__file__))
-    repo_root = os.path.dirname(os.path.dirname(script_dir))
-    test_data_dir = os.path.join(repo_root, "tests", "data", "fotw")
-    os.makedirs(test_data_dir, exist_ok=True)
-    tacoreader.compile(
-        dataframe=unit_test_taco, output=os.path.join(test_data_dir, "fotw.tortilla")
+
+    create_unittest_subset(
+        data_dir=args.save_dir,
+        tortilla_pattern=tortilla_name,
+        test_dir_name="fotw",
+        n_train_samples=4,
+        n_val_samples=2,
+        n_test_samples=2,
     )
 
 
