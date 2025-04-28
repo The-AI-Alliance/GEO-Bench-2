@@ -344,13 +344,13 @@ def generate_metadata_df(root: str) -> pd.DataFrame:
     return df
 
 
-def create_tortilla(root_dir, df, save_dir):
+def create_tortilla(root_dir, df, save_dir, tortilla_name):
     """Create a tortilla version of the dataset."""
 
     tortilla_dir = os.path.join(save_dir, "tortilla")
     os.makedirs(tortilla_dir, exist_ok=True)
 
-    df["sample_idx"] = pd.factorize(df["new_id"])[0]
+    df["sample_idx"] = pd.factorize(df["patch_id"])[0]
 
     unique_ts_samples = df["sample_idx"].unique()
 
@@ -385,14 +385,12 @@ def create_tortilla(root_dir, df, save_dir):
                             "crs": "EPSG:" + str(profile["crs"].to_epsg()),
                             "geotransform": profile["transform"].to_gdal(),
                             "raster_shape": (profile["height"], profile["width"]),
-                            "time_start": row["date"],
+                            "time_start": row["planet_date"],
                         },
                         lon=row["lon"],
                         lat=row["lat"],
                         area_id=row["area_id"],
-                        range_id=row["range_id"],
-                        lat_id=row["lat_id"],
-                        year_month=row["year_month"],
+                        original_id=row["original_id"],
                         modality=modality,
                     )
 
@@ -402,59 +400,54 @@ def create_tortilla(root_dir, df, save_dir):
                 # check for missing
                 row = modality_df.iloc[0]
                 path = os.path.join(root_dir, row[modality + "_path"])
-                if not row["s1_missing"]:
-                    with rasterio.open(path) as src:
-                        profile = src.profile
 
-                    sample = tacotoolbox.tortilla.datamodel.Sample(
-                        id=modality,
-                        path=path,
-                        file_format="GTiff",
-                        data_split=row["split"],
-                        stac_data={
-                            "crs": "EPSG:" + str(profile["crs"].to_epsg()),
-                            "geotransform": profile["transform"].to_gdal(),
-                            "raster_shape": (profile["height"], profile["width"]),
-                            "time_start": row["date"],
-                        },
-                        lon=row["lon"],
-                        lat=row["lat"],
-                        area_id=row["area_id"],
-                        range_id=row["range_id"],
-                        lat_id=row["lat_id"],
-                        year_month=row["year_month"],
-                        modality=modality,
-                    )
-                    modality_samples.append(sample)
+                with rasterio.open(path) as src:
+                    profile = src.profile
+
+                sample = tacotoolbox.tortilla.datamodel.Sample(
+                    id=modality,
+                    path=path,
+                    file_format="GTiff",
+                    data_split=row["split"],
+                    stac_data={
+                        "crs": "EPSG:" + str(profile["crs"].to_epsg()),
+                        "geotransform": profile["transform"].to_gdal(),
+                        "raster_shape": (profile["height"], profile["width"]),
+                        "time_start": row["planet_date"],
+                    },
+                    lon=row["lon"],
+                    lat=row["lat"],
+                    area_id=row["area_id"],
+                    original_id=row["original_id"],
+                    modality=modality,
+                )
+                modality_samples.append(sample)
 
             elif modality == "s2":
                 # check for missing
                 row = modality_df.iloc[0]
                 path = os.path.join(root_dir, row[modality + "_path"])
-                if not row["s2_missing"]:
-                    with rasterio.open(path) as src:
-                        profile = src.profile
+                with rasterio.open(path) as src:
+                    profile = src.profile
 
-                    sample = tacotoolbox.tortilla.datamodel.Sample(
-                        id=modality,
-                        path=path,
-                        file_format="GTiff",
-                        data_split=row["split"],
-                        stac_data={
-                            "crs": "EPSG:" + str(profile["crs"].to_epsg()),
-                            "geotransform": profile["transform"].to_gdal(),
-                            "raster_shape": (profile["height"], profile["width"]),
-                            "time_start": row["date"],
-                        },
-                        lon=row["lon"],
-                        lat=row["lat"],
-                        area_id=row["area_id"],
-                        range_id=row["range_id"],
-                        lat_id=row["lat_id"],
-                        year_month=row["year_month"],
-                        modality=modality,
-                    )
-                    modality_samples.append(sample)
+                sample = tacotoolbox.tortilla.datamodel.Sample(
+                    id=modality,
+                    path=path,
+                    file_format="GTiff",
+                    data_split=row["split"],
+                    stac_data={
+                        "crs": "EPSG:" + str(profile["crs"].to_epsg()),
+                        "geotransform": profile["transform"].to_gdal(),
+                        "raster_shape": (profile["height"], profile["width"]),
+                        "time_start": row["planet_date"],
+                    },
+                    lon=row["lon"],
+                    lat=row["lat"],
+                    area_id=row["area_id"],
+                    original_id=row["original_id"],
+                    modality=modality,
+                )
+                modality_samples.append(sample)
 
             elif modality == "label":
                 row = modality_df.iloc[0]
@@ -470,14 +463,12 @@ def create_tortilla(root_dir, df, save_dir):
                         "crs": "EPSG:" + str(profile["crs"].to_epsg()),
                         "geotransform": profile["transform"].to_gdal(),
                         "raster_shape": (profile["height"], profile["width"]),
-                        "time_start": row["date"],
+                        "time_start": row["planet_date"],
                     },
                     lon=row["lon"],
                     lat=row["lat"],
                     area_id=row["area_id"],
-                    range_id=row["range_id"],
-                    lat_id=row["lat_id"],
-                    year_month=row["year_month"],
+                    original_id=row["original_id"],
                     modality=modality,
                 )
                 modality_samples.append(sample)
@@ -512,18 +503,14 @@ def create_tortilla(root_dir, df, save_dir):
             lon=sample_data["lon"],
             lat=sample_data["lat"],
             area_id=sample_data["area_id"],
-            range_id=sample_data["range_id"],
-            lat_id=sample_data["lat_id"],
-            year_month=sample_data["year_month"],
+            original_id=sample_data["original_id"],
         )
         samples.append(sample_tortilla)
 
     final_samples = tacotoolbox.tortilla.datamodel.Samples(samples=samples)
 
     tacotoolbox.tortilla.create(
-        final_samples,
-        os.path.join(save_dir, "FullDynamicEarthNet.tortilla"),
-        quiet=True,
+        final_samples, os.path.join(save_dir, tortilla_name), quiet=True
     )
 
 
@@ -810,7 +797,7 @@ def create_test_subset(
     test_dir = os.path.join(save_dir, "unittest")
     os.makedirs(test_dir, exist_ok=True)
 
-    df_unique = df.drop_duplicates(subset="new_id", keep="first")
+    df_unique = df.drop_duplicates(subset="patch_id", keep="first")
     train_samples = df_unique[df_unique["split"] == "train"].sample(
         num_train_samples, random_state=42
     )
@@ -822,11 +809,11 @@ def create_test_subset(
     )
 
     selected_ids = (
-        list(train_samples["new_id"])
-        + list(val_samples["new_id"])
-        + list(test_samples["new_id"])
+        list(train_samples["patch_id"])
+        + list(val_samples["patch_id"])
+        + list(test_samples["patch_id"])
     )
-    subset_df = df[df["new_id"].isin(selected_ids)].copy()
+    subset_df = df[df["patch_id"].isin(selected_ids)].copy()
 
     print(
         f"Creating test subset with {len(subset_df)} images from {len(selected_ids)} unique time-series"
@@ -844,20 +831,7 @@ def create_test_subset(
         subset_df.iterrows(), total=len(subset_df), desc="Creating downsampled images"
     ):
         for modality in modalities:
-            if modality == "planet":
-                path_key = "planet_path"
-                is_missing = "planet_missing"
-            else:
-                path_key = f"{modality}_path"
-                is_missing = (
-                    f"{modality}_missing" if f"{modality}_missing" in row else False
-                )
-
-            # Skip if the modality is missing for this sample
-            if is_missing in row and row[is_missing]:
-                continue
-
-            source_path = os.path.join(root_dir, row[path_key])
+            source_path = os.path.join(root_dir, row[f"{modality}_path"])
             if not os.path.exists(source_path):
                 print(f"Warning: File not found - {source_path}")
                 continue
@@ -880,9 +854,7 @@ def create_test_subset(
 
                     profile.update(height=target_size, width=target_size)
 
-                    filename = (
-                        f"small_{row['area_id']}_{row['range_id']}_{row['lat_id']}"
-                    )
+                    filename = f"small_{row['patch_id']}"
                     if modality == "planet":
                         planet_date = row["planet_date"].replace("-", "_")
                         filename += f"_{planet_date}"
@@ -893,30 +865,36 @@ def create_test_subset(
                     with rasterio.open(new_path, "w", **profile) as dst:
                         dst.write(data_small)
 
-                    subset_df.loc[idx, path_key] = os.path.relpath(new_path, test_dir)
+                    subset_df.loc[idx, f"{modality}_path"] = os.path.relpath(
+                        new_path, test_dir
+                    )
 
             except Exception as e:
                 print(f"Error processing {source_path}: {e}")
 
     subset_df.to_parquet(os.path.join(test_dir, "subset_metadata.parquet"))
 
-    create_tortilla(test_dir, subset_df, os.path.join(save_dir, "unittest"))
+    tortilla_name = "dynamic_earthnet.tortilla"
+    create_tortilla(
+        test_dir,
+        subset_df,
+        os.path.join(save_dir, "unittest"),
+        tortilla_name=tortilla_name,
+    )
 
     script_dir = os.path.dirname(os.path.abspath(__file__))
     repo_root = os.path.dirname(os.path.dirname(script_dir))
     test_data_dir = os.path.join(repo_root, "tests", "data", "dynamic_earthnet")
     os.makedirs(test_data_dir, exist_ok=True)
 
-    tortilla_path = os.path.join(save_dir, "unittest", "FullDynamicEarthNet.tortilla")
+    tortilla_path = os.path.join(save_dir, "unittest", tortilla_name)
 
     tortilla_size_mb = os.path.getsize(tortilla_path) / (1024 * 1024)
     print(f"Tortilla file size: {tortilla_size_mb:.2f} MB")
-    shutil.copy(tortilla_path, os.path.join(test_data_dir, "dynamic_earthnet.tortilla"))
+    shutil.copy(tortilla_path, os.path.join(test_data_dir, tortilla_name))
 
     print(f"Test subset created successfully at {test_dir}")
-    print(
-        f"Tortilla file copied to {os.path.join(test_data_dir, 'dynamic_earthnet.tortilla')}"
-    )
+    print(f"Tortilla file copied to {os.path.join(test_data_dir, tortilla_name)}")
 
 
 def visualize_dynamic_earthnet_patches(
@@ -1464,64 +1442,33 @@ def main():
         args.save_dir, "geobench_dynamic_earthnet_patches.parquet"
     )
 
-    # if os.path.exists(patches_path):
-    #     patches_df = pd.read_parquet(patches_path)
-    # else:
-    patches_df = create_dynamic_earthnet_patches(
-        args.root, args.save_dir, metadata_df, num_workers=16
-    )
-    patches_df.to_parquet(patches_path)
+    if os.path.exists(patches_path):
+        patches_df = pd.read_parquet(patches_path)
+        patches_df = add_coordinates_to_subset(patches_df, metadata_df)
+        patches_df.to_parquet(patches_path)
+    else:
+        patches_df = create_dynamic_earthnet_patches(
+            args.root, args.save_dir, metadata_df, num_workers=16
+        )
+        patches_df = add_coordinates_to_subset(patches_df, metadata_df)
+        patches_df.to_parquet(patches_path)
 
     subset_path = os.path.join(args.save_dir, "geobench_dynamic_earthnet.parquet")
-    # if os.path.exists(subset_path):
-    #     subset_df = pd.read_parquet(subset_path)
-    # else:
-    subset_df = create_geobench_subset(
-        patches_df, train_series=700, val_series=100, test_series=200
-    )
-
-    subset_df = add_coordinates_to_subset(subset_df, metadata_df)
+    if os.path.exists(subset_path):
+        subset_df = pd.read_parquet(subset_path)
+    else:
+        subset_df = create_geobench_subset(
+            patches_df, train_series=700, val_series=100, test_series=200
+        )
+        subset_df.to_parquet(subset_path)
 
     verify_split_disjointness(subset_df)
 
-    import pdb
-    pdb.set_trace()
-
-
-    # create_geobench_subset
-
-    # visualize_dir = os.path.join(args.save_dir, "visualizations")
-    # visualize_dynamic_earthnet_patches(
-    #     patches_df,
-    #     args.save_dir,
-    #     num_samples=25,
-    #     save_dir=visualize_dir
-    # )
-    # print(f"Patch visualizations saved to {visualize_dir}")
-
-    # import pdb
-    # pdb.set_trace()
-
-    # plot_sample_locations(
-    #     # treat each time-series as single sample
-    #     df.drop_duplicates(subset="new_id", keep="first"),
-    #     output_path=os.path.join(args.save_dir, "sample_locations.png"),
-    #     buffer_degrees=4,
-    #     s=2.0,
-    #     dataset_name="DynamicEarthNet",
-    # )
-    # create a plot for each split separately to see if they are geographically balanced
-    # for split in ["train", "val", "test"]:
-    #     plot_sample_locations(
-    #         df[df["split"] == split].drop_duplicates(subset="new_id", keep="first"),
-    #         output_path=os.path.join(args.save_dir, f"sample_locations_{split}.png"),
-    #         buffer_degrees=4,
-    #         s=2.0,
-    #         dataset_name="DynamicEarthNet",
-    #     )
+    tortilla_name = "geobench_dynamic_earthnet.tortilla"
+    create_tortilla(args.save_dir, subset_df, args.save_dir, tortilla_name)
 
     create_test_subset(
-        args.root,
+        args.save_dir,
         subset_df,
         args.save_dir,
         num_train_samples=2,
@@ -1529,11 +1476,6 @@ def main():
         num_test_samples=1,
         target_size=16,
     )
-
-    # create_tortilla(args.root, df, args.save_dir)
-
-    # taco = tacoreader.load(os.path.join(args.save_dir, "FullDynamicEarthNet.tortilla"))
-    # sample = taco.read(1)
 
 
 if __name__ == "__main__":
