@@ -198,11 +198,10 @@ class TestSatMAENormalizer:
 
 class TestMultiModalNormalizer:
     """
-    Tests the MultiModalNormalizer class.
+    Tests the MultiModalNormalizer class with sequential clip then z-score logic.
 
-    Verifies correct normalization and denormalization behavior for mixed strategies
-    (clipping/scaling vs. z-score) applied per channel, handling of fill values,
-    different output ranges, and both single-tensor and multi-modal dictionary inputs.
+    Verifies correct normalization (clip then z-score) and denormalization (inverse z-score only)
+    behavior, handling of fill values, and both single-tensor and multi-modal dictionary inputs.
     """
 
     TEST_STATS = {
@@ -212,84 +211,64 @@ class TestMultiModalNormalizer:
         "clip_max": {"B1": 130.0},
     }
 
-    TEST_VALUES_B1 = [
-        (60.0, 70.0, 0.0),
-        (70.0, 70.0, 0.0),
-        (100.0, 100.0, 0.5),
-        (130.0, 130.0, 1.0),
-        (140.0, 130.0, 1.0),
-    ]
-    TEST_VALUES_B2 = [
-        (-20.0, -2.0),
-        (-15.0, -1.0),
-        (-10.0, 0.0),
-        (-5.0, 1.0),
-        (0.0, 2.0),
-    ]
-    TEST_VALUES_B3 = [(30.0, -2.0), (40.0, -1.0), (50.0, 0.0), (60.0, 1.0), (70.0, 2.0)]
+    # Input values for testing
+    TEST_VALUES_B1_IN = [60.0, 70.0, 100.0, 130.0, 140.0]
+    TEST_VALUES_B2_IN = [-20.0, -15.0, -10.0, -5.0, 0.0]
+    TEST_VALUES_B3_IN = [30.0, 40.0, 50.0, 60.0, 70.0]
+
+    # Intermediate clipped values (B1 clipped, B2/B3 not)
+    TEST_VALUES_B1_CLIP = [70.0, 70.0, 100.0, 130.0, 130.0]
+    TEST_VALUES_B2_CLIP = TEST_VALUES_B2_IN  # No clipping applied
+    TEST_VALUES_B3_CLIP = TEST_VALUES_B3_IN  # No clipping applied
+
+    # Expected final normalized values (z-score applied to clipped values)
+    TEST_VALUES_B1_NORM = [-1.5, -1.5, 0.0, 1.5, 1.5]  # (B1_CLIP - 100) / 20
+    TEST_VALUES_B2_NORM = [-2.0, -1.0, 0.0, 1.0, 2.0]  # (B2_CLIP - (-10)) / 5
+    TEST_VALUES_B3_NORM = [-2.0, -1.0, 0.0, 1.0, 2.0]  # (B3_CLIP - 50) / 10
 
     FILL_VALUE = -999.0
 
     INPUT_VALS = torch.tensor(
-        [
-            [v[0] for v in TEST_VALUES_B1],
-            [v[0] for v in TEST_VALUES_B2],
-            [FILL_VALUE] * 5,
-            [v[0] for v in TEST_VALUES_B3],
-        ]
+        [TEST_VALUES_B1_IN, TEST_VALUES_B2_IN, [FILL_VALUE] * 5, TEST_VALUES_B3_IN]
     )
 
+    # Expected result after forward pass (normalization)
     EXPECTED_NORM = torch.tensor(
         [
-            [v[2] for v in TEST_VALUES_B1],
-            [v[1] for v in TEST_VALUES_B2],
+            TEST_VALUES_B1_NORM,
+            TEST_VALUES_B2_NORM,
             [FILL_VALUE] * 5,
-            [v[1] for v in TEST_VALUES_B3],
+            TEST_VALUES_B3_NORM,
         ]
     )
 
+    # Expected result after unnormalize(forward(input))
+    # Should be the clipped values, as unnormalize only reverses z-score
     EXPECTED_ROUNDTRIP = torch.tensor(
         [
-            [v[1] for v in TEST_VALUES_B1],
-            [v[0] for v in TEST_VALUES_B2],
+            TEST_VALUES_B1_CLIP,
+            TEST_VALUES_B2_CLIP,
             [FILL_VALUE] * 5,
-            [v[0] for v in TEST_VALUES_B3],
+            TEST_VALUES_B3_CLIP,
         ]
     )
 
     BAND_ORDER = ["B1", "B2", FILL_VALUE, "B3"]
-
-    @staticmethod
-    def scale_clip_range(tensor_0_1, output_range):
-        """Helper to scale tensor from [0, 1] to target range (for clipped bands)."""
-        if output_range == "zero_255":
-            return tensor_0_1 * 255.0
-        elif output_range == "neg_one_one":
-            return tensor_0_1 * 2.0 - 1.0
-        else:
-            return tensor_0_1
 
     @pytest.fixture
     def stats(self):
         """Return the test statistics."""
         return self.TEST_STATS.copy()
 
-    @pytest.mark.parametrize("output_range", ["zero_one", "zero_255", "neg_one_one"])
-    def test_normalization_values(self, stats, output_range):
-        """Verify normalization applies clipping/scaling or z-score correctly per band."""
-        normalizer = MultiModalNormalizer(
-            stats, self.BAND_ORDER, output_range=output_range
-        )
-
-        expected_norm_ranged = self.EXPECTED_NORM.clone()
-        expected_norm_ranged[0, :] = self.scale_clip_range(
-            expected_norm_ranged[0, :], output_range
-        )
+    def test_normalization_values(self, stats):
+        """Verify normalization applies clip then z-score correctly per band."""
+        normalizer = MultiModalNormalizer(stats, self.BAND_ORDER)
 
         input_tensor = self.INPUT_VALS.unsqueeze(-1).unsqueeze(-1)
         test_tensor = input_tensor.permute(1, 0, 2, 3)
+        # Use the pre-calculated EXPECTED_NORM
         expected_tensor = (
-            expected_norm_ranged.unsqueeze(-1).unsqueeze(-1).permute(1, 0, 2, 3)
+            self.EXPECTED_NORM.unsqueeze(-1).unsqueeze(-1).permute(1, 0, 2, 3)
         )
 
         result = normalizer({"image": test_tensor})
@@ -297,19 +276,17 @@ class TestMultiModalNormalizer:
 
         assert normalized_tensor.shape == expected_tensor.shape
         assert torch.allclose(normalized_tensor, expected_tensor, atol=1e-5), (
-            f"Normalization failed for range={output_range}"
+            "Normalization failed"
         )
 
-    @pytest.mark.parametrize("output_range", ["zero_one", "zero_255", "neg_one_one"])
-    def test_denormalization_roundtrip(self, stats, output_range):
-        """Verify denormalization correctly reverses clipping/scaling and z-score."""
-        normalizer = MultiModalNormalizer(
-            stats, self.BAND_ORDER, output_range=output_range
-        )
+    def test_denormalization_roundtrip(self, stats):
+        """Verify denormalization reverses only the z-score step."""
+        normalizer = MultiModalNormalizer(stats, self.BAND_ORDER)
 
         input_tensor = self.INPUT_VALS.unsqueeze(-1).unsqueeze(-1)
         test_tensor = input_tensor.permute(1, 0, 2, 3)
 
+        # Use the pre-calculated EXPECTED_ROUNDTRIP (clipped values)
         expected_tensor = (
             self.EXPECTED_ROUNDTRIP.unsqueeze(-1).unsqueeze(-1).permute(1, 0, 2, 3)
         )
@@ -321,10 +298,10 @@ class TestMultiModalNormalizer:
         tolerance = 1e-5
 
         if not torch.allclose(denormalized_tensor, expected_tensor, atol=tolerance):
-            print(f"\nMultiModal Denorm roundtrip failed for range={output_range}")
+            print("\nMultiModal Denorm roundtrip failed")
             print("Input (Original):")
             print(test_tensor.squeeze())
-            print("Expected (Roundtrip):")
+            print("Expected (Roundtrip - Clipped):")
             print(expected_tensor.squeeze())
             print("Actual (Denormalized):")
             print(denormalized_tensor.squeeze())
@@ -332,25 +309,23 @@ class TestMultiModalNormalizer:
             print((denormalized_tensor - expected_tensor).squeeze())
 
         assert torch.allclose(denormalized_tensor, expected_tensor, atol=tolerance), (
-            f"MultiModal Denormalization roundtrip failed for range={output_range}"
+            "MultiModal Denormalization roundtrip failed"
         )
 
     def test_multimodal_input_dict(self, stats):
-        """Test normalization and denormalization with dict band_order and dict input data."""
+        """Test sequential normalization and denormalization with dict input."""
         band_order_dict = {"mod1": ["B1", self.FILL_VALUE], "mod2": ["B2", "B3"]}
-        normalizer = MultiModalNormalizer(
-            stats, band_order_dict, output_range="zero_one"
-        )
+        normalizer = MultiModalNormalizer(stats, band_order_dict)
 
         input_mod1 = (
-            torch.tensor([[self.TEST_VALUES_B1[0][0]], [self.FILL_VALUE]])
+            torch.tensor([[self.TEST_VALUES_B1_IN[0]], [self.FILL_VALUE]])
             .unsqueeze(-1)
             .unsqueeze(-1)
             .permute(1, 0, 2, 3)
         )
 
         input_mod2 = (
-            torch.tensor([[self.TEST_VALUES_B2[0][0]], [self.TEST_VALUES_B3[0][0]]])
+            torch.tensor([[self.TEST_VALUES_B2_IN[0]], [self.TEST_VALUES_B3_IN[0]]])
             .unsqueeze(-1)
             .unsqueeze(-1)
             .permute(1, 0, 2, 3)
@@ -358,12 +333,13 @@ class TestMultiModalNormalizer:
 
         input_data = {"image_mod1": input_mod1, "image_mod2": input_mod2}
 
+        # Expected normalized values (using pre-calculated NORM values)
         expected_mod1 = torch.tensor(
-            [[[[self.TEST_VALUES_B1[0][2]]], [[self.FILL_VALUE]]]]
+            [[[[self.TEST_VALUES_B1_NORM[0]]], [[self.FILL_VALUE]]]]
         )
 
         expected_mod2 = torch.tensor(
-            [[[[self.TEST_VALUES_B2[0][1]]], [[self.TEST_VALUES_B3[0][1]]]]]
+            [[[[self.TEST_VALUES_B2_NORM[0]]], [[self.TEST_VALUES_B3_NORM[0]]]]]
         )
 
         expected_data = {"image_mod1": expected_mod1, "image_mod2": expected_mod2}
@@ -380,10 +356,13 @@ class TestMultiModalNormalizer:
 
         denormalized_result = normalizer.unnormalize(normalized_result)
 
+        # Expected roundtrip values (using pre-calculated CLIP values)
         expected_roundtrip_mod1 = torch.tensor(
-            [[[[self.TEST_VALUES_B1[0][1]]], [[self.FILL_VALUE]]]]
+            [[[[self.TEST_VALUES_B1_CLIP[0]]], [[self.FILL_VALUE]]]]
         )
-        expected_roundtrip_mod2 = input_mod2.clone()
+        expected_roundtrip_mod2 = torch.tensor(
+            [[[[self.TEST_VALUES_B2_CLIP[0]]], [[self.TEST_VALUES_B3_CLIP[0]]]]]
+        )
 
         assert torch.allclose(
             denormalized_result["image_mod1"], expected_roundtrip_mod1, atol=1e-5

@@ -312,93 +312,58 @@ class DataNormalizer(nn.Module, ABC):
 
 class MultiModalNormalizer(DataNormalizer):
     """
-    Normalization module for single or multi-modal data supporting mixed strategies.
+    Normalization module applying sequential clipping and z-score normalization.
 
-    Applies normalization per channel based on band configuration in the provided stats:
+    Applies normalization per channel based on band configuration:
     1. If 'clip_min' and 'clip_max' are defined for a band in stats:
-        a. Clips values to [clip_min, clip_max].
-        b. Rescales to the specified output_range ([0, 1], [0, 255], or [-1, 1]).
-    2. Otherwise (no clipping defined for the band):
-        a. Applies standard z-score normalization: (value - mean) / std.
+        a. Clips values to [clip_min, clip_max]. Bands without defined limits are not clipped.
+    2. Applies standard z-score normalization: (value - mean) / std to the (potentially clipped) values.
     3. Fill value bands (numeric values in band_order) are ignored and passed through unchanged.
 
     Handles both single tensor input (if band_order is a list) and dictionary input
     (if band_order is a dict mapping modalities to lists).
     """
 
-    valid_ranges = ["zero_one", "zero_255", "neg_one_one"]
-
     def __init__(
         self,
         stats: dict[str, dict[str, float]],
         band_order: Union[list[Union[str, float]], dict[str, list[Union[str, float]]]],
-        output_range: str = "zero_one",
     ) -> None:
-        """Initialize normalizer with optional band-specific clipping from stats.
+        """Initialize normalizer applying clip then z-score.
 
-        Pre-calculates means, stds, clipping values, and masks for efficient processing.
+        Pre-calculates means, stds, and clipping values for efficient processing.
 
         Args:
             stats: Dictionary containing mean, std, and optional clip_min/clip_max for each band.
                    Expected structure: {'means': {band: val}, 'stds': {band: val},
                                        'clip_min': {band: val}, 'clip_max': {band: val}}
-                   clip_min/clip_max are optional.
+                   clip_min/clip_max are optional. If not provided for a band, no clipping occurs for it.
             band_order: Sequence of band names/fill values, or dict mapping modality names
                         (e.g., "s1", "s2") to such sequences. Determines the channel order
                         and identifies fill value channels.
-            output_range: Target range for normalized values *only when clipping is applied*:
-                         - "zero_one": [0, 1] (default)
-                         - "zero_255": [0, 255]
-                         - "neg_one_one": [-1, 1]
-                         Bands undergoing z-score normalization are not affected by this range.
-
-        Raises:
-            AssertionError: If output_range is not one of the valid options.
         """
         super().__init__(stats, band_order)
-
-        if output_range not in self.valid_ranges:
-            raise AssertionError(
-                f"output_range must be one of {self.valid_ranges}, got {output_range}"
-            )
-        self.output_range = output_range
-
-        if output_range == "zero_255":
-            self.scale_factor = 255.0
-            self.shift_factor = 0.0
-        elif output_range == "neg_one_one":
-            self.scale_factor = 2.0
-            self.shift_factor = -1.0
-        else:  # "zero_one"
-            self.scale_factor = 1.0
-            self.shift_factor = 0.0
 
         self.means = {}
         self.stds = {}
         self.clip_mins = {}
         self.clip_maxs = {}
         self.is_fill_value = {}
-        self.is_clipped_band = {}
 
         if isinstance(band_order, dict):
             for modality, bands in band_order.items():
-                key = f"image_{modality}"  # Assumes input dict keys follow this pattern
+                key = f"image_{modality}"
                 (self.means[key], self.stds[key], self.is_fill_value[key]) = (
                     self._get_band_stats(bands)
                 )
-                (
-                    self.clip_mins[key],
-                    self.clip_maxs[key],
-                    self.is_clipped_band[key],
-                ) = self._get_clip_values(bands)
+                # Only need clip values now, not the is_clipped mask
+                self.clip_mins[key], self.clip_maxs[key] = self._get_clip_values(bands)
         else:
-            key = "image"  # Assumes input dict key is "image" for single modality
+            key = "image"
             (self.means[key], self.stds[key], self.is_fill_value[key]) = (
                 self._get_band_stats(band_order)
             )
-            (self.clip_mins[key], self.clip_maxs[key], self.is_clipped_band[key]) = (
-                self._get_clip_values(band_order)
-            )
+            self.clip_mins[key], self.clip_maxs[key] = self._get_clip_values(band_order)
 
     def _get_band_stats(
         self, bands: Sequence[Union[str, float]]
@@ -411,7 +376,6 @@ class MultiModalNormalizer(DataNormalizer):
                 stds.append(1.0)
                 is_fill.append(True)
             else:
-                # Ensure band exists in stats to avoid KeyError
                 if band not in self.stats.get(
                     "means", {}
                 ) or band not in self.stats.get("stds", {}):
@@ -425,19 +389,17 @@ class MultiModalNormalizer(DataNormalizer):
 
     def _get_clip_values(
         self, bands: Sequence[Union[str, float]]
-    ) -> tuple[Tensor, Tensor, Tensor]:
-        """Extract clip min/max tensors and a boolean mask identifying channels to be clipped."""
-        clip_mins, clip_maxs, is_clipped = [], [], []
-        # Check if clip stats exist at the top level
+    ) -> tuple[Tensor, Tensor]:
+        """Extract clip min/max tensors. Uses +/- infinity if clipping is not defined."""
+        clip_mins, clip_maxs = [], []
         has_clip_min_stats = "clip_min" in self.stats
         has_clip_max_stats = "clip_max" in self.stats
         clip_min_dict = self.stats.get("clip_min", {})
         clip_max_dict = self.stats.get("clip_max", {})
 
         for band in bands:
-            has_band_clipping = False
             if isinstance(band, (int, float)):
-                # Fill values are never clipped
+                # No clipping for fill values (use +/- inf)
                 clip_mins.append(float("-inf"))
                 clip_maxs.append(float("inf"))
             elif (
@@ -449,36 +411,18 @@ class MultiModalNormalizer(DataNormalizer):
                 # Clipping is defined for this specific band
                 clip_mins.append(clip_min_dict[band])
                 clip_maxs.append(clip_max_dict[band])
-                has_band_clipping = True
             else:
-                # No clipping defined for this band (will use z-score)
+                # No clipping defined for this band (use +/- inf)
                 clip_mins.append(float("-inf"))
                 clip_maxs.append(float("inf"))
 
-            is_clipped.append(has_band_clipping)
-
-        return (
-            torch.tensor(clip_mins),
-            torch.tensor(clip_maxs),
-            torch.tensor(is_clipped),
-        )
+        # Return only clip_mins and clip_maxs
+        return torch.tensor(clip_mins), torch.tensor(clip_maxs)
 
     def _reshape_and_expand(
         self, tensor_to_reshape: Tensor, target_tensor: Tensor
     ) -> tuple[Tensor, Optional[Tensor]]:
-        """Reshape 1D stat/mask tensor and optionally expand boolean masks for broadcasting.
-
-        Args:
-            tensor_to_reshape: The 1D tensor (e.g., means, stds, mask) to reshape.
-            target_tensor: The data tensor whose dimensions determine the reshaping/expansion.
-
-        Returns:
-            A tuple containing:
-            - reshaped: The input tensor reshaped to be broadcastable with target_tensor
-                      (e.g., [C,1,1] for a [C,H,W] target).
-            - expanded: The reshaped tensor expanded to the full shape of target_tensor
-                        if tensor_to_reshape was boolean, otherwise None.
-        """
+        """Reshape 1D stat/mask tensor and optionally expand boolean masks for broadcasting."""
         orig_dim = target_tensor.dim()
         if orig_dim == 3:  # [C, H, W]
             reshaped = tensor_to_reshape.view(-1, 1, 1)
@@ -498,13 +442,13 @@ class MultiModalNormalizer(DataNormalizer):
         return reshaped, expanded
 
     def forward(self, data: dict[str, Tensor]) -> dict[str, Tensor]:
-        """Normalize input tensors based on per-channel configuration.
+        """Normalize input tensors by applying clipping (optional) then z-score.
 
         Iterates through the input dictionary. For keys matching the expected pattern
         (e.g., "image", "image_modality"), applies normalization channel-wise:
+        - Clips channels if `clip_min`/`clip_max` were provided in stats.
+        - Applies z-score normalization to the (potentially clipped) result.
         - Fill value channels are ignored.
-        - Channels marked for clipping are clipped and scaled to `output_range`.
-        - Other channels are z-score normalized.
         Keys not matching the pattern are passed through unchanged.
 
         Args:
@@ -519,36 +463,29 @@ class MultiModalNormalizer(DataNormalizer):
                 result[key] = tensor
                 continue
 
+            # Retrieve stats for the current key
             mean, std = self.means[key], self.stds[key]
             clip_min, clip_max = self.clip_mins[key], self.clip_maxs[key]
-            is_fill, is_clipped = self.is_fill_value[key], self.is_clipped_band[key]
+            is_fill = self.is_fill_value[key]
 
+            # Reshape stats and expand fill mask
             mean_r, _ = self._reshape_and_expand(mean, tensor)
             std_r, _ = self._reshape_and_expand(std, tensor)
             clip_min_r, _ = self._reshape_and_expand(clip_min, tensor)
             clip_max_r, _ = self._reshape_and_expand(clip_max, tensor)
             _, is_fill_e = self._reshape_and_expand(is_fill, tensor)
-            _, is_clipped_e = self._reshape_and_expand(is_clipped, tensor)
 
             normalized_tensor = tensor.clone()
 
-            # Calculate clipped & scaled values (applied later via where)
-            clipped_vals = torch.clamp(tensor, min=clip_min_r, max=clip_max_r)
-            clipped_scaled_01 = (clipped_vals - clip_min_r) / (
-                clip_max_r - clip_min_r + 1e-6
-            )
-            clipped_final = clipped_scaled_01 * self.scale_factor + self.shift_factor
+            # 1. Apply clipping (uses +/- inf for non-clipped bands)
+            clipped_tensor = torch.clamp(tensor, min=clip_min_r, max=clip_max_r)
 
-            # Calculate z-score values (applied later via where)
-            z_score_vals = (tensor - mean_r) / (std_r + 1e-6)
+            # 2. Apply z-score to the (potentially) clipped tensor
+            z_score_clipped_vals = (clipped_tensor - mean_r) / (std_r + 1e-6)
 
-            # Apply z-score where not clipped and not fill
+            # 3. Apply the result only where it's NOT a fill value
             normalized_tensor = torch.where(
-                ~is_clipped_e & ~is_fill_e, z_score_vals, normalized_tensor
-            )
-            # Apply clipping where clipped and not fill
-            normalized_tensor = torch.where(
-                is_clipped_e & ~is_fill_e, clipped_final, normalized_tensor
+                ~is_fill_e, z_score_clipped_vals, normalized_tensor
             )
 
             result[key] = normalized_tensor
@@ -556,13 +493,15 @@ class MultiModalNormalizer(DataNormalizer):
         return result
 
     def unnormalize(self, data: dict[str, Tensor]) -> dict[str, Tensor]:
-        """Unnormalize input tensors based on the original per-channel configuration.
+        """Unnormalize input tensors by reversing the z-score normalization.
+
+        Note: Clipping applied during forward pass is non-invertible. This method
+        only reverses the z-score step.
 
         Iterates through the input dictionary. For keys matching the expected pattern,
         reverses the normalization channel-wise:
+        - Inverse z-score is applied.
         - Fill value channels are ignored.
-        - Channels originally clipped are unscaled from `output_range` and un-clipped.
-        - Other channels have inverse z-score applied.
         Keys not matching the pattern are passed through unchanged.
 
         Args:
@@ -577,37 +516,25 @@ class MultiModalNormalizer(DataNormalizer):
                 result[key] = tensor
                 continue
 
+            # Retrieve stats needed for inverse z-score
             mean, std = self.means[key], self.stds[key]
-            clip_min, clip_max = self.clip_mins[key], self.clip_maxs[key]
-            is_fill, is_clipped = self.is_fill_value[key], self.is_clipped_band[key]
+            is_fill = self.is_fill_value[key]
+            # Clip values are not needed for unnormalization
 
+            # Reshape stats and expand fill mask
             mean_r, _ = self._reshape_and_expand(mean, tensor)
             std_r, _ = self._reshape_and_expand(std, tensor)
-            clip_min_r, _ = self._reshape_and_expand(clip_min, tensor)
-            clip_max_r, _ = self._reshape_and_expand(clip_max, tensor)
             _, is_fill_e = self._reshape_and_expand(is_fill, tensor)
-            _, is_clipped_e = self._reshape_and_expand(is_clipped, tensor)
 
+            # Initialize result tensor
             unnormalized_tensor = tensor.clone()
 
-            # Calculate un-clipped values (applied later via where)
-            unclipped_01 = tensor.clone()
-            if self.shift_factor != 0:
-                unclipped_01 = (unclipped_01 - self.shift_factor) / self.scale_factor
-            else:
-                unclipped_01 = unclipped_01 / self.scale_factor
-            unclipped_final = unclipped_01 * (clip_max_r - clip_min_r) + clip_min_r
-
-            # Calculate un-z-score values (applied later via where)
+            # 1. Apply inverse z-score
             un_z_score_vals = tensor * (std_r + 1e-6) + mean_r
 
-            # Apply un-z-score where not clipped and not fill
+            # 2. Apply the result only where it's NOT a fill value
             unnormalized_tensor = torch.where(
-                ~is_clipped_e & ~is_fill_e, un_z_score_vals, unnormalized_tensor
-            )
-            # Apply un-clipping where clipped and not fill
-            unnormalized_tensor = torch.where(
-                is_clipped_e & ~is_fill_e, unclipped_final, unnormalized_tensor
+                ~is_fill_e, un_z_score_vals, unnormalized_tensor
             )
 
             result[key] = unnormalized_tensor
