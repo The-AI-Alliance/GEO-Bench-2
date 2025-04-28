@@ -90,10 +90,6 @@ class GeoBenchDOTAV2(DOTA, DataUtilsMixin):
 
         self.band_order = self.resolve_band_order(band_order)
 
-        self.data_normalizer = data_normalizer(
-            self.normalization_stats, self.band_order
-        )
-
         self.data_df = pd.read_parquet(
             os.path.join(self.root, "geobench_dotav2_processed.parquet")
         )
@@ -105,6 +101,25 @@ class GeoBenchDOTAV2(DOTA, DataUtilsMixin):
         self.class2idx: dict[str, int] = {c: i for i, c in enumerate(self.classes)}
 
         self.bbox_orientation = bbox_orientation
+
+        if isinstance(data_normalizer, type):
+            print(f"Initializing normalizer from class: {data_normalizer.__name__}")
+            if issubclass(data_normalizer, DataNormalizer):
+                self.data_normalizer = data_normalizer(
+                    self.normalization_stats, self.band_order
+                )
+            else:
+                self.data_normalizer = data_normalizer()
+
+        elif callable(data_normalizer):
+            print(
+                f"Using provided pre-initialized normalizer instance: {data_normalizer.__class__.__name__}"
+            )
+            self.data_normalizer = data_normalizer
+        else:
+            raise TypeError(
+                f"data_normalizer must be a DataNormalizer subclass type or a callable instance. Got {type(data_normalizer)}"
+            )
 
     def __getitem__(self, index: int) -> dict[str, Tensor]:
         """Return an index within the dataset.

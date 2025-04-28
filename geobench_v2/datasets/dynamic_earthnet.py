@@ -88,26 +88,32 @@ class GeoBenchDynamicEarthNet(GeoBenchBaseDataset):
         },
     }
 
+    # paths = [
+    #     "FullDynamicEarthNet.0000.part.tortilla",
+    #     "FullDynamicEarthNet.0001.part.tortilla",
+    #     "FullDynamicEarthNet.0002.part.tortilla",
+    #     "FullDynamicEarthNet.0003.part.tortilla",
+    #     "FullDynamicEarthNet.0004.part.tortilla",
+    #     "FullDynamicEarthNet.0005.part.tortilla",
+    #     "FullDynamicEarthNet.0006.part.tortilla",
+    #     "FullDynamicEarthNet.0007.part.tortilla",
+    #     "FullDynamicEarthNet.0008.part.tortilla",
+    #     "FullDynamicEarthNet.0009.part.tortilla",
+    #     "FullDynamicEarthNet.0010.part.tortilla",
+    #     "FullDynamicEarthNet.0011.part.tortilla",
+    #     "FullDynamicEarthNet.0012.part.tortilla",
+    #     "FullDynamicEarthNet.0013.part.tortilla",
+    #     "FullDynamicEarthNet.0014.part.tortilla",
+    #     "FullDynamicEarthNet.0015.part.tortilla",
+    #     "FullDynamicEarthNet.0016.part.tortilla",
+    #     "FullDynamicEarthNet.0017.part.tortilla",
+    #     "FullDynamicEarthNet.0018.part.tortilla",
+    # ]
+
     paths = [
-        "FullDynamicEarthNet.0000.part.tortilla",
-        "FullDynamicEarthNet.0001.part.tortilla",
-        "FullDynamicEarthNet.0002.part.tortilla",
-        "FullDynamicEarthNet.0003.part.tortilla",
-        "FullDynamicEarthNet.0004.part.tortilla",
-        "FullDynamicEarthNet.0005.part.tortilla",
-        "FullDynamicEarthNet.0006.part.tortilla",
-        "FullDynamicEarthNet.0007.part.tortilla",
-        "FullDynamicEarthNet.0008.part.tortilla",
-        "FullDynamicEarthNet.0009.part.tortilla",
-        "FullDynamicEarthNet.0010.part.tortilla",
-        "FullDynamicEarthNet.0011.part.tortilla",
-        "FullDynamicEarthNet.0012.part.tortilla",
-        "FullDynamicEarthNet.0013.part.tortilla",
-        "FullDynamicEarthNet.0014.part.tortilla",
-        "FullDynamicEarthNet.0015.part.tortilla",
-        "FullDynamicEarthNet.0016.part.tortilla",
-        "FullDynamicEarthNet.0017.part.tortilla",
-        "FullDynamicEarthNet.0018.part.tortilla",
+        "geobench_dynamic_earthnet.0000.part.tortilla",
+        "geobench_dynamic_earthnet.0001.part.tortilla",
+        "geobench_dynamic_earthnet.0002.part.tortilla",
     ]
 
     # temporal setting described in A.3 of the paper
@@ -116,7 +122,7 @@ class GeoBenchDynamicEarthNet(GeoBenchBaseDataset):
     # single returns the 30th day
 
     # new order of classes
-    class_names = [
+    classes = [
         "Impervious surfaces",
         "Agriculture",
         "Forest & other vegetation",
@@ -222,18 +228,9 @@ class GeoBenchDynamicEarthNet(GeoBenchBaseDataset):
         sample.update(img_dict)
 
         with rasterio.open(sample_row.read(-1)) as src:
-            label = src.read()
+            mask = src.read()
 
-        # can be changed with updated classes
-        # https://github.com/aysim/dynnet/blob/1e7d90294b54f52744ae2b35db10b4d0a48d093d/data/utae_dynamicen.py#L119
-        mask = torch.zeros((label.shape[1], label.shape[2]), dtype=torch.int32)
-        for i in range(7):
-            if i == 6:
-                mask[label[i, :, :] == 255] = -1
-            else:
-                mask[label[i, :, :] == 255] = i
-
-        sample["mask"] = mask.unsqueeze(0)
+        sample["mask"] = torch.from_numpy(mask).long()
 
         point = wkt.loads(sample_row.iloc[0]["stac:centroid"])
         lon, lat = point.x, point.y

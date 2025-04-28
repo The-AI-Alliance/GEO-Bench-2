@@ -266,10 +266,8 @@ def process_dataset(dataset_config: dict[str, Any], save_dir: str, device: str) 
     stats_computer_config["device"] = device
     stats_computer_config["save_dir"] = dataset_dir
 
-    # no normalization to compute stats of original data
     stats_computer_config["datamodule"]["data_normalizer"] = {
-        "_target_": "geobench_v2.generate_benchmark.utils_dataset_statistics.NoNormalization",
-        "_partial_": True,
+        "_target_": "torch.nn.Identity"
     }
 
     stats_computer = instantiate(stats_computer_config)
@@ -306,9 +304,6 @@ def save_statistics(stats: tuple, save_dir: str, dataset_name: str) -> None:
 
     dataset_stats = {"input_stats": input_stats, "target_stats": target_stats}
     dataset_stats_path = os.path.join(save_dir, f"{dataset_name}_stats.json")
-    import pdb
-
-    pdb.set_trace()
     with open(dataset_stats_path, "w") as f:
         json.dump(dataset_stats, f, cls=NumpyEncoder, indent=4)
 

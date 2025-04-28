@@ -3,6 +3,9 @@ __pycache__/
 *.py[cod]
 *$py.class
 
+#
+geobench_v2/generate_benchmark/**/*.png
+
 # C extensions
 *.so
 
