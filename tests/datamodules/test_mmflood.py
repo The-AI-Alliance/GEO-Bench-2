@@ -8,6 +8,7 @@ import pytest
 from typing import Sequence, Dict, Union
 import torch
 from pytest import MonkeyPatch
+import matplotlib.pyplot as plt
 from geobench_v2.datasets import GeoBenchMMFlood
 from geobench_v2.datamodules import GeoBenchMMFloodDataModule
 
@@ -27,7 +28,7 @@ def datamodule(
     """Initialize MMFlood datamodule with test configuration."""
     monkeypatch.setattr(GeoBenchMMFlood, "paths", ["mmflood.tortilla"])
     dm = GeoBenchMMFloodDataModule(
-        img_size=74,
+        img_size=512,
         batch_size=4,
         eval_batch_size=2,
         num_workers=0,
@@ -68,7 +69,6 @@ class TestMMFloodDataModule:
 
         expected_dims["mask"] = (
             datamodule.batch_size,
-            1,
             datamodule.img_size,
             datamodule.img_size,
         )
@@ -91,3 +91,11 @@ class TestMMFloodDataModule:
         assert "lat" in train_batch
         assert train_batch["lon"].shape == (datamodule.batch_size,)
         assert train_batch["lat"].shape == (datamodule.batch_size,)
+
+    def test_batch_visualization(self, datamodule):
+        """Test batch visualization."""
+        fig, batch = datamodule.visualize_batch("train")
+        assert isinstance(fig, plt.Figure)
+        assert isinstance(batch, dict)
+
+        fig.savefig(os.path.join("tests", "data", "mmflood", "test_batch.png"))

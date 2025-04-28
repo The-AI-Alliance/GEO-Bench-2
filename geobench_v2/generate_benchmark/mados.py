@@ -13,11 +13,20 @@ import re
 from geobench_v2.generate_benchmark.utils import (
     plot_sample_locations,
     create_unittest_subset,
+    create_subset_from_df,
 )
 import tacotoolbox
 import tacoreader
 import glob
 import numpy as np
+
+import os
+import pandas as pd
+import numpy as np
+import rasterio
+from rasterio.warp import Resampling
+from concurrent.futures import ProcessPoolExecutor
+from tqdm import tqdm
 
 
 from geobench_v2.generate_benchmark.geospatial_split_utils import (
@@ -203,13 +212,14 @@ def generate_metadata_df(root: str) -> pd.DataFrame:
     return full_df[essential_cols]
 
 
-def create_tortilla(root_dir, df, save_dir):
-    """Create a tortilla version of the MADOS dataset with all available modalities.
+def create_tortilla(root_dir, df, save_dir, tortilla_name):
+    """Create a tortilla version of the MADOS dataset with only Sentinel-2 data and CL mask.
 
     Args:
         root_dir: Root directory containing MADOS data
         df: DataFrame with metadata
         save_dir: Directory to save tortilla files
+        tortilla_name: Name of the final tortilla file
     """
     tortilla_dir = os.path.join(save_dir, "tortilla")
     os.makedirs(tortilla_dir, exist_ok=True)
@@ -219,21 +229,33 @@ def create_tortilla(root_dir, df, save_dir):
     ):
         modality_samples = []
 
-        # Process each available modality
-        for modality in bands_to_keep:
-            path_col = f"{modality}_path"
-            path = os.path.join(root_dir, "MADOS", row[path_col])
+        sentinel2_path = os.path.join(save_dir, "converted", row["sentinel2_path"])
 
-            sample = tacotoolbox.tortilla.datamodel.Sample(
-                id=f"{row['scene_dir']}_{row['crop_id']}_{modality}",
-                path=path,
-                file_format="GTiff" if path.endswith(".tif") else "PNG",
-                data_split=row["split"],
-                patch_id=f"{row['scene_dir']}_{row['crop_id']}",
-                modality=modality,
-            )
+        s2_sample = tacotoolbox.tortilla.datamodel.Sample(
+            id=f"{row['scene_dir']}_{row['crop_id']}_sentinel2",
+            path=sentinel2_path,
+            file_format="GTiff",
+            data_split=row["split"],
+            patch_id=f"{row['scene_dir']}_{row['crop_id']}",
+            modality="sentinel2",
+        )
+        modality_samples.append(s2_sample)
 
-            modality_samples.append(sample)
+        cl_path = os.path.join(root_dir, "MADOS", row["CL_path"])
+
+        mask_sample = tacotoolbox.tortilla.datamodel.Sample(
+            id=f"{row['scene_dir']}_{row['crop_id']}_mask",
+            path=cl_path,
+            file_format="GTiff" if cl_path.endswith(".tif") else "PNG",
+            data_split=row["split"],
+            patch_id=f"{row['scene_dir']}_{row['crop_id']}",
+            modality="mask",
+        )
+        modality_samples.append(mask_sample)
+
+        # Skip if we don't have both modalities
+        if len(modality_samples) < 2:
+            continue
 
         taco_samples = tacotoolbox.tortilla.datamodel.Samples(samples=modality_samples)
         sample_base_id = f"scene_{row['scene_dir']}_{row['crop_id']}"
@@ -261,8 +283,228 @@ def create_tortilla(root_dir, df, save_dir):
         samples.append(sample_tortilla)
 
     final_samples = tacotoolbox.tortilla.datamodel.Samples(samples=samples)
-    final_taco_path = os.path.join(save_dir, "MADOS.tortilla")
+    final_taco_path = os.path.join(save_dir, tortilla_name)
     tacotoolbox.tortilla.create(final_samples, final_taco_path, quiet=True, nworkers=4)
+
+
+def process_mados_sample(args):
+    """Process a single MADOS sample by resampling and saving with optimized profile."""
+    idx, row, output_dir, root_dir, target_size = args
+
+    try:
+        # Output paths for both image and mask
+        img_id = f"{row['scene_dir']}_{row['crop_id']}"
+        img_output_path = os.path.join(output_dir, "scene", f"{img_id}.tif")
+        mask_output_path = os.path.join(
+            output_dir, "mask", f"{row['scene_dir']}_{row['crop_id']}.tif"
+        )
+
+        os.makedirs(os.path.join(output_dir, "scene"), exist_ok=True)
+        os.makedirs(os.path.join(output_dir, "mask"), exist_ok=True)
+
+        # Collect all available bands
+        bands_data = []
+        band_paths = []
+
+        for band in [
+            "B01",
+            "B02",
+            "B03",
+            "B04",
+            "B05",
+            "B06",
+            "B07",
+            "B08",
+            "B8A",
+            "B11",
+            "B12",
+        ]:
+            band_key = f"{band}_path"
+            if band_key in row and pd.notna(row[band_key]):
+                band_paths.append(os.path.join(root_dir, "MADOS", row[band_key]))
+
+        # Check for mask path
+        mask_path = None
+        if "CL_path" in row and pd.notna(row["CL_path"]):
+            mask_path = os.path.join(root_dir, "MADOS", row["CL_path"])
+
+        with rasterio.open(band_paths[0]) as src:
+            crs = src.crs
+            transform = src.transform
+
+        for band_path in band_paths:
+            with rasterio.open(band_path) as src:
+                data = src.read(
+                    1,
+                    out_shape=(target_size, target_size),
+                    resampling=Resampling.bilinear,
+                )
+                bands_data.append(data)
+
+        stacked_data = np.stack(bands_data, axis=0)
+
+        reference_crs = rasterio.crs.CRS.from_epsg(4326)  # WGS84 as default
+        reference_transform = rasterio.transform.from_bounds(
+            0, 0, target_size, target_size, target_size, target_size
+        )
+        reference_width = target_size
+        reference_height = target_size
+
+        new_transform = rasterio.transform.from_bounds(
+            *rasterio.transform.array_bounds(
+                reference_height, reference_width, reference_transform
+            ),
+            target_size,
+            target_size,
+        )
+
+        # Create optimized profile
+        optimized_profile = {
+            "driver": "GTiff",
+            "height": target_size,
+            "width": target_size,
+            "count": len(bands_data),
+            "dtype": stacked_data.dtype,
+            "tiled": True,
+            "blockxsize": 224,
+            "blockysize": 224,
+            "interleave": "pixel",
+            "compress": "zstd",
+            "zstd_level": 13,
+            "predictor": 2,
+            "crs": reference_crs,
+            "transform": new_transform,
+        }
+
+        # Write stacked bands to a single file
+        with rasterio.open(img_output_path, "w", **optimized_profile) as dst:
+            dst.write(stacked_data)
+
+        with rasterio.open(mask_path) as src:
+            mask_data = src.read(
+                out_shape=(src.count, target_size, target_size),
+                resampling=Resampling.nearest,
+            )
+
+            # Create optimized profile for mask
+            mask_profile = {
+                "driver": "GTiff",
+                "height": target_size,
+                "width": target_size,
+                "count": mask_data.shape[0],
+                "dtype": mask_data.dtype,
+                "tiled": True,
+                "blockxsize": 224,
+                "blockysize": 224,
+                "interleave": "pixel",
+                "compress": "zstd",
+                "zstd_level": 13,
+                "predictor": 2,
+                "crs": reference_crs,
+                "transform": new_transform,
+            }
+
+            # Write mask to file
+            with rasterio.open(mask_output_path, "w", **mask_profile) as dst:
+                dst.write(mask_data)
+
+        return img_output_path, mask_output_path
+
+    except Exception as e:
+        print(f"Error processing sample {idx}: {str(e)}")
+        import traceback
+
+        traceback.print_exc()
+        return None
+
+
+def convert_mados_dataset(
+    metadata_df, output_dir, root_dir, target_size=224, num_workers=8
+):
+    """Convert MADOS dataset to optimized GeoTIFF format with all bands stacked."""
+
+    os.makedirs(output_dir, exist_ok=True)
+
+    tasks = [
+        (idx, row, output_dir, root_dir, target_size)
+        for idx, row in metadata_df.iterrows()
+    ]
+
+    results = []
+
+    with ProcessPoolExecutor(max_workers=num_workers) as executor:
+        list_of_results = list(
+            tqdm(
+                executor.map(process_mados_sample, tasks),
+                total=len(tasks),
+                desc="Processing MADOS samples",
+            )
+        )
+
+        for result in list_of_results:
+            s2_path = result[0]
+            mask_path = result[1]
+            results.append(
+                {
+                    "sentinel2_path": os.path.relpath(s2_path, start=output_dir),
+                    "mask_path": os.path.relpath(mask_path, start=output_dir),
+                }
+            )
+
+    # Update metadata with new paths
+    results_df = pd.DataFrame(results)
+
+    results_df["sample_id"] = results_df["sentinel2_path"].apply(
+        lambda x: os.path.basename(x).split(".")[0]
+    )
+    metadata_df["sample_id"] = metadata_df["scene_dir"] + "_" + metadata_df["crop_id"]
+
+    # Merge with original metadata
+    optimized_df = metadata_df.copy()
+    optimized_df = optimized_df.merge(results_df, on="sample_id", how="left")
+
+    # Save updated metadata
+    metadata_path = os.path.join(output_dir, "mados_optimized.parquet")
+    optimized_df.to_parquet(metadata_path)
+
+    print(f"Saved {len(results)} optimized MADOS samples")
+    print(f"Updated metadata saved to {metadata_path}")
+
+    return optimized_df
+
+
+def create_geobench_version(
+    metadata_df: pd.DataFrame,
+    n_train_samples: int,
+    n_val_samples: int,
+    n_test_samples: int,
+    root_dir: str,
+    save_dir: str,
+) -> None:
+    """Create a GeoBench version of the dataset.
+    Args:
+        metadata_df: DataFrame with metadata including geolocation for each patch
+        n_train_samples: Number of final training samples, -1 means all
+        n_val_samples: Number of final validation samples, -1 means all
+        n_test_samples: Number of final test samples, -1 means all
+        root_dir: Root directory for the dataset
+        save_dir: Directory to save the GeoBench version
+    """
+    random_state = 24
+
+    converted_df = convert_mados_dataset(
+        metadata_df, os.path.join(save_dir, "converted"), root_dir, target_size=224
+    )
+
+    subset_df = create_subset_from_df(
+        converted_df,
+        n_train_samples=n_train_samples,
+        n_val_samples=n_val_samples,
+        n_test_samples=n_test_samples,
+        random_state=random_state,
+    )
+
+    return subset_df
 
 
 def main():
@@ -272,11 +514,11 @@ def main():
         "--root", default="data", help="Root directory for MADOS dataset"
     )
     parser.add_argument(
-        "--save_dir", default="geobenchV2/MADOS", help="Directory to save the subset"
+        "--save_dir", default="geobenchV2/MADOS", help="Direcdtory to save the subset"
     )
     args = parser.parse_args()
 
-    metadata_path = os.path.join(args.save_dir, "geobench_mados.parquet")
+    metadata_path = os.path.join(args.save_dir, "geobench_metadata.parquet")
 
     if not os.path.exists(args.save_dir):
         os.makedirs(args.save_dir)
@@ -287,17 +529,32 @@ def main():
         metadata_df = generate_metadata_df(args.root)
         metadata_df.to_parquet(metadata_path)
 
-    # create_tortilla(args.root, metadata_df, args.save_dir)x
+    result_path = os.path.join(args.save_dir, "geobench_mados.parquet")
+
+    if os.path.exists(result_path):
+        result_df = pd.read_parquet(result_path)
+    else:
+        result_df = create_geobench_version(
+            metadata_df,
+            n_train_samples=-1,
+            n_val_samples=-1,
+            n_test_samples=-1,
+            root_dir=args.root,
+            save_dir=args.save_dir,
+        )
+        result_df.to_parquet(result_path)
+
+    tortilla_name = "geobench_mados.tortilla"
+    create_tortilla(args.root, result_df, args.save_dir, tortilla_name)
+
     create_unittest_subset(
         data_dir=args.save_dir,
-        tortilla_pattern="MADOS.tortilla",
+        tortilla_pattern=tortilla_name,
         test_dir_name="mados",
         n_train_samples=4,
         n_val_samples=2,
         n_test_samples=2,
     )
-
-    # taco = tacoreader.load(os.path.join(args.save_dir, "MADOS.tortilla"))
 
 
 if __name__ == "__main__":

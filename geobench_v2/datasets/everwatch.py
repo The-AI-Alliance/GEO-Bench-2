@@ -79,10 +79,6 @@ class GeoBenchEverWatch(EverWatch, DataUtilsMixin):
 
         self.band_order = self.resolve_band_order(band_order)
 
-        self.data_normalizer = data_normalizer(
-            self.normalization_stats, self.band_order
-        )
-
         self.annot_df = pd.read_csv(os.path.join(self.root, "resized_annotations.csv"))
 
         # remove all entries where xmin == xmax or ymin == ymax
@@ -96,6 +92,25 @@ class GeoBenchEverWatch(EverWatch, DataUtilsMixin):
         self.annot_df = self.annot_df.set_index(["sample_index", self.annot_df.index])
 
         self.class2idx: dict[str, int] = {c: i for i, c in enumerate(self.classes)}
+
+        if isinstance(data_normalizer, type):
+            print(f"Initializing normalizer from class: {data_normalizer.__name__}")
+            if issubclass(data_normalizer, DataNormalizer):
+                self.data_normalizer = data_normalizer(
+                    self.normalization_stats, self.band_order
+                )
+            else:
+                self.data_normalizer = data_normalizer()
+
+        elif callable(data_normalizer):
+            print(
+                f"Using provided pre-initialized normalizer instance: {data_normalizer.__class__.__name__}"
+            )
+            self.data_normalizer = data_normalizer
+        else:
+            raise TypeError(
+                f"data_normalizer must be a DataNormalizer subclass type or a callable instance. Got {type(data_normalizer)}"
+            )
 
     def __getitem__(self, index: int) -> dict[str, Tensor]:
         """Return an index within the dataset.

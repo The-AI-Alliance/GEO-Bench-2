@@ -37,7 +37,14 @@ class NoNormalization(nn.Module):
 # Using Caleb Robinson's implementation: https://gist.github.com/calebrob6/1ef1e64bd62b1274adf2c6f91e20d215
 class ImageSatistics(torch.nn.Module):
     def __init__(
-        self, shape, dims, bins=1000, range_vals=(0, 100), compute_quantiles=False
+        self,
+        shape: tuple[int],
+        dims: list[int],
+        bins: int = 1000,
+        range_vals: tuple[float, float] = (0, 100),
+        compute_quantiles: bool = False,
+        clip_min_val: Optional[Tensor] = None,
+        clip_max_val: Optional[Tensor] = None,
     ):
         """Initializes the ImageSatistics method.
 
@@ -68,11 +75,16 @@ class ImageSatistics(torch.nn.Module):
                 dimensions of inputs of size (64, 12, 256, 256), this should be 12.
             dims: The dimensions of your input to calculate the mean and variance
                 over. In the above example, this should be [0, 2, 3].
+            bins: Number of bins for histogram
+            range_vals: Range for histogram
+            compute_quantiles: Whether to compute 2nd and 98th percentiles
+            clip_min_vals: Minimum values for clipping
+            clip_max_val: Maximum values for clipping
         """
         super(ImageSatistics, self).__init__()
         self.register_buffer("mean", torch.zeros(shape))
-        self.register_buffer("min", torch.ones(shape))
-        self.register_buffer("max", torch.zeros(shape))
+        self.register_buffer("min", torch.full(shape, float("inf")))
+        self.register_buffer("max", torch.full(shape, float("-inf")))
         self.register_buffer("var", torch.ones(shape))
         self.register_buffer("std", torch.ones(shape))
         self.register_buffer("count", torch.zeros(1))
@@ -85,6 +97,16 @@ class ImageSatistics(torch.nn.Module):
         self.range_min, self.range_max = range_vals
         self.register_buffer("hist", torch.zeros(shape[0], bins))
 
+        if clip_min_val is not None and clip_max_val is not None:
+            self.register_buffer("clip_min_val", torch.tensor(clip_min_val))
+            self.register_buffer("clip_max_val", torch.tensor(clip_max_val))
+            self.clipping_enabled = True
+        else:
+            # Still register as None buffers to avoid attribute errors if accessed
+            self.register_buffer("clip_min_val", None)
+            self.register_buffer("clip_max_val", None)
+            self.clipping_enabled = False
+
     def update(self, x: Tensor) -> None:
         """Update the mean and variance with a new batch of inputs.
 
@@ -92,6 +114,10 @@ class ImageSatistics(torch.nn.Module):
             x: tensor over which to compute statistics
         """
         with torch.no_grad():
+            # first optional clipping:
+            if self.clipping_enabled:
+                x = torch.clamp(x, min=self.clip_min_val, max=self.clip_max_val)
+
             batch_mean = torch.mean(x, dim=self.dims)
             batch_var = torch.var(x, dim=self.dims)
             batch_count = torch.tensor(x.shape[self.dims[0]], dtype=torch.float)
@@ -160,7 +186,7 @@ class ImageSatistics(torch.nn.Module):
         """Return a string representation of the ImageSatistics object."""
         return (
             f"ImageSatistics(mean={self.mean}, var={self.var}, std={self.std}, "
-            f"min={self.min}, max={self.max}, count={self.count}, bins={self.bins}, dims={self.dims})"
+            f"min={self.min}, max={self.max}, count={self.count}, bins={self.bins}, dims={self.dims}, clip_min_val={self.clip_min_val}, clip_max_val={self.clip_max_val}))"
         )
 
 
@@ -172,6 +198,8 @@ class DatasetStatistics(ABC):
         datamodule: LightningDataModule,
         bins: int = 500,
         range_vals: dict[str, tuple[float, float]] | tuple[float, float] = (0.0, 1.0),
+        clip_min_vals: dict[str, float] | None = None,
+        clip_max_vals: dict[str, float] | None = None,
         input_keys: list[str] = ["image"],
         target_key: str = "label",
         device: str = "cpu",
@@ -184,7 +212,10 @@ class DatasetStatistics(ABC):
             datamodule: lightning datamodule which will choose train loader for statistics
             bins: Number of bins for histogram
             range_vals: Range for histogram
+            clip_min_vals: Minimum values for clipping per input_key
+            clip_max_vals: Maximum values for clipping per input_key
             input_keys: Keys for input data in batch dict, can compute statistics for multi-modal inputs
+            target_key: Key for target data in batch dict, assume only single target
             device: Device for computation
             save_dir: Directory to save statistics
             **kwargs: Additional task-specific arguments
@@ -195,6 +226,8 @@ class DatasetStatistics(ABC):
         self.save_dir = save_dir
         self.bins = bins
         self.range_vals = range_vals
+        self.clip_min_vals = clip_min_vals
+        self.clip_max_vals = clip_max_vals
 
         for key, value in kwargs.items():
             setattr(self, key, value)
@@ -245,65 +278,38 @@ class DatasetStatistics(ABC):
 
     def aggregate_image_statistics(self) -> dict[str, dict[str, Any]]:
         """Aggregate image input statistics."""
-        for key in self.running_stats:
-            stats = self.running_stats[key]
-            self.input_stats[key].update(
-                {
-                    "mean": stats.mean.cpu().numpy(),
-                    "std": stats.std.cpu().numpy(),
-                    "var": stats.var.cpu().numpy(),
-                    "count": stats.count.cpu().item(),
-                }
-            )
-        band_order = self.datamodule.band_order
-
-        return self.input_stats
-
-    def aggregate_image_statistics(self) -> dict[str, dict[str, Any]]:
-        """Aggregate image input statistics."""
         # Extract statistics from running_stats
         for key in self.running_stats:
             stats = self.running_stats[key]
-            self.input_stats[key].update(
-                {
-                    "mean": stats.mean.cpu().numpy(),
-                    "std": stats.std.cpu().numpy(),
-                    "var": stats.var.cpu().numpy(),
-                    "min": stats.min.cpu().numpy(),
-                    "max": stats.max.cpu().numpy(),
-                    "count": stats.count.cpu().item(),
-                    "histograms": stats.hist.cpu().numpy(),
-                    "histogram_bins": torch.linspace(
-                        stats.range_min, stats.range_max, stats.bins + 1
-                    )
-                    .cpu()
-                    .numpy(),
-                    "pct_02": stats.pct_02.cpu().numpy()
-                    if hasattr(stats, "pct_02")
-                    else None,
-                    "pct_98": stats.pct_98.cpu().numpy()
-                    if hasattr(stats, "pct_98")
-                    else None,
-                }
-            )
+            update_dict = {
+                "mean": stats.mean.cpu().numpy(),
+                "std": stats.std.cpu().numpy(),
+                "var": stats.var.cpu().numpy(),
+                "min": stats.min.cpu().numpy(),  # Min value *after* potential clipping
+                "max": stats.max.cpu().numpy(),  # Max value *after* potential clipping
+                "count": stats.count.cpu().item(),
+                "histograms": stats.hist.cpu().numpy(),
+                "histogram_bins": torch.linspace(
+                    stats.range_min, stats.range_max, stats.bins + 1
+                )
+                .cpu()
+                .numpy(),
+                "pct_02": stats.pct_02.cpu().numpy()
+                if hasattr(stats, "pct_02")
+                and stats.pct_02 is not None  # Check existence and not None
+                else None,
+                "pct_98": stats.pct_98.cpu().numpy()
+                if hasattr(stats, "pct_98")
+                and stats.pct_98 is not None  # Check existence and not None
+                else None,
+            }
+            # Add used clip values if clipping was enabled for this key
+            if stats.clipping_enabled:
+                # Store the per-channel expanded tensors
+                update_dict["clip_min_used"] = stats.clip_min_val.cpu().numpy()
+                update_dict["clip_max_used"] = stats.clip_max_val.cpu().numpy()
 
-        # # Add band names and modality info using band_order
-        # band_order = self.datamodule.band_order
-
-        # # explicit format
-        # input_band_stats = {}
-        # if isinstance(band_order, dict):
-        #     # Multi-modal case
-        #     for key in self.input_keys:
-        #         # Extract modality from key (e.g., "image_s1" -> "s1")
-        #         if "_" in key:
-        #             modality = key.split("_", 1)[1]
-        #             # band names for the specific modality
-        #             band_names = band_order.get(modality, [])
-        # else:
-        #     # Single modality case
-        #     for key in self.input_keys:
-        #         self.input_stats[key]["band_names"] = list(band_order)
+            self.input_stats[key].update(update_dict)
 
         return self.input_stats
 
@@ -377,7 +383,12 @@ class DatasetStatistics(ABC):
                     dims = [0]
 
             self.running_stats[key] = ImageSatistics(
-                shape, dims, bins=self.bins, range_vals=self.range_vals[key]
+                shape,
+                dims,
+                bins=self.bins,
+                range_vals=self.range_vals[key],
+                clip_min_val=self.clip_min_vals[key],
+                clip_max_val=self.clip_max_vals[key],
             ).to(self.device)
 
     def compute_statistics(self) -> dict[str, dict[str, Any]]:
@@ -391,8 +402,6 @@ class DatasetStatistics(ABC):
             self.compute_batch_image_statistics(batch)
             self.compute_batch_target_statistics(batch[self.target_key])
             i += 1
-            if i > 50:
-                break
 
         return self.aggregate_statistics()
 
@@ -405,6 +414,8 @@ class ClassificationStatistics(DatasetStatistics):
         datamodule: LightningDataModule,
         bins: int = 500,
         range_vals: tuple[float, float] = (0.0, 1.0),
+        clip_min_vals: dict[str, float] | None = None,
+        clip_max_vals: dict[str, float] | None = None,
         input_keys: list[str] = ["image"],
         target_key: str = "label",
         device: str = "cpu",
@@ -426,6 +437,8 @@ class ClassificationStatistics(DatasetStatistics):
             datamodule=datamodule,
             bins=bins,
             range_vals=range_vals,
+            clip_min_vals=clip_min_vals,
+            clip_max_vals=clip_max_vals,
             input_keys=input_keys,
             target_key=target_key,
             device=device,
@@ -470,6 +483,8 @@ class SegmentationStatistics(DatasetStatistics):
         datamodule: LightningDataModule,
         bins: int = 500,
         range_vals: tuple[float, float] = (0.0, 1.0),
+        clip_min_vals: dict[str, float] | None = None,
+        clip_max_vals: dict[str, float] | None = None,
         input_keys: list[str] = ["image"],
         target_key: str = "mask",
         device: str = "cpu",
@@ -490,6 +505,8 @@ class SegmentationStatistics(DatasetStatistics):
             datamodule=datamodule,
             bins=bins,
             range_vals=range_vals,
+            clip_min_vals=clip_min_vals,
+            clip_max_vals=clip_max_vals,
             input_keys=input_keys,
             target_key=target_key,
             device=device,
@@ -563,6 +580,8 @@ class PxRegressionStatistics(DatasetStatistics):
         datamodule: LightningDataModule,
         bins: int = 500,
         range_vals: tuple[float, float] = (0.0, 1.0),
+        clip_min_vals: dict[str, float] | None = None,
+        clip_max_vals: dict[str, float] | None = None,
         target_range_vals: tuple[float, float] = (0.0, 1.0),
         input_keys: list[str] = ["image"],
         target_key: str = "label",
@@ -587,6 +606,8 @@ class PxRegressionStatistics(DatasetStatistics):
             datamodule=datamodule,
             bins=bins,
             range_vals=range_vals,
+            clip_min_vals=clip_min_vals,
+            clip_max_vals=clip_max_vals,
             input_keys=input_keys,
             target_key=target_key,
             device=device,
@@ -644,6 +665,8 @@ class ObjectDetectionStatistics(DatasetStatistics):
         datamodule: LightningDataModule,
         bins: int = 500,
         range_vals: tuple[float, float] = (0.0, 1.0),
+        clip_min_vals: dict[str, float] | None = None,
+        clip_max_vals: dict[str, float] | None = None,
         input_keys: list[str] = ["image"],
         target_key: str = "boxes",
         device: str = "cpu",

@@ -14,14 +14,13 @@ import re
 from geobench_v2.generate_benchmark.utils import (
     plot_sample_locations,
     create_unittest_subset,
+    create_subset_from_df,
 )
 import tacotoolbox
 import tacoreader
 import glob
 import numpy as np
 
-
-from geobench_v2.generate_benchmark.geospatial_split_utils import create_mmflood_patches
 
 from typing import List, Tuple, Dict, Any, Optional, Union
 import os
@@ -106,7 +105,7 @@ def generate_metadata_df(root) -> pd.DataFrame:
     return full_df
 
 
-def create_tortilla(root_dir, df, save_dir):
+def create_tortilla(root_dir, df, save_dir, tortilla_name):
     """Create a tortilla version of the dataset."""
 
     # filter by valid_ratio, which is the percent of valid number of pixels in an image
@@ -187,11 +186,308 @@ def create_tortilla(root_dir, df, save_dir):
     # create final taco file
     final_samples = tacotoolbox.tortilla.datamodel.Samples(samples=samples)
     tacotoolbox.tortilla.create(
-        final_samples,
-        os.path.join(save_dir, "MMFlood.tortilla"),
-        quiet=True,
-        nworkers=4,
+        final_samples, os.path.join(save_dir, tortilla_name), quiet=True, nworkers=4
     )
+
+
+def process_mmflood_patch(args):
+    """Process a single MMFlood patch by extracting, optimizing, and writing to disk.
+
+    Args:
+        args: Tuple containing:
+            - idx: Patch index
+            - row_start: Starting row of the patch
+            - col_start: Starting column of the patch
+            - tile_id: ID of the source tile
+            - row_idx: Row index in patch grid
+            - col_idx: Column index in patch grid
+            - modalities_data: Dict of modalities data arrays
+            - modalities_profiles: Dict of modalities profiles
+            - patch_size: Size of patch
+            - output_dir: Directory to save patches
+            - mask_transform: Transform from mask
+            - row_metadata: Metadata from parent tile
+
+    Returns:
+        Dict with patch metadata or None if processing failed
+    """
+    try:
+        (
+            row_start,
+            col_start,
+            tile_id,
+            row_idx,
+            col_idx,
+            modalities_data,
+            modalities_profiles,
+            patch_size,
+            output_dir,
+            mask_transform,
+            row_metadata,
+        ) = args
+
+        modalities = list(modalities_data.keys())
+        patch_id = f"{tile_id}_p{row_idx}_{col_idx}"
+        patch_paths = {}
+
+        mask_patch = modalities_data["mask"][
+            :, row_start : row_start + patch_size, col_start : col_start + patch_size
+        ]
+        valid_pixels = (mask_patch != 255).sum()
+        valid_ratio = valid_pixels / (patch_size * patch_size * mask_patch.shape[0])
+        positive_pixels = (mask_patch == 1).sum()
+        positive_ratio = positive_pixels / (
+            patch_size * patch_size * mask_patch.shape[0]
+        )
+
+        patch_transform = rasterio.transform.from_origin(
+            mask_transform.c + col_start * mask_transform.a,
+            mask_transform.f + row_start * mask_transform.e,
+            mask_transform.a,
+            mask_transform.e,
+        )
+
+        for modality in modalities:
+            modality_patch = modalities_data[modality][
+                :,
+                row_start : row_start + patch_size,
+                col_start : col_start + patch_size,
+            ]
+
+            optimized_profile = {
+                "driver": "GTiff",
+                "height": patch_size,
+                "width": patch_size,
+                "count": modality_patch.shape[0],
+                "dtype": modality_patch.dtype,
+                "tiled": True,
+                "blockxsize": min(512, patch_size),
+                "blockysize": min(512, patch_size),
+                "interleave": "pixel",
+                "compress": "zstd",
+                "zstd_level": 13,
+                "predictor": 2,
+                "crs": modalities_profiles[modality]["crs"],
+                "transform": patch_transform,
+            }
+
+            if "nodata" in modalities_profiles[modality]:
+                optimized_profile["nodata"] = modalities_profiles[modality]["nodata"]
+
+            os.makedirs(os.path.join(output_dir, modality), exist_ok=True)
+
+            patch_path = os.path.join(output_dir, modality, f"{patch_id}.tif")
+            patch_paths[f"{modality}_path"] = os.path.relpath(patch_path, output_dir)
+
+            with rasterio.open(patch_path, "w", **optimized_profile) as dst:
+                dst.write(modality_patch)
+
+        patch_bounds = rasterio.transform.array_bounds(
+            patch_size, patch_size, patch_transform
+        )
+        west, south, east, north = patch_bounds
+        center_x = (west + east) / 2
+        center_y = (north + south) / 2
+
+        patch_metadata = {
+            "source_mask_file": row_metadata["mask_path"],
+            "source_s1_file": row_metadata["s1_path"],
+            "source_hydro_file": row_metadata["hydro_path"],
+            "source_dem_file": row_metadata["dem_path"],
+            "patch_id": patch_id,
+            "mask_path": patch_paths["mask_path"],
+            "s1_path": patch_paths["s1_path"],
+            "hydro_path": patch_paths["hydro_path"],
+            "dem_path": patch_paths["dem_path"],
+            "lon": center_x,
+            "lat": center_y,
+            "height_px": patch_size,
+            "width_px": patch_size,
+            "row": row_idx,
+            "col": col_idx,
+            "row_px": int(row_start),
+            "col_px": int(col_start),
+            "valid_ratio": float(valid_ratio),
+            "positive_ratio": float(positive_ratio),
+            "date": row_metadata["date"],
+            "aoi": row_metadata["aoi"],
+            "region_id": row_metadata["region_id"],
+            "country": row_metadata["country"],
+            "start": row_metadata["start"],
+            "end": row_metadata["end"],
+            "split": row_metadata["split"],
+        }
+
+        return patch_metadata
+
+    except Exception as e:
+        print(f"Error processing patch: {e}")
+        import traceback
+
+        traceback.print_exc()
+        return None
+
+
+def create_mmflood_patches(
+    metadata_df: pd.DataFrame,
+    root_dir: str,
+    output_dir: str,
+    patch_size: int = 512,
+    max_overlap_fraction: float = 0.2,
+    num_workers: int = 8,
+) -> pd.DataFrame:
+    """Split MMFlood tiles into patches of specified size.
+
+    Args:
+        metadata_df: DataFrame with image/mask paths and metadata
+        root_dir: Root directory of MMFlood dataset
+        output_dir: Directory to save patches
+        patch_size: Size of patches (height=width)
+        max_overlap_fraction: Maximum allowed overlap fraction when optimizing coverage
+        num_workers: Number of parallel workers
+
+    Returns:
+        DataFrame with metadata for all created patches
+    """
+    from concurrent.futures import ProcessPoolExecutor
+
+    modalities = ["mask", "s1", "hydro", "dem"]
+
+    for mod in modalities:
+        os.makedirs(os.path.join(output_dir, mod), exist_ok=True)
+
+    all_tasks = []
+
+    for idx, row in tqdm(
+        metadata_df.iterrows(), total=len(metadata_df), desc="Preparing tasks"
+    ):
+        tile_id = os.path.basename(row["mask_path"]).split(".")[0]
+        mask_path = os.path.join(root_dir, row["mask_path"])
+
+        with rasterio.open(mask_path) as src:
+            height, width = src.height, src.width
+            mask_profile = src.profile.copy()
+            mask_transform = src.transform
+
+        # Skip tiles smaller than patch size
+        if height <= patch_size and width <= patch_size:
+            continue
+
+        # Calculate row and column starting positions
+        max_overlap_pixels = int(patch_size * max_overlap_fraction)
+
+        if height <= patch_size:
+            row_starts = [(height - patch_size) // 2]
+        elif height <= patch_size + max_overlap_pixels:
+            row_starts = [0]
+        else:
+            num_rows = max(
+                1,
+                (height + max_overlap_pixels - 1) // (patch_size - max_overlap_pixels),
+            )
+            if num_rows == 1:
+                row_starts = [(height - patch_size) // 2]
+            else:
+                row_step = (height - patch_size) / (num_rows - 1) if num_rows > 1 else 0
+                row_starts = [int(i * row_step) for i in range(num_rows)]
+
+        if width <= patch_size:
+            col_starts = [(width - patch_size) // 2]
+        elif width <= patch_size + max_overlap_pixels:
+            col_starts = [0]
+        else:
+            num_cols = max(
+                1, (width + max_overlap_pixels - 1) // (patch_size - max_overlap_pixels)
+            )
+            if num_cols == 1:
+                col_starts = [(width - patch_size) // 2]
+            else:
+                col_step = (width - patch_size) / (num_cols - 1) if num_cols > 1 else 0
+                col_starts = [int(i * col_step) for i in range(num_cols)]
+
+        modality_data = {}
+        modality_profiles = {}
+        for modality in modalities:
+            path_key = f"{modality}_path" if modality != "s1" else "s1_path"
+            file_path = os.path.join(root_dir, row[path_key])
+            with rasterio.open(file_path) as src:
+                modality_data[modality] = src.read()
+                modality_profiles[modality] = src.profile.copy()
+
+        for i, row_start in enumerate(row_starts):
+            for j, col_start in enumerate(col_starts):
+                row_start = min(row_start, height - patch_size)
+                col_start = min(col_start, width - patch_size)
+
+                task = (
+                    row_start,
+                    col_start,
+                    tile_id,
+                    i,
+                    j,
+                    modality_data,
+                    modality_profiles,
+                    patch_size,
+                    output_dir,
+                    mask_transform,
+                    row,
+                )
+                all_tasks.append(task)
+
+    all_patch_metadata = []
+
+    with ProcessPoolExecutor(max_workers=num_workers) as executor:
+        results = list(
+            tqdm(
+                executor.map(process_mmflood_patch, all_tasks),
+                total=len(all_tasks),
+                desc="Processing patches",
+            )
+        )
+
+        for result in results:
+            if result is not None:
+                all_patch_metadata.append(result)
+
+    patches_df = pd.DataFrame(all_patch_metadata)
+
+    metadata_path = os.path.join(output_dir, "patch_metadata.parquet")
+    patches_df.to_parquet(metadata_path, index=False)
+
+    print(f"Created {len(patches_df)} patches from {len(metadata_df)} source tiles")
+
+    for split in patches_df["split"].unique():
+        split_count = len(patches_df[patches_df["split"] == split])
+        split_pct = split_count / len(patches_df) * 100
+        print(f"{split} patches: {split_count} ({split_pct:.1f}%)")
+
+    return patches_df
+
+
+def create_geobench_version(
+    metadata_df: pd.DataFrame,
+    n_train_samples: int,
+    n_val_samples: int,
+    n_test_samples: int,
+) -> None:
+    """Create a GeoBench version of the dataset.
+    Args:
+        metadata_df: DataFrame with metadata including geolocation for each patch
+        n_train_samples: Number of final training samples, -1 means all
+        n_val_samples: Number of final validation samples, -1 means all
+        n_test_samples: Number of final test samples, -1 means all
+    """
+    random_state = 24
+
+    subset_df = create_subset_from_df(
+        metadata_df,
+        n_train_samples=n_train_samples,
+        n_val_samples=n_val_samples,
+        n_test_samples=n_test_samples,
+        random_state=random_state,
+    )
+
+    return subset_df
 
 
 def main():
@@ -223,24 +519,33 @@ def main():
         dataset_name="MMFlood",
     )
 
-    path = os.path.join(args.root, "patch_metadata.parquet")
+    path = os.path.join(args.save_dir, "patch_metadata.parquet")
 
     if os.path.exists(path):
         patch_metadata_df = pd.read_parquet(path)
     else:
         patch_metadata_df = create_mmflood_patches(
-            metadata_df, args.root, os.path.join(args.root, "patches"), patch_size=512
+            metadata_df,
+            args.root,
+            os.path.join(args.save_dir, "patches"),
+            patch_size=512,
         )
-
         patch_metadata_df.to_parquet(path)
 
-    # create_tortilla(
-    #     os.path.join(args.root, "patches"), patch_metadata_df, args.save_dir
-    # )
+    subset_df = create_geobench_version(
+        patch_metadata_df, n_train_samples=4000, n_val_samples=-1, n_test_samples=-1
+    )
 
+    tortilla_name = "geobench_mmflood.tortilla"
+    create_tortilla(
+        os.path.join(args.save_dir, "patches"),
+        patch_metadata_df,
+        args.save_dir,
+        tortilla_name,
+    )
     create_unittest_subset(
         data_dir=args.save_dir,
-        tortilla_pattern="MMFlood.tortilla",
+        tortilla_pattern=tortilla_name,
         test_dir_name="mmflood",
         n_train_samples=4,
         n_val_samples=2,

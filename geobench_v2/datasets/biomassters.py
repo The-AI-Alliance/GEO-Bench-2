@@ -71,23 +71,33 @@ class GeoBenchBioMassters(GeoBenchBaseDataset):
         "s2": {"B02", "B03", "B04", "B05", "B06", "B07", "B08", "B8A", "B11", "B12"},
     }
 
+    # paths = [
+    #     "BioMassters.0000.part.tortilla",
+    #     "BioMassters.0001.part.tortilla",
+    #     "BioMassters.0002.part.tortilla",
+    #     "BioMassters.0003.part.tortilla",
+    #     "BioMassters.0004.part.tortilla",
+    #     "BioMassters.0005.part.tortilla",
+    #     "BioMassters.0006.part.tortilla",
+    #     "BioMassters.0007.part.tortilla",
+    #     "BioMassters.0008.part.tortilla",
+    #     "BioMassters.0009.part.tortilla",
+    #     "BioMassters.0010.part.tortilla",
+    #     "BioMassters.0011.part.tortilla",
+    #     "BioMassters.0012.part.tortilla",
+    #     "BioMassters.0013.part.tortilla",
+    #     "BioMassters.0014.part.tortilla",
+    #     "BioMassters.0015.part.tortilla",
+    # ]
+
     paths = [
-        "BioMassters.0000.part.tortilla",
-        "BioMassters.0001.part.tortilla",
-        "BioMassters.0002.part.tortilla",
-        "BioMassters.0003.part.tortilla",
-        "BioMassters.0004.part.tortilla",
-        "BioMassters.0005.part.tortilla",
-        "BioMassters.0006.part.tortilla",
-        "BioMassters.0007.part.tortilla",
-        "BioMassters.0008.part.tortilla",
-        "BioMassters.0009.part.tortilla",
-        "BioMassters.0010.part.tortilla",
-        "BioMassters.0011.part.tortilla",
-        "BioMassters.0012.part.tortilla",
-        "BioMassters.0013.part.tortilla",
-        "BioMassters.0014.part.tortilla",
-        "BioMassters.0015.part.tortilla",
+        "geobench_biomassters.0000.part.tortilla",
+        "geobench_biomassters.0001.part.tortilla",
+        "geobench_biomassters.0002.part.tortilla",
+        "geobench_biomassters.0003.part.tortilla",
+        "geobench_biomassters.0004.part.tortilla",
+        "geobench_biomassters.0005.part.tortilla",
+        "geobench_biomassters.0006.part.tortilla",
     ]
 
     valid_metadata: Sequence[str] = "time"

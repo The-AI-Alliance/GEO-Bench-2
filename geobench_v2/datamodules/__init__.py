@@ -25,8 +25,8 @@ from .dynamic_earthnet import GeoBenchDynamicEarthNetDataModule
 from .sen4agrinet import GeoBenchSen4AgriNetDataModule
 from .mmflood import GeoBenchMMFloodDataModule
 from .bright import GeoBenchBRIGHTDataModule
+from .qfabric import GeoBenchQFabricDataModule
 from .wind_turbine import GeoBenchWindTurbineDataModule
-
 
 from .base import (
     GeoBenchClassificationDataModule,
@@ -61,5 +61,6 @@ __all__ = (
     "GeoBenchSen4AgriNetDataModule",
     "GeoBenchMMFloodDataModule",
     "GeoBenchBRIGHTDataModule",
+    "GeoBenchQFabricDataModule",
     "GeoBenchWindTurbineDataModule",
 )

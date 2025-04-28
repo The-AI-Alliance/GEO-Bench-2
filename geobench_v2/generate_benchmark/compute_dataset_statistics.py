@@ -266,10 +266,8 @@ def process_dataset(dataset_config: dict[str, Any], save_dir: str, device: str) 
     stats_computer_config["device"] = device
     stats_computer_config["save_dir"] = dataset_dir
 
-    # no normalization to compute stats of original data
     stats_computer_config["datamodule"]["data_normalizer"] = {
-        "_target_": "geobench_v2.generate_benchmark.utils_dataset_statistics.NoNormalization",
-        "_partial_": True,
+        "_target_": "torch.nn.Identity"
     }
 
     stats_computer = instantiate(stats_computer_config)

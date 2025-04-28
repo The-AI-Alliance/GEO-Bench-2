@@ -306,32 +306,53 @@ def _plot_region(ax, df, split_column, split_colors, buffer_degrees, s, alpha, t
     ax.set_title(title, fontsize=12)
 
 
-def create_subset_from_tortilla(
-    taco, n_train_samples: int, n_val_samples: int, n_test_samples: int
-):
-    """Create a subset of a Taco dataset
+def create_subset_from_df(
+    metadata_df: pd.DataFrame,
+    n_train_samples: int,
+    n_val_samples: int,
+    n_test_samples: int,
+    random_state: int = 42,
+    split_column: str = "split",
+) -> pd.DataFrame:
+    """Create a subset of a DataFrame based on the specified number of samples for each split.
 
     Args:
-        taco: TACO dataset
-        n_train_samples: max Number of training samples to include in subset
-        n_val_samples: max Number of validation samples to include in subset
-        n_test_samples: max Number of test samples to include in subset
+        metadata_df: DataFrame containing metadata with a 'split' column
+        n_train_samples: Number of training samples to include in the subset
+        n_val_samples: Number of validation samples to include in the subset
+        n_test_samples: Number of test samples to include in the subset
+        random_state: Random seed for reproducibility
 
     Returns:
-        subset TACO
+        A DataFrame containing the selected subset of samples
     """
-    train_samples = taco[taco["tortilla:data_split"] == "train"].sample(
-        n_train_samples, random_state=42
-    )
-    val_samples = taco[taco["tortilla:data_split"] == "validation"].sample(
-        n_val_samples, random_state=42
-    )
-    test_samples = taco[taco["tortilla:data_split"] == "test"].sample(
-        n_test_samples, random_state=42
-    )
-    subset_taco = pd.concat([train_samples, val_samples, test_samples])
+    train_count = len(metadata_df[metadata_df[split_column] == "train"])
+    val_count = len(metadata_df[metadata_df[split_column] == "validation"])
+    test_count = len(metadata_df[metadata_df[split_column] == "test"])
 
-    return subset_taco
+    n_train_samples = (
+        train_count if n_train_samples == -1 else min(n_train_samples, train_count)
+    )
+    n_val_samples = val_count if n_val_samples == -1 else min(n_val_samples, val_count)
+    n_test_samples = (
+        test_count if n_test_samples == -1 else min(n_test_samples, test_count)
+    )
+
+    print(
+        f"Selecting {n_train_samples} train, {n_val_samples} validation, and {n_test_samples} test samples"
+    )
+
+    train_samples = metadata_df[metadata_df[split_column] == "train"].sample(
+        n_train_samples, random_state=random_state
+    )
+    val_samples = metadata_df[metadata_df[split_column] == "validation"].sample(
+        n_val_samples, random_state=random_state
+    )
+    test_samples = metadata_df[metadata_df[split_column] == "test"].sample(
+        n_test_samples, random_state=random_state
+    )
+    subset_df = pd.concat([train_samples, val_samples, test_samples])
+    return subset_df
 
 
 def create_unittest_subset(
@@ -341,6 +362,7 @@ def create_unittest_subset(
     n_train_samples: int,
     n_val_samples: int,
     n_test_samples: int,
+    random_state: int = 42,
 ) -> None:
     """Create a unittest version tortilla.
 
@@ -357,11 +379,13 @@ def create_unittest_subset(
     taco_ben = tacoreader.load(taco_glob)
 
     # create unit test subset
-    unit_test_taco = create_subset_from_tortilla(
+    unit_test_taco = create_subset_from_df(
         taco_ben,
         n_train_samples=n_train_samples,
         n_val_samples=n_val_samples,
         n_test_samples=n_test_samples,
+        random_state=random_state,
+        split_column="tortilla:data_split",
     )
     script_dir = os.path.dirname(os.path.abspath(__file__))
     repo_root = os.path.dirname(os.path.dirname(script_dir))

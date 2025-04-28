@@ -8,11 +8,12 @@ import os
 from pytest import MonkeyPatch
 from typing import Sequence
 import torch
+import matplotlib.pyplot as plt
 from geobench_v2.datasets import GeoBenchSpaceNet8
 from geobench_v2.datamodules import GeoBenchSpaceNet8DataModule
 
 
-@pytest.fixture(params=[["red", 0.0, "blue"]])
+@pytest.fixture(params=[["red", 0.0, "blue", "g"]])
 def band_order(request):
     """Parameterized band configuration with different configurations."""
     return request.param
@@ -23,9 +24,9 @@ def datamodule(monkeypatch: MonkeyPatch, band_order: dict[str, Sequence[str | fl
     """Initialize SpaceNet8 datamodule with test configuration."""
     monkeypatch.setattr(GeoBenchSpaceNet8, "paths", ["spacenet8.tortilla"])
     dm = GeoBenchSpaceNet8DataModule(
-        img_size=74,
-        batch_size=2,
-        eval_batch_size=1,
+        img_size=256,
+        batch_size=4,
+        eval_batch_size=2,
         num_workers=0,
         pin_memory=False,
         band_order=band_order,
@@ -39,7 +40,7 @@ def datamodule(monkeypatch: MonkeyPatch, band_order: dict[str, Sequence[str | fl
 
 
 class TestSpaceNet8DataModule:
-    """Test cases for Flair 2 datamodule functionality."""
+    """Test cases for SpaceNet 8 datamodule functionality."""
 
     def test_loaders(self, datamodule):
         """Test if dataloaders are created successfully."""
@@ -55,15 +56,22 @@ class TestSpaceNet8DataModule:
             assert train_batch[key].shape[0] == datamodule.batch_size
             assert train_batch[key].shape[1] == len(datamodule.band_order)
             assert train_batch[key].shape[2] == datamodule.img_size
-            assert train_batch[key].shape[3] == 74
+            assert train_batch[key].shape[3] == datamodule.img_size
             assert torch.isclose(train_batch[key][:, 1], torch.tensor(0.0)).all()
 
         assert train_batch["mask"].shape[0] == datamodule.batch_size
-        assert train_batch["mask"].shape[1] == 1
+        assert train_batch["mask"].shape[1] == datamodule.img_size
         assert train_batch["mask"].shape[2] == datamodule.img_size
-        assert train_batch["mask"].shape[3] == 74
 
         assert "lon" in train_batch
         assert "lat" in train_batch
         assert train_batch["lon"].shape == (datamodule.batch_size,)
         assert train_batch["lat"].shape == (datamodule.batch_size,)
+
+    def test_batch_visualization(self, datamodule):
+        """Test batch visualization."""
+        fig, batch = datamodule.visualize_batch("train")
+        assert isinstance(fig, plt.Figure)
+        assert isinstance(batch, dict)
+
+        fig.savefig(os.path.join("tests", "data", "spacenet8", "test_batch.png"))

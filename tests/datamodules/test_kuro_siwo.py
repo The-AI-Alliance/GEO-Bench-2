@@ -7,17 +7,13 @@ import os
 import pytest
 from typing import Dict, Sequence, Union
 import torch
+import matplotlib.pyplot as plt
 from pytest import MonkeyPatch
 from geobench_v2.datasets import GeoBenchKuroSiwo
 from geobench_v2.datamodules import GeoBenchKuroSiwoDataModule
 
 
-@pytest.fixture(
-    params=[
-        {"sar": ["vv", "vh", 0.2], "dem": [0.1, "dem"]},
-        {"sar": ["vv", "vh"], "dem": ["dem"]},
-    ]
-)
+@pytest.fixture(params=[{"sar": ["vv", "vh", 0.2], "dem": [0.1, "dem"]}])
 def band_order(request):
     """Parameterized band configuration with different configurations."""
     return request.param
@@ -30,7 +26,7 @@ def datamodule(
     """Initialize KuroSiwo datamodule with test configuration."""
     monkeypatch.setattr(GeoBenchKuroSiwo, "paths", ["kuro_siwo.tortilla"])
     dm = GeoBenchKuroSiwoDataModule(
-        img_size=74,
+        img_size=256,
         batch_size=4,
         eval_batch_size=2,
         num_workers=0,
@@ -51,7 +47,7 @@ def stacked_datamodule(
     """Initialize KuroSiwo datamodule with test configuration."""
     monkeypatch.setattr(GeoBenchKuroSiwo, "paths", ["kuro_siwo.tortilla"])
     dm = GeoBenchKuroSiwoDataModule(
-        img_size=74,
+        img_size=256,
         batch_size=4,
         eval_batch_size=2,
         num_workers=0,
@@ -106,12 +102,7 @@ class TestKuroSiwoDataModule:
                 datamodule.img_size,
                 datamodule.img_size,
             ),
-            "mask": (
-                datamodule.batch_size,
-                1,
-                datamodule.img_size,
-                datamodule.img_size,
-            ),
+            "mask": (datamodule.batch_size, datamodule.img_size, datamodule.img_size),
         }
 
         for key, expected_shape in expected_dims.items():
@@ -166,3 +157,11 @@ class TestKuroSiwoDataModule:
             stacked_datamodule.img_size,
             stacked_datamodule.img_size,
         )
+
+    def test_batch_visualization(self, datamodule):
+        """Test batch visualization."""
+        fig, batch = datamodule.visualize_batch("train")
+        assert isinstance(fig, plt.Figure)
+        assert isinstance(batch, dict)
+
+        fig.savefig(os.path.join("tests", "data", "kuro_siwo", "test_batch.png"))

@@ -11,7 +11,10 @@ import argparse
 import rasterio
 from tqdm import tqdm
 import re
-from geobench_v2.generate_benchmark.utils import plot_sample_locations
+from geobench_v2.generate_benchmark.utils import (
+    plot_sample_locations,
+    create_subset_from_df,
+)
 import tacotoolbox
 import tacoreader
 import glob
@@ -19,6 +22,7 @@ import numpy as np
 from sklearn.model_selection import train_test_split
 from skimage.transform import resize
 import shutil
+from concurrent.futures import ProcessPoolExecutor
 
 
 from geobench_v2.generate_benchmark.geospatial_split_utils import (
@@ -125,7 +129,7 @@ def generate_metadata_df(root: str) -> pd.DataFrame:
     return consolidated_df
 
 
-def create_tortilla(root_dir, df, save_dir):
+def create_tortilla(root_dir, df, save_dir, tortilla_name):
     """Create a tortilla version of the dataset."""
 
     # filter by valid_ratio, which is the percent of valid number of pixels in an image
@@ -192,11 +196,216 @@ def create_tortilla(root_dir, df, save_dir):
     # create final taco file
     final_samples = tacotoolbox.tortilla.datamodel.Samples(samples=samples)
     tacotoolbox.tortilla.create(
-        final_samples,
-        os.path.join(save_dir, "BioMassters.tortilla"),
-        quiet=True,
-        nworkers=4,
+        final_samples, os.path.join(save_dir, tortilla_name), quiet=True, nworkers=4
     )
+
+
+def process_biomassters_sample(args):
+    """Process a single BioMassters sample by rewriting with optimized profile.
+
+    Args:
+        args: Tuple containing:
+            - idx: Sample index
+            - row: DataFrame row with metadata
+            - root_dir: Root directory containing original data
+            - output_dir: Directory to save optimized files
+
+    Returns:
+        Dict with updated paths or None if processing failed
+    """
+    import warnings
+    from rasterio.errors import NotGeoreferencedWarning
+
+    warnings.filterwarnings("ignore", category=NotGeoreferencedWarning)
+    idx, row, root_dir, output_dir = args
+
+    try:
+        chip_id = row["chip_id"]
+        split = row["split"]
+
+        features_dir = os.path.join(output_dir, "features")
+        agbm_dir = os.path.join(output_dir, "agbm")
+        os.makedirs(features_dir, exist_ok=True)
+        os.makedirs(agbm_dir, exist_ok=True)
+
+        s1_paths = []
+        s1_months = []
+        s2_paths = []
+        s2_months = []
+
+        for s1_path, s1_month in zip(row["S1_paths"], row["S1_months"]):
+            src_path = os.path.join(root_dir, s1_path)
+            out_filename = f"{chip_id}_S1_{s1_month}.tif"
+            dst_path = os.path.join(features_dir, out_filename)
+
+            with rasterio.open(src_path) as src:
+                data = src.read()
+                height, width = src.height, src.width
+
+                transform = rasterio.transform.Affine(1.0, 0.0, 0.0, 0.0, -1.0, height)
+                crs = rasterio.crs.CRS.from_epsg(4326)
+
+                optimized_profile = {
+                    "driver": "GTiff",
+                    "height": data.shape[1],
+                    "width": data.shape[2],
+                    "count": data.shape[0],
+                    "dtype": data.dtype,
+                    "tiled": True,
+                    "blockxsize": min(256, data.shape[2]),
+                    "blockysize": min(256, data.shape[1]),
+                    "interleave": "pixel",
+                    "compress": "zstd",
+                    "zstd_level": 13,
+                    "predictor": 2,
+                    "crs": crs,
+                    "transform": transform,
+                }
+
+                if src.nodata is not None:
+                    optimized_profile["nodata"] = src.nodata
+
+                with rasterio.open(dst_path, "w", **optimized_profile) as dst:
+                    dst.write(data)
+
+                rel_path = os.path.relpath(dst_path, output_dir)
+                s1_paths.append(rel_path)
+                s1_months.append(s1_month)
+
+        for s2_path, s2_month in zip(row["S2_paths"], row["S2_months"]):
+            src_path = os.path.join(root_dir, s2_path)
+            out_filename = f"{chip_id}_S2_{s2_month}.tif"
+            dst_path = os.path.join(features_dir, out_filename)
+
+            with rasterio.open(src_path) as src:
+                data = src.read()
+
+                transform = rasterio.transform.Affine(1.0, 0.0, 0.0, 0.0, -1.0, height)
+                crs = rasterio.crs.CRS.from_epsg(4326)
+
+                optimized_profile = {
+                    "driver": "GTiff",
+                    "height": data.shape[1],
+                    "width": data.shape[2],
+                    "count": data.shape[0],
+                    "dtype": data.dtype,
+                    "tiled": True,
+                    "blockxsize": 256,
+                    "blockysize": 256,
+                    "interleave": "pixel",
+                    "compress": "zstd",
+                    "zstd_level": 13,
+                    "predictor": 2,
+                    "crs": crs,
+                    "transform": transform,
+                }
+
+                if src.nodata is not None:
+                    optimized_profile["nodata"] = src.nodata
+
+                with rasterio.open(dst_path, "w", **optimized_profile) as dst:
+                    dst.write(data)
+
+                rel_path = os.path.relpath(dst_path, output_dir)
+                s2_paths.append(rel_path)
+                s2_months.append(s2_month)
+
+        src_path = os.path.join(root_dir, row["agbm_path"])
+        out_filename = f"{chip_id}_AGBM.tif"
+        dst_path = os.path.join(agbm_dir, out_filename)
+
+        with rasterio.open(src_path) as src:
+            data = src.read()
+
+            optimized_profile = {
+                "driver": "GTiff",
+                "height": data.shape[1],
+                "width": data.shape[2],
+                "count": data.shape[0],
+                "dtype": data.dtype,
+                "tiled": True,
+                "blockxsize": 256,
+                "blockysize": 256,
+                "interleave": "pixel",
+                "compress": "zstd",
+                "zstd_level": 13,
+                "predictor": 2,
+                "crs": src.crs,
+                "transform": src.transform,
+            }
+
+            if src.nodata is not None:
+                optimized_profile["nodata"] = src.nodata
+
+            with rasterio.open(dst_path, "w", **optimized_profile) as dst:
+                dst.write(data)
+
+            rel_agbm_path = os.path.relpath(dst_path, output_dir)
+
+        return {
+            "chip_id": chip_id,
+            "split": split,
+            "S1_paths": s1_paths,
+            "S1_months": s1_months,
+            "S2_paths": s2_paths,
+            "S2_months": s2_months,
+            "agbm_path": rel_agbm_path,
+            "num_S1_images": len(s1_paths),
+            "num_S2_images": len(s2_paths),
+        }
+
+    except Exception as e:
+        print(f"Error processing sample {idx}: {str(e)}")
+        import traceback
+
+        traceback.print_exc()
+        return None
+
+
+def optimize_biomassters_dataset(metadata_df, root_dir, output_dir, num_workers=1):
+    """Rewrite BioMassters dataset with optimized GeoTIFF profile in parallel.
+
+    Args:
+        metadata_df: DataFrame with metadata about samples
+        root_dir: Root directory containing original data
+        output_dir: Directory to save optimized files
+        num_workers: Number of parallel workers
+
+    Returns:
+        DataFrame with updated metadata
+    """
+
+    os.makedirs(output_dir, exist_ok=True)
+    os.makedirs(os.path.join(output_dir, "features"), exist_ok=True)
+    os.makedirs(os.path.join(output_dir, "agbm"), exist_ok=True)
+
+    tasks = [(idx, row, root_dir, output_dir) for idx, row in metadata_df.iterrows()]
+
+    processed_samples = []
+
+    with ProcessPoolExecutor(max_workers=num_workers) as executor:
+        results = list(
+            tqdm(
+                executor.map(process_biomassters_sample, tasks),
+                total=len(tasks),
+                desc="Processing samples",
+            )
+        )
+
+        for result in results:
+            if result is not None:
+                processed_samples.append(result)
+
+    updated_df = pd.DataFrame(processed_samples)
+
+    # Save updated metadata
+    metadata_path = os.path.join(output_dir, "biomassters_optimized.parquet")
+    updated_df.to_parquet(metadata_path)
+
+    print(f"Processed {len(updated_df)} samples successfully")
+    print(f"Updated metadata saved to {metadata_path}")
+
+    return updated_df
 
 
 def create_test_subset(
@@ -217,6 +426,11 @@ def create_test_subset(
         num_val_samples: Number of validation samples to include
         num_test_samples: Number of test samples to include
     """
+    import warnings
+    from rasterio.errors import NotGeoreferencedWarning
+
+    warnings.filterwarnings("ignore", category=NotGeoreferencedWarning)
+
     test_dir = os.path.join(save_dir, "unittest")
     test_features_dir = os.path.join(test_dir, "test_features")
     test_agbm_dir = os.path.join(test_dir, "test_agbm")
@@ -336,14 +550,16 @@ def create_test_subset(
     subset_df = pd.DataFrame(subset_metadata)
     subset_df.to_parquet(os.path.join(test_dir, "subset_metadata.parquet"))
 
-    create_tortilla(test_dir, subset_df, os.path.join(save_dir, "unittest"))
+    create_tortilla(
+        test_dir, subset_df, os.path.join(save_dir, "unittest"), "biomassters.tortilla"
+    )
 
     script_dir = os.path.dirname(os.path.abspath(__file__))
     repo_root = os.path.dirname(os.path.dirname(script_dir))
     test_data_dir = os.path.join(repo_root, "tests", "data", "biomassters")
     os.makedirs(test_data_dir, exist_ok=True)
 
-    tortilla_path = os.path.join(save_dir, "unittest", "BioMassters.tortilla")
+    tortilla_path = os.path.join(save_dir, "unittest", "biomassters.tortilla")
 
     size_mb = os.path.getsize(tortilla_path) / (1024 * 1024)
     print(f"Tortilla file size: {size_mb:.2f} MB")
@@ -353,6 +569,32 @@ def create_test_subset(
     print(
         f"Tortilla file copied to {os.path.join(test_data_dir, 'biomassters.tortilla')}"
     )
+
+
+def create_geobench_version(
+    metadata_df: pd.DataFrame,
+    n_train_samples: int,
+    n_val_samples: int,
+    n_test_samples: int,
+) -> None:
+    """Create a GeoBench version of the dataset.
+    Args:
+        metadata_df: DataFrame with metadata including geolocation for each patch
+        n_train_samples: Number of final training samples, -1 means all
+        n_val_samples: Number of final validation samples, -1 means all
+        n_test_samples: Number of final test samples, -1 means all
+    """
+    random_state = 24
+
+    subset_df = create_subset_from_df(
+        metadata_df,
+        n_train_samples=n_train_samples,
+        n_val_samples=n_val_samples,
+        n_test_samples=n_test_samples,
+        random_state=random_state,
+    )
+
+    return subset_df
 
 
 def main():
@@ -368,7 +610,7 @@ def main():
     )
     args = parser.parse_args()
 
-    metadata_path = os.path.join(args.save_dir, "geobench_biomassters.parquet")
+    metadata_path = os.path.join(args.save_dir, "geobench_metadata.parquet")
 
     # orig_dataset = BioMassters(root=args.root)
 
@@ -381,27 +623,35 @@ def main():
         metadata_df = generate_metadata_df(args.root)
         metadata_df.to_parquet(metadata_path)
 
+    optimized_path = os.path.join(args.save_dir, "biomassters_optimized.parquet")
+    # if os.path.exists(optimized_path):
+    #     optimized_df = pd.read_parquet(optimized_path)
+    # else:
+    optimized_df = optimize_biomassters_dataset(
+        metadata_df, args.root, args.save_dir, num_workers=8
+    )
+    optimized_df.to_parquet(optimized_path)
+
+    results_path = os.path.join(args.save_dir, "geobench_biomassters.parquet")
+    # if os.path.exists(results_path):
+    #     results_df = pd.read_parquet(results_path)
+    # else:
+    results_df = create_geobench_version(
+        optimized_df, n_train_samples=4000, n_val_samples=-1, n_test_samples=-1
+    )
+    results_df.to_parquet(results_path)
+
+    tortilla_name = "geobench_biomassters.tortilla"
+    create_tortilla(args.save_dir, results_df, args.save_dir, tortilla_name)
+
     create_test_subset(
-        args.root,
-        metadata_df,
+        args.save_dir,
+        results_df,
         save_dir=args.save_dir,
         num_train_samples=4,
         num_val_samples=2,
         num_test_samples=2,
     )
-
-    import pdb
-
-    pdb.set_trace()
-
-    # create_tortilla(args.root, metadata_df, args.save_dir)
-
-    # taco = tacoreader.load(os.path.join(args.save_dir, "BioMassters.tortilla"))
-    import pdb
-
-    pdb.set_trace()
-
-    print(0)
 
 
 if __name__ == "__main__":
