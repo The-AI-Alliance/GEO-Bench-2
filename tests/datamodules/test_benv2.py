@@ -8,10 +8,12 @@ import os
 import pytest
 from typing import Sequence
 import torch
+from pathlib import Path
 import matplotlib.pyplot as plt
 from pytest import MonkeyPatch
 from geobench_v2.datasets import GeoBenchBENV2
 from geobench_v2.datamodules import GeoBenchBENV2DataModule
+from torchgeo.datasets import DatasetNotFoundError
 
 
 @pytest.fixture(
@@ -26,9 +28,21 @@ def band_order(request):
 
 
 @pytest.fixture
-def datamodule(monkeypatch: MonkeyPatch, band_order: dict[str, Sequence[str | float]]):
+def datamodule(
+    monkeypatch: MonkeyPatch,
+    tmp_path: Path,
+    band_order: dict[str, Sequence[str | float]],
+):
     """Initialize BENV2 datamodule with test configuration."""
     monkeypatch.setattr(GeoBenchBENV2, "paths", ["benv2.tortilla"])
+    monkeypatch.setattr(
+        GeoBenchBENV2, "url", os.path.join("tests", "data", "benv2", "{}")
+    )
+    monkeypatch.setattr(
+        GeoBenchBENV2,
+        "sha256str",
+        ["94a1bf150f7a25df6acd16c7f46ddc9b0b0e4d581e40fd282e22853115e26023"],
+    )
     dm = GeoBenchBENV2DataModule(
         img_size=74,
         batch_size=4,
@@ -36,8 +50,9 @@ def datamodule(monkeypatch: MonkeyPatch, band_order: dict[str, Sequence[str | fl
         num_workers=0,
         pin_memory=False,
         band_order=band_order,
-        root=os.path.join("tests", "data", "benv2"),
+        root=tmp_path,
         metadata=["lon", "lat"],
+        download=True,
     )
     dm.setup("fit")
     dm.setup("test")
@@ -87,3 +102,7 @@ class TestBENV2DataModule:
         assert isinstance(batch, dict)
 
         fig.savefig(os.path.join("tests", "data", "benv2", "test_batch.png"))
+
+    def test_not_downloaded(self, tmp_path: Path) -> None:
+        with pytest.raises(DatasetNotFoundError, match="Dataset not found"):
+            GeoBenchBENV2(tmp_path, split="train")

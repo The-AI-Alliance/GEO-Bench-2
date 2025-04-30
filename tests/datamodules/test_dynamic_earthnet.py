@@ -6,7 +6,10 @@
 import os
 
 import pytest
+from pathlib import Path
+from torchgeo.datasets import DatasetNotFoundError
 import torch
+import matplotlib.pyplot as plt
 from pytest import MonkeyPatch
 from typing import Sequence
 from geobench_v2.datasets import GeoBenchDynamicEarthNet
@@ -20,9 +23,23 @@ def band_order(request):
 
 
 @pytest.fixture
-def datamodule(monkeypatch: MonkeyPatch, band_order: dict[str, Sequence[str | float]]):
+def datamodule(
+    monkeypatch: MonkeyPatch,
+    tmp_path: Path,
+    band_order: dict[str, Sequence[str | float]],
+):
     """Initialize DynamicEarthNet datamodule with test configuration."""
     monkeypatch.setattr(GeoBenchDynamicEarthNet, "paths", ["dynamic_earthnet.tortilla"])
+    monkeypatch.setattr(
+        GeoBenchDynamicEarthNet,
+        "url",
+        os.path.join("tests", "data", "dynamic_earthnet", "{}"),
+    )
+    monkeypatch.setattr(
+        GeoBenchDynamicEarthNet,
+        "sha256str",
+        ["51bb51612221362430612dacff0a09deafc293001edced0700d5fbf680890806"],
+    )
     dm = GeoBenchDynamicEarthNetDataModule(
         img_size=74,
         batch_size=2,
@@ -30,7 +47,8 @@ def datamodule(monkeypatch: MonkeyPatch, band_order: dict[str, Sequence[str | fl
         num_workers=0,
         pin_memory=False,
         band_order=band_order,
-        root=os.path.join("tests", "data", "dynamic_earthnet"),
+        root=tmp_path,
+        download=True,
         temporal_setting="weekly",
         metadata=["lon", "lat"],
     )
@@ -104,3 +122,15 @@ class TestDynamicEarthNetDataModule:
         assert "lat" in train_batch
         assert train_batch["lon"].shape == (datamodule.batch_size,)
         assert train_batch["lat"].shape == (datamodule.batch_size,)
+
+    # def test_batch_visualization(self, datamodule):
+    #     """Test batch visualization."""
+    #     fig, batch = datamodule.visualize_batch("train")
+    #     assert isinstance(fig, plt.Figure)
+    #     assert isinstance(batch, dict)
+
+    #     fig.savefig(os.path.join("tests", "data", "dynamic_earthnet", "test_batch.png"))
+
+    def test_not_downloaded(self, tmp_path: Path) -> None:
+        with pytest.raises(DatasetNotFoundError, match="Dataset not found"):
+            GeoBenchDynamicEarthNet(tmp_path, split="train")

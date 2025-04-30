@@ -7,6 +7,8 @@ import os
 import pytest
 from typing import Sequence, Dict, Union
 import torch
+from pathlib import Path
+from torchgeo.datasets import DatasetNotFoundError
 from pytest import MonkeyPatch
 import matplotlib.pyplot as plt
 from geobench_v2.datasets import GeoBenchMMFlood
@@ -23,10 +25,20 @@ def band_order(request):
 
 @pytest.fixture
 def datamodule(
-    monkeypatch: MonkeyPatch, band_order: Dict[str, Sequence[Union[str, float]]]
+    monkeypatch: MonkeyPatch,
+    tmp_path: Path,
+    band_order: Dict[str, Sequence[Union[str, float]]],
 ):
     """Initialize MMFlood datamodule with test configuration."""
     monkeypatch.setattr(GeoBenchMMFlood, "paths", ["mmflood.tortilla"])
+    monkeypatch.setattr(
+        GeoBenchMMFlood, "url", os.path.join("tests", "data", "mmflood", "{}")
+    )
+    monkeypatch.setattr(
+        GeoBenchMMFlood,
+        "sha256str",
+        ["e6b2d02167cb38abd95309f9ed3f1cd0dffb1ea753012ca75c0a12980eaf893d"],
+    )
     dm = GeoBenchMMFloodDataModule(
         img_size=512,
         batch_size=4,
@@ -34,7 +46,8 @@ def datamodule(
         num_workers=0,
         pin_memory=False,
         band_order=band_order,
-        root=os.path.join("tests", "data", "mmflood"),
+        root=tmp_path,
+        download=True,
         metadata=["lon", "lat"],
     )
     dm.setup("fit")
@@ -99,3 +112,7 @@ class TestMMFloodDataModule:
         assert isinstance(batch, dict)
 
         fig.savefig(os.path.join("tests", "data", "mmflood", "test_batch.png"))
+
+    def test_not_downloaded(self, tmp_path: Path) -> None:
+        with pytest.raises(DatasetNotFoundError, match="Dataset not found"):
+            GeoBenchMMFlood(tmp_path, split="train")

@@ -28,6 +28,24 @@ class GeoBenchSpaceNet2(GeoBenchBaseDataset):
     2 classes: background, building
     """
 
+    url = "https://hf.co/datasets/aialliance/spacenet2/resolve/main/{}"
+
+    # paths = [
+    #     "SpaceNet2.0000.part.tortilla",
+    #     "SpaceNet2.0001.part.tortilla",
+    #     "SpaceNet2.0002.part.tortilla",
+    #     "SpaceNet2.0003.part.tortilla",
+    #     "SpaceNet2.0004.part.tortilla",
+    # ]
+
+    paths = [
+        "geobench_spacenet2.0000.part.tortilla",
+        "geobench_spacenet2.0001.part.tortilla",
+        "geobench_spacenet2.0002.part.tortilla",
+    ]
+
+    sha256str = ["", "", ""]
+
     dataset_band_config = DatasetBandRegistry.SPACENET2
 
     normalization_stats = {
@@ -69,20 +87,6 @@ class GeoBenchSpaceNet2(GeoBenchBaseDataset):
         "pan": ("pan",),
     }
 
-    paths = [
-        "SpaceNet2.0000.part.tortilla",
-        "SpaceNet2.0001.part.tortilla",
-        "SpaceNet2.0002.part.tortilla",
-        "SpaceNet2.0003.part.tortilla",
-        "SpaceNet2.0004.part.tortilla",
-    ]
-
-    paths = [
-        "geobench_spacenet2.0000.part.tortilla",
-        "geobench_spacenet2.0001.part.tortilla",
-        "geobench_spacenet2.0002.part.tortilla",
-    ]
-
     classes = ("background", "no-building", "building")
 
     num_classes = len(classes)
@@ -99,6 +103,7 @@ class GeoBenchSpaceNet2(GeoBenchBaseDataset):
         transforms: nn.Module = None,
         metadata: Sequence[str] | None = None,
         return_stacked_image: bool = False,
+        download: bool = False,
     ) -> None:
         """Initialize SpaceNet2 dataset.
 
@@ -124,6 +129,7 @@ class GeoBenchSpaceNet2(GeoBenchBaseDataset):
             data_normalizer=data_normalizer,
             transforms=transforms,
             metadata=metadata,
+            download=download,
         )
         self.label_type = label_type
         self.return_stacked_image = return_stacked_image

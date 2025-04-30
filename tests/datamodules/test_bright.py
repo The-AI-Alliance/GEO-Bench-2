@@ -5,11 +5,13 @@
 
 import pytest
 import os
+from pathlib import Path
 from pytest import MonkeyPatch
 from typing import Sequence
 import torch
 from geobench_v2.datasets import GeoBenchBRIGHT
 from geobench_v2.datamodules import GeoBenchBRIGHTDataModule
+from torchgeo.datasets import DatasetNotFoundError
 
 
 @pytest.fixture(params=[{"aerial": ["red", 0.0, "blue"], "sar": ["sar", 1.0]}])
@@ -19,9 +21,21 @@ def band_order(request):
 
 
 @pytest.fixture
-def datamodule(monkeypatch: MonkeyPatch, band_order: dict[str, Sequence[str | float]]):
+def datamodule(
+    monkeypatch: MonkeyPatch,
+    tmp_path: Path,
+    band_order: dict[str, Sequence[str | float]],
+):
     """Initialize BRIGHT datamodule with test configuration."""
     monkeypatch.setattr(GeoBenchBRIGHT, "paths", ["bright.tortilla"])
+    monkeypatch.setattr(
+        GeoBenchBRIGHT, "url", os.path.join("tests", "data", "bright", "{}")
+    )
+    monkeypatch.setattr(
+        GeoBenchBRIGHT,
+        "sha256str",
+        ["c8dd9d7fb449311deb8595abd50cfa0a37f16d3a320c131aa91890596bfd2c30"],
+    )
     dm = GeoBenchBRIGHTDataModule(
         img_size=74,
         batch_size=2,
@@ -29,7 +43,8 @@ def datamodule(monkeypatch: MonkeyPatch, band_order: dict[str, Sequence[str | fl
         num_workers=0,
         pin_memory=False,
         band_order=band_order,
-        root=os.path.join("tests", "data", "bright"),
+        root=tmp_path,
+        download=True,
         metadata=["lon", "lat"],
     )
     dm.setup("fit")
@@ -73,3 +88,7 @@ class TestBRIGHTDataModule:
         assert "lat" in train_batch
         assert train_batch["lon"].shape == (datamodule.batch_size,)
         assert train_batch["lat"].shape == (datamodule.batch_size,)
+
+    def test_not_downloaded(self, tmp_path: Path) -> None:
+        with pytest.raises(DatasetNotFoundError, match="Dataset not found"):
+            GeoBenchBRIGHT(tmp_path, split="train")

@@ -27,6 +27,38 @@ class GeoBenchBioMassters(GeoBenchBaseDataset):
     Dataset does not include geospatial information.
     """
 
+    url = "https://hf.co/datasets/aialliance/biomassters/resolve/main/{}"
+    # paths = [
+    #     "BioMassters.0000.part.tortilla",
+    #     "BioMassters.0001.part.tortilla",
+    #     "BioMassters.0002.part.tortilla",
+    #     "BioMassters.0003.part.tortilla",
+    #     "BioMassters.0004.part.tortilla",
+    #     "BioMassters.0005.part.tortilla",
+    #     "BioMassters.0006.part.tortilla",
+    #     "BioMassters.0007.part.tortilla",
+    #     "BioMassters.0008.part.tortilla",
+    #     "BioMassters.0009.part.tortilla",
+    #     "BioMassters.0010.part.tortilla",
+    #     "BioMassters.0011.part.tortilla",
+    #     "BioMassters.0012.part.tortilla",
+    #     "BioMassters.0013.part.tortilla",
+    #     "BioMassters.0014.part.tortilla",
+    #     "BioMassters.0015.part.tortilla",
+    # ]
+
+    paths = [
+        "geobench_biomassters.0000.part.tortilla",
+        "geobench_biomassters.0001.part.tortilla",
+        "geobench_biomassters.0002.part.tortilla",
+        "geobench_biomassters.0003.part.tortilla",
+        "geobench_biomassters.0004.part.tortilla",
+        "geobench_biomassters.0005.part.tortilla",
+        "geobench_biomassters.0006.part.tortilla",
+    ]
+
+    sha256str: Sequence[str] = [""]
+
     dataset_band_config = DatasetBandRegistry.BIOMASSTERS
 
     normalization_stats = {
@@ -71,35 +103,6 @@ class GeoBenchBioMassters(GeoBenchBaseDataset):
         "s2": {"B02", "B03", "B04", "B05", "B06", "B07", "B08", "B8A", "B11", "B12"},
     }
 
-    # paths = [
-    #     "BioMassters.0000.part.tortilla",
-    #     "BioMassters.0001.part.tortilla",
-    #     "BioMassters.0002.part.tortilla",
-    #     "BioMassters.0003.part.tortilla",
-    #     "BioMassters.0004.part.tortilla",
-    #     "BioMassters.0005.part.tortilla",
-    #     "BioMassters.0006.part.tortilla",
-    #     "BioMassters.0007.part.tortilla",
-    #     "BioMassters.0008.part.tortilla",
-    #     "BioMassters.0009.part.tortilla",
-    #     "BioMassters.0010.part.tortilla",
-    #     "BioMassters.0011.part.tortilla",
-    #     "BioMassters.0012.part.tortilla",
-    #     "BioMassters.0013.part.tortilla",
-    #     "BioMassters.0014.part.tortilla",
-    #     "BioMassters.0015.part.tortilla",
-    # ]
-
-    paths = [
-        "geobench_biomassters.0000.part.tortilla",
-        "geobench_biomassters.0001.part.tortilla",
-        "geobench_biomassters.0002.part.tortilla",
-        "geobench_biomassters.0003.part.tortilla",
-        "geobench_biomassters.0004.part.tortilla",
-        "geobench_biomassters.0005.part.tortilla",
-        "geobench_biomassters.0006.part.tortilla",
-    ]
-
     valid_metadata: Sequence[str] = "time"
 
     def __init__(
@@ -114,6 +117,7 @@ class GeoBenchBioMassters(GeoBenchBaseDataset):
         transforms: nn.Module | None = None,
         metadata: Sequence[str] | None = None,
         num_time_steps: int = 1,
+        download: bool = False,
     ) -> None:
         """Initialize BioMassters dataset.
 
@@ -142,6 +146,8 @@ class GeoBenchBioMassters(GeoBenchBaseDataset):
             band_order=band_order,
             data_normalizer=data_normalizer,
             transforms=transforms,
+            metadata=metadata,
+            download=download,
         )
         assert num_time_steps <= 12, (
             "Number of time steps must be less than or equal to 12"

@@ -31,6 +31,13 @@ class GeoBenchSpaceNet8(GeoBenchBaseDataset):
     but maybe also 5 classes?
     """
 
+    url = "https://hf.co/datasets/aialliance/spacenet8/resolve/main/{}"
+
+    sha256str = ["1d11c38a775bafc5a0790bac3b257b02203b8f0f2c6e285bebccb2917dd3d3ed"]
+
+    # paths = ["SpaceNet8.tortilla"]
+    paths = ["geobench_spacenet8.tortilla"]
+
     dataset_band_config = DatasetBandRegistry.SPACENET8
 
     normalization_stats = {
@@ -39,9 +46,6 @@ class GeoBenchSpaceNet8(GeoBenchBaseDataset):
     }
 
     band_default_order = ("red", "green", "blue")
-
-    # paths = ["SpaceNet8.tortilla"]
-    paths = ["geobench_spacenet8.tortilla"]
 
     classes = (
         "background",
@@ -63,6 +67,7 @@ class GeoBenchSpaceNet8(GeoBenchBaseDataset):
         transforms: nn.Module = None,
         metadata: Sequence[str] | None = None,
         return_stacked_image: bool = False,
+        download: bool = False,
     ) -> None:
         """Initialize SpaceNet8 dataset.
 
@@ -86,6 +91,7 @@ class GeoBenchSpaceNet8(GeoBenchBaseDataset):
             data_normalizer=data_normalizer,
             transforms=transforms,
             metadata=metadata,
+            download=download,
         )
         self.return_stacked_image = return_stacked_image
 

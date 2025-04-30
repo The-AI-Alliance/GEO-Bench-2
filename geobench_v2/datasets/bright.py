@@ -30,6 +30,11 @@ class GeoBenchBRIGHT(GeoBenchBaseDataset):
     but maybe also 5 classes?
     """
 
+    url = "https://hf.co/datasets/aialliance/bright/resolve/main/{}"
+
+    paths = ["BRIGHT.tortilla"]
+
+    sha256str = [""]
     dataset_band_config = DatasetBandRegistry.BRIGHT
 
     normalization_stats = {
@@ -38,8 +43,6 @@ class GeoBenchBRIGHT(GeoBenchBaseDataset):
     }
 
     band_default_order = {"aerial": ("red", "green", "blue"), "sar": ("sar",)}
-
-    paths = ["BRIGHT.tortilla"]
 
     classes = ("background", "no damage", "minor damage", "major damage", "destroyed")
 
@@ -55,6 +58,7 @@ class GeoBenchBRIGHT(GeoBenchBaseDataset):
         data_normalizer: Type[nn.Module] = MultiModalNormalizer,
         transforms: nn.Module = None,
         metadata: Sequence[str] | None = None,
+        download: bool = False,
     ) -> None:
         """Initialize BRIGHT dataset.
 
@@ -78,6 +82,7 @@ class GeoBenchBRIGHT(GeoBenchBaseDataset):
             data_normalizer=data_normalizer,
             transforms=transforms,
             metadata=metadata,
+            download=download,
         )
 
     def __getitem__(self, index: int) -> dict[str, Tensor]:

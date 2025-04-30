@@ -33,6 +33,13 @@ class GeoBenchMMFlood(GeoBenchBaseDataset):
     2. Building
     """
 
+    url = "https://hf.co/datasets/aialliance/mmflood/resolve/main/{}"
+
+    # paths = ["MMFlood.tortilla"]
+    paths = ["geobench_mmflood.tortilla"]
+
+    sha256str = [""]
+
     dataset_band_config = DatasetBandRegistry.MMFLOOD
 
     band_default_order = {"s1": ("vv", "vh"), "dem": ("dem",), "hydro": ("hydro",)}
@@ -41,9 +48,6 @@ class GeoBenchMMFlood(GeoBenchBaseDataset):
         "means": {"vv": 0.0, "vh": 0.0, "dem": 0.0, "hydro": 0.0},
         "stds": {"vv": 1.0, "vh": 1.0, "hydro": 1.0, "dem": 100.0},
     }
-
-    # paths = ["MMFlood.tortilla"]
-    paths = ["geobench_mmflood.tortilla"]
 
     classes = ("no-data", "no-flood", "flood")
 
@@ -60,6 +64,7 @@ class GeoBenchMMFlood(GeoBenchBaseDataset):
         transforms: nn.Module | None = None,
         metadata: Sequence[str] | None = None,
         return_stacked_image: bool = False,
+        download: bool = False,
     ) -> None:
         """Initialize MMFlood dataset.
 
@@ -84,6 +89,7 @@ class GeoBenchMMFlood(GeoBenchBaseDataset):
             data_normalizer=data_normalizer,
             transforms=transforms,
             metadata=metadata,
+            download=download,
         )
         self.return_stacked_image = return_stacked_image
 

@@ -8,6 +8,8 @@ import os
 from pytest import MonkeyPatch
 from typing import Sequence
 import torch
+from pathlib import Path
+from torchgeo.datasets import DatasetNotFoundError
 import matplotlib.pyplot as plt
 from geobench_v2.datasets import GeoBenchMADOS
 from geobench_v2.datamodules import GeoBenchMADOSDataModule
@@ -20,9 +22,21 @@ def band_order(request):
 
 
 @pytest.fixture
-def datamodule(monkeypatch: MonkeyPatch, band_order: dict[str, Sequence[str | float]]):
+def datamodule(
+    monkeypatch: MonkeyPatch,
+    tmp_path: Path,
+    band_order: dict[str, Sequence[str | float]],
+):
     """Initialize MADOS datamodule with test configuration."""
     monkeypatch.setattr(GeoBenchMADOS, "paths", ["mados.tortilla"])
+    monkeypatch.setattr(
+        GeoBenchMADOS, "url", os.path.join("tests", "data", "mados", "{}")
+    )
+    monkeypatch.setattr(
+        GeoBenchMADOS,
+        "sha256str",
+        ["b21daa927a7cdbba96394465f8973c1b5e0757f0956f8767db3f2f26e28427b5"],
+    )
     dm = GeoBenchMADOSDataModule(
         img_size=224,
         batch_size=4,
@@ -30,7 +44,8 @@ def datamodule(monkeypatch: MonkeyPatch, band_order: dict[str, Sequence[str | fl
         num_workers=0,
         pin_memory=False,
         band_order=band_order,
-        root=os.path.join("tests", "data", "mados"),
+        root=tmp_path,
+        download=True,
     )
     dm.setup("fit")
     dm.setup("test")
@@ -70,3 +85,7 @@ class TestMADOSDataModule:
         assert isinstance(batch, dict)
 
         fig.savefig(os.path.join("tests", "data", "mados", "test_batch.png"))
+
+    def test_not_downloaded(self, tmp_path: Path) -> None:
+        with pytest.raises(DatasetNotFoundError, match="Dataset not found"):
+            GeoBenchMADOS(tmp_path, split="train")

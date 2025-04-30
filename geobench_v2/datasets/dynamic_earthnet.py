@@ -24,6 +24,38 @@ from .data_util import DataUtilsMixin, MultiModalNormalizer
 class GeoBenchDynamicEarthNet(GeoBenchBaseDataset):
     """DynamicEarthNet dataset."""
 
+    url = "https://hf.co/datasets/aialliance/dynamic_earthnet/resolve/main/{}"
+
+    # paths = [
+    #     "FullDynamicEarthNet.0000.part.tortilla",
+    #     "FullDynamicEarthNet.0001.part.tortilla",
+    #     "FullDynamicEarthNet.0002.part.tortilla",
+    #     "FullDynamicEarthNet.0003.part.tortilla",
+    #     "FullDynamicEarthNet.0004.part.tortilla",
+    #     "FullDynamicEarthNet.0005.part.tortilla",
+    #     "FullDynamicEarthNet.0006.part.tortilla",
+    #     "FullDynamicEarthNet.0007.part.tortilla",
+    #     "FullDynamicEarthNet.0008.part.tortilla",
+    #     "FullDynamicEarthNet.0009.part.tortilla",
+    #     "FullDynamicEarthNet.0010.part.tortilla",
+    #     "FullDynamicEarthNet.0011.part.tortilla",
+    #     "FullDynamicEarthNet.0012.part.tortilla",
+    #     "FullDynamicEarthNet.0013.part.tortilla",
+    #     "FullDynamicEarthNet.0014.part.tortilla",
+    #     "FullDynamicEarthNet.0015.part.tortilla",
+    #     "FullDynamicEarthNet.0016.part.tortilla",
+    #     "FullDynamicEarthNet.0017.part.tortilla",
+    #     "FullDynamicEarthNet.0018.part.tortilla",
+    # ]
+
+    paths = [
+        "geobench_dynamic_earthnet.0000.part.tortilla",
+        "geobench_dynamic_earthnet.0001.part.tortilla",
+        "geobench_dynamic_earthnet.0002.part.tortilla",
+    ]
+
+    sha256str = ["", "", ""]
+
     dataset_band_config = DatasetBandRegistry.DYNAMICEARTHNET
 
     band_default_order = {
@@ -88,34 +120,6 @@ class GeoBenchDynamicEarthNet(GeoBenchBaseDataset):
         },
     }
 
-    # paths = [
-    #     "FullDynamicEarthNet.0000.part.tortilla",
-    #     "FullDynamicEarthNet.0001.part.tortilla",
-    #     "FullDynamicEarthNet.0002.part.tortilla",
-    #     "FullDynamicEarthNet.0003.part.tortilla",
-    #     "FullDynamicEarthNet.0004.part.tortilla",
-    #     "FullDynamicEarthNet.0005.part.tortilla",
-    #     "FullDynamicEarthNet.0006.part.tortilla",
-    #     "FullDynamicEarthNet.0007.part.tortilla",
-    #     "FullDynamicEarthNet.0008.part.tortilla",
-    #     "FullDynamicEarthNet.0009.part.tortilla",
-    #     "FullDynamicEarthNet.0010.part.tortilla",
-    #     "FullDynamicEarthNet.0011.part.tortilla",
-    #     "FullDynamicEarthNet.0012.part.tortilla",
-    #     "FullDynamicEarthNet.0013.part.tortilla",
-    #     "FullDynamicEarthNet.0014.part.tortilla",
-    #     "FullDynamicEarthNet.0015.part.tortilla",
-    #     "FullDynamicEarthNet.0016.part.tortilla",
-    #     "FullDynamicEarthNet.0017.part.tortilla",
-    #     "FullDynamicEarthNet.0018.part.tortilla",
-    # ]
-
-    paths = [
-        "geobench_dynamic_earthnet.0000.part.tortilla",
-        "geobench_dynamic_earthnet.0001.part.tortilla",
-        "geobench_dynamic_earthnet.0002.part.tortilla",
-    ]
-
     # temporal setting described in A.3 of the paper
     # weekly 1st, 5th, 10th, 15th, 20th and 25th time steps
     # daily returns all available days between 28 and 30 days
@@ -147,6 +151,7 @@ class GeoBenchDynamicEarthNet(GeoBenchBaseDataset):
         transforms: nn.Module | None = None,
         metadata: Sequence[str] | None = None,
         temporal_setting: Literal["single", "daily", "weekly"] = "single",
+        download: bool = False,
     ) -> None:
         """Initialize the dataset.
 
@@ -167,6 +172,7 @@ class GeoBenchDynamicEarthNet(GeoBenchBaseDataset):
             data_normalizer=data_normalizer,
             transforms=transforms,
             metadata=metadata,
+            download=download,
         )
 
         self.temporal_setting = temporal_setting

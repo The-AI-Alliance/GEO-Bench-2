@@ -11,6 +11,8 @@ import matplotlib.pyplot as plt
 import os
 from typing import Sequence
 from pytest import MonkeyPatch
+from torchgeo.datasets import DatasetNotFoundError
+from pathlib import Path
 
 
 @pytest.fixture
@@ -20,9 +22,21 @@ def band_order():
 
 
 @pytest.fixture
-def datamodule(monkeypatch: MonkeyPatch, band_order: dict[str, Sequence[str | float]]):
+def datamodule(
+    monkeypatch: MonkeyPatch,
+    tmp_path: Path,
+    band_order: dict[str, Sequence[str | float]],
+):
     """Initialize CaFFe datamodule with test configuration."""
     monkeypatch.setattr(GeoBenchCaFFe, "paths", ["caffe.tortilla"])
+    monkeypatch.setattr(
+        GeoBenchCaFFe, "url", os.path.join("tests", "data", "benv2", "{}")
+    )
+    monkeypatch.setattr(
+        GeoBenchCaFFe,
+        "sha256str",
+        ["94a1bf150f7a25df6acd16c7f46ddc9b0b0e4d581e40fd282e22853115e26023"],
+    )
     dm = GeoBenchCaFFeDataModule(
         img_size=512,
         batch_size=4,
@@ -30,7 +44,8 @@ def datamodule(monkeypatch: MonkeyPatch, band_order: dict[str, Sequence[str | fl
         num_workers=0,
         pin_memory=False,
         band_order=band_order,
-        root=os.path.join("tests", "data", "caffe"),
+        root=tmp_path,
+        download=True,
         metadata=["lon", "lat"],
     )
     dm.setup("fit")
@@ -79,3 +94,7 @@ class TestCaFFeDataModule:
         assert isinstance(batch, dict)
 
         fig.savefig(os.path.join("tests", "data", "caffe", "test_batch.png"))
+
+    def test_not_downloaded(self, tmp_path: Path) -> None:
+        with pytest.raises(DatasetNotFoundError, match="Dataset not found"):
+            GeoBenchCaFFe(tmp_path, split="train")

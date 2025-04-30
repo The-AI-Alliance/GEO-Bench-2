@@ -7,6 +7,7 @@ import os
 import pytest
 from typing import Sequence, Dict, Union
 import torch
+from pathlib import Path
 from pytest import MonkeyPatch
 from geobench_v2.datasets import GeoBenchBioMassters
 from geobench_v2.datamodules import GeoBenchBioMasstersDataModule
@@ -25,10 +26,20 @@ def band_order(request):
 
 @pytest.fixture
 def datamodule(
-    monkeypatch: MonkeyPatch, band_order: Dict[str, Sequence[Union[str, float]]]
+    monkeypatch: MonkeyPatch,
+    tmp_path: Path,
+    band_order: Dict[str, Sequence[Union[str, float]]],
 ):
     """Initialize BioMassters datamodule with test configuration."""
     monkeypatch.setattr(GeoBenchBioMassters, "paths", ["biomassters.tortilla"])
+    monkeypatch.setattr(
+        GeoBenchBioMassters, "url", os.path.join("tests", "data", "biomassters", "{}")
+    )
+    monkeypatch.setattr(
+        GeoBenchBioMassters,
+        "sha256str",
+        ["879addd2f408fe3c09746628495ee210a164b8072c29e91d0044547308123f2e"],
+    )
     dm = GeoBenchBioMasstersDataModule(
         img_size=74,
         batch_size=4,
@@ -36,7 +47,8 @@ def datamodule(
         num_workers=0,
         pin_memory=False,
         band_order=band_order,
-        root=os.path.join("tests", "data", "biomassters"),
+        root=tmp_path,
+        download=True,
     )
     dm.setup("fit")
     dm.setup("test")
@@ -46,10 +58,20 @@ def datamodule(
 
 @pytest.fixture
 def ts_datamodule(
-    monkeypatch: MonkeyPatch, band_order: Dict[str, Sequence[Union[str, float]]]
+    monkeypatch: MonkeyPatch,
+    tmp_path: Path,
+    band_order: Dict[str, Sequence[Union[str, float]]],
 ):
     """Initialize BioMassters datamodule with time series support."""
     monkeypatch.setattr(GeoBenchBioMassters, "paths", ["biomassters.tortilla"])
+    monkeypatch.setattr(
+        GeoBenchBioMassters, "url", os.path.join("tests", "data", "biomassters", "{}")
+    )
+    monkeypatch.setattr(
+        GeoBenchBioMassters,
+        "sha256str",
+        ["879addd2f408fe3c09746628495ee210a164b8072c29e91d0044547308123f2e"],
+    )
     dm = GeoBenchBioMasstersDataModule(
         img_size=74,
         batch_size=4,
@@ -57,7 +79,8 @@ def ts_datamodule(
         num_workers=0,
         pin_memory=False,
         band_order=band_order,
-        root=os.path.join("tests", "data", "biomassters"),
+        root=tmp_path,
+        download=True,
         num_time_steps=3,
     )
     dm.setup("fit")

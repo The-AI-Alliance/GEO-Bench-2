@@ -114,7 +114,7 @@ class GeoBenchSpaceNet7DataModule(GeoBenchSegmentationDataModule):
             n_samples,
             2,
             figsize=(12, 3 * n_samples),
-            gridspec_kw={"width_ratios": [1, 1, 0.5]},
+            gridspec_kw={"width_ratios": [1, 1]},
         )
 
         if n_samples == 1:
