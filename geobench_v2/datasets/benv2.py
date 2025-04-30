@@ -36,7 +36,7 @@ class GeoBenchBENV2(GeoBenchBaseDataset):
     paths: Sequence[str] = ["geobench_benv2.tortilla"]
 
     sha256str: Sequence[str] = [
-        "e1a3b214bd6118d39ec2c0c34b310de7b8e048b4914f8aa52aa6b24625c2b286"
+        "330876e91199cb179113224c6e4e9632f8971446fe29ffbb035e5b8bbdee8319"
     ]
 
     band_default_order = {
@@ -191,15 +191,6 @@ class GeoBenchBENV2(GeoBenchBaseDataset):
         if "s1" in self.band_order:
             with rasterio.open(s1_path) as src:
                 s1_img = src.read()
-
-            print("S1 stats")
-            print("mean", s1_img.mean())
-            print("std", s1_img.std())
-            print("min", s1_img.min())
-            print("max", s1_img.max())
-            import pdb
-
-            pdb.set_trace()
             data["s1"] = torch.from_numpy(s1_img).float()
         if "s2" in self.band_order:
             with rasterio.open(s2_path) as src:

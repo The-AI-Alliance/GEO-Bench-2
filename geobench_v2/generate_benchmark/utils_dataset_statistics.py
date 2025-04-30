@@ -387,8 +387,12 @@ class DatasetStatistics(ABC):
                 dims,
                 bins=self.bins,
                 range_vals=self.range_vals[key],
-                clip_min_val=self.clip_min_vals[key] if self.clip_min_vals is not None else None,
-                clip_max_val=self.clip_max_vals[key] if self.clip_max_vals is not None else None,
+                clip_min_val=self.clip_min_vals[key]
+                if self.clip_min_vals is not None
+                else None,
+                clip_max_val=self.clip_max_vals[key]
+                if self.clip_max_vals is not None
+                else None,
             ).to(self.device)
 
     def compute_statistics(self) -> dict[str, dict[str, Any]]:

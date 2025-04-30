@@ -2,9 +2,9 @@
     "input_stats": {
         "image_pre": {
             "band_names": [
-                "r",
-                "g",
-                "b"
+                "red",
+                "green",
+                "blue"
             ],
             "mean": [
                 67.09435272216797,
