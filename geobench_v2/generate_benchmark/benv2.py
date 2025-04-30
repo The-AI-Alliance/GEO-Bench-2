@@ -265,7 +265,7 @@ def process_sample(args):
                 "height": height,
                 "width": width,
                 "count": 2,  # VH, VV
-                "dtype": "uint16",
+                "dtype": src.dtypes[0],
                 "tiled": True,
                 "blockxsize": 64,
                 "blockysize": 64,
@@ -321,7 +321,7 @@ def process_sample(args):
                 "height": 120,
                 "width": 120,
                 "count": 12,  # 12 S2 bands
-                "dtype": "uint16",
+                "dtype": src.dtypes[0],
                 "tiled": True,
                 "blockxsize": 128,
                 "blockysize": 128,
@@ -441,6 +441,48 @@ def create_geobench_version(
     return subset_df
 
 
+def load_random_s1_image(metadata_df, root_dir):
+    """Load a random S1 image from the metadata DataFrame.
+    
+    Args:
+        metadata_df: DataFrame containing metadata with s1_name column
+        root_dir: Root directory containing the BigEarthNet dataset
+        random_seed: Random seed for reproducibility
+        
+    Returns:
+        tuple: (vh_array, vv_array, row_info) - VH and VV polarization arrays and metadata row
+    """
+    # Filter for rows that have S1 data
+    valid_rows = metadata_df[metadata_df['s1_name'].notna()]
+    
+    if valid_rows.empty:
+        raise ValueError("No valid S1 samples found in the metadata.")
+    
+    # Pick a random row
+    import random
+    random_idx = random.randint(0, len(valid_rows) - 1)
+    row = valid_rows.iloc[random_idx]
+    
+    # Get paths to S1 images
+    s1_patch_id = row["s1_name"]
+    s1_patch_dir = "_".join(s1_patch_id.split("_")[0:-3])
+    s1_dir = os.path.join(root_dir, "BigEarthNet-S1", s1_patch_dir, s1_patch_id)
+    
+    vh_path = os.path.join(s1_dir, f"{s1_patch_id}_VH.tif")
+    vv_path = os.path.join(s1_dir, f"{s1_patch_id}_VV.tif")
+    
+    # Read the data
+    with rasterio.open(vh_path) as src:
+        import pdb
+        pdb.set_trace()
+        vh_array = src.read(1)
+    
+    with rasterio.open(vv_path) as src:
+        vv_array = src.read(1)
+
+    return np.stack([vh_array, vv_array])
+    
+
 def main():
     """Generate BigEarthNet Benchmark."""
     parser = argparse.ArgumentParser()
@@ -463,6 +505,7 @@ def main():
         metadata_df.to_parquet(new_metadata_path)
     else:
         metadata_df = pd.read_parquet(new_metadata_path)
+
 
     result_df_path = os.path.join(args.save_dir, "geobench_benv2_optimized.parquet")
     # if os.path.exists(result_df_path):
