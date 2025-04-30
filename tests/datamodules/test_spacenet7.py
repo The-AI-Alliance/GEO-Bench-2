@@ -8,6 +8,8 @@ import os
 from pytest import MonkeyPatch
 from typing import Sequence
 import torch
+from pathlib import Path
+from torchgeo.datasets import DatasetNotFoundError
 import matplotlib.pyplot as plt
 from geobench_v2.datasets import GeoBenchSpaceNet7
 from geobench_v2.datamodules import GeoBenchSpaceNet7DataModule
@@ -20,9 +22,21 @@ def band_order(request):
 
 
 @pytest.fixture
-def datamodule(monkeypatch: MonkeyPatch, band_order: dict[str, Sequence[str | float]]):
+def datamodule(
+    monkeypatch: MonkeyPatch,
+    tmp_path: Path,
+    band_order: dict[str, Sequence[str | float]],
+):
     """Initialize SpaceNet7 datamodule with test configuration."""
     monkeypatch.setattr(GeoBenchSpaceNet7, "paths", ["spacenet7.tortilla"])
+    monkeypatch.setattr(
+        GeoBenchSpaceNet7, "url", os.path.join("tests", "data", "spacenet7", "{}")
+    )
+    monkeypatch.setattr(
+        GeoBenchSpaceNet7,
+        "sha256str",
+        ["439036c43f30820859ee30291e953f349042ae120005ff618e5d87004bb3a2b0"],
+    )
     dm = GeoBenchSpaceNet7DataModule(
         img_size=256,
         batch_size=2,
@@ -30,7 +44,8 @@ def datamodule(monkeypatch: MonkeyPatch, band_order: dict[str, Sequence[str | fl
         num_workers=0,
         pin_memory=False,
         band_order=band_order,
-        root=os.path.join("tests", "data", "spacenet7"),
+        root=tmp_path,
+        download=True,
         metadata=["lon", "lat"],
     )
     dm.setup("fit")
@@ -76,3 +91,7 @@ class TestSpaceNet7DataModule:
         assert isinstance(batch, dict)
 
         fig.savefig(os.path.join("tests", "data", "spacenet7", "test_batch.png"))
+
+    def test_not_downloaded(self, tmp_path: Path) -> None:
+        with pytest.raises(DatasetNotFoundError, match="Dataset not found"):
+            GeoBenchSpaceNet7(tmp_path, split="train")

@@ -26,6 +26,13 @@ class GeoBenchSpaceNet7(GeoBenchBaseDataset):
     - Return band wavelengths
     """
 
+    url = "https://hf.co/datasets/aialliance/spacenet7/resolve/main/{}"
+
+    # paths = ["SpaceNet7.tortilla"]
+    paths = ["geobench_spacenet7.tortilla"]
+
+    sha256str = [""]
+
     dataset_band_config = DatasetBandRegistry.SPACENET7
 
     normalization_stats = {
@@ -34,9 +41,6 @@ class GeoBenchSpaceNet7(GeoBenchBaseDataset):
     }
 
     band_default_order = ("red", "green", "blue")
-
-    # paths = ["SpaceNet7.tortilla"]
-    paths = ["geobench_spacenet7.tortilla"]
 
     classes = ("background", "no-building", "building")
 
@@ -52,6 +56,7 @@ class GeoBenchSpaceNet7(GeoBenchBaseDataset):
         data_normalizer: Type[nn.Module] = MultiModalNormalizer,
         transforms: nn.Module = None,
         metadata: Sequence[str] | None = None,
+        download: bool = False,
     ) -> None:
         """Initialize SpaceNet7 dataset.
 
@@ -74,6 +79,7 @@ class GeoBenchSpaceNet7(GeoBenchBaseDataset):
             data_normalizer=data_normalizer,
             transforms=transforms,
             metadata=metadata,
+            download=download,
         )
         # TODO how to setup for time-series prediction
 

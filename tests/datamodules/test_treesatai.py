@@ -8,6 +8,8 @@ import pytest
 import matplotlib.pyplot as plt
 from typing import Sequence
 import torch
+from pathlib import Path
+from torchgeo.datasets import DatasetNotFoundError
 from pytest import MonkeyPatch
 from geobench_v2.datasets import GeoBenchTreeSatAI
 from geobench_v2.datamodules import GeoBenchTreeSatAIDataModule
@@ -29,9 +31,21 @@ def band_order(request):
 
 
 @pytest.fixture
-def datamodule(monkeypatch: MonkeyPatch, band_order: dict[str, Sequence[str | float]]):
+def datamodule(
+    monkeypatch: MonkeyPatch,
+    tmp_path: Path,
+    band_order: dict[str, Sequence[str | float]],
+):
     """Initialize TreeSatAI datamodule with test configuration."""
     monkeypatch.setattr(GeoBenchTreeSatAI, "paths", ["treesatai.tortilla"])
+    monkeypatch.setattr(
+        GeoBenchTreeSatAI, "url", os.path.join("tests", "data", "benv2", "{}")
+    )
+    monkeypatch.setattr(
+        GeoBenchTreeSatAI,
+        "sha256str",
+        ["157322209c9f91be4ca4603d58d26688cac7409c081fc78d5327147ae615ccec"],
+    )
     dm = GeoBenchTreeSatAIDataModule(
         img_size=74,
         batch_size=4,
@@ -140,3 +154,7 @@ class TestTreeSatAIDataModule:
     #         assert train_batch[ts_key].shape == expected_shape, (
     #             f"Wrong shape for {ts_key}: got {train_batch[ts_key].shape}, expected {expected_shape}"
     #         )
+
+    def test_not_downloaded(self, tmp_path: Path) -> None:
+        with pytest.raises(DatasetNotFoundError, match="Dataset not found"):
+            GeoBenchTreeSatAI(tmp_path, split="train")

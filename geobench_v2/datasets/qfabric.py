@@ -31,6 +31,12 @@ class GeoBenchQFabric(GeoBenchBaseDataset):
     2. Building
     """
 
+    url = "https://hf.co/datasets/aialliance/qfabric/resolve/main/{}"
+
+    paths = ["geobench_qfabric.tortilla"]
+
+    sha256str = [""]
+
     dataset_band_config = DatasetBandRegistry.QFABRIC
 
     band_default_order = ("red", "green", "blue")
@@ -39,8 +45,6 @@ class GeoBenchQFabric(GeoBenchBaseDataset):
         "means": {"r": 0.0, "g": 0.0, "b": 0.0},
         "stds": {"r": 255.0, "g": 255.0, "b": 255.0},
     }
-
-    paths = ["geobench_qfabric.tortilla"]
 
     # add an extra background class here
     classes = (
@@ -74,6 +78,8 @@ class GeoBenchQFabric(GeoBenchBaseDataset):
         data_normalizer: Type[nn.Module] = MultiModalNormalizer,
         transforms: nn.Module | None = None,
         time_steps: Sequence[int] = [0, 1, 2, 3, 4],
+        metadata: Sequence[str] | None = None,
+        download: bool = False,
     ) -> None:
         """Initialize QFabric dataset.
 
@@ -99,6 +105,8 @@ class GeoBenchQFabric(GeoBenchBaseDataset):
             band_order=band_order,
             data_normalizer=data_normalizer,
             transforms=transforms,
+            metadata=metadata,
+            download=download,
         )
         assert len(time_steps) <= 5, "QFabric only contains 5 time steps"
         assert all(isinstance(ts, int) and 0 <= ts < 5 for ts in time_steps), (

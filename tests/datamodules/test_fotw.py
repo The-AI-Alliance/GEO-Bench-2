@@ -8,6 +8,8 @@ import os
 from pytest import MonkeyPatch
 from typing import Sequence
 import torch
+from pathlib import Path
+from torchgeo.datasets import DatasetNotFoundError
 from geobench_v2.datasets import GeoBenchFieldsOfTheWorld
 from geobench_v2.datamodules import GeoBenchFieldsOfTheWorldDataModule
 
@@ -19,9 +21,21 @@ def band_order(request):
 
 
 @pytest.fixture
-def datamodule(monkeypatch: MonkeyPatch, band_order: dict[str, Sequence[str | float]]):
+def datamodule(
+    monkeypatch: MonkeyPatch,
+    tmp_path: Path,
+    band_order: dict[str, Sequence[str | float]],
+):
     """Initialize FOTW datamodule with test configuration."""
     monkeypatch.setattr(GeoBenchFieldsOfTheWorld, "paths", ["fotw.tortilla"])
+    monkeypatch.setattr(
+        GeoBenchFieldsOfTheWorld, "url", os.path.join("tests", "data", "fotw", "{}")
+    )
+    monkeypatch.setattr(
+        GeoBenchFieldsOfTheWorld,
+        "sha256str",
+        ["ac574b468d1303858056edf6943f7b4e1a73c9e828597331d9f101387ca40898"],
+    )
     dm = GeoBenchFieldsOfTheWorldDataModule(
         img_size=74,
         batch_size=4,
@@ -29,7 +43,8 @@ def datamodule(monkeypatch: MonkeyPatch, band_order: dict[str, Sequence[str | fl
         num_workers=0,
         pin_memory=False,
         band_order=band_order,
-        root=os.path.join("tests", "data", "fotw"),
+        root=tmp_path,
+        download=True,
         metadata=["lon", "lat"],
     )
     dm.setup("fit")
@@ -67,3 +82,7 @@ class TestFieldsOfTheWorldDataModule:
         assert "lat" in train_batch
         assert train_batch["lon"].shape == (datamodule.batch_size,)
         assert train_batch["lat"].shape == (datamodule.batch_size,)
+
+    def test_not_downloaded(self, tmp_path: Path) -> None:
+        with pytest.raises(DatasetNotFoundError, match="Dataset not found"):
+            GeoBenchFieldsOfTheWorld(tmp_path, split="train")

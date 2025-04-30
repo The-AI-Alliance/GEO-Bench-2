@@ -29,6 +29,20 @@ class GeoBenchKuroSiwo(GeoBenchBaseDataset):
 
     """
 
+    url = "https://hf.co/datasets/aialliance/kuro_siwo/resolve/main/{}"
+
+    paths = [
+        # "kurosiwo.0000.part.tortilla",
+        # "kurosiwo.0001.part.tortilla",
+        # "kurosiwo.0002.part.tortilla",
+        # "kurosiwo.0003.part.tortilla",
+        # "kurosiwo.0004.part.tortilla",
+        # "kurosiwo.0005.part.tortilla",
+        "geobench_kuro_siwo.tortilla"
+    ]
+
+    sha256str = [""]
+
     dataset_band_config = DatasetBandRegistry.KURO_SIWO
 
     band_default_order = {"sar": ("vv", "vh"), "dem": ("dem",)}
@@ -57,16 +71,6 @@ class GeoBenchKuroSiwo(GeoBenchBaseDataset):
         3: 0,  # No Data -> 0
     }
 
-    paths = [
-        # "kurosiwo.0000.part.tortilla",
-        # "kurosiwo.0001.part.tortilla",
-        # "kurosiwo.0002.part.tortilla",
-        # "kurosiwo.0003.part.tortilla",
-        # "kurosiwo.0004.part.tortilla",
-        # "kurosiwo.0005.part.tortilla",
-        "geobench_kuro_siwo.tortilla"
-    ]
-
     def __init__(
         self,
         root: str,
@@ -75,6 +79,7 @@ class GeoBenchKuroSiwo(GeoBenchBaseDataset):
         data_normalizer: Type[nn.Module] = MultiModalNormalizer,
         transforms: Type[nn.Module] = None,
         return_stacked_image: bool = False,
+        download: bool = False,
     ) -> None:
         """Initialize Kuro Siwo Dataset.
 
@@ -93,6 +98,7 @@ class GeoBenchKuroSiwo(GeoBenchBaseDataset):
             data_normalizer=data_normalizer,
             transforms=transforms,
             metadata=None,
+            download=download,
         )
         self.return_stacked_image = return_stacked_image
 

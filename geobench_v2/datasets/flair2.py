@@ -22,6 +22,21 @@ from shapely import wkt
 class GeoBenchFLAIR2(GeoBenchBaseDataset):
     """Implementation of FLAIR 2 Aerial dataset."""
 
+    url = "https://hf.co/datasets/aialliance/flair2/resolve/main/{}"
+
+    sha256str = ["1d11c38a775bafc5a0790bac3b257b02203b8f0f2c6e285bebccb2917dd3d3ed"]
+
+    # paths: Sequence[str] = (
+    #     "FullFlair2.0000.part.tortilla",
+    #     "FullFlair2.0001.part.tortilla",
+    #     "FullFlair2.0002.part.tortilla",
+    #     "FullFlair2.0003.part.tortilla",
+    #     "FullFlair2.0004.part.tortilla",
+    #     "FullFlair2.0005.part.tortilla",
+    # )
+
+    paths: Sequence[str] = ["geobench_flair2.tortilla"]
+
     classes = (
         "building",
         "pervious surface",
@@ -40,22 +55,6 @@ class GeoBenchFLAIR2(GeoBenchBaseDataset):
 
     num_classes = len(classes)
 
-    # url_prefix: str = "https://storage.gra.cloud.ovh.net/v1/AUTH_366279ce616242ebb14161b7991a8461/defi-ia/flair_data_2"
-    # md5s: ClassVar[dict[str, str]] = {
-    #     "flair-2_centroids_sp_to_patch": "f8ba3b176197c254b6c165c97e93c759",
-    #     "flair_aerial_train": "0f575b360800f58add19c08f05e18429",
-    #     "flair_labels_train": "80d3cd2ee117a61128faa08cbb842c0c",
-    #     "flair_2_aerial_test": "a647e0ba7e5345b28c48d7887ee79888",
-    #     "flair_2_labels_test": "394a769ffcb4a783335eecd3f8baef57",
-    # }
-
-    # dir_names: ClassVar[dict[str, dict[str, str]]] = {
-    #     "train": {"images": "flair_aerial_train", "masks": "flair_labels_train"},
-    #     "val": {"images": "flair_aerial_train", "masks": "flair_labels_train"},
-    #     "test": {"images": "flair_2_aerial_test", "masks": "flair_2_labels_test"},
-    # }
-    # globs: ClassVar[dict[str, str]] = {"images": "IMG_*.tif", "masks": "MSK_*.tif"}
-
     dataset_band_config = DatasetBandRegistry.FLAIR2
 
     normalization_stats = {
@@ -64,17 +63,6 @@ class GeoBenchFLAIR2(GeoBenchBaseDataset):
     }
 
     band_default_order = ("r", "g", "b", "nir", "elevation")
-
-    # paths: Sequence[str] = (
-    #     "FullFlair2.0000.part.tortilla",
-    #     "FullFlair2.0001.part.tortilla",
-    #     "FullFlair2.0002.part.tortilla",
-    #     "FullFlair2.0003.part.tortilla",
-    #     "FullFlair2.0004.part.tortilla",
-    #     "FullFlair2.0005.part.tortilla",
-    # )
-
-    paths: Sequence[str] = ["geobench_flair2.tortilla"]
 
     valid_metadata = ("lat", "lon")
 
@@ -86,6 +74,7 @@ class GeoBenchFLAIR2(GeoBenchBaseDataset):
         data_normalizer: Type[nn.Module] = MultiModalNormalizer,
         transforms: nn.Module | None = None,
         metadata: Sequence[str] | None = None,
+        download: bool = False,
     ):
         """Initialize FLAIR 2 dataset.
 
@@ -108,6 +97,7 @@ class GeoBenchFLAIR2(GeoBenchBaseDataset):
             data_normalizer=data_normalizer,
             transforms=transforms,
             metadata=metadata,
+            download=download,
         )
 
     def __getitem__(self, idx: int) -> dict[str, Tensor]:

@@ -32,8 +32,11 @@ class GeoBenchTreeSatAI(GeoBenchBaseDataset):
     *
     """
 
+    url = "https://hf.co/datasets/aialliance/treesatai/resolve/main/{}"
     # paths = ["TreeSatAI.tortilla"]
     paths = ["geobench_treesatai.tortilla"]
+
+    sha256str = [""]
 
     dataset_band_config = DatasetBandRegistry.TREESATAI
 
@@ -134,6 +137,7 @@ class GeoBenchTreeSatAI(GeoBenchBaseDataset):
         include_ts: bool = False,
         num_time_steps: int = None,
         return_stacked_image: bool = False,
+        download: bool = False,
     ) -> None:
         """Initialize TreeSatAI dataset.
 
@@ -160,6 +164,7 @@ class GeoBenchTreeSatAI(GeoBenchBaseDataset):
             data_normalizer=data_normalizer,
             transforms=transforms,
             metadata=metadata,
+            download=download,
         )
 
         self.include_ts = include_ts

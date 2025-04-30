@@ -31,6 +31,14 @@ class GeoBenchBENV2(GeoBenchBaseDataset):
     - Return band wavelengths
     """
 
+    url = "https://hf.co/datasets/aialliance/benv2/resolve/main/{}"
+
+    paths: Sequence[str] = ["geobench_benv2.tortilla"]
+
+    sha256str: Sequence[str] = [
+        "e1a3b214bd6118d39ec2c0c34b310de7b8e048b4914f8aa52aa6b24625c2b286"
+    ]
+
     band_default_order = {
         "s2": (
             "B01",
@@ -92,8 +100,6 @@ class GeoBenchBENV2(GeoBenchBaseDataset):
     #     "FullBenV2.0002.part.tortilla",
     # )
 
-    paths: Sequence[str] = ["geobench_benv2.tortilla"]
-
     label_names: Sequence[str] = (
         "Urban fabric",
         "Industrial or commercial units",
@@ -131,6 +137,7 @@ class GeoBenchBENV2(GeoBenchBaseDataset):
         transforms: nn.Module | None = None,
         metadata: Sequence[str] = None,
         return_stacked_image: bool = False,
+        download: bool = False,
     ) -> None:
         """Initialize Big Earth Net V2 Dataset.
 
@@ -155,6 +162,7 @@ class GeoBenchBENV2(GeoBenchBaseDataset):
             data_normalizer=data_normalizer,
             transforms=transforms,
             metadata=metadata,
+            download=download,
         )
 
         self.return_stacked_image = return_stacked_image

@@ -40,6 +40,12 @@ class GeoBenchCloudSen12(GeoBenchBaseDataset):
     * link
     """
 
+    url = "https://hf.co/datasets/aialliance/cloudsen12/resolve/main/{}"
+
+    paths = ["geobench_cloudsen12.tortilla"]
+
+    sha256str = ["8c1509160c74be95f7934bf9cdcca1b1893d8fb1a7df70c5de1944160f741e04"]
+
     classes = ("clear", "thick cloud", "thin cloud", "cloud shadow")
 
     num_classes = len(classes)
@@ -79,17 +85,6 @@ class GeoBenchCloudSen12(GeoBenchBaseDataset):
         },
     }
 
-    # taco_files: dict[str, str] = {
-    #     "l1c": "geobench_cloudsen12-l1c.taco",
-    #     "l2a": "geobench_cloudsen12-l2a.taco",
-    #     "extra": "geobench_cloudsen12-extra.taco",
-    # }
-
-    # taco_name = "geobench_cloudsen12.taco"
-
-    # paths = ["geobench_cloudsen12-l2a.taco"]
-    paths = ["geobench_cloudsen12.taco"]
-
     valid_metadata = ("lat", "lon")
 
     def __init__(
@@ -100,6 +95,7 @@ class GeoBenchCloudSen12(GeoBenchBaseDataset):
         data_normalizer: Type[nn.Module] = MultiModalNormalizer,
         transforms: nn.Module | None = None,
         metadata: Sequence[str] | None = None,
+        download: bool = False,
     ) -> None:
         """Initialize a CloudSen12 dataset instance.
 
@@ -124,6 +120,7 @@ class GeoBenchCloudSen12(GeoBenchBaseDataset):
             data_normalizer=data_normalizer,
             transforms=transforms,
             metadata=metadata,
+            download=download,
         )
 
     def __getitem__(self, idx: int) -> dict[str, Tensor]:
