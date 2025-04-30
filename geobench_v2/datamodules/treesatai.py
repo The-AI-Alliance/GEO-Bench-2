@@ -152,7 +152,8 @@ class GeoBenchTreeSatAIDataModule(GeoBenchClassificationDataModule):
                 ax.axis("off")
 
             label_names = [self.class_names[label] for label in sample_labels[i]]
-            suptitle = f"Labels: {', \n'.join(label_names)}"
+            separator = ", \n"
+            suptitle = f"Labels: {separator.join(label_names)}"
             ax = axes[i, -1]
             ax.set_title(suptitle, fontsize=8)
 
