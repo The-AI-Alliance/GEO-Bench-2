@@ -143,7 +143,7 @@ def compute_batch_histograms(
     batch_stats = {}
 
     for key, tensor in batch.items():
-        if key.startswith("image_") and isinstance(tensor, Tensor) and tensor.ndim == 4:
+        if key.startswith("image") and isinstance(tensor, Tensor) and tensor.ndim == 4:
             modality = key
 
             # Extract number of channels
@@ -178,7 +178,9 @@ def compute_batch_histograms(
 
 def plot_batch_histograms(
     batch_stats: Dict[str, Dict[str, Union[List, np.ndarray]]],
-    band_names: Optional[Dict[str, List[str]]] = None,
+    band_order: Optional[
+        Union[Dict[str, List[Union[str, float]]], List[Union[str, float]]]
+    ] = None,
     figsize: Tuple[int, int] = (12, 5),
     title_suffix: str = "",
 ) -> List[plt.Figure]:
@@ -187,7 +189,8 @@ def plot_batch_histograms(
 
     Args:
         batch_stats: Dictionary with statistics for each modality
-        band_names: Optional dictionary mapping modality keys to lists of band names
+        band_order: Either a dictionary mapping modality keys to lists of band names/scaling factors,
+                    or a single list of band names/scaling factors for a single modality
         figsize: Figure size
         title_suffix: Suffix to add to plot titles (e.g., "Raw" or "Normalized")
 
@@ -195,6 +198,26 @@ def plot_batch_histograms(
         List of matplotlib figures
     """
     figs = []
+
+    # Convert band_order to dictionary format if it's a list
+    if isinstance(band_order, list):
+        # If band_order is a list, we assume there's only one modality
+        # Check if there's just one key in batch_stats that starts with "image"
+        # or exactly one key named "image"
+        image_keys = [key for key in batch_stats.keys() if key.startswith("image")]
+
+        if len(image_keys) == 1:
+            # Use the detected image key
+            band_order = {image_keys[0]: band_order}
+        elif "image" in batch_stats:
+            # Use the "image" key directly
+            band_order = {"image": band_order}
+        else:
+            # Default to creating entries for all modalities with the same band_order
+            band_order = {modality: band_order for modality in batch_stats.keys()}
+            print(
+                f"Warning: Applying the same band names to all modalities: {list(batch_stats.keys())}"
+            )
 
     for modality, stats in batch_stats.items():
         fig, ax = plt.subplots(figsize=figsize)
@@ -210,21 +233,34 @@ def plot_batch_histograms(
             )
             continue
 
+        # Convert bin_edges to numpy array if it's not already
+        bin_edges = np.array(bin_edges)
+
         # Get labels for each channel
-        if band_names and modality in band_names:
-            labels = band_names[modality]
+        if band_order and modality in band_order:
+            # Get all band names including numeric scaling factors
+            labels = [str(item) for item in band_order[modality]]
+
             # Ensure length matches number of histograms
             if len(labels) != len(histograms):
-                print(
-                    f"Warning: Number of band names ({len(labels)}) != number of histograms ({len(histograms)}) for {modality}"
-                )
-                labels = [f"Channel {i}" for i in range(len(histograms))]
+                # Keep only the number of labels that match the histograms
+                if len(labels) > len(histograms):
+                    labels = labels[: len(histograms)]
+                else:
+                    # Append generic labels if we have more histograms than labels
+                    labels.extend(
+                        [
+                            f"Channel {i + len(labels)}"
+                            for i in range(len(histograms) - len(labels))
+                        ]
+                    )
         else:
             labels = [f"Channel {i}" for i in range(len(histograms))]
 
         # Plot histograms as line plots
         for i, (hist, label) in enumerate(zip(histograms, labels)):
-            # Convert bin edges to bin centers for plotting
+            # Convert histogram to numpy array if it's not already
+            hist = np.array(hist)
             bin_centers = 0.5 * (bin_edges[:-1] + bin_edges[1:])
             ax.plot(bin_centers, hist, label=label, alpha=0.7)
 
@@ -343,13 +379,27 @@ def visualize_normalization_effects(
 
     # Extract band names for plotting
     band_names = {}
-    for modality, bands in band_order.items():
-        # Filter out fill values (non-string elements)
-        band_names[f"image_{modality}"] = [b for b in bands if isinstance(b, str)]
+
+    # Handle both dictionary and list band_order formats
+    if isinstance(band_order, dict):
+        # Dictionary format: multiple modalities
+        for modality, bands in band_order.items():
+            # Filter out fill values (non-string elements)
+            band_names[f"image_{modality}"] = [b for b in bands if isinstance(b, str)]
+    else:
+        # List format: single modality
+        # We'll determine the actual image key when we have the batch
+        band_names_list = [b for b in band_order if isinstance(b, str)]
 
     # Get raw batch and compute histograms
     raw_batch, _ = get_normalized_batch(datamodule, nn.Identity(), split, batch_index)
     raw_stats = compute_batch_histograms(raw_batch, n_bins=n_bins)
+
+    # If band_order was a list, now we can determine which image key to use
+    if isinstance(band_order, list):
+        image_keys = [key for key in raw_stats.keys() if key.startswith("image")]
+        for key in image_keys:
+            band_names[key] = band_names_list
 
     print("Raw batch statistics:")
     for modality, stats in raw_stats.items():

@@ -26,12 +26,6 @@ import torch.nn as nn
 class GeoBenchBENV2DataModule(GeoBenchClassificationDataModule):
     """GeoBench BigEarthNetV2 Data Module."""
 
-    paths = (
-        "FullBenV2.0000.part.tortilla",
-        "FullBenV2.0001.part.tortilla",
-        "FullBenV2.0002.part.tortilla",
-    )
-
     def __init__(
         self,
         img_size: int = 120,
@@ -77,7 +71,7 @@ class GeoBenchBENV2DataModule(GeoBenchClassificationDataModule):
             pandas DataFrame with metadata.
         """
         self.data_df = tacoreader.load(
-            [os.path.join(self.kwargs["root"], f) for f in self.paths]
+            [os.path.join(self.kwargs["root"], f) for f in GeoBenchBENV2.paths]
         )
         return self.data_df
 

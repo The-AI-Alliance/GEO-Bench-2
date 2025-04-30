@@ -90,8 +90,6 @@ class GeoBenchDataModule(LightningDataModule, ABC):
 
         self.define_augmentations()
 
-        self.load_metadata()
-
     def prepare_data(self) -> None:
         """Download and prepare data, only for distributed setup."""
         if self.kwargs.get("download", False):
@@ -180,9 +178,8 @@ class GeoBenchDataModule(LightningDataModule, ABC):
 
     def visualize_geospatial_distribution(
         self,
-        split_column="split",
+        split_column="tortilla:data_split",
         buffer_degrees: float = 5.0,
-        sample_fraction: float = 1.0,
         scale: Literal["10m", "50m", "110m"] = "50m",
         alpha: float = 0.5,
         s: float = 0.5,
@@ -202,7 +199,7 @@ class GeoBenchDataModule(LightningDataModule, ABC):
             s: Size of plotted points
         """
         if not hasattr(self, "data_df") or self.data_df is None:
-            raise ValueError("data_df not available in the datamodule")
+            self.load_metadata()
 
         data_df = self.data_df.copy()
 

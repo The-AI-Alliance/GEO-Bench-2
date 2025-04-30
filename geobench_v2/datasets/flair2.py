@@ -24,7 +24,7 @@ class GeoBenchFLAIR2(GeoBenchBaseDataset):
 
     url = "https://hf.co/datasets/aialliance/flair2/resolve/main/{}"
 
-    sha256str = ["1d11c38a775bafc5a0790bac3b257b02203b8f0f2c6e285bebccb2917dd3d3ed"]
+    sha256str = ["96d18b1e7673fa2233145d69fd67db530c53bf68027b30466f7c94fd456df689"]
 
     # paths: Sequence[str] = (
     #     "FullFlair2.0000.part.tortilla",
@@ -62,7 +62,7 @@ class GeoBenchFLAIR2(GeoBenchBaseDataset):
         "stds": {"r": 255.0, "g": 255.0, "b": 255.0, "nir": 255.0, "elevation": 255.0},
     }
 
-    band_default_order = ("r", "g", "b", "nir", "elevation")
+    band_default_order = {"aerial": ("r", "g", "b", "nir"), "elevation": ("elevation",)}
 
     valid_metadata = ("lat", "lon")
 
@@ -70,7 +70,7 @@ class GeoBenchFLAIR2(GeoBenchBaseDataset):
         self,
         root,
         split="train",
-        band_order: Sequence[float | str] = ["r", "g", "b"],
+        band_order: dict[str, Sequence[float | str]] = band_default_order,
         data_normalizer: Type[nn.Module] = MultiModalNormalizer,
         transforms: nn.Module | None = None,
         metadata: Sequence[str] | None = None,
@@ -116,9 +116,18 @@ class GeoBenchFLAIR2(GeoBenchBaseDataset):
         aerial_path = sample_row.read(0)
         mask_path = sample_row.read(1)
 
+        data_dict = {}
         with rasterio.open(aerial_path) as f:
-            image = f.read()
-        image = torch.from_numpy(image).float()
+            # read aerial bands
+            data = f.read()
+            image = data[:-1, :, :]
+            data_dict["aerial"] = torch.from_numpy(image).float()
+            if "elevation" in self.band_order:
+                # read elevation band
+                elevation = data[-1, :, :]
+                data_dict["elevation"] = (
+                    torch.from_numpy(elevation).unsqueeze(0).float()
+                )
 
         with rasterio.open(mask_path) as f:
             mask = f.read(1)
@@ -128,7 +137,7 @@ class GeoBenchFLAIR2(GeoBenchBaseDataset):
         # shift the classes to start from 0 so class values will be 0-12
         mask -= 1
 
-        image_dict = self.rearrange_bands(image, self.band_order)
+        image_dict = self.rearrange_bands(data_dict, self.band_order)
 
         image_dict = self.data_normalizer(image_dict)
         sample.update(image_dict)

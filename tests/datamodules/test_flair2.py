@@ -15,7 +15,7 @@ from geobench_v2.datamodules import GeoBenchFLAIR2DataModule
 from torchgeo.datasets import DatasetNotFoundError
 
 
-@pytest.fixture(params=[["r", 1.0, "g", "b"]])
+@pytest.fixture(params=[{"aerial": ["r", 1.0, "g", "b"], "elevation": ["elevation"]}])
 def band_order(request):
     """Parameterized band configuration with different configurations."""
     return request.param
@@ -68,14 +68,16 @@ class TestFlAIR2DataModule:
         train_batch = next(iter(datamodule.train_dataloader()))
         assert isinstance(train_batch, dict)
 
-        assert train_batch["image"].shape[0] == datamodule.batch_size
-        assert train_batch["image"].shape[1] == len(datamodule.band_order)
-        assert train_batch["image"].shape[2] == datamodule.img_size
+        assert train_batch["image_aerial"].shape[0] == datamodule.batch_size
+        assert train_batch["image_aerial"].shape[1] == len(
+            datamodule.band_order["aerial"]
+        )
+        assert train_batch["image_aerial"].shape[2] == datamodule.img_size
 
         assert train_batch["mask"].shape[0] == datamodule.batch_size
         assert train_batch["mask"].shape[1] == datamodule.img_size
 
-        assert torch.isclose(train_batch["image"][:, 1], torch.tensor(1.0)).all()
+        assert torch.isclose(train_batch["image_aerial"][:, 1], torch.tensor(1.0)).all()
 
         assert "lon" in train_batch
         assert "lat" in train_batch

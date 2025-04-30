@@ -191,6 +191,15 @@ class GeoBenchBENV2(GeoBenchBaseDataset):
         if "s1" in self.band_order:
             with rasterio.open(s1_path) as src:
                 s1_img = src.read()
+
+            print("S1 stats")
+            print("mean", s1_img.mean())
+            print("std", s1_img.std())
+            print("min", s1_img.min())
+            print("max", s1_img.max())
+            import pdb
+
+            pdb.set_trace()
             data["s1"] = torch.from_numpy(s1_img).float()
         if "s2" in self.band_order:
             with rasterio.open(s2_path) as src:
