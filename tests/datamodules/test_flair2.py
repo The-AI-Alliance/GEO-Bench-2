@@ -5,12 +5,14 @@
 
 import pytest
 import os
+from pathlib import Path
 from pytest import MonkeyPatch
 from typing import Sequence
 import torch
 import matplotlib.pyplot as plt
 from geobench_v2.datasets import GeoBenchFLAIR2
 from geobench_v2.datamodules import GeoBenchFLAIR2DataModule
+from torchgeo.datasets import DatasetNotFoundError
 
 
 @pytest.fixture(params=[["r", 1.0, "g", "b"]])
@@ -20,9 +22,21 @@ def band_order(request):
 
 
 @pytest.fixture
-def datamodule(monkeypatch: MonkeyPatch, band_order: dict[str, Sequence[str | float]]):
+def datamodule(
+    monkeypatch: MonkeyPatch,
+    tmp_path: Path,
+    band_order: dict[str, Sequence[str | float]],
+):
     """Initialize FLAIR2 datamodule with test configuration."""
     monkeypatch.setattr(GeoBenchFLAIR2, "paths", ["flair2.tortilla"])
+    monkeypatch.setattr(
+        GeoBenchFLAIR2, "url", os.path.join("tests", "data", "flair2", "{}")
+    )
+    monkeypatch.setattr(
+        GeoBenchFLAIR2,
+        "sha256str",
+        ["98347cdf1d9597b843e225392126b98aa381a2201e38d83fdb720ea2c44d8df9"],
+    )
     dm = GeoBenchFLAIR2DataModule(
         img_size=256,
         batch_size=2,
@@ -30,8 +44,9 @@ def datamodule(monkeypatch: MonkeyPatch, band_order: dict[str, Sequence[str | fl
         num_workers=0,
         pin_memory=False,
         band_order=band_order,
-        root=os.path.join("tests", "data", "flair2"),
+        root=tmp_path,
         metadata=["lon", "lat"],
+        download=True,
     )
     dm.setup("fit")
     dm.setup("test")
@@ -74,3 +89,7 @@ class TestFlAIR2DataModule:
         assert isinstance(batch, dict)
 
         fig.savefig(os.path.join("tests", "data", "flair2", "test_batch.png"))
+
+    def test_not_downloaded(self, tmp_path: Path) -> None:
+        with pytest.raises(DatasetNotFoundError, match="Dataset not found"):
+            GeoBenchFLAIR2(tmp_path, split="train")

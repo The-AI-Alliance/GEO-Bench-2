@@ -27,6 +27,18 @@ class GeoBenchFieldsOfTheWorld(GeoBenchBaseDataset):
     - Return band wavelengths
     """
 
+    url = "https://hf.co/datasets/aialliance/fotw/resolve/main/{}"
+    # paths = [
+    #     "FullFOTW.0000.part.tortilla",
+    #     "FullFOTW.0001.part.tortilla",
+    #     "FullFOTW.0002.part.tortilla",
+    #     "FullFOTW.0003.part.tortilla",
+    # ]
+
+    paths = ["geobench_fotw.tortilla"]
+
+    sha256str = [""]
+
     dataset_band_config = DatasetBandRegistry.FOTW
 
     # keys should be specified according to the sensor default values
@@ -38,14 +50,6 @@ class GeoBenchFieldsOfTheWorld(GeoBenchBaseDataset):
         "means": {"r": 0.0, "g": 0.0, "b": 0.0, "nir": 0.0},
         "stds": {"r": 3000.0, "g": 3000.0, "b": 3000.0, "nir": 3000.0},
     }
-    # paths = [
-    #     "FullFOTW.0000.part.tortilla",
-    #     "FullFOTW.0001.part.tortilla",
-    #     "FullFOTW.0002.part.tortilla",
-    #     "FullFOTW.0003.part.tortilla",
-    # ]
-
-    paths = ["geobench_fotw.tortilla"]
 
     classes = ("background", "field", "field-boundary")
     num_classes = len(classes)
@@ -62,6 +66,7 @@ class GeoBenchFieldsOfTheWorld(GeoBenchBaseDataset):
         label_type: Literal["instance_seg", "semantic_seg"] = "semantic_seg",
         transforms: nn.Module | None = None,
         metadata: Sequence[str] | None = None,
+        download: bool = False,
     ) -> None:
         """Initialize Fields of the World Dataset.
 
@@ -85,6 +90,7 @@ class GeoBenchFieldsOfTheWorld(GeoBenchBaseDataset):
             data_normalizer=data_normalizer,
             transforms=transforms,
             metadata=metadata,
+            download=download,
         )
 
         self.label_type = label_type

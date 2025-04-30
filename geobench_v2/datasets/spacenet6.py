@@ -33,6 +33,19 @@ class GeoBenchSpaceNet6(GeoBenchBaseDataset):
     2. Building
     """
 
+    url = "https://hf.co/datasets/aialliance/spacenet6/resolve/main/{}"
+    # paths = [
+    #     "SpaceNet6.0000.part.tortilla",
+    #     "SpaceNet6.0001.part.tortilla",
+    #     "SpaceNet6.0002.part.tortilla",
+    # ]
+    paths = [
+        "geobench_spacenet6.0000.part.tortilla",
+        "geobench_spacenet6.0001.part.tortilla",
+    ]
+
+    sha256str = ["", "", ""]
+
     dataset_band_config = DatasetBandRegistry.SPACENET6
 
     band_default_order = {
@@ -63,16 +76,6 @@ class GeoBenchSpaceNet6(GeoBenchBaseDataset):
         },
     }
 
-    # paths = [
-    #     "SpaceNet6.0000.part.tortilla",
-    #     "SpaceNet6.0001.part.tortilla",
-    #     "SpaceNet6.0002.part.tortilla",
-    # ]
-    paths = [
-        "geobench_spacenet6.0000.part.tortilla",
-        "geobench_spacenet6.0001.part.tortilla",
-    ]
-
     classes = ("background", "no-building", "building")
 
     num_classes = len(classes)
@@ -88,6 +91,7 @@ class GeoBenchSpaceNet6(GeoBenchBaseDataset):
         transforms: nn.Module | None = None,
         return_stacked_image: bool = False,
         metadata: Sequence[str] | None = None,
+        download: bool = False,
     ) -> None:
         """Initialize SpaceNet6 dataset.
 
@@ -111,6 +115,7 @@ class GeoBenchSpaceNet6(GeoBenchBaseDataset):
             data_normalizer=data_normalizer,
             transforms=transforms,
             metadata=metadata,
+            download=download,
         )
 
         self.return_stacked_image = return_stacked_image

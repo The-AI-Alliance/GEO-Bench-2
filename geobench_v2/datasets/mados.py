@@ -30,6 +30,13 @@ class GeoBenchMADOS(GeoBenchBaseDataset):
     No Geospatial info.
     """
 
+    url = "https://hf.co/datasets/aialliance/mados/resolve/main/{}"
+
+    # paths = ["MADOS.tortilla"]
+    paths = ["geobench_mados.tortilla"]
+
+    sha256str = [""]
+
     dataset_band_config = DatasetBandRegistry.MADOS
 
     band_default_order = (
@@ -82,9 +89,6 @@ class GeoBenchMADOS(GeoBenchBaseDataset):
         },
     }
 
-    # paths = ["MADOS.tortilla"]
-    paths = ["geobench_mados.tortilla"]
-
     classes = (
         "Non-annotated",
         "Marine Debris",
@@ -113,6 +117,7 @@ class GeoBenchMADOS(GeoBenchBaseDataset):
         band_order: Sequence[str] = ["B04", "B03", "B02", "B08"],
         data_normalizer: Type[nn.Module] = MultiModalNormalizer,
         transforms: nn.Module | None = None,
+        download: bool = False,
     ) -> None:
         """Initialize MADOS dataset.
 
@@ -134,6 +139,7 @@ class GeoBenchMADOS(GeoBenchBaseDataset):
             data_normalizer=data_normalizer,
             transforms=transforms,
             metadata=None,
+            download=download,
         )
 
     def __getitem__(self, idx: int) -> dict[str, Tensor]:

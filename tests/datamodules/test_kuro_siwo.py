@@ -7,6 +7,8 @@ import os
 import pytest
 from typing import Dict, Sequence, Union
 import torch
+from pathlib import Path
+from torchgeo.datasets import DatasetNotFoundError
 import matplotlib.pyplot as plt
 from pytest import MonkeyPatch
 from geobench_v2.datasets import GeoBenchKuroSiwo
@@ -21,10 +23,20 @@ def band_order(request):
 
 @pytest.fixture
 def datamodule(
-    monkeypatch: MonkeyPatch, band_order: Dict[str, Sequence[Union[str, float]]]
+    monkeypatch: MonkeyPatch,
+    tmp_path: Path,
+    band_order: Dict[str, Sequence[Union[str, float]]],
 ):
     """Initialize KuroSiwo datamodule with test configuration."""
     monkeypatch.setattr(GeoBenchKuroSiwo, "paths", ["kuro_siwo.tortilla"])
+    monkeypatch.setattr(
+        GeoBenchKuroSiwo, "url", os.path.join("tests", "data", "kuro_siwo", "{}")
+    )
+    monkeypatch.setattr(
+        GeoBenchKuroSiwo,
+        "sha256str",
+        ["8b50712388243b3938599cd35407538f27832e18c769176addc73c5ff3b72141"],
+    )
     dm = GeoBenchKuroSiwoDataModule(
         img_size=256,
         batch_size=4,
@@ -32,7 +44,8 @@ def datamodule(
         num_workers=0,
         pin_memory=False,
         band_order=band_order,
-        root=os.path.join("tests", "data", "kuro_siwo"),
+        root=tmp_path,
+        download=True,
     )
     dm.setup("fit")
     dm.setup("test")
@@ -160,8 +173,12 @@ class TestKuroSiwoDataModule:
 
     def test_batch_visualization(self, datamodule):
         """Test batch visualization."""
-        fig, batch = datamodule.visualize_batch("train")
+        fig, batch = datamodule.visualize_batch(split="train")
         assert isinstance(fig, plt.Figure)
         assert isinstance(batch, dict)
 
         fig.savefig(os.path.join("tests", "data", "kuro_siwo", "test_batch.png"))
+
+    def test_not_downloaded(self, tmp_path: Path) -> None:
+        with pytest.raises(DatasetNotFoundError, match="Dataset not found"):
+            GeoBenchKuroSiwo(tmp_path, split="train")

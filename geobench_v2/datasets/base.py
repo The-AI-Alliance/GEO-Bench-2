@@ -10,17 +10,24 @@ import rasterio
 from torchgeo.datasets import NonGeoDataset
 import tacoreader
 import os
+import hashlib
 import torch
 import torch.nn as nn
+from torchvision.datasets.utils import download_url
+import urllib.request
+
+from torchgeo.datasets import DatasetNotFoundError
 
 
-from .data_util import DataUtilsMixin, MultiModalNormalizer, DataNormalizer
+from .data_util import DataUtilsMixin, DataNormalizer
 
 
 class GeoBenchBaseDataset(NonGeoDataset, DataUtilsMixin):
     """Base dataset for classification tasks."""
 
-    paths: list[str] = []
+    url = ""
+    paths: Sequence[str] = []
+    sha256strsumsumsumsumsum: Sequence[str] = []
 
     normalization_stats = {"means": {}, "stds": {}}
     band_default_order: dict[str, list[str]] = {}
@@ -35,6 +42,7 @@ class GeoBenchBaseDataset(NonGeoDataset, DataUtilsMixin):
         ] = nn.Identity,
         transforms: nn.Module = None,
         metadata: Sequence[str] | None = None,
+        download: bool = False,
     ) -> None:
         """Initialize the dataset.
         Args:
@@ -50,6 +58,7 @@ class GeoBenchBaseDataset(NonGeoDataset, DataUtilsMixin):
             transform: A composition of transformations to apply to the data
             metadata: metadata names to be returned as part of the sample in the
                 __getitem__ method. If None, no metadata is returned.
+            download: If True, download the dataset if it is not already present.
         """
         super().__init__()
         self.root = root
@@ -60,6 +69,10 @@ class GeoBenchBaseDataset(NonGeoDataset, DataUtilsMixin):
             self.metadata = []
         else:
             self.metadata = metadata
+
+        self.download = download
+
+        self.dataset_verification()
 
         self.data_df = tacoreader.load([os.path.join(root, f) for f in self.paths])
         effective_split = "validation" if split == "val" else split
@@ -121,3 +134,58 @@ class GeoBenchBaseDataset(NonGeoDataset, DataUtilsMixin):
 
         tensor = torch.from_numpy(img)
         return tensor
+
+    def dataset_verification(self) -> None:
+        """Verify the dataset."""
+        exists = [os.path.exists(os.path.join(self.root, path)) for path in self.paths]
+        if all(exists):
+            return
+
+        if not self.download:
+            raise DatasetNotFoundError(self)
+
+        # Get Hugging Face token from environment variable
+        hf_token = os.environ.get("HF_TOKEN")
+        if not hf_token:
+            raise ValueError(
+                "HF_TOKEN environment variable not set. "
+                "Please set it to download from private repositories."
+            )
+
+        # Create a custom opener with authentication
+        opener = urllib.request.build_opener()
+        opener.addheaders = [("Authorization", f"Bearer {hf_token}")]
+        # Install our custom opener
+        urllib.request.install_opener(opener)
+
+        for path, sha256str in zip(self.paths, self.sha256str):
+            if not os.path.exists(os.path.join(self.root, path)):
+                download_url(self.url.format(path), self.root, filename=path)
+                if not self.verify_sha256str(os.path.join(self.root, path), sha256str):
+                    raise ValueError(
+                        f"sha256str verification failed for {path}. "
+                        "The file may be corrupted or incomplete."
+                    )
+
+        # TODO maybe check for other band stats etc files
+
+    def verify_sha256str(self, file_path, expected_sha256str):
+        """Verify file integrity using sha256str hash.
+
+        Args:
+            file_path: Path to the file to verify
+            expected_sha256str: Expected sha256str hash
+
+        Returns:
+            bool: True if the file is valid, False otherwise
+        """
+        if not os.path.isfile(file_path):
+            return False
+        sha256str_hash = hashlib.sha256()
+        with open(file_path, "rb") as f:
+            for chunk in iter(lambda: f.read(4096), b""):
+                sha256str_hash.update(chunk)
+
+        calculated_hash = sha256str_hash.hexdigest()
+
+        return calculated_hash == expected_sha256str

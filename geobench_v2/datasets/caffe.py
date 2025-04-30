@@ -25,6 +25,10 @@ from .base import GeoBenchBaseDataset
 class GeoBenchCaFFe(GeoBenchBaseDataset):
     """GeoBench Caffe dataset."""
 
+    url = "https://hf.co/datasets/aialliance/caffe/resolve/main/{}"
+    paths = ["geobench_caffe.tortilla"]
+    sha256str = [""]
+
     dataset_band_config = DatasetBandRegistry.CAFFE
     # TODO update sensor type with wavelength and resolution
 
@@ -38,8 +42,6 @@ class GeoBenchCaFFe(GeoBenchBaseDataset):
 
     num_classes = len(classes)
 
-    paths = ["geobench_caffe.tortilla"]
-
     def __init__(
         self,
         root,
@@ -48,6 +50,7 @@ class GeoBenchCaFFe(GeoBenchBaseDataset):
         data_normalizer: Type[nn.Module] = MultiModalNormalizer,
         transforms: nn.Module | None = None,
         metadata: Sequence[str] | None = None,
+        download: bool = False,
     ):
         """Initialize FLAIR 2 dataset.
 
@@ -70,6 +73,7 @@ class GeoBenchCaFFe(GeoBenchBaseDataset):
             data_normalizer=data_normalizer,
             transforms=transforms,
             metadata=metadata,
+            download=download,
         )
 
     def __getitem__(self, idx: int) -> dict[str, Tensor]:

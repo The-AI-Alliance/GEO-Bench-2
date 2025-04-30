@@ -4,6 +4,8 @@
 """CloudSen12 Tests."""
 
 import pytest
+from pathlib import Path
+from torchgeo.datasets import DatasetNotFoundError
 import os
 from pytest import MonkeyPatch
 from typing import Sequence
@@ -19,9 +21,21 @@ def band_order(request):
 
 
 @pytest.fixture
-def datamodule(monkeypatch: MonkeyPatch, band_order: dict[str, Sequence[str | float]]):
+def datamodule(
+    monkeypatch: MonkeyPatch,
+    tmp_path: Path,
+    band_order: dict[str, Sequence[str | float]],
+):
     """Initialize CloudSen12 datamodule with test configuration."""
     monkeypatch.setattr(GeoBenchCloudSen12, "paths", ["cloudsen12.tortilla"])
+    monkeypatch.setattr(
+        GeoBenchCloudSen12, "url", os.path.join("tests", "data", "cloudsen12", "{}")
+    )
+    monkeypatch.setattr(
+        GeoBenchCloudSen12,
+        "sha256str",
+        ["53bc46848c9c14af1525b47de92fd334ed288f0f938c2f1e8b41bdb006a6c60e"],
+    )
     dm = GeoBenchCloudSen12DataModule(
         img_size=74,
         batch_size=2,
@@ -29,7 +43,8 @@ def datamodule(monkeypatch: MonkeyPatch, band_order: dict[str, Sequence[str | fl
         num_workers=0,
         pin_memory=False,
         band_order=band_order,
-        root=os.path.join("tests", "data", "cloudsen12"),
+        root=tmp_path,
+        download=True,
         metadata=["lon", "lat"],
     )
     dm.setup("fit")
@@ -68,3 +83,7 @@ class TestCloudSen12DataModule:
         assert "lat" in train_batch
         assert train_batch["lon"].shape == (datamodule.batch_size,)
         assert train_batch["lat"].shape == (datamodule.batch_size,)
+
+    def test_not_downloaded(self, tmp_path: Path) -> None:
+        with pytest.raises(DatasetNotFoundError, match="Dataset not found"):
+            GeoBenchCloudSen12(tmp_path, split="train")
