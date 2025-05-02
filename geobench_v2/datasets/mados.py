@@ -158,10 +158,17 @@ class GeoBenchMADOS(GeoBenchBaseDataset):
             with rasterio.open(sample_row.read(0)) as src:
                 s2_img = src.read()
 
+                nan_mask = torch.from_numpy(np.isnan(s2_img))
+
         img = torch.from_numpy(s2_img).float()
 
         img_dict = self.rearrange_bands(img, self.band_order)
         img_dict = self.data_normalizer(img_dict)
+
+        # replace NaN values with 0 after normalization
+        img_dict["image"] = torch.where(
+            nan_mask, torch.zeros_like(img_dict["image"]), img_dict["image"]
+        )
 
         sample.update(img_dict)
 
