@@ -296,22 +296,26 @@ datamodules:
   #       image_s1_asc: 1
   #       image_s1_desc: 1
 
-  # - name: flair2
-  #   stats_computer:
-  #     _target_: geobench_v2.generate_benchmark.utils_dataset_statistics.SegmentationStatistics
-  #     datamodule:
-  #       _target_: geobench_v2.datamodules.GeoBenchFLAIR2DataModule
-  #       batch_size: 16
-  #       num_workers: 4
-  #       root: "/mnt/rg_climate_benchmark/data/final_geobenchV2/flair2"
-  #     input_keys: ["image"]
-  #     target_key: "mask"
-  #     range_vals:
-  #       image: [0, 255]
-  #     clip_min_vals:
-  #       image: 0
-  #     clip_max_vals:
-  #       image: 255
+  - name: flair2
+    stats_computer:
+      _target_: geobench_v2.generate_benchmark.utils_dataset_statistics.SegmentationStatistics
+      datamodule:
+        _target_: geobench_v2.datamodules.GeoBenchFLAIR2DataModule
+        batch_size: 16
+        num_workers: 4
+        # root: "/mnt/rg_climate_benchmark/data/final_geobenchV2/flair2"
+        root: "/home/nils/projects/GEO-Bench-2/data/flair2/"
+      input_keys: ["image_aerial", "image_elevation"]
+      target_key: "mask"
+      range_vals:
+        image_aerial: [0, 255]
+        image_elevation: [0, 255]
+      clip_min_vals:
+        image_aerial: 0
+        image_elevation: 0
+      clip_max_vals:
+        image_aerial: 255
+        image_elevation: 255
 
   # - name: mmflood
   #   stats_computer:
@@ -336,22 +340,22 @@ datamodules:
   #       image_dem: 2000
   #       image_hydro: 1
 
-  - name: benv2
-    stats_computer:
-      _target_: geobench_v2.generate_benchmark.utils_dataset_statistics.ClassificationStatistics
-      datamodule:
-        _target_: geobench_v2.datamodules.GeoBenchBENV2DataModule
-        batch_size: 64
-        num_workers: 4
-        root: "/mnt/rg_climate_benchmark/data/final_geobenchV2/benv2"
-      input_keys: ["image_s2", "image_s1"]
-      target_key: "label"
-      range_vals:
-        image_s2: [0, 1]
-        image_s1: [0, 1]
-      clip_min_vals:
-        image_s1: 0
-        image_s2: 0
-      clip_max_vals:
-        image_s1: 3000
-        image_s2: 30000
+  # - name: benv2
+  #   stats_computer:
+  #     _target_: geobench_v2.generate_benchmark.utils_dataset_statistics.ClassificationStatistics
+  #     datamodule:
+  #       _target_: geobench_v2.datamodules.GeoBenchBENV2DataModule
+  #       batch_size: 64
+  #       num_workers: 4
+  #       root: "/mnt/rg_climate_benchmark/data/final_geobenchV2/benv2"
+  #     input_keys: ["image_s2", "image_s1"]
+  #     target_key: "label"
+  #     range_vals:
+  #       image_s2: [0, 1]
+  #       image_s1: [0, 1]
+  #     clip_min_vals:
+  #       image_s1: 0
+  #       image_s2: 0
+  #     clip_max_vals:
+  #       image_s1: 3000
+  #       image_s2: 30000

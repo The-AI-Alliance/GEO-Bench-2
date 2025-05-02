@@ -288,6 +288,7 @@ class DataNormalizer(nn.Module, ABC):
         self,
         stats: dict[str, dict[str, float]],
         band_order: Union[list[Union[str, float]], dict[str, list[Union[str, float]]]],
+        image_keys: Sequence[str] | None = None,
     ) -> None:
         """Initialize normalizer.
 
@@ -298,6 +299,7 @@ class DataNormalizer(nn.Module, ABC):
         super().__init__()
         self.stats = stats
         self.band_order = band_order
+        self.image_keys = image_keys or ["image"]
 
     @abstractmethod
     def forward(self, data: dict[str, Tensor]) -> dict[str, Tensor]:
@@ -328,6 +330,7 @@ class MultiModalNormalizer(DataNormalizer):
         self,
         stats: dict[str, dict[str, float]],
         band_order: Union[list[Union[str, float]], dict[str, list[Union[str, float]]]],
+        image_keys: Sequence[str] | None = None,
     ) -> None:
         """Initialize normalizer applying clip then z-score.
 
@@ -341,8 +344,9 @@ class MultiModalNormalizer(DataNormalizer):
             band_order: Sequence of band names/fill values, or dict mapping modality names
                         (e.g., "s1", "s2") to such sequences. Determines the channel order
                         and identifies fill value channels.
+
         """
-        super().__init__(stats, band_order)
+        super().__init__(stats, band_order, image_keys)
 
         self.means = {}
         self.stds = {}
@@ -351,6 +355,7 @@ class MultiModalNormalizer(DataNormalizer):
         self.is_fill_value = {}
 
         if isinstance(band_order, dict):
+            # Case 2: Multi-modal with different bands for each modality
             for modality, bands in band_order.items():
                 key = f"image_{modality}"
                 (self.means[key], self.stds[key], self.is_fill_value[key]) = (
@@ -359,11 +364,13 @@ class MultiModalNormalizer(DataNormalizer):
                 # Only need clip values now, not the is_clipped mask
                 self.clip_mins[key], self.clip_maxs[key] = self._get_clip_values(bands)
         else:
-            key = "image"
-            (self.means[key], self.stds[key], self.is_fill_value[key]) = (
-                self._get_band_stats(band_order)
-            )
-            self.clip_mins[key], self.clip_maxs[key] = self._get_clip_values(band_order)
+            # Cases 1 & 3: Single band order for one or multiple image keys
+            stats_tuple = self._get_band_stats(band_order)
+            clip_tuple = self._get_clip_values(band_order)
+
+            for key in self.image_keys:
+                self.means[key], self.stds[key], self.is_fill_value[key] = stats_tuple
+                self.clip_mins[key], self.clip_maxs[key] = clip_tuple
 
     def _get_band_stats(
         self, bands: Sequence[Union[str, float]]
@@ -541,6 +548,33 @@ class MultiModalNormalizer(DataNormalizer):
 
         return result
 
+    def __repr__(self) -> str:
+        """Return string representation."""
+        lines = [f"{self.__class__.__name__}("]
+        for key in sorted(self.means.keys()):
+            lines.append(f"\n  {key}:")
+            n_channels = len(self.means[key])
+
+            # Display stats for each channel/band
+            for i in range(n_channels):
+                if self.is_fill_value[key][i]:
+                    lines.append(f"    Channel {i}: Fill Value (no normalization)")
+                else:
+                    mean = self.means[key][i].item()
+                    std = self.stds[key][i].item()
+                    clip_min = self.clip_mins[key][i].item()
+                    clip_max = self.clip_maxs[key][i].item()
+
+                    clip_info = ""
+                    if clip_min > float("-inf") or clip_max < float("inf"):
+                        clip_info = f", clipping: [{clip_min:.4f}, {clip_max:.4f}]"
+
+                    lines.append(
+                        f"    Channel {i}: mean={mean:.4f}, std={std:.4f}{clip_info}"
+                    )
+
+        return "\n".join(lines)
+
 
 class SatMAENormalizer(DataNormalizer):
     """
@@ -568,6 +602,7 @@ class SatMAENormalizer(DataNormalizer):
         self,
         stats: dict[str, dict[str, float]],
         band_order: Union[list[Union[str, float]], dict[str, list[Union[str, float]]]],
+        image_keys: Sequence[str] | None = None,
         output_range: str = "zero_one",
     ) -> None:
         """Initialize SatMAE-style normalizer.
@@ -583,7 +618,7 @@ class SatMAENormalizer(DataNormalizer):
         Raises:
             AssertionError: If output_range is not one of the valid options
         """
-        super().__init__(stats, band_order)
+        super().__init__(stats, band_order, image_keys)
 
         if output_range not in self.valid_ranges:
             raise AssertionError(
@@ -609,6 +644,7 @@ class SatMAENormalizer(DataNormalizer):
         self.is_fill_value = {}  # Boolean mask for fill value channels
 
         if isinstance(band_order, dict):
+            # Case 2: Multi-modal with different bands for each modality
             for modality, bands in band_order.items():
                 key = f"image_{modality}"
                 means, stds, is_fill = self._get_band_stats(bands)
@@ -618,13 +654,15 @@ class SatMAENormalizer(DataNormalizer):
                 self.max_values[key] = means + 2 * stds
                 self.is_fill_value[key] = is_fill
         else:
-            key = "image"
+            # Cases 1 & 3: Single band order for one or multiple image keys
             means, stds, is_fill = self._get_band_stats(band_order)
-            self.means[key] = means
-            self.stds[key] = stds
-            self.min_values[key] = means - 2 * stds
-            self.max_values[key] = means + 2 * stds
-            self.is_fill_value[key] = is_fill
+
+            for key in self.image_keys:
+                self.means[key] = means
+                self.stds[key] = stds
+                self.min_values[key] = means - 2 * stds
+                self.max_values[key] = means + 2 * stds
+                self.is_fill_value[key] = is_fill
 
     def _get_band_stats(
         self, bands: Sequence[Union[str, float]]
@@ -814,3 +852,28 @@ class SatMAENormalizer(DataNormalizer):
                 result[key] = tensor
 
         return result
+
+    def __repr__(self) -> str:
+        """Return string representation."""
+        lines = [f"{self.__class__.__name__}: (output_range={self.output_range}):"]
+
+        for key in sorted(self.means.keys()):
+            lines.append(f"\n  {key}:")
+            n_channels = len(self.means[key])
+
+            # Display stats for each channel/band
+            for i in range(n_channels):
+                if self.is_fill_value[key][i]:
+                    lines.append(f"    Channel {i}: Fill Value (no normalization)")
+                else:
+                    mean = self.means[key][i].item()
+                    std = self.stds[key][i].item()
+                    min_val = self.min_values[key][i].item()
+                    max_val = self.max_values[key][i].item()
+
+                    lines.append(
+                        f"    Channel {i}: mean={mean:.4f}, std={std:.4f}, "
+                        f"clipping: [{min_val:.4f}, {max_val:.4f}]"
+                    )
+
+        return "\n".join(lines)
