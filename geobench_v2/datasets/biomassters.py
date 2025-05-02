@@ -10,7 +10,7 @@ import torch.nn as nn
 
 from .sensor_util import DatasetBandRegistry
 from .base import GeoBenchBaseDataset
-from .data_util import MultiModalNormalizer
+from .data_util import ClipZScoreNormalizer
 import torch.nn as nn
 import rasterio
 import numpy as np
@@ -113,7 +113,7 @@ class GeoBenchBioMassters(GeoBenchBaseDataset):
             "s1": ["VV_asc", "VH_asx"],
             "s2": ["B04", "B03", "B02", "B08"],
         },
-        data_normalizer: Type[nn.Module] = MultiModalNormalizer,
+        data_normalizer: Type[nn.Module] = ClipZScoreNormalizer,
         transforms: nn.Module | None = None,
         metadata: Sequence[str] | None = None,
         num_time_steps: int = 1,
@@ -128,7 +128,7 @@ class GeoBenchBioMassters(GeoBenchBaseDataset):
                 specify ['red', 'green', 'blue', 'nir', 'nir'], the dataset would return images with 5 channels
                 in that order. This is useful for models that expect a certain band order, or
                 test the impact of band order on model performance.
-            data_normalizer: The data normalizer to apply to the data, defaults to :class:`data_util.MultiModalNormalizer`,
+            data_normalizer: The data normalizer to apply to the data, defaults to :class:`data_util.ClipZScoreNormalizer`,
                 which applies z-score normalization to each band.
             transforms:
             metadata: metadata names to be returned under specified keys as part of the sample in the

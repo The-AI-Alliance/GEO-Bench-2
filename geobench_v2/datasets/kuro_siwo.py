@@ -11,7 +11,7 @@ import torch.nn as nn
 
 from .sensor_util import DatasetBandRegistry
 from .base import GeoBenchBaseDataset
-from .data_util import MultiModalNormalizer
+from .data_util import ClipZScoreNormalizer
 import torch.nn as nn
 import rasterio
 import numpy as np
@@ -41,7 +41,7 @@ class GeoBenchKuroSiwo(GeoBenchBaseDataset):
         "geobench_kuro_siwo.tortilla"
     ]
 
-    sha256str = [""]
+    sha256str = ["0b546c54df70cb7548081df688cc2317f00f7b81e541e09fa0ddcd787d647eef"]
 
     dataset_band_config = DatasetBandRegistry.KURO_SIWO
 
@@ -76,7 +76,7 @@ class GeoBenchKuroSiwo(GeoBenchBaseDataset):
         root: str,
         split: Literal["train", "val", "test"],
         band_order: dict[str, Sequence[str]] = band_default_order,
-        data_normalizer: Type[nn.Module] = MultiModalNormalizer,
+        data_normalizer: Type[nn.Module] = ClipZScoreNormalizer,
         transforms: Type[nn.Module] = None,
         return_stacked_image: bool = False,
         download: bool = False,
@@ -145,9 +145,9 @@ class GeoBenchKuroSiwo(GeoBenchBaseDataset):
             with rasterio.open(post_event_path) as src:
                 post_event_img = src.read()
                 post_event_img = torch.from_numpy(post_event_img)
-            sample["image_pre_1"] = process_sar_image(pre_event_1_img)
-            sample["image_pre_2"] = process_sar_image(pre_event_2_img)
-            sample["image_post"] = process_sar_image(post_event_img)
+            sample["image_sar_pre_1"] = process_sar_image(pre_event_1_img)
+            sample["image_sar_pre_2"] = process_sar_image(pre_event_2_img)
+            sample["image_sar_post"] = process_sar_image(post_event_img)
 
         if "dem" in self.band_order:
             with rasterio.open(dem_path) as src:
@@ -171,7 +171,7 @@ class GeoBenchKuroSiwo(GeoBenchBaseDataset):
 
         if self.return_stacked_image:
             modality_keys = {
-                "sar": ["image_pre_1", "image_pre_2", "image_post"],
+                "sar": ["image_sar_pre_1", "image_sar_pre_2", "image_sar_post"],
                 "dem": ["image_dem"],
             }
             stacked_images = [

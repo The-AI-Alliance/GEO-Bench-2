@@ -250,7 +250,13 @@ class DataUtilsMixin(ABC):
                         shape[0] = 1
                     channel = torch.full(shape, float(band))
                 else:
-                    idx = mod_config.default_order.index(band)
+                    try:
+                        idx = mod_config.default_order.index(band)
+                    except ValueError:
+                        raise ValueError(
+                            f"Band {band} not found in {modality} default order.\n"
+                            f"Available bands: {', '.join(mod_config.default_order)}"
+                        )
                     if len(source_data.shape) == 4:  # timeseries of [T, C, H, W]
                         channel = source_data[:, idx : idx + 1]
                     else:  # assume [C, H, W]
@@ -312,9 +318,9 @@ class DataNormalizer(nn.Module, ABC):
         pass
 
 
-class MultiModalNormalizer(DataNormalizer):
+class ClipZScoreNormalizer(DataNormalizer):
     """
-    Normalization module applying sequential clipping and z-score normalization.
+    Normalization module applying sequential optional clipping and z-score normalization.
 
     Applies normalization per channel based on band configuration:
     1. If 'clip_min' and 'clip_max' are defined for a band in stats:
@@ -355,14 +361,37 @@ class MultiModalNormalizer(DataNormalizer):
         self.is_fill_value = {}
 
         if isinstance(band_order, dict):
-            # Case 2: Multi-modal with different bands for each modality
+            # Case 2 & 4: Multi-modal with different bands for each modality
             for modality, bands in band_order.items():
-                key = f"image_{modality}"
-                (self.means[key], self.stds[key], self.is_fill_value[key]) = (
-                    self._get_band_stats(bands)
-                )
-                # Only need clip values now, not the is_clipped mask
-                self.clip_mins[key], self.clip_maxs[key] = self._get_clip_values(bands)
+                # Get stats for this modality
+                stats_tuple = self._get_band_stats(bands)
+                clip_tuple = self._get_clip_values(bands)
+
+                # Case 2: Basic multi-modal (image_modality)
+                base_key = f"image_{modality}"
+                (
+                    self.means[base_key],
+                    self.stds[base_key],
+                    self.is_fill_value[base_key],
+                ) = stats_tuple
+                self.clip_mins[base_key], self.clip_maxs[base_key] = clip_tuple
+
+                # Case 4: Handle modality+timestamp combinations
+                # For each image_key, create entries with modality
+                if len(self.image_keys) > 1 and self.image_keys != ["image"]:
+                    for key in self.image_keys:
+                        if key == "image":
+                            continue  # Already handled
+
+                        # Create modality+timestamp key (e.g. image_pre_s1)
+                        modality_key = f"{key}_{modality}"
+
+                        # Add normalized stats
+                        self.means[modality_key] = self.means[base_key]
+                        self.stds[modality_key] = self.stds[base_key]
+                        self.is_fill_value[modality_key] = self.is_fill_value[base_key]
+                        self.clip_mins[modality_key] = self.clip_mins[base_key]
+                        self.clip_maxs[modality_key] = self.clip_maxs[base_key]
         else:
             # Cases 1 & 3: Single band order for one or multiple image keys
             stats_tuple = self._get_band_stats(band_order)
@@ -386,6 +415,7 @@ class MultiModalNormalizer(DataNormalizer):
                 if band not in self.stats.get(
                     "means", {}
                 ) or band not in self.stats.get("stds", {}):
+                    print(band), print(self.stats)
                     raise ValueError(
                         f"Band '{band}' not found in normalization statistics (means/stds)."
                     )
@@ -644,15 +674,35 @@ class SatMAENormalizer(DataNormalizer):
         self.is_fill_value = {}  # Boolean mask for fill value channels
 
         if isinstance(band_order, dict):
-            # Case 2: Multi-modal with different bands for each modality
+            # Case 2 & 4: Multi-modal with different bands for each modality
             for modality, bands in band_order.items():
-                key = f"image_{modality}"
+                # Calculate stats for this modality
                 means, stds, is_fill = self._get_band_stats(bands)
-                self.means[key] = means
-                self.stds[key] = stds
-                self.min_values[key] = means - 2 * stds
-                self.max_values[key] = means + 2 * stds
-                self.is_fill_value[key] = is_fill
+
+                # Case 2: Basic multi-modal (image_modality)
+                base_key = f"image_{modality}"
+                self.means[base_key] = means
+                self.stds[base_key] = stds
+                self.min_values[base_key] = means - 2 * stds
+                self.max_values[base_key] = means + 2 * stds
+                self.is_fill_value[base_key] = is_fill
+
+                # Case 4: Handle modality+timestamp combinations
+                # For each image_key, create entries with modality
+                if len(self.image_keys) > 1 and self.image_keys != ["image"]:
+                    for key in self.image_keys:
+                        if key == "image":
+                            continue  # Already handled
+
+                        # Create modality+timestamp key (e.g. image_pre_s1)
+                        modality_key = f"{key}_{modality}"
+
+                        # Add normalized stats
+                        self.means[modality_key] = means
+                        self.stds[modality_key] = stds
+                        self.min_values[modality_key] = means - 2 * stds
+                        self.max_values[modality_key] = means + 2 * stds
+                        self.is_fill_value[modality_key] = is_fill
         else:
             # Cases 1 & 3: Single band order for one or multiple image keys
             means, stds, is_fill = self._get_band_stats(band_order)

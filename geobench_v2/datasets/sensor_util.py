@@ -91,12 +91,12 @@ class SensorBandRegistry:
 
     RGB = ModalityConfig(
         bands={
-            "r": BandConfig("red", ["r", "red", "RED"], wavelength=0.665),
-            "g": BandConfig("green", ["g", "green", "GREEN"], wavelength=0.560),
-            "b": BandConfig("blue", ["b", "blue", "BLUE"], wavelength=0.490),
+            "red": BandConfig("red", ["r", "red", "RED"], wavelength=0.665),
+            "green": BandConfig("green", ["g", "green", "GREEN"], wavelength=0.560),
+            "blue": BandConfig("blue", ["b", "blue", "BLUE"], wavelength=0.490),
         },
-        default_order=["r", "g", "b"],
-        plot_bands=["r", "g", "b"],
+        default_order=["red", "green", "blue"],
+        plot_bands=["red", "green", "blue"],
     )
 
     RGBN = ModalityConfig(
@@ -104,8 +104,8 @@ class SensorBandRegistry:
             **RGB.bands,
             "nir": BandConfig("nir", ["nir", "NIR", "near_infrared"], wavelength=0.842),
         },
-        default_order=["r", "g", "b", "nir"],
-        plot_bands=["r", "g", "b"],
+        default_order=["red", "green", "blue", "nir"],
+        plot_bands=["red", "green", "blue"],
     )
 
     SENTINEL2 = ModalityConfig(
@@ -846,9 +846,9 @@ class DatasetBandRegistry:
         },
         default_order=[
             "nir",
-            "g",
-            "b",
-            "r",
+            "green",
+            "blue",
+            "red",
             "vv",
             "vh",
             "vv/vh",
@@ -867,9 +867,9 @@ class DatasetBandRegistry:
         ],
         band_to_modality={
             "nir": "aerial",
-            "g": "aerial",
-            "b": "aerial",
-            "r": "aerial",
+            "green": "aerial",
+            "blue": "aerial",
+            "red": "aerial",
             "vv": "s1",
             "vh": "s1",
             "vv/vh": "s1",

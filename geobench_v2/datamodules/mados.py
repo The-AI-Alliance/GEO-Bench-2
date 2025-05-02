@@ -13,9 +13,9 @@ import torch
 from torchgeo.datasets.utils import percentile_normalization
 from einops import rearrange
 
+import tacoreader
 
 from geobench_v2.datasets import GeoBenchMADOS
-import kornia.augmentation as K
 
 from .base import GeoBenchSegmentationDataModule
 import torch.nn as nn
@@ -68,9 +68,10 @@ class GeoBenchMADOSDataModule(GeoBenchSegmentationDataModule):
         Returns:
             pandas DataFrame with metadata.
         """
-        return pd.read_parquet(
-            os.path.join(self.kwargs["root"], "geobench_mados.parquet")
+        self.data_df = tacoreader.load(
+            [os.path.join(self.kwargs["root"], f) for f in GeoBenchMADOS.paths]
         )
+        return self.data_df
 
     def visualize_batch(
         self, split: str = "train"

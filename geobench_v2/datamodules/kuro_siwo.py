@@ -11,7 +11,7 @@ from torch import Tensor
 import os
 import matplotlib.pyplot as plt
 import torch
-import numpy as np
+import tacoreader
 from torchgeo.datasets.utils import percentile_normalization
 from einops import rearrange
 
@@ -76,9 +76,10 @@ class GeoBenchKuroSiwoDataModule(GeoBenchSegmentationDataModule):
         Returns:
             pandas DataFrame with metadata.
         """
-        return pd.read_parquet(
-            os.path.join(self.kwargs["root"], "geobench_kuro_siwo.parquet")
+        self.data_df = tacoreader.load(
+            [os.path.join(self.kwargs["root"], f) for f in GeoBenchKuroSiwo.paths]
         )
+        return self.data_df
 
     def visualize_batch(
         self, batch: dict[str, Tensor] | None = None, split: str = "train"

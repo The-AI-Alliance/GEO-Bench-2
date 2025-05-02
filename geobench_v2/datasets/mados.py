@@ -11,7 +11,7 @@ from shapely import wkt
 
 from .sensor_util import DatasetBandRegistry
 from .base import GeoBenchBaseDataset
-from .data_util import MultiModalNormalizer
+from .data_util import ClipZScoreNormalizer
 import torch.nn as nn
 import rasterio
 import numpy as np
@@ -35,7 +35,7 @@ class GeoBenchMADOS(GeoBenchBaseDataset):
     # paths = ["MADOS.tortilla"]
     paths = ["geobench_mados.tortilla"]
 
-    sha256str = [""]
+    sha256str = ["d9cbf591afbd7631b4d968c527f7d91cb4a2a98524d51b00b4ccb6d715502035"]
 
     dataset_band_config = DatasetBandRegistry.MADOS
 
@@ -115,7 +115,7 @@ class GeoBenchMADOS(GeoBenchBaseDataset):
         root: Path,
         split: str,
         band_order: Sequence[str] = ["B04", "B03", "B02", "B08"],
-        data_normalizer: Type[nn.Module] = MultiModalNormalizer,
+        data_normalizer: Type[nn.Module] = ClipZScoreNormalizer,
         transforms: nn.Module | None = None,
         download: bool = False,
     ) -> None:
@@ -128,7 +128,7 @@ class GeoBenchMADOS(GeoBenchBaseDataset):
                 specify ['red', 'green', 'blue', 'nir', 'nir'], the dataset would return images with 5 channels
                 in that order. This is useful for models that expect a certain band order, or
                 test the impact of band order on model performance.
-            data_normalizer: The data normalizer to apply to the data, defaults to :class:`data_util.MultiModalNormalizer`,
+            data_normalizer: The data normalizer to apply to the data, defaults to :class:`data_util.ClipZScoreNormalizer`,
                 which applies z-score normalization to each band.
             transforms:
         """
@@ -157,11 +157,16 @@ class GeoBenchMADOS(GeoBenchBaseDataset):
             warnings.filterwarnings("ignore", category=NotGeoreferencedWarning)
             with rasterio.open(sample_row.read(0)) as src:
                 s2_img = src.read()
+                nan_mask = torch.from_numpy(np.isnan(s2_img))
 
         img = torch.from_numpy(s2_img).float()
 
         img_dict = self.rearrange_bands(img, self.band_order)
         img_dict = self.data_normalizer(img_dict)
+
+        img_dict["image"] = torch.where(
+            nan_mask, torch.zeros_like(img_dict["image"]), img_dict["image"]
+        )
 
         sample.update(img_dict)
 

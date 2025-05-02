@@ -183,7 +183,7 @@ class GeoBenchDataModule(LightningDataModule, ABC):
         scale: Literal["10m", "50m", "110m"] = "50m",
         alpha: float = 0.5,
         s: float = 0.5,
-    ) -> None:
+    ) -> plt.Figure:
         """Visualize the geospatial distribution of dataset samples on a map.
 
         Creates a plot showing the geographic locations of samples, colored by dataset split

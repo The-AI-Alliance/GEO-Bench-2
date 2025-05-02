@@ -12,7 +12,7 @@ from shapely import wkt
 
 from .sensor_util import DatasetBandRegistry
 from .base import GeoBenchBaseDataset
-from .data_util import MultiModalNormalizer
+from .data_util import ClipZScoreNormalizer
 import torch.nn as nn
 import rasterio
 import numpy as np
@@ -37,18 +37,18 @@ class GeoBenchFieldsOfTheWorld(GeoBenchBaseDataset):
 
     paths = ["geobench_fotw.tortilla"]
 
-    sha256str = [""]
+    sha256str = ["7b422acc120b99f3cf4e8389a28616f257ea81016073d9ee529699fcda667763"]
 
     dataset_band_config = DatasetBandRegistry.FOTW
 
     # keys should be specified according to the sensor default values
     # defined in sensor_util.py
-    band_default_order = ("r", "g", "b", "nir")
+    band_default_order = ("red", "green", "blue", "nir")
 
     # Define normalization stats using canonical names
     normalization_stats = {
-        "means": {"r": 0.0, "g": 0.0, "b": 0.0, "nir": 0.0},
-        "stds": {"r": 3000.0, "g": 3000.0, "b": 3000.0, "nir": 3000.0},
+        "means": {"red": 0.0, "green": 0.0, "blue": 0.0, "nir": 0.0},
+        "stds": {"red": 3000.0, "green": 3000.0, "blue": 3000.0, "nir": 3000.0},
     }
 
     classes = ("background", "field", "field-boundary")
@@ -62,7 +62,7 @@ class GeoBenchFieldsOfTheWorld(GeoBenchBaseDataset):
         root: Path,
         split: str,
         band_order: Sequence[str | float] = dataset_band_config.default_order,
-        data_normalizer: Type[nn.Module] = MultiModalNormalizer,
+        data_normalizer: Type[nn.Module] = ClipZScoreNormalizer,
         label_type: Literal["instance_seg", "semantic_seg"] = "semantic_seg",
         transforms: nn.Module | None = None,
         metadata: Sequence[str] | None = None,
@@ -77,7 +77,7 @@ class GeoBenchFieldsOfTheWorld(GeoBenchBaseDataset):
                 specify ['red', 'green', 'blue', 'nir', 'nir'], the dataset would return images with 5 channels
                 in that order. This is useful for models that expect a certain band order, or
                 test the impact of band order on model performance.
-            data_normalizer: The data normalizer to apply to the data, defaults to :class:`data_util.MultiModalNormalizer`,
+            data_normalizer: The data normalizer to apply to the data, defaults to :class:`data_util.ClipZScoreNormalizer`,
                 which applies z-score normalization to each band.
             transforms:
             metadata: metadata names to be returned under specified keys as part of the sample in the

@@ -10,7 +10,7 @@ from typing import Type, Literal, Sequence
 from shapely import wkt
 
 from .sensor_util import DatasetBandRegistry
-from .data_util import MultiModalNormalizer
+from .data_util import ClipZScoreNormalizer
 from .base import GeoBenchBaseDataset
 import torch.nn as nn
 import rasterio
@@ -98,7 +98,7 @@ class GeoBenchSpaceNet2(GeoBenchBaseDataset):
         root: Path,
         split: str,
         band_order: list[str] = band_default_order,
-        data_normalizer: Type[nn.Module] = MultiModalNormalizer,
+        data_normalizer: Type[nn.Module] = ClipZScoreNormalizer,
         label_type: Literal["instance_seg", "semantic_seg"] = "semantic_seg",
         transforms: nn.Module = None,
         metadata: Sequence[str] | None = None,

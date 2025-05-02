@@ -11,7 +11,7 @@ from shapely import wkt
 
 from .sensor_util import DatasetBandRegistry
 from .base import GeoBenchBaseDataset
-from .data_util import MultiModalNormalizer
+from .data_util import ClipZScoreNormalizer
 import torch.nn as nn
 import rasterio
 import numpy as np
@@ -36,16 +36,16 @@ class GeoBenchTreeSatAI(GeoBenchBaseDataset):
     # paths = ["TreeSatAI.tortilla"]
     paths = ["geobench_treesatai.tortilla"]
 
-    sha256str = [""]
+    sha256str = ["04435ade7d429418cf2e51db9ec493a9ca196e79aff661425d82b066bdd3a759"]
 
     dataset_band_config = DatasetBandRegistry.TREESATAI
 
     normalization_stats = {
         "means": {
             "nir": 0.0,
-            "g": 0.0,
-            "b": 0.0,
-            "r": 0.0,
+            "green": 0.0,
+            "blue": 0.0,
+            "red": 0.0,
             "vv": 0.0,
             "vh": 0.0,
             "vv/vh": 0.0,
@@ -64,9 +64,9 @@ class GeoBenchTreeSatAI(GeoBenchBaseDataset):
         },
         "stds": {
             "nir": 255.0,
-            "g": 255.0,
-            "b": 255.0,
-            "r": 255.0,
+            "green": 255.0,
+            "blue": 255.0,
+            "red": 255.0,
             "vv": 1.0,
             "vh": 1.0,
             "vv/vh": 1.0,
@@ -86,7 +86,7 @@ class GeoBenchTreeSatAI(GeoBenchBaseDataset):
     }
 
     band_default_order = {
-        "aerial": ["r", "g", "b", "nir"],
+        "aerial": ["red", "green", "blue", "nir"],
         "s2": [
             "B02",
             "B03",
@@ -101,7 +101,7 @@ class GeoBenchTreeSatAI(GeoBenchBaseDataset):
             "B01",
             "B09",
         ],
-        "s1": ["VV", "VH", "vv/vh"],
+        "s1": ["vv", "vh", "vv/vh"],
     }
 
     classes: Sequence[str] = (
@@ -130,8 +130,10 @@ class GeoBenchTreeSatAI(GeoBenchBaseDataset):
         self,
         root: Path,
         split: str,
-        band_order: dict[str, Sequence[str]] = {"aerial": ["r", "g", "b"]},
-        data_normalizer: Type[nn.Module] = MultiModalNormalizer,
+        band_order: dict[str, Sequence[str]] = {
+            "aerial": ["red", "green", "blue", "nir"]
+        },
+        data_normalizer: Type[nn.Module] = ClipZScoreNormalizer,
         transforms: nn.Module | None = None,
         metadata: Sequence[str] | None = None,
         include_ts: bool = False,
@@ -148,7 +150,7 @@ class GeoBenchTreeSatAI(GeoBenchBaseDataset):
                 specify ['red', 'green', 'blue', 'nir', 'nir'], the dataset would return images with 5 channels
                 in that order. This is useful for models that expect a certain band order, or
                 test the impact of band order on model performance.
-            data_normalizer: The data normalizer to apply to the data, defaults to :class:`data_util.MultiModalNormalizer`,
+            data_normalizer: The data normalizer to apply to the data, defaults to :class:`data_util.ClipZScoreNormalizer`,
                 which applies z-score normalization to each band.
             transforms:
             metadata: metadata names to be returned as part of the sample in the
@@ -192,29 +194,19 @@ class GeoBenchTreeSatAI(GeoBenchBaseDataset):
 
         img_dict: dict[str, Tensor] = {}
 
-        if "aerial" in self.band_order:
-            aerial_path = sample_row.read(0)
-            with rasterio.open(aerial_path) as src:
-                aerial_data = src.read().astype(np.float32)
-            aerial_data = torch.from_numpy(aerial_data)
-            img_dict["aerial"] = aerial_data
-        if "s1" in self.band_order:
-            s1_path = sample_row.read(1)
-            with rasterio.open(s1_path) as src:
-                s1_data = src.read().astype(np.float32)
-            s1_data = torch.from_numpy(s1_data)
-            img_dict["s1"] = s1_data
-        if "s2" in self.band_order:
-            s2_path = sample_row.read(2)
-            with rasterio.open(s2_path) as src:
-                s2_data = src.read().astype(np.float32)
-            s2_data = torch.from_numpy(s2_data)
-            img_dict["s2"] = s2_data
+        modality_to_index = {"aerial": 0, "s1": 1, "s2": 2}
 
+        img_dict = {}
+        for modality in self.band_order:
+            if modality in modality_to_index:
+                file_path = sample_row.read(modality_to_index[modality])
+                with rasterio.open(file_path) as src:
+                    data = src.read().astype(np.float32)
+                img_dict[modality] = torch.from_numpy(data)
+
+        # img_dict = self.rearrange_bands(img_dict, self.band_order)
         img_dict = self.rearrange_bands(img_dict, self.band_order)
-
         img_dict = self.data_normalizer(img_dict)
-
         sample.update(img_dict)
 
         # only resize the aerial image

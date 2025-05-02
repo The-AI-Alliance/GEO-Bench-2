@@ -18,7 +18,7 @@ from shapely import wkt
 from .base import GeoBenchBaseDataset
 
 from .sensor_util import DatasetBandRegistry
-from .data_util import DataUtilsMixin, MultiModalNormalizer
+from .data_util import DataUtilsMixin, ClipZScoreNormalizer
 
 
 class GeoBenchDynamicEarthNet(GeoBenchBaseDataset):
@@ -147,7 +147,7 @@ class GeoBenchDynamicEarthNet(GeoBenchBaseDataset):
         band_order: dict[str, Sequence[float | str]] = {
             "plane": ["r", "g", "b", "nir"]
         },
-        data_normalizer: Type[nn.Module] = MultiModalNormalizer,
+        data_normalizer: Type[nn.Module] = ClipZScoreNormalizer,
         transforms: nn.Module | None = None,
         metadata: Sequence[str] | None = None,
         temporal_setting: Literal["single", "daily", "weekly"] = "single",

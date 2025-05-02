@@ -15,7 +15,7 @@ from torch import Tensor
 from torchgeo.datasets import NonGeoDataset
 
 from .sensor_util import DatasetBandRegistry
-from .data_util import DataUtilsMixin, MultiModalNormalizer
+from .data_util import DataUtilsMixin, ClipZScoreNormalizer
 import pandas as pd
 import numpy as np
 
@@ -104,7 +104,7 @@ class GeoBenchFLOGA(NonGeoDataset, DataUtilsMixin):
 
         self.band_order = self.resolve_band_order(band_order)
 
-        self.normalizer = MultiModalNormalizer(
+        self.normalizer = ClipZScoreNormalizer(
             self.normalization_stats, self.band_order
         )
 

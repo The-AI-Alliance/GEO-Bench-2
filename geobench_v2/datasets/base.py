@@ -50,7 +50,7 @@ class GeoBenchBaseDataset(NonGeoDataset, DataUtilsMixin):
             split: The dataset split, supports 'train', 'val', 'test'
             band_order:
             data_normalizer: Normalization strategy. Can be:
-                             - A class type inheriting from DataNormalizer (e.g., MultiModalNormalizer)
+                             - A class type inheriting from DataNormalizer (e.g., ClipZScoreNormalizer)
                                or a basic callable class (e.g., nn.Identity - default).
                                It will be initialized appropriately (using stats/band_order if needed).
                              - An initialized callable instance (e.g., a custom nn.Module or nn.Identity()).
@@ -80,7 +80,11 @@ class GeoBenchBaseDataset(NonGeoDataset, DataUtilsMixin):
             self.data_df["tortilla:data_split"] == effective_split
         ].reset_index(drop=True)
 
+        print("BEFORE BAND ORDER")
+        print(band_order)
         self.band_order = self.resolve_band_order(band_order)
+        print("AFTER BAND ORDER")
+        print(self.band_order)
 
         if isinstance(data_normalizer, type):
             print(f"Initializing normalizer from class: {data_normalizer.__name__}")

@@ -10,7 +10,7 @@ import torch.nn as nn
 
 from .sensor_util import DatasetBandRegistry
 from .base import GeoBenchBaseDataset
-from .data_util import MultiModalNormalizer
+from .data_util import ClipZScoreNormalizer
 import torch.nn as nn
 import rasterio
 import numpy as np
@@ -75,7 +75,7 @@ class GeoBenchQFabric(GeoBenchBaseDataset):
         root: Path,
         split: str,
         band_order: Sequence[str] = band_default_order,
-        data_normalizer: Type[nn.Module] = MultiModalNormalizer,
+        data_normalizer: Type[nn.Module] = ClipZScoreNormalizer,
         transforms: nn.Module | None = None,
         time_steps: Sequence[int] = [0, 1, 2, 3, 4],
         metadata: Sequence[str] | None = None,
@@ -90,7 +90,7 @@ class GeoBenchQFabric(GeoBenchBaseDataset):
                 specify ['red', 'green', 'blue', 'nir', 'nir'], the dataset would return images with 5 channels
                 in that order. This is useful for models that expect a certain band order, or
                 test the impact of band order on model performance.
-            data_normalizer: The data normalizer to apply to the data, defaults to :class:`data_util.MultiModalNormalizer`,
+            data_normalizer: The data normalizer to apply to the data, defaults to :class:`data_util.ClipZScoreNormalizer`,
                 which applies z-score normalization to each band.
             transforms:
             time_steps: QFabric contains 5 time steps, this allows to select which time steps to use. Specified time steps

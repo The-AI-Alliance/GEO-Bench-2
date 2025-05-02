@@ -11,7 +11,7 @@ import torch.nn as nn
 
 from .sensor_util import DatasetBandRegistry
 from .base import GeoBenchBaseDataset
-from .data_util import MultiModalNormalizer
+from .data_util import ClipZScoreNormalizer
 import torch.nn as nn
 import rasterio
 import numpy as np
@@ -58,8 +58,14 @@ class GeoBenchFLAIR2(GeoBenchBaseDataset):
     dataset_band_config = DatasetBandRegistry.FLAIR2
 
     normalization_stats = {
-        "means": {"r": 0.0, "g": 0.0, "b": 0.0, "nir": 0.0, "elevation": 0.0},
-        "stds": {"r": 255.0, "g": 255.0, "b": 255.0, "nir": 255.0, "elevation": 255.0},
+        "means": {"red": 0.0, "green": 0.0, "blue": 0.0, "nir": 0.0, "elevation": 0.0},
+        "stds": {
+            "red": 255.0,
+            "green": 255.0,
+            "blue": 255.0,
+            "nir": 255.0,
+            "elevation": 255.0,
+        },
     }
 
     band_default_order = {"aerial": ("r", "g", "b", "nir"), "elevation": ("elevation",)}
@@ -71,7 +77,7 @@ class GeoBenchFLAIR2(GeoBenchBaseDataset):
         root,
         split="train",
         band_order: dict[str, Sequence[float | str]] = band_default_order,
-        data_normalizer: Type[nn.Module] = MultiModalNormalizer,
+        data_normalizer: Type[nn.Module] = ClipZScoreNormalizer,
         transforms: nn.Module | None = None,
         metadata: Sequence[str] | None = None,
         download: bool = False,
@@ -83,7 +89,7 @@ class GeoBenchFLAIR2(GeoBenchBaseDataset):
             split: The dataset split, supports 'train', 'test'
             band_order: The order of bands to return, defaults to ['r', 'g', 'b'], if one would
                 specify ['r', 'g', 'b', 'nir'], the dataset would return images with 4 channels
-            data_normalizer: The data normalizer to apply to the data, defaults to :class:`data_util.MultiModalNormalizer`,
+            data_normalizer: The data normalizer to apply to the data, defaults to :class:`data_util.ClipZScoreNormalizer`,
                 which applies z-score normalization to each band.
             transforms:
 

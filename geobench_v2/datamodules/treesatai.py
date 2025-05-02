@@ -4,7 +4,7 @@
 """TreeSatAI dataset."""
 
 from collections.abc import Callable
-from typing import Any, Sequence
+from typing import Any, Sequence, Literal
 
 import pandas as pd
 from torch import Tensor
@@ -13,6 +13,7 @@ import numpy as np
 from einops import rearrange
 from torchgeo.datasets.utils import percentile_normalization
 import os
+import tacoreader
 import matplotlib.pyplot as plt
 
 from geobench_v2.datasets import GeoBenchTreeSatAI
@@ -68,8 +69,39 @@ class GeoBenchTreeSatAIDataModule(GeoBenchClassificationDataModule):
         Returns:
             pandas DataFrame with metadata.
         """
-        return pd.read_parquet(
-            os.path.join(self.kwargs["root"], "geobench_treesatai.parquet")
+        self.data_df = tacoreader.load(
+            [os.path.join(self.kwargs["root"], f) for f in GeoBenchTreeSatAI.paths]
+        )
+        return self.data_df
+
+    def visualize_geospatial_distribution(
+        self,
+        split_column="tortilla:data_split",
+        buffer_degrees: float = 2.0,
+        scale: Literal["10m", "50m", "110m"] = "50m",
+        alpha: float = 0.5,
+        s: float = 0.5,
+    ) -> plt.Figure:
+        """Visualize the geospatial distribution of dataset samples on a map.
+
+        Creates a plot showing the geographic locations of samples, colored by dataset split
+        (train, validation, test). This helps to understand the spatial distribution
+        and potential geographic biases in the dataset.
+
+        Args:
+            split_column: Column name in the metadata DataFrame that indicates the dataset split.
+            buffer_degrees: Buffer around the data extent in degrees
+            sample_fraction: Fraction of samples to plot (0.0-1.0) for performance with large datasets
+            scale: Scale of cartopy features (e.g., '10m', '50m', '110m')
+            alpha: Transparency of plotted points
+            s: Size of plotted points
+        """
+        return super().visualize_geospatial_distribution(
+            split_column=split_column,
+            buffer_degrees=buffer_degrees,
+            scale=scale,
+            alpha=alpha,
+            s=s,
         )
 
     def visualize_batch(

@@ -12,6 +12,7 @@ from torch import Tensor
 import os
 import matplotlib.pyplot as plt
 import torch
+import tacoreader
 import numpy as np
 from torchgeo.datasets.utils import percentile_normalization
 from einops import rearrange
@@ -77,9 +78,10 @@ class GeoBenchMMFloodDataModule(GeoBenchSegmentationDataModule):
         Returns:
             pandas DataFrame with metadata.
         """
-        return pd.read_parquet(
-            os.path.join(self.kwargs["root"], "geobench_mmflood.parquet")
+        self.data_df = tacoreader.load(
+            [os.path.join(self.kwargs["root"], f) for f in GeoBenchMMFlood.paths]
         )
+        return self.data_df
 
     def visualize_batch(
         self, split: str = "train"

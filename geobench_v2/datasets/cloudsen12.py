@@ -16,7 +16,7 @@ from torchgeo.datasets import NonGeoDataset
 
 from .sensor_util import DatasetBandRegistry
 from .base import GeoBenchBaseDataset
-from .data_util import DataUtilsMixin, MultiModalNormalizer
+from .data_util import DataUtilsMixin, ClipZScoreNormalizer
 import tacoreader
 import numpy as np
 from shapely import wkt
@@ -92,7 +92,7 @@ class GeoBenchCloudSen12(GeoBenchBaseDataset):
         root,
         split: Literal["train", "validation", "test"] = "train",
         band_order: Sequence[float | str] = ["B04", "B03", "B02"],
-        data_normalizer: Type[nn.Module] = MultiModalNormalizer,
+        data_normalizer: Type[nn.Module] = ClipZScoreNormalizer,
         transforms: nn.Module | None = None,
         metadata: Sequence[str] | None = None,
         download: bool = False,
@@ -104,7 +104,7 @@ class GeoBenchCloudSen12(GeoBenchBaseDataset):
             split: The dataset split, supports 'train', 'test'
             band_order: The order of bands to return, defaults to ['r', 'g', 'b'], if one would
                 specify ['r', 'g', 'b', 'nir'], the dataset would return images with 4 channels
-            data_normalizer: The data normalizer to apply to the data, defaults to :class:`data_util.MultiModalNormalizer`,
+            data_normalizer: The data normalizer to apply to the data, defaults to :class:`data_util.ClipZScoreNormalizer`,
                 which applies z-score normalization to each band.
             transforms: Image resize transform on sample level
             metadata: metadata names to be returned under specified keys as part of the sample in the

@@ -19,7 +19,7 @@ import pandas as pd
 
 
 from .sensor_util import DatasetBandRegistry
-from .data_util import DataUtilsMixin, MultiModalNormalizer
+from .data_util import DataUtilsMixin, ClipZScoreNormalizer
 
 
 class GeoBenchEverWatch(EverWatch, DataUtilsMixin):
@@ -56,7 +56,7 @@ class GeoBenchEverWatch(EverWatch, DataUtilsMixin):
         root: Path,
         split: str,
         band_order: list[str] = band_default_order,
-        data_normalizer: Type[nn.Module] = MultiModalNormalizer,
+        data_normalizer: Type[nn.Module] = ClipZScoreNormalizer,
         transforms: nn.Module | None = None,
     ) -> None:
         """Initialize EverWatch dataset.
@@ -68,7 +68,7 @@ class GeoBenchEverWatch(EverWatch, DataUtilsMixin):
                 specify ['red', 'green', 'blue', 'blue'], the dataset would return images with 4 channels
                 in that order. This is useful for models that expect a certain band order, or
                 test the impact of band order on model performance.
-            data_normalizer: The data normalizer to apply to the data, defaults to :class:`data_util.MultiModalNormalizer`,
+            data_normalizer: The data normalizer to apply to the data, defaults to :class:`data_util.ClipZScoreNormalizer`,
                 which applies z-score normalization to each band.
             transforms:
         """

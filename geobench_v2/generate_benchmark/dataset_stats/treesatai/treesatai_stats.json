@@ -9174,8 +9174,8 @@
         },
         "image_s1": {
             "band_names": [
-                "VV",
-                "VH",
+                "vv",
+                "vh",
                 "vv/vh"
             ],
             "mean": [

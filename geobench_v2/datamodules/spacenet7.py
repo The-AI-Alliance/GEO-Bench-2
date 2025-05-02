@@ -10,7 +10,7 @@ import pandas as pd
 import os
 from torch import Tensor
 import torch
-import numpy as np
+import tacoreader
 from torchgeo.datasets.utils import percentile_normalization
 from einops import rearrange
 
@@ -69,6 +69,17 @@ class GeoBenchSpaceNet7DataModule(GeoBenchSegmentationDataModule):
             pin_memory=pin_memory,
             **kwargs,
         )
+
+    def load_metadata(self) -> pd.DataFrame:
+        """Load metadata file.
+
+        Returns:
+            pandas DataFrame with metadata.
+        """
+        self.data_df = tacoreader.load(
+            [os.path.join(self.kwargs["root"], f) for f in GeoBenchSpaceNet7.paths]
+        )
+        return self.data_df
 
     def visualize_batch(
         self, split: str = "train"
@@ -189,13 +200,3 @@ class GeoBenchSpaceNet7DataModule(GeoBenchSegmentationDataModule):
     def visualize_geolocation_distribution(self) -> None:
         """Visualize the geolocation distribution of the dataset."""
         pass
-
-    def load_metadata(self) -> pd.DataFrame:
-        """Load metadata file.
-
-        Returns:
-            pandas DataFrame with metadata.
-        """
-        return pd.read_parquet(
-            os.path.join(self.kwargs["root"], "geobench_spacenet7.parquet")
-        )
