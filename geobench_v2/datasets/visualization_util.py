@@ -14,6 +14,7 @@ import torch
 from torch import Tensor
 from typing import Dict, List, Tuple, Union, Optional, Type
 import torch.nn as nn
+import seaborn as sns
 
 
 def plot_channel_histograms(stats_json_path: str) -> plt.Figure:
@@ -355,89 +356,151 @@ def get_normalized_batch(
     raise IndexError(f"Batch index {batch_index} out of range for {split} split")
 
 
-def visualize_normalization_effects(
-    datamodule,
-    stats_json_path: str,
-    normalizer_classes: List[Type[nn.Module]],
-    split: str = "train",
-    batch_index: int = 0,
-    n_bins: int = 100,
-):
+def visualize_segmentation_target_statistics(
+    stats_json_path: str, dataset_name: str = None, figsize: Tuple[int, int] = (26, 10)
+) -> plt.Figure:
     """
-    Visualize the effects of different normalization schemes on a batch.
+    Visualizes target statistics from earth observation datasets with three informative subplots.
 
     Args:
-        datamodule: Lightning DataModule instance
-        stats_json_path: Path to JSON file with dataset statistics
-        normalizer_classes: List of normalizer classes to compare
-        split: Data split to use ('train', 'val', 'test')
-        batch_index: Index of batch to retrieve
-        n_bins: Number of bins for histograms
+        stats_json_path: Path to dataset statistics JSON file.
+        dataset_name: Optional name for the dataset. If None, derived from filename.
+        figsize: Figure size as (width, height) tuple.
+
+    Returns:
+        Matplotlib figure with subplots showing class distribution, presence, and co-occurrence
     """
-    # Get band order from datamodule
-    band_order = datamodule.band_order
+    with open(stats_json_path, "r") as f:
+        stats = json.load(f)
 
-    # Extract band names for plotting
-    band_names = {}
+    target_stats = stats.get("target_stats", {})
 
-    # Handle both dictionary and list band_order formats
-    if isinstance(band_order, dict):
-        # Dictionary format: multiple modalities
-        for modality, bands in band_order.items():
-            # Filter out fill values (non-string elements)
-            band_names[f"image_{modality}"] = [b for b in bands if isinstance(b, str)]
+    pixel_distribution = target_stats.get("pixel_distribution", [])
+    class_presence_ratio = target_stats.get("class_presence_ratio", [])
+    pixel_counts = target_stats.get("pixel_counts", [])
+    num_classes = target_stats.get("num_classes", len(pixel_distribution))
+    total_images = target_stats.get("total_images", 0)
+
+    class_names = target_stats.get(
+        "class_names", [f"Class {i}" for i in range(num_classes)]
+    )
+
+    has_cooccurrence = "class_cooccurrence_ratio" in target_stats
+    cooccurrence_ratio = target_stats.get("class_cooccurrence_ratio", None)
+
+    if dataset_name is None:
+        dataset_name = os.path.basename(stats_json_path).split("_stats")[0]
+
+    fig = plt.figure(figsize=figsize)
+    gs = fig.add_gridspec(1, 3, width_ratios=[1, 1, 1.2])
+
+    ax1 = fig.add_subplot(gs[0, 0])
+
+    bars = ax1.bar(np.arange(num_classes), class_presence_ratio, color="skyblue")
+
+    for i, bar in enumerate(bars):
+        height = bar.get_height()
+        ax1.annotate(
+            f"{height:.2f}\n({int(target_stats.get('class_presence_counts', [])[i]) if i < len(target_stats.get('class_presence_counts', [])) else 'N/A'})",
+            xy=(bar.get_x() + bar.get_width() / 2, height),
+            xytext=(0, 3),
+            textcoords="offset points",
+            ha="center",
+            va="bottom",
+            fontsize=10,
+        )
+
+    ax1.set_xlabel("Class Label/Name (in enumerated order)", fontsize=16)
+    ax1.set_ylabel("Presence Ratio (fraction of images)", fontsize=16)
+    ax1.set_title("Class Presence Distribution", fontsize=16)
+    ax1.set_xticks(np.arange(num_classes))
+    ax1.set_xticklabels(class_names, fontsize=13, rotation=45, ha="right")
+    ax1.grid(axis="y", linestyle="--", alpha=0.7)
+    ax1.tick_params(axis="both", which="major", labelsize=13)
+
+    # center plot about overall class distribution
+    ax2 = fig.add_subplot(gs[0, 1])
+
+    sorted_indices = np.argsort(pixel_distribution)[::-1]
+    sorted_distribution = np.array(pixel_distribution)[sorted_indices]
+    sorted_class_names = [class_names[i] for i in sorted_indices]
+
+    sorted_percentages = sorted_distribution * 100
+
+    bars = ax2.bar(np.arange(num_classes), sorted_percentages, color="skyblue")
+
+    for i, bar in enumerate(bars):
+        height = bar.get_height()
+        if height > 0.1:
+            ax2.annotate(
+                f"{height:.1f}%",
+                xy=(bar.get_x() + bar.get_width() / 2, height),
+                xytext=(0, 3),
+                textcoords="offset points",
+                ha="center",
+                va="bottom",
+                fontsize=10,
+                rotation=90,
+            )
+
+    ax2.set_xlabel("Class (sorted by frequency)", fontsize=16)
+    ax2.set_ylabel("Pixel Distribution (%)", fontsize=16)
+    ax2.set_title("Class Distribution Analysis", fontsize=16)
+    ax2.set_xticks(np.arange(num_classes))
+    ax2.set_xticklabels(sorted_class_names, rotation=45, fontsize=13, ha="right")
+    ax2.grid(axis="y", linestyle="--", alpha=0.7)
+    ax2.tick_params(axis="both", which="major", labelsize=13)
+
+    ax3 = fig.add_subplot(gs[0, 2])
+
+    if has_cooccurrence:
+        mask = np.zeros_like(cooccurrence_ratio, dtype=bool)
+        np.fill_diagonal(mask, True)
+
+        cmap = sns.color_palette("Blues", as_cmap=True)
+
+        sns.heatmap(
+            cooccurrence_ratio,
+            annot=True,
+            fmt=".2f",
+            cmap=cmap,
+            mask=mask,
+            vmin=0,
+            vmax=min(1.0, np.max(cooccurrence_ratio) * 1.2),
+            linewidths=0.5,
+            ax=ax3,
+            cbar_kws={"label": "Co-occurrence Probability"},
+        )
+
+        ax3.set_title(
+            "Class Co-occurrence Analysis\n(How often classes appear together)",
+            fontsize=16,
+        )
+        ax3.set_xlabel("Class Label/Name", fontsize=12)
+        ax3.set_ylabel("Class Label/Name", fontsize=12)
+
+        ax3.set_xticks(np.arange(num_classes) + 0.5)
+        ax3.set_yticks(np.arange(num_classes) + 0.5)
+        ax3.set_xticklabels(class_names, rotation=45, ha="right", fontsize=13)
+        ax3.set_yticklabels(class_names, rotation=0, fontsize=13)
     else:
-        # List format: single modality
-        # We'll determine the actual image key when we have the batch
-        band_names_list = [b for b in band_order if isinstance(b, str)]
-
-    # Get raw batch and compute histograms
-    raw_batch, _ = get_normalized_batch(datamodule, nn.Identity(), split, batch_index)
-    raw_stats = compute_batch_histograms(raw_batch, n_bins=n_bins)
-
-    # If band_order was a list, now we can determine which image key to use
-    if isinstance(band_order, list):
-        image_keys = [key for key in raw_stats.keys() if key.startswith("image")]
-        for key in image_keys:
-            band_names[key] = band_names_list
-
-    print("Raw batch statistics:")
-    for modality, stats in raw_stats.items():
-        print(f"  {modality}:")
-        print(f"    Mean: {stats['mean']}")
-        print(f"    Std:  {stats['std']}")
-        print(f"    Min:  {stats['min']}")
-        print(f"    Max:  {stats['max']}")
-
-    # Plot raw histograms
-    plot_batch_histograms(raw_stats, band_names, title_suffix=" (Raw)")
-
-    # For each normalizer, apply and visualize
-    for normalizer_class in normalizer_classes:
-        normalizer_name = normalizer_class.__name__
-        print(f"\nApplying {normalizer_name}...")
-
-        # Create normalizer
-        normalizer = create_normalizer(stats_json_path, normalizer_class, band_order)
-
-        # Get normalized batch
-        _, normalized_batch = get_normalized_batch(
-            datamodule, normalizer, split, batch_index
+        ax3.text(
+            0.5,
+            0.5,
+            "Co-occurrence data not available",
+            ha="center",
+            va="center",
+            fontsize=14,
         )
+        ax3.axis("off")
 
-        # Compute and plot histograms for normalized batch
-        norm_stats = compute_batch_histograms(normalized_batch, n_bins=n_bins)
+    fig.suptitle(
+        f"Target Statistics for {dataset_name.upper()} Dataset\n(Total Images: {total_images}, Classes: {num_classes})",
+        fontsize=18,
+        y=0.98,
+    )
 
-        print(f"{normalizer_name} statistics:")
-        for modality, stats in norm_stats.items():
-            print(f"  {modality}:")
-            print(f"    Mean: {stats['mean']}")
-            print(f"    Std:  {stats['std']}")
-            print(f"    Min:  {stats['min']}")
-            print(f"    Max:  {stats['max']}")
+    plt.tight_layout()
+    fig.subplots_adjust(top=0.90)
 
-        plot_batch_histograms(
-            norm_stats, band_names, title_suffix=f" ({normalizer_name})"
-        )
-
-    plt.show()
+    return fig

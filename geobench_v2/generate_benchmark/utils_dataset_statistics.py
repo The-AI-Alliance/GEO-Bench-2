@@ -505,6 +505,7 @@ class ClassificationStatistics(DatasetStatistics):
             "num_classes": self.num_classes,
             "class_frequencies": class_frequencies.cpu().numpy(),
             "multi_label": self.multi_label,
+            "class_names": self.datamodule.class_names,
         }
 
         if self.multi_label:
@@ -577,6 +578,12 @@ class SegmentationStatistics(DatasetStatistics):
         self.total_pixels = 0
         self.total_images = 0
 
+        self.class_cooccurrence = torch.zeros(
+            (self.num_classes, self.num_classes), device=self.device
+        )
+        self.total_pixels = 0
+        self.total_images = 0
+
     def compute_batch_target_statistics(
         self, targets: Tensor
     ) -> dict[str, dict[str, Any]]:
@@ -594,12 +601,22 @@ class SegmentationStatistics(DatasetStatistics):
         for i in range(batch_size):
             mask = targets[i]
 
+            class_present = torch.zeros(
+                self.num_classes, dtype=torch.bool, device=self.device
+            )
+
             for c in range(self.num_classes):
                 class_pixels = (mask == c).sum().item()
                 self.pixel_counts[c] += class_pixels
 
                 if class_pixels > 0:
                     self.class_presence[c] += 1
+                    class_present[c] = True
+
+            present_indices = torch.where(class_present)[0]
+            for idx1 in present_indices:
+                for idx2 in present_indices:
+                    self.class_cooccurrence[idx1, idx2] += 1
 
             self.total_pixels += mask.numel()
             self.total_images += 1
@@ -617,14 +634,23 @@ class SegmentationStatistics(DatasetStatistics):
             else self.class_presence.float()
         )
 
+        class_cooccurrence_ratio = (
+            self.class_cooccurrence.float() / self.total_images
+            if self.total_images > 0
+            else self.class_cooccurrence.float()
+        )
+
         self.target_stats = {
             "pixel_counts": self.pixel_counts.cpu().numpy(),
             "pixel_distribution": pixel_distribution.cpu().numpy(),
             "class_presence_counts": self.class_presence.cpu().numpy(),
             "class_presence_ratio": class_presence_ratio.cpu().numpy(),
+            "class_cooccurrence": self.class_cooccurrence.cpu().numpy(),
+            "class_cooccurrence_ratio": class_cooccurrence_ratio.cpu().numpy(),
             "total_pixels": self.total_pixels,
             "total_images": self.total_images,
             "num_classes": self.num_classes,
+            "class_names": self.datamodule.class_names,
         }
 
         return self.target_stats

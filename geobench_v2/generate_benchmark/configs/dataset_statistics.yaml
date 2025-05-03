@@ -41,19 +41,6 @@ datamodules:
   #     range_vals:
   #       image: [0, 255]
 
-  # - name: fotw
-  #   stats_computer:
-  #     _target_: geobench_v2.generate_benchmark.utils_dataset_statistics.SegmentationStatistics
-  #     datamodule:
-  #       _target_: geobench_v2.datamodules.GeoBenchFieldsOfTheWorldDataModule
-  #       batch_size: 16
-  #       num_workers: 0
-  #       root: "/mnt/rg_climate_benchmark/data/geobenchV2/fotw"
-  #     input_keys: ["image"]
-  #     target_key: "mask"
-  #     range_vals:
-  #       image: [0, 3000]
-
   # - name: spacenet2
   #   stats_computer:
   #     _target_: geobench_v2.generate_benchmark.utils_dataset_statistics.SegmentationStatistics
@@ -105,7 +92,7 @@ datamodules:
   #       num_workers: 0
   #       root: "/mnt/rg_climate_benchmark/data/geobenchV2/spacenet8"
   #     input_keys: ["image_pre", "image_post"]
-  #     target_key: "mask"
+  #     target_key: "mask"            # Binary mask indicating which classes are present in this image
   #     range_vals:
   #       image_pre: [0, 255]
   #       image_post: [0, 255]
@@ -212,20 +199,22 @@ datamodules:
   #       image_s1_asc: [0, 1]
   #       image_s1_desc: [0, 1]
 
-  - name: flair2
-    stats_computer:
-      _target_: geobench_v2.generate_benchmark.utils_dataset_statistics.SegmentationStatistics
-      datamodule:
-        _target_: geobench_v2.datamodules.GeoBenchFLAIR2DataModule
-        batch_size: 16
-        num_workers: 4
-        # root: "/mnt/rg_climate_benchmark/data/geobenchV2/flair2"
-        root: "/home/nils/projects/GEO-Bench-2/data/flair2/"
-      input_keys: ["image_aerial", "image_elevation"]
-      target_key: "mask"
-      range_vals:
-        image_aerial: [0, 255]
-        image_elevation: [0, 255]
+  # - name: flair2x
+
+- name: fotw
+  stats_computer:
+    _target_: geobench_v2.generate_benchmark.utils_dataset_statistics.SegmentationStatistics
+    datamodule:
+      _target_: geobench_v2.datamodules.GeoBenchFieldsOfTheWorldDataModule
+      batch_size: 16
+      num_workers: 0
+      # root: "/mnt/rg_climate_benchmark/data/geobenchV2/fotw"
+      root: "/home/nils/projects/GEO-Bench-2/data/fotw/"
+    input_keys: ["image_a", "image_b"]
+    target_key: "mask"
+    range_vals:
+      image_a: [0, 6000]
+      image_b: [0, 6000]
 
   # - name: mmflood
   #   stats_computer:

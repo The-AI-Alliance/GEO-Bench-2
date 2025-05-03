@@ -80,11 +80,7 @@ class GeoBenchBaseDataset(NonGeoDataset, DataUtilsMixin):
             self.data_df["tortilla:data_split"] == effective_split
         ].reset_index(drop=True)
 
-        print("BEFORE BAND ORDER")
-        print(band_order)
         self.band_order = self.resolve_band_order(band_order)
-        print("AFTER BAND ORDER")
-        print(self.band_order)
 
         if isinstance(data_normalizer, type):
             print(f"Initializing normalizer from class: {data_normalizer.__name__}")
