@@ -4,22 +4,17 @@
 """Utilities for computing and storing input and target statistics."""
 
 import os
-from typing import Any, Optional, Union, Tuple, Callable
-import numpy as np
-import pandas as pd
+from typing import Any, Optional
 import torch
 import torch.nn as nn
-from torch.utils.data import DataLoader, Dataset
 from tqdm.auto import tqdm
-import matplotlib.pyplot as plt
-import seaborn as sns
+import numpy as np
+
 from lightning import LightningDataModule
 
 
 from torch import Tensor
 from abc import ABC, abstractmethod
-
-from geobench_v2.datasets.sensor_util import DatasetBandRegistry
 
 
 class NoNormalization(nn.Module):
@@ -422,6 +417,7 @@ class ClassificationStatistics(DatasetStatistics):
         clip_max_vals: dict[str, float] | None = None,
         input_keys: list[str] = ["image"],
         target_key: str = "label",
+        multilabel: bool = False,
         device: str = "cpu",
         save_dir: Optional[str] = None,
         **kwargs,
@@ -433,6 +429,7 @@ class ClassificationStatistics(DatasetStatistics):
             num_classes: Number of classes
             input_keys: Keys for input data in batch dict, can compute statistics for multi-modal inputs
             target_key: Key for target data in batch dict, assume only single target
+            multilabel: Whether the classification is multilabel
             device: Device for computation
             save_dir: Directory to save statistics
             **kwargs: Additional task-specific arguments
@@ -453,6 +450,14 @@ class ClassificationStatistics(DatasetStatistics):
         self.class_counts = torch.zeros(self.num_classes, device=self.device)
         self.total_samples = 0
 
+        if self.multi_label:
+            self.label_co_occurrence = torch.zeros(
+                (self.num_classes, self.num_classes), device=self.device
+            )
+            self.samples_per_class_count = torch.zeros(
+                self.num_classes + 1, device=self.device
+            )
+
     def compute_batch_target_statistics(
         self, targets: Tensor
     ) -> dict[str, dict[str, Any]]:
@@ -461,21 +466,70 @@ class ClassificationStatistics(DatasetStatistics):
         Args:
             targets: Target data tensor
         """
-        for c in range(self.num_classes):
-            class_count = (targets == c).sum().item()
-            self.class_counts[c] += class_count
+        targets = targets.to(self.device)
+        batch_size = targets.shape[0]
 
-        self.total_samples += targets.shape[0]
+        if self.multi_label:
+            if targets.dim() == 2 and targets.shape[1] == self.num_classes:
+                self.class_counts += targets.sum(dim=0)
+
+                labels_per_sample = targets.sum(dim=1).long()
+                for count in labels_per_sample:
+                    if count <= self.num_classes:
+                        self.samples_per_class_count[count] += 1
+
+                for i in range(batch_size):
+                    sample_labels = targets[i]
+                    active_indices = torch.where(sample_labels == 1)[0]
+                    for idx1 in active_indices:
+                        for idx2 in active_indices:
+                            self.label_co_occurrence[idx1, idx2] += 1
+            else:
+                raise ValueError(
+                    f"Multi-label targets should have shape [batch_size, {self.num_classes}] but got {targets.shape}"
+                )
+        else:
+            for c in range(self.num_classes):
+                class_count = (targets == c).sum().item()
+                self.class_counts[c] += class_count
+
+        self.total_samples += batch_size
 
     def aggregate_target_statistics(self) -> dict[str, dict[str, Any]]:
         """Aggregate classification target statistics."""
         class_frequencies = self.class_counts.float() / self.total_samples
+
         self.target_stats = {
             "class_counts": self.class_counts.cpu().numpy(),
             "total_samples": self.total_samples,
             "num_classes": self.num_classes,
             "class_frequencies": class_frequencies.cpu().numpy(),
+            "multi_label": self.multi_label,
         }
+
+        if self.multi_label:
+            self.target_stats.update(
+                {
+                    "labels_per_sample": (self.class_counts.sum() / self.total_samples)
+                    .cpu()
+                    .item(),
+                    "samples_per_class_count": self.samples_per_class_count.cpu().numpy(),
+                    "label_co_occurrence": self.label_co_occurrence.cpu().numpy(),
+                    "samples_with_no_labels": self.samples_per_class_count[0]
+                    .cpu()
+                    .item(),
+                }
+            )
+
+            co_occurrence = self.label_co_occurrence.cpu().numpy()
+            diag_vals = co_occurrence.diagonal()
+            conditional_probs = np.zeros_like(co_occurrence, dtype=float)
+            for i in range(self.num_classes):
+                if diag_vals[i] > 0:
+                    conditional_probs[i] = co_occurrence[i] / diag_vals[i]
+
+            self.target_stats["label_conditional_probabilities"] = conditional_probs
+
         return self.target_stats
 
 
@@ -693,6 +747,8 @@ class ObjectDetectionStatistics(DatasetStatistics):
             datamodule=datamodule,
             bins=bins,
             range_vals=range_vals,
+            clip_min_vals=clip_min_vals,
+            clip_max_vals=clip_max_vals,
             input_keys=input_keys,
             target_key=target_key,
             device=device,
@@ -785,12 +841,8 @@ class ObjectDetectionStatistics(DatasetStatistics):
         Returns:
             dictionary with input statistics for each input key
         """
-        i = 0
         for batch in tqdm(self.dataloader, desc="Computing dataset statistics"):
             self.compute_batch_image_statistics(batch)
             self.compute_batch_target_statistics(batch["bbox_xyxy"], batch["label"])
-            i += 1
-            if i > 50:
-                break
 
         return self.aggregate_statistics()

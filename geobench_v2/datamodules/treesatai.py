@@ -125,7 +125,8 @@ class GeoBenchTreeSatAIDataModule(GeoBenchClassificationDataModule):
         else:
             batch = next(iter(self.test_dataloader()))
 
-        batch = self.data_normalizer.unnormalize(batch)
+        if hasattr(self.data_normalizer, "unnormalize"):
+            batch = self.data_normalizer.unnormalize(batch)
 
         batch_size = batch["label"].shape[0]
         n_samples = min(8, batch_size)

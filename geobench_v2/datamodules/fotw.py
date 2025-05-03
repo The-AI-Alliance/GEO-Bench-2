@@ -6,7 +6,11 @@
 from collections.abc import Callable
 from typing import Any, Sequence
 
+import tacoreader
 import torch
+from torchgeo.datasets.utils import percentile_normalization
+import matplotlib.pyplot as plt
+from matplotlib.colors import ListedColormap
 
 import pandas as pd
 from torch import Tensor
@@ -73,22 +77,133 @@ class GeoBenchFieldsOfTheWorldDataModule(GeoBenchSegmentationDataModule):
         Returns:
             pandas DataFrame with metadata.
         """
-        return pd.read_parquet(
-            os.path.join(self.kwargs["root"], "geobench_fotw.parquet")
+        self.data_df = tacoreader.load(
+            [
+                os.path.join(self.kwargs["root"], f)
+                for f in GeoBenchFieldsOfTheWorld.paths
+            ]
         )
+        return self.data_df
 
     def visualize_batch(
         self, split: str = "train"
     ) -> tuple[plt.Figure, dict[str, Tensor]]:
-        """Visualize a batch of data.
+        """Visualize a batch of data from the Fields of the World dataset.
 
         Args:
             split: One of 'train', 'val', 'test'
 
         Returns:
             The matplotlib figure and the batch of data
+
+        Raises:
+            AssertionError: If bands needed for plotting are missing
         """
-        pass
+        if split == "train":
+            batch = next(iter(self.train_dataloader()))
+        elif split == "validation":
+            batch = next(iter(self.val_dataloader()))
+        else:
+            batch = next(iter(self.test_dataloader()))
+
+        if hasattr(self.data_normalizer, "unnormalize"):
+            batch = self.data_normalizer.unnormalize(batch)
+
+        batch_size = batch["mask"].shape[0]
+        n_samples = min(8, batch_size)
+        indices = torch.randperm(batch_size)[:n_samples]
+
+        # Determine available image types and setup columns
+        image_types = [key for key in ["image_a", "image_b", "image"] if key in batch]
+        num_cols = len(image_types) + 1  # +1 for mask
+
+        fig, axes = plt.subplots(
+            n_samples,
+            num_cols,
+            figsize=(num_cols * 4, 3 * n_samples),
+            gridspec_kw={"width_ratios": num_cols * [1]},
+        )
+
+        if n_samples == 1:
+            axes = axes.reshape(1, -1)
+
+        # Get RGB indices once
+        rgb_indices = []
+        for band in ["red", "green", "blue"]:
+            if band in self.band_order:
+                rgb_indices.append(self.band_order.index(band))
+        has_rgb = len(rgb_indices) == 3
+
+        # Setup mask visualization
+        masks = batch["mask"][indices]
+        unique_classes = torch.unique(masks).cpu().numpy()
+        unique_classes = [
+            int(cls) for cls in unique_classes if cls < len(self.class_names)
+        ]
+
+        # Define colors for the classes
+        colors = {0: "black", 1: "green", 2: "yellow"}
+        class_colors = [colors[i] for i in range(len(colors))]
+        field_cmap = ListedColormap(class_colors)
+
+        # Create legend elements
+        legend_elements = []
+        for cls in unique_classes:
+            if cls < len(self.class_names) and cls in colors:
+                legend_elements.append(
+                    plt.Rectangle(
+                        (0, 0),
+                        1,
+                        1,
+                        color=colors[cls],
+                        label=f"{self.class_names[cls]}",
+                    )
+                )
+
+        # Visualization function for any image type
+        def visualize_image(img_tensor, ax, title=""):
+            if has_rgb:
+                # Use RGB bands if available
+                display_img = img_tensor[rgb_indices].permute(1, 2, 0).cpu().numpy()
+            else:
+                # Otherwise use first three bands
+                display_img = img_tensor[:3].permute(1, 2, 0).cpu().numpy()
+
+            display_img = percentile_normalization(display_img, lower=2, upper=98)
+            ax.imshow(display_img)
+            ax.set_title(title, fontsize=20)
+            ax.axis("off")
+
+        # Plot each sample
+        for i in range(n_samples):
+            # Plot each image type
+            for j, img_type in enumerate(image_types):
+                img = batch[img_type][indices[i]]
+                ax = axes[i, j]
+                title = f"{img_type.replace('_', ' ').title()}" if i == 0 else ""
+                visualize_image(img, ax, title)
+
+            # Plot mask
+            ax = axes[i, len(image_types)]
+            mask_img = masks[i].cpu().numpy()
+            ax.imshow(mask_img, cmap=field_cmap, vmin=0, vmax=2)
+            ax.set_title("Field Mask" if i == 0 else "", fontsize=20)
+            ax.axis("off")
+
+        plt.tight_layout()
+
+        if legend_elements:
+            fig.legend(
+                handles=legend_elements,
+                loc="lower center",
+                bbox_to_anchor=(0.5, 0.01),
+                ncol=len(legend_elements),
+                frameon=True,
+                fontsize=20,
+            )
+            plt.subplots_adjust(bottom=0.1)
+
+        return fig, batch
 
     def visualize_geolocation_distribution(self) -> None:
         """Visualize the geolocation distribution of the dataset."""

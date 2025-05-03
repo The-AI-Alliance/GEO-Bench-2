@@ -126,6 +126,8 @@ class GeoBenchBENV2(GeoBenchBaseDataset):
 
     num_classes: int = len(label_names)
 
+    multilabel: bool = True
+
     valid_metadata: Sequence[str] = ("lat", "lon")
 
     def __init__(

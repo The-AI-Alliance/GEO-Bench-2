@@ -67,16 +67,28 @@ class TestFieldsOfTheWorldDataModule:
         train_batch = next(iter(datamodule.train_dataloader()))
         assert isinstance(train_batch, dict)
 
-        assert train_batch["image"].shape[0] == datamodule.batch_size
-        assert train_batch["image"].shape[1] == len(datamodule.band_order)
-        assert train_batch["image"].shape[2] == datamodule.img_size
-        assert train_batch["image"].shape[3] == 74
+        expected_dims = {
+            "image_a": (
+                datamodule.batch_size,
+                len(datamodule.band_order),
+                datamodule.img_size,
+                datamodule.img_size,
+            ),
+            "image_b": (
+                datamodule.batch_size,
+                len(datamodule.band_order),
+                datamodule.img_size,
+                datamodule.img_size,
+            ),
+            "mask": (datamodule.batch_size, datamodule.img_size, datamodule.img_size),
+        }
 
-        assert train_batch["mask"].shape[0] == datamodule.batch_size
-        assert train_batch["mask"].shape[1] == datamodule.img_size
-        assert train_batch["mask"].shape[2] == 74
+        for key, expected_shape in expected_dims.items():
+            assert train_batch[key].shape == expected_shape, (
+                f"Wrong shape for {key}: got {train_batch[key].shape}, expected {expected_shape}"
+            )
 
-        assert torch.isclose(train_batch["image"][:, 3], torch.tensor(0.0)).all()
+        assert torch.isclose(train_batch["image_a"][:, 3], torch.tensor(0.0)).all()
 
         assert "lon" in train_batch
         assert "lat" in train_batch

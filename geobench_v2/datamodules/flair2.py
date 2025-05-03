@@ -99,7 +99,8 @@ class GeoBenchFLAIR2DataModule(GeoBenchSegmentationDataModule):
         else:
             batch = next(iter(self.test_dataloader()))
 
-        batch = self.data_normalizer.unnormalize(batch)
+        if hasattr(self.data_normalizer, "unnormalize"):
+            batch = self.data_normalizer.unnormalize(batch)
 
         batch_size = batch["mask"].shape[0]
         n_samples = min(8, batch_size)
@@ -164,28 +165,29 @@ class GeoBenchFLAIR2DataModule(GeoBenchSegmentationDataModule):
             ax.set_title("Mask" if i == 0 else "")
             ax.axis("off")
 
-        if i == 0:
-            legend_elements = []
-            for cls in unique_classes:
-                if cls < len(self.class_names):
-                    color = cmap(cls / 20.0 if cls < 20 else 0)
-                    legend_elements.append(
-                        plt.Rectangle(
-                            (0, 0),
-                            1,
-                            1,
-                            color=color,
-                            label=f"{cls}: {self.class_names[cls]}",
+            if i == 0:
+                legend_elements = []
+                for class_val in unique_classes:
+                    if class_val < len(self.class_names):
+                        color = cmap(class_val / 20.0 if class_val < 20 else 0)
+                        legend_elements.append(
+                            plt.Rectangle(
+                                (0, 0),
+                                1,
+                                1,
+                                color=color,
+                                label=f"{class_val}: {self.class_names[class_val]}",
+                            )
                         )
-                    )
 
-            ax.legend(
-                handles=legend_elements,
-                loc="center",
-                frameon=True,
-                fontsize="small",
-                title="Classes",
-            )
+                ax.legend(
+                    handles=legend_elements,
+                    loc="center left",
+                    bbox_to_anchor=(1.05, 0.5),
+                    frameon=True,
+                    fontsize="small",
+                    title="Classes",
+                )
 
         plt.tight_layout()
         return fig, batch

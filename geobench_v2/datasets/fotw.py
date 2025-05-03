@@ -66,6 +66,7 @@ class GeoBenchFieldsOfTheWorld(GeoBenchBaseDataset):
         label_type: Literal["instance_seg", "semantic_seg"] = "semantic_seg",
         transforms: nn.Module | None = None,
         metadata: Sequence[str] | None = None,
+        return_stacked_image: bool = False,
         download: bool = False,
     ) -> None:
         """Initialize Fields of the World Dataset.
@@ -80,6 +81,7 @@ class GeoBenchFieldsOfTheWorld(GeoBenchBaseDataset):
             data_normalizer: The data normalizer to apply to the data, defaults to :class:`data_util.ClipZScoreNormalizer`,
                 which applies z-score normalization to each band.
             transforms:
+            return_stacked_image: if true, returns a single image tensor with all modalities stacked in band_order
             metadata: metadata names to be returned under specified keys as part of the sample in the
                 __getitem__ method. If None, no metadata is returned.
         """
@@ -94,6 +96,7 @@ class GeoBenchFieldsOfTheWorld(GeoBenchBaseDataset):
         )
 
         self.label_type = label_type
+        self.return_stacked_image = return_stacked_image
 
     def __getitem__(self, idx: int) -> dict[str, Tensor]:
         """Return the image and mask at the given index.
@@ -136,7 +139,16 @@ class GeoBenchFieldsOfTheWorld(GeoBenchBaseDataset):
         win_a = self.rearrange_bands(win_a, self.band_order)
         win_a = self.data_normalizer(win_a)
 
-        sample.update(win_a)
+        win_b = self.rearrange_bands(win_b, self.band_order)
+        win_b = self.data_normalizer(win_b)
+
+        sample["image_a"] = win_a["image"]
+        sample["image_b"] = win_b["image"]
+
+        if self.return_stacked_image:
+            sample: dict[str, Tensor] = {
+                "image": torch.cat([sample["image_a"], sample["image_b"]], dim=0)
+            }
 
         sample["mask"] = mask
 

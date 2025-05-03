@@ -497,9 +497,7 @@ class DatasetBandRegistry:
 
     EVERWATCH = SensorBandRegistry.RGB
 
-    FOTW = ModalityConfig(
-        bands=SensorBandRegistry.RGBN.bands, default_order=["r", "g", "b", "nir"]
-    )
+    FOTW = SensorBandRegistry.RGBN
 
     RESISC45 = ModalityConfig(
         bands=SensorBandRegistry.RGB.bands, default_order=["r", "g", "b"]
@@ -611,15 +609,15 @@ class DatasetBandRegistry:
                 plot_bands=["elevation"],
             ),
         },
-        default_order=["r", "g", "b", "nir", "elevation"],
+        default_order=["red", "green", "blue", "nir", "elevation"],
         band_to_modality={
-            "r": "aerial",
-            "g": "aerial",
-            "b": "aerial",
+            "red": "aerial",
+            "green": "aerial",
+            "blue": "aerial",
             "nir": "aerial",
             "elevation": "elevation",
         },
-        plot_bands=["r", "g", "b", "elevation"],
+        plot_bands=["red", "green", "blue", "elevation"],
     )
 
     # CLOUDSEN12 has cloudsen12-l1c Sentinel2 data is actually just a single ModalityConfig

@@ -122,6 +122,8 @@ class GeoBenchTreeSatAI(GeoBenchBaseDataset):
         "Tilia",
     )
 
+    multilabel: bool = True
+
     num_classes: int = len(classes)
 
     valid_metadata = ("lat", "lon")
