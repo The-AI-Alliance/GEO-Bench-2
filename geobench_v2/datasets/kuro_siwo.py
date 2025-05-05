@@ -65,7 +65,7 @@ class GeoBenchKuroSiwo(GeoBenchBaseDataset):
         band_order: dict[str, Sequence[str]] = band_default_order,
         data_normalizer: Type[nn.Module] = MultiModalNormalizer,
         transforms: Type[nn.Module] = None,
-        return_stacked_image: bool = False,
+        return_stacked_image: bool = True,
     ) -> None:
         """Initialize Kuro Siwo Dataset.
 
@@ -160,8 +160,8 @@ class GeoBenchKuroSiwo(GeoBenchBaseDataset):
             stacked_image = []
             for mod in self.band_order:
                 if mod == "sar":
-                    stacked_image.append(sample["image_pre_1"])
-                    stacked_image.append(sample["image_pre_1"])
+                    #stacked_image.append(sample["image_pre_1"])
+                    #stacked_image.append(sample["image_pre_1"])
                     stacked_image.append(sample["image_post"])
                 if mod == "dem":
                     stacked_image.append(sample["image_dem"])

@@ -93,7 +93,7 @@ class GeoBenchBioMassters(GeoBenchBaseDataset):
         root: Path,
         split: str,
         band_order: dict[str, Sequence[str]] = {
-            "s1": ["VV_asc", "VH_asx"],
+            "s1": ["VV_asc", "VH_asc"],
             "s2": ["B04", "B03", "B02", "B08"],
         },
         data_normalizer: Type[nn.Module] = MultiModalNormalizer,

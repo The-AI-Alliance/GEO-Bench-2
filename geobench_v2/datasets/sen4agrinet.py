@@ -138,7 +138,6 @@ class GeoBenchSen4AgriNet(NonGeoDataset, DataUtilsMixin):
             data_normalizer: The data normalizer to apply to the data, defaults to :class:`data_util.MultiModalNormalizer`,
                 which applies z-score normalization to each band.
             transforms:
-
         Raises:
             AssertionError: If an invalid split is specified
         """
@@ -237,7 +236,14 @@ class GeoBenchSen4AgriNet(NonGeoDataset, DataUtilsMixin):
         if self.transforms is not None:
             sample = self.transforms(sample)
 
-        return sample
+        output = {}
+        output["image"] = sample["image"] 
+        output["mask"] =  sample["mask"] 
+
+
+        #if "dates" in sample:
+        #    output["dates"] = sample["dates"]
+        return output
 
     def __len__(self) -> int:
         """Return the length of the dataset.

@@ -54,6 +54,7 @@ class GeoBenchMMFlood(GeoBenchBaseDataset):
         band_order: dict[str, Sequence[str]] = band_default_order,
         data_normalizer: Type[nn.Module] = MultiModalNormalizer,
         transforms: nn.Module | None = None,
+        return_stacked_image: bool = True,
     ) -> None:
         """Initialize MMFlood dataset.
 
@@ -67,6 +68,7 @@ class GeoBenchMMFlood(GeoBenchBaseDataset):
             data_normalizer: The data normalizer to apply to the data, defaults to :class:`data_util.MultiModalNormalizer`,
                 which applies z-score normalization to each band.
             transforms:
+            return_stacked_image: if true, returns a single image tensor with all modalities stacked in band_order
         """
         super().__init__(
             root=root,
@@ -75,6 +77,7 @@ class GeoBenchMMFlood(GeoBenchBaseDataset):
             data_normalizer=data_normalizer,
             transforms=transforms,
         )
+        self.return_stacked_image = return_stacked_image
 
     def __getitem__(self, index: int) -> dict[str, Tensor]:
         """Return an index within the dataset.
@@ -138,4 +141,19 @@ class GeoBenchMMFlood(GeoBenchBaseDataset):
         if self.transforms is not None:
             sample = self.transforms(sample)
 
-        return sample
+        if self.return_stacked_image:
+            stacked_image = []
+            for mod in self.band_order:
+                if mod == "s1":
+                    stacked_image.append(sample["image_s1"])
+                if mod == "dem":
+                    stacked_image.append(sample["image_dem"])
+                if mod == "hydro":
+                    stacked_image.append(sample["image_hydro"])
+            output = {}
+            output["image"] = torch.cat(stacked_image, 0)
+            output["mask"] =  sample["mask"] 
+        else:
+            output = sample 
+
+        return output

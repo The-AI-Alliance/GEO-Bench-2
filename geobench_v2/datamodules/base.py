@@ -65,14 +65,10 @@ class GeoBenchDataModule(LightningDataModule, ABC):
             **kwargs: Additional keyword arguments passed to ``dataset_class``
         """
         super().__init__()
-        if isinstance(train_augmentations, str):
-            assert train_augmentations == "default", (
-                "Please provide one of the follow for eval_augmentations: Callable or None or 'default'"
-            )
-        if isinstance(eval_augmentations, str):
-            assert eval_augmentations == "default", (
-                "Please provide one of the follow for eval_augmentations: Callable or None or 'default'"
-            )
+        if isinstance(train_augmentations, str): 
+            assert train_augmentations=="default", "Please provide one of the follow for eval_augmentations: Callable or None or 'default'"
+        if isinstance(eval_augmentations, str): 
+            assert eval_augmentations=="default", "Please provide one of the follow for eval_augmentations: Callable or None or 'default'"
 
         self.dataset_class = dataset_class
         self.img_size = img_size
@@ -103,6 +99,7 @@ class GeoBenchDataModule(LightningDataModule, ABC):
             self.setup_image_size_transforms()
         )
 
+        comment = """
         if stage in ["fit"]:
             self.train_dataset = self.dataset_class(
                 split="train",
@@ -130,6 +127,76 @@ class GeoBenchDataModule(LightningDataModule, ABC):
         if hasattr(self.train_dataset, "num_classes"):
             self.num_classes = self.train_dataset.num_classes
             self.class_names = self.train_dataset.classes
+        """
+        
+############ FOR INITIAL EXPERIMENTS ONLY
+        generator = torch.Generator().manual_seed(0)
+        train_dataset = self.dataset_class(
+                split="train",
+                band_order=self.band_order,
+                transforms=self.train_transform,
+                **self.kwargs,
+                )
+        val_dataset = self.dataset_class(
+                split="val",
+                band_order=self.band_order,
+                transforms=self.val_transform,
+                **self.kwargs,
+            )
+        test_dataset = self.dataset_class(
+                split="test",
+                band_order=self.band_order,
+                transforms=self.test_transform,
+                **self.kwargs,
+            )
+        print(f"train_dataset: {len(train_dataset)}")
+        print(f"val_dataset: {len(val_dataset)}")
+        print(f"test_dataset: {len(test_dataset)}")
+
+        MAX_VAL = 2000
+        MAX_TRAIN = 5000
+        MAX_TEST = 2000
+        if len(val_dataset) == 0:
+            if len(train_dataset) >= (MAX_TRAIN + MAX_VAL):
+                fraction = MAX_VAL/len(train_dataset)
+            else:
+                fraction = 0.2
+            print(f"len(val_dataset) == 0:: {fraction}")
+            train_dataset, self.val_dataset = random_split(
+                train_dataset, [1 - fraction, fraction], generator
+                )
+        elif len(val_dataset) > MAX_VAL:
+            fraction = MAX_VAL/len(val_dataset)
+            print(f"len(val_dataset) > MAX_VAL: {fraction}")
+            _, self.val_dataset = random_split(
+            val_dataset, [1 - fraction, fraction], generator
+            )
+        else:
+            self.val_dataset = val_dataset
+
+        if len(train_dataset) > MAX_TRAIN:
+            fraction = MAX_TRAIN/len(train_dataset)
+            print(f"len(train_dataset) > MAX_TRAIN: {fraction}")
+            _, self.train_dataset = random_split(
+            train_dataset, [1 - fraction, fraction], generator
+            )
+        else:
+            self.train_dataset = train_dataset
+
+        if len(test_dataset) > MAX_TEST:
+            fraction = MAX_TEST/len(test_dataset)
+            print(f"len(test_dataset) > MAX_TEST:: {fraction}")
+            _, self.test_dataset = random_split(
+            test_dataset, [1 - fraction, fraction], generator
+            )
+        else:
+            self.test_dataset = test_dataset
+
+        print(f"train_dataset: {len(self.train_dataset)}")
+        print(f"val_dataset: {len(self.val_dataset)}")
+        print(f"test_dataset: {len(self.test_dataset)}")
+############ 
+
 
     @abstractmethod
     def setup_image_size_transforms(self) -> tuple[nn.Module, nn.Module, nn.Module]:
@@ -249,8 +316,14 @@ class GeoBenchDataModule(LightningDataModule, ABC):
 
             aug = self._valid_attribute(f"{split}_augmentations")
 
+            ####### JUST FOR INITIAL EXPERIMENTS. WILL NEED TO BE REMOVED FOR MULTI_TEMPORAL
+            #print(f"before: {batch['mask'].shape}")
             batch = aug(batch)
-            
+            #print(f"after: {batch['mask'].shape}")
+            if "mask" in batch:
+                shape = batch["mask"].shape
+                if (len(shape) == 4):
+                    batch["mask"] = batch["mask"][:,0,:,:]
         return batch
 
     def _valid_attribute(self, args) -> Any:
@@ -272,13 +345,13 @@ class GeoBenchDataModule(LightningDataModule, ABC):
                 continue
 
             if not obj:
-                msg = f"{self.__class__.__name__}.{arg} has length 0."
+                msg = f'{self.__class__.__name__}.{arg} has length 0.'
                 print(msg)
                 raise RuntimeError
 
             return obj
 
-        msg = f"{self.__class__.__name__}.setup must define one of {args}."
+        msg = f'{self.__class__.__name__}.setup must define one of {args}.'
         print(msg)
         raise RuntimeError
 
@@ -349,12 +422,14 @@ class GeoBenchClassificationDataModule(GeoBenchDataModule):
                 K.RandomVerticalFlip(p=0.5),
                 data_keys=None,
                 keepdim=True,
+
             )
         elif self.train_augmentations is None:
             self.train_augmentations = nn.Identity()
 
         if (self.eval_augmentations == "default") or (self.eval_augmentations is None):
             self.eval_augmentations = nn.Identity()
+
 
     def setup_image_size_transforms(self) -> tuple[nn.Module, nn.Module, nn.Module]:
         """Setup image resizing transforms for train, val, test.
@@ -400,6 +475,7 @@ class GeoBenchClassificationDataModule(GeoBenchDataModule):
     def visualize_geolocation_distribution(self) -> None:
         """Visualize the geolocation distribution of the dataset."""
         pass
+
 
 
 class GeoBenchSegmentationDataModule(GeoBenchDataModule):
@@ -466,7 +542,7 @@ class GeoBenchSegmentationDataModule(GeoBenchDataModule):
             self.train_augmentations = K.AugmentationSequential(
                 K.RandomHorizontalFlip(p=0.5),
                 K.RandomVerticalFlip(p=0.5),
-                # data_keys=["image", "mask"],
+                #data_keys=["image", "mask"],
                 data_keys=None,
                 keepdim=True,
             )
@@ -475,6 +551,7 @@ class GeoBenchSegmentationDataModule(GeoBenchDataModule):
 
         if (self.eval_augmentations == "default") or (self.eval_augmentations is None):
             self.eval_augmentations = nn.Identity()
+
 
     def setup_image_size_transforms(self) -> tuple[nn.Module, nn.Module, nn.Module]:
         """Setup image resizing transforms for train, val, test.
@@ -587,6 +664,7 @@ class GeoBenchObjectDetectionDataModule(GeoBenchDataModule):
                 K.RandomVerticalFlip(p=0.5),
                 data_keys=["image", "bbox_xyxy", "label"],
                 keepdim=True,
+
             )
         elif self.train_augmentations is None:
             self.train_augmentations = nn.Identity()
@@ -638,3 +716,4 @@ class GeoBenchObjectDetectionDataModule(GeoBenchDataModule):
     def visualize_geolocation_distribution(self) -> None:
         """Visualize the geolocation distribution of the dataset."""
         pass
+

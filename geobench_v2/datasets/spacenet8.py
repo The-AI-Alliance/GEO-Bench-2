@@ -33,8 +33,8 @@ class GeoBenchSpaceNet8(GeoBenchBaseDataset):
     dataset_band_config = DatasetBandRegistry.SPACENET8
 
     normalization_stats = {
-        "means": {"r": 0.0, "g": 0.0, "b": 0.0},
-        "stds": {"r": 255.0, "g": 255.0, "b": 255.0},
+        "means": {"r": 65.36776733398438, "g": 84.85777282714844, "b": 57.087120056152344},
+        "stds": {"r": 44.107696533203125, "g": 37.45336151123047, "b": 35.882049560546875},
     }
 
     band_default_order = ("red", "green", "blue")
@@ -58,7 +58,7 @@ class GeoBenchSpaceNet8(GeoBenchBaseDataset):
         band_order: list[str] = band_default_order,
         data_normalizer: Type[nn.Module] = MultiModalNormalizer,
         transforms: nn.Module = None,
-        return_stacked_image: bool = False,
+        return_stacked_image: bool = True,
         **kwargs,
     ) -> None:
         """Initialize SpaceNet8 dataset.
@@ -127,10 +127,10 @@ class GeoBenchSpaceNet8(GeoBenchBaseDataset):
 
         if self.return_stacked_image:
             stacked_image = []
-            stacked_image.append(sample["image_pre"])
-            stacked_image.append(sample["image_post"])
+            #stacked_image.append(sample["image_pre"])
+            #stacked_image.append(sample["image_post"])
             output = {}
-            output["image"] = torch.cat(stacked_image, 0)
+            output["image"] = sample["image_post"]#torch.cat(stacked_image, 0)
             output["mask"] = sample["mask"]
         else:
             output = sample 

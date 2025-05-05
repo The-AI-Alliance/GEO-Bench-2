@@ -32,7 +32,7 @@ class GeoBenchCaFFe(CaFFe, DataUtilsMixin):
 
     band_default_order = ("gray",)
 
-    normalization_stats = {"means": {"gray": 0.0}, "stds": {"gray": 255.0}}
+    normalization_stats = {"means": {"gray": 62.682498931884766}, "stds": {"gray": 79.8001937866211}}
 
     mask_dirs = ("zones", "zones")
 

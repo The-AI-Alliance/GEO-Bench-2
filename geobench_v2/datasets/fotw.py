@@ -34,8 +34,8 @@ class GeoBenchFieldsOfTheWorld(GeoBenchBaseDataset):
 
     # Define normalization stats using canonical names
     normalization_stats = {
-        "means": {"r": 0.0, "g": 0.0, "b": 0.0, "nir": 0.0},
-        "stds": {"r": 3000.0, "g": 3000.0, "b": 3000.0, "nir": 3000.0},
+        "means": {"r": 862.0840454101562, "g": 853.3894653320312, "b": 592.0079956054688, "nir": 2984.3017578125},
+        "stds": {"r": 681.1666870117188,"g": 508.64013671875, "b": 454.0238952636719, "nir": 1043.6527099609375},
     }
     paths = [
         "FullFOTW.0000.part.tortilla",
