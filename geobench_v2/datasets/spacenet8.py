@@ -67,6 +67,7 @@ class GeoBenchSpaceNet8(GeoBenchBaseDataset):
         transforms: nn.Module = None,
         metadata: Sequence[str] | None = None,
         return_stacked_image: bool = False,
+        time_step: Sequence[str] = ["pre", "post"],
         download: bool = False,
     ) -> None:
         """Initialize SpaceNet8 dataset.
@@ -82,6 +83,7 @@ class GeoBenchSpaceNet8(GeoBenchBaseDataset):
             transforms: The transforms to apply to the data, defaults to None
             metadata: metadata names to be returned as part of the sample in the
                 __getitem__ method. If None, no metadata is returned.
+            time_step: list of image time steps to include from the list ["pre", "post"]
             return_stacked_image: if true, returns a single image tensor with all modalities stacked in band_order
         """
         super().__init__(
@@ -94,6 +96,13 @@ class GeoBenchSpaceNet8(GeoBenchBaseDataset):
             download=download,
         )
         self.return_stacked_image = return_stacked_image
+        
+        if len(time_step) == 0:
+            raise ValueError(
+                    "time_step must include at least one item from  ['pre, 'post']"
+                )
+        for i in time_step:
+            assert i in ["pre", "post"], "time_step must include at least one item from  ['pre, 'post']"
 
     def __getitem__(self, index: int) -> dict[str, Tensor]:
         """Return an index within the dataset.

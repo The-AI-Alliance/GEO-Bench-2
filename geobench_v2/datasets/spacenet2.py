@@ -183,7 +183,7 @@ class GeoBenchSpaceNet2(GeoBenchBaseDataset):
         if self.return_stacked_image:
             sample = {
                 "image": torch.cat(
-                    [val for key, val in sample.items() if key.startswith("image_")], 0
+                    [sample[f"image_{key}"] for key in self.band_order.keys()], 0
                 ),
                 "mask": sample["mask"],
             }

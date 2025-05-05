@@ -254,6 +254,11 @@ class GeoBenchDataModule(LightningDataModule, ABC):
 
             batch = aug(batch)
 
+            #if "mask" in batch:
+            #    shape = batch["mask"].shape
+            #    if (len(shape) == 4):
+            #        batch["mask"] = batch["mask"][:,0,:,:]
+
         return batch
 
     def _valid_attribute(self, args) -> Any:
