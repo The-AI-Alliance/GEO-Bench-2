@@ -15,7 +15,7 @@ import pandas as pd
 import torch.nn as nn
 
 from .sensor_util import DatasetBandRegistry
-from .data_util import DataUtilsMixin, MultiModalNormalizer
+from .data_util import DataUtilsMixin, MultiModalNormalizer, DataNormalizer
 
 
 class GeoBenchPASTIS(PASTIS, DataUtilsMixin):
