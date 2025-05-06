@@ -103,6 +103,7 @@ class GeoBenchSpaceNet8(GeoBenchBaseDataset):
                 )
         for i in time_step:
             assert i in ["pre", "post"], "time_step must include at least one item from  ['pre, 'post']"
+        self.time_step = time_step
 
     def __getitem__(self, index: int) -> dict[str, Tensor]:
         """Return an index within the dataset.
@@ -139,8 +140,10 @@ class GeoBenchSpaceNet8(GeoBenchBaseDataset):
         image_post = self.rearrange_bands(image_post, self.band_order)
         image_post = self.data_normalizer(image_post)
 
-        sample["image_pre"] = image_pre["image"]
-        sample["image_post"] = image_post["image"]
+        if "pre" in self.time_step:
+            sample["image_pre"] = image_pre["image"]
+        if "post" in self.time_step:
+            sample["image_post"] = image_post["image"]
 
         if self.return_stacked_image:
             sample = {
