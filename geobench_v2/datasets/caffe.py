@@ -42,6 +42,13 @@ class GeoBenchCaFFe(GeoBenchBaseDataset):
 
     num_classes = len(classes)
 
+    px_class_values_zones = {
+        0: 'N/A',
+        64: 'rock',
+        127: 'glacier',
+        254: 'ocean/ice melange',
+    }
+
     def __init__(
         self,
         root,
@@ -76,6 +83,12 @@ class GeoBenchCaFFe(GeoBenchBaseDataset):
             download=download,
         )
 
+        self.ordinal_map_zones = torch.zeros(
+            max(self.px_class_values_zones.keys()) + 1, dtype=torch.long
+        )
+        for ordinal, px_class in enumerate(self.px_class_values_zones.keys()):
+            self.ordinal_map_zones[px_class] = ordinal
+
     def __getitem__(self, idx: int) -> dict[str, Tensor]:
         """Return an index within the dataset.
 
@@ -99,6 +112,7 @@ class GeoBenchCaFFe(GeoBenchBaseDataset):
         with rasterio.open(mask_path) as f:
             mask = f.read(1)
         mask = torch.from_numpy(mask).long()
+        mask = self.ordinal_map_zones[mask]
 
         image_dict = self.rearrange_bands(image, self.band_order)
         image_dict = self.data_normalizer(image_dict)
