@@ -202,6 +202,7 @@ class GeoBenchKuroSiwo(GeoBenchBaseDataset):
                 sample[key]
                 for modality in self.band_order
                 for key in modality_keys.get(modality, [])
+                if key in sample
             ]
             sample = {"image": torch.cat(stacked_images, dim=0), "mask": sample["mask"]}
 
