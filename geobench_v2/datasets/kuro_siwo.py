@@ -79,7 +79,7 @@ class GeoBenchKuroSiwo(GeoBenchBaseDataset):
         data_normalizer: Type[nn.Module] = MultiModalNormalizer,
         transforms: Type[nn.Module] = None,
         return_stacked_image: bool = False,
-        time_step: Sequence[str] = ["pre_1","pre_1","post"],
+        time_step: Sequence[str] = ["pre_1","pre_2","post"],
         download: bool = False,
     ) -> None:
         """Initialize Kuro Siwo Dataset.
