@@ -79,6 +79,7 @@ class GeoBenchKuroSiwo(GeoBenchBaseDataset):
         data_normalizer: Type[nn.Module] = MultiModalNormalizer,
         transforms: Type[nn.Module] = None,
         return_stacked_image: bool = False,
+        time_step: Sequence[str] = ["pre_1","pre_1","post"],
         download: bool = False,
     ) -> None:
         """Initialize Kuro Siwo Dataset.
@@ -101,6 +102,13 @@ class GeoBenchKuroSiwo(GeoBenchBaseDataset):
             download=download,
         )
         self.return_stacked_image = return_stacked_image
+        if len(time_step) == 0:
+            raise ValueError(
+                    "time_step must include at least one item from  ['pre_1, , 'pre_2', 'post']"
+                )
+        for i in time_step:
+            assert i in ['pre_1', 'pre_2', 'post'], "time_step must include at least one item from  ['pre_1, , 'pre_2', 'post']"
+        self.time_step = time_step
 
     def __getitem__(self, index: int) -> dict[str, Tensor]:
         """Return an index within the dataset.
@@ -151,9 +159,12 @@ class GeoBenchKuroSiwo(GeoBenchBaseDataset):
             with rasterio.open(post_event_path) as src:
                 post_event_img = src.read()
                 post_event_img = torch.from_numpy(post_event_img)
-            sample["image_pre_1"] = process_sar_image(pre_event_1_img)
-            sample["image_pre_2"] = process_sar_image(pre_event_2_img)
-            sample["image_post"] = process_sar_image(post_event_img)
+            if "pre_1" in self.time_step:
+                sample["image_pre_1"] = process_sar_image(pre_event_1_img)
+            if "pre_2" in self.time_step:
+                sample["image_pre_2"] = process_sar_image(pre_event_2_img)
+            if "post" in self.time_step:
+                sample["image_post"] = process_sar_image(post_event_img)
 
         if "dem" in self.band_order:
             with rasterio.open(dem_path) as src:
