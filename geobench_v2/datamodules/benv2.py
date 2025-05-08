@@ -128,13 +128,6 @@ class GeoBenchBENV2DataModule(GeoBenchClassificationDataModule):
             n_samples, num_modalities + 1, width_ratios=[*[1] * num_modalities, 0.4]
         )
 
-        if n_samples == 1 and num_modalities == 1:
-            axes = np.array([[axes]])
-        elif n_samples == 1:
-            axes = axes.reshape(1, -1)
-        elif num_modalities == 1:
-            axes = axes.reshape(-1, 1)
-
         labels = batch["label"][indices]
         sample_labels = []
         for i in range(n_samples):

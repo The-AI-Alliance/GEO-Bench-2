@@ -8,256 +8,145 @@ import pandas as pd
 from PIL import Image, ImageDraw
 from tqdm import tqdm
 from tqdm.auto import tqdm
+import rasterio
+from rasterio.transform import from_origin
+import multiprocessing
 
 
-def process_everwatch_dataset(image_dir, annotations_df, output_dir, target_size=512):
-    """Resize all images in the dataset to a target size and adapt annotations.
-
-    Args:
-        image_dir (str): Directory containing original images
-        annotations_df (pd.DataFrame): DataFrame with annotations
-        output_dir (str): Directory to save resized images and annotations
-        target_size (int): Target size for both width and height
-    """
-    os.makedirs(os.path.join(output_dir, "images"), exist_ok=True)
-
-    unique_images = annotations_df["image_path"].unique()
-    resized_annotations = []
-    corrupted_images = []
-
-    for img_name in tqdm(unique_images, desc="Resizing images"):
-        image_path = os.path.join(image_dir, img_name)
-        if not os.path.exists(image_path):
-            print(f"Warning: Image {image_path} not found, skipping.")
-            continue
-
-        try:
-            # Open the image with PIL with error handling for truncated files
-            from PIL import ImageFile
-
-            ImageFile.LOAD_TRUNCATED_IMAGES = True
-
-            img = Image.open(image_path)
-            # Force load to identify potential issues early
-            img.load()
-
-            orig_width, orig_height = img.size
-            img_resized = img.resize(
-                (target_size, target_size), Image.Resampling.LANCZOS
-            )
-
-            output_path = os.path.join(output_dir, "images", img_name)
-            os.makedirs(os.path.dirname(output_path), exist_ok=True)
-            img_resized.save(output_path)
-
-            scale_x = target_size / orig_width
-            scale_y = target_size / orig_height
-
-            img_annotations = annotations_df[annotations_df["image_path"] == img_name]
-            for _, ann in img_annotations.iterrows():
-                xmin_scaled = int(ann["xmin"] * scale_x)
-                ymin_scaled = int(ann["ymin"] * scale_y)
-                xmax_scaled = int(ann["xmax"] * scale_x)
-                ymax_scaled = int(ann["ymax"] * scale_y)
-
-                if (xmax_scaled - xmin_scaled < 3) or (ymax_scaled - ymin_scaled < 3):
-                    continue
-
-                resized_annotations.append(
-                    {
-                        "image_path": img_name,
-                        "label": ann["label"],
-                        "xmin": xmin_scaled,
-                        "ymin": ymin_scaled,
-                        "xmax": xmax_scaled,
-                        "ymax": ymax_scaled,
-                        "split": ann["split"] if "split" in ann else "unknown",
-                    }
-                )
-        except (OSError, SyntaxError) as e:
-            print(f"Error processing image {image_path}: {str(e)}")
-            corrupted_images.append(img_name)
-            continue
-
-    resized_df = pd.DataFrame(resized_annotations)
-    resized_df.to_csv(os.path.join(output_dir, "resized_annotations.csv"), index=False)
-
-    # Save a list of corrupted images for reference
-    if corrupted_images:
-        with open(os.path.join(output_dir, "corrupted_images.txt"), "w") as f:
-            for img_name in corrupted_images:
-                f.write(f"{img_name}\n")
-        print(
-            f"Warning: {len(corrupted_images)} corrupted images found. List saved to corrupted_images.txt"
-        )
-
-    print(
-        f"Resized {len(unique_images) - len(corrupted_images)} images to {target_size}x{target_size}"
-    )
-    print(
-        f"Created {len(resized_df)} annotations across {len(resized_df['image_path'].unique())} images"
-    )
-    return resized_df
-
-
-def process_dotav2_dataset(df, input_dir, output_dir, target_size=512, num_workers=8):
-    """Process DOTAV2 dataset according to the determined strategies with parallel processing.
+def process_single_image(args):
+    """Process a single image for conversion to GeoTIFF.
 
     Args:
-        df: DataFrame with processing strategy information
-        input_dir: Path to original dataset
-        output_dir: Path to save processed dataset
-        target_size: Target patch size (default: 512)
-        num_workers: Number of parallel workers (default: 8)
+        args: Tuple containing (img_name, source_dir, target_dir, coords_mapping)
+
+    Returns:
+        Dictionary with processing results
     """
-    # datsat only has train/val split
-    # rename val to test and shift validation samples from remaining train
-    df.loc[df["split"] == "val", "split"] = "test"
+    img_name, source_dir, target_dir, coords_mapping = args
 
-    total_samples = len(df)
-    train_samples = int(0.7 * total_samples)
-    val_samples = int(0.1 * total_samples)
+    png_path = os.path.join(source_dir, img_name)
 
-    df["original_image_base"] = df["image_path"].apply(
-        lambda x: os.path.basename(x).split(".")[0]
+    if not os.path.exists(png_path):
+        return {"img_name": img_name, "success": False}
+
+    base_name = os.path.splitext(img_name)[0]
+    geotiff_name = f"{base_name}.tif"
+    geotiff_path = os.path.join(target_dir, geotiff_name)
+
+    os.makedirs(os.path.dirname(geotiff_path), exist_ok=True)
+
+    try:
+        with Image.open(png_path) as img:
+            img_array = np.array(img)
+
+            if len(img_array.shape) == 3 and img_array.shape[2] == 3:
+                count = 3  # RGB
+                img_array = img_array.transpose(2, 0, 1)
+            elif len(img_array.shape) == 3 and img_array.shape[2] == 4:
+                count = 4  # RGBA
+                img_array = img_array.transpose(2, 0, 1)
+            else:
+                count = 1  # Grayscale
+                img_array = img_array[np.newaxis, :, :]
+
+            transform = None
+            crs = None
+
+            if img_name in coords_mapping:
+                lon, lat = coords_mapping[img_name]
+                pixel_size = 1.0
+                transform = from_origin(lon, lat, pixel_size, pixel_size)
+                crs = "EPSG:4326"
+
+            height = img_array.shape[1]
+            width = img_array.shape[2]
+            profile = {
+                "driver": "GTiff",
+                "height": height,
+                "width": width,
+                "count": count,
+                "dtype": img_array.dtype,
+                "interleave": "pixel",
+                "blockxsize": width,
+                "blockysize": height,
+                "compress": "zstd",
+                "zstd_level": 13,
+                "predictor": 2,
+            }
+
+            if transform is not None and crs is not None:
+                profile.update({"transform": transform, "crs": crs})
+
+            with rasterio.open(geotiff_path, "w", **profile) as dst:
+                dst.write(img_array)
+
+                if img_name in coords_mapping:
+                    dst.update_tags(lat=lat, lon=lon)
+
+            return {"img_name": img_name, "success": True, "geotiff_path": geotiff_name}
+    except Exception as e:
+        return {"img_name": img_name, "success": False}
+
+
+def convert_pngs_to_geotiffs(metadata_df, source_dir, target_dir, num_workers=8):
+    """Convert PNG images to GeoTIFF format in parallel, optionally adding geospatial information.
+
+    Args:
+        metadata_df: DataFrame with annotation data including colony_name, lon, lat if available
+        source_dir: Directory containing the resized PNG images
+        target_dir: Directory where GeoTIFF files will be saved
+
+    Returns:
+        Updated DataFrame with paths to GeoTIFF files
+    """
+    source_dir = os.path.join(source_dir, "images")
+    os.makedirs(target_dir, exist_ok=True)
+
+    unique_images = metadata_df["image_path"].unique()
+
+    coords_mapping = {}
+    image_coords = (
+        metadata_df.groupby("image_path")[["lon", "lat"]].first().reset_index()
     )
+    coords_mapping = {
+        row["image_path"]: (row["lon"], row["lat"])
+        for _, row in image_coords.iterrows()
+        if not pd.isna(row["lon"]) and not pd.isna(row["lat"])
+    }
 
-    total_samples = len(df)
-    target_val_ratio = 0.10
-
-    train_source_images = df[df["split"] == "train"]["original_image_base"].unique()
-    np.random.seed(42)
-    np.random.shuffle(train_source_images)
-
-    source_counts = df[df["split"] == "train"].groupby("original_image_base").size()
-    total_train_samples = source_counts.sum()
-
-    target_val_samples = int(total_samples * target_val_ratio)
-
-    val_sources = []
-    current_val_samples = 0
-
-    for source in train_source_images:
-        if current_val_samples < target_val_samples:
-            val_sources.append(source)
-            current_val_samples += source_counts.get(source, 0)
-        else:
-            break
-
-    df.loc[
-        df["original_image_base"].isin(val_sources) & (df["split"] == "train"), "split"
-    ] = "validation"
-
-    split_counts = df["split"].value_counts()
-    print("\nSplit distribution:")
     print(
-        f"Train: {split_counts.get('train', 0)} samples ({100 * split_counts.get('train', 0) / total_samples:.1f}%)"
+        f"Found coordinates for {len(coords_mapping)} out of {len(unique_images)} images"
     )
+
+    # Create task arguments for parallel processing
+    tasks = [
+        (img_name, source_dir, target_dir, coords_mapping) for img_name in unique_images
+    ]
+
+    metadata_df = metadata_df.copy()
+
+    results = []
+    with multiprocessing.Pool(processes=num_workers) as pool:
+        for result in tqdm(
+            pool.imap_unordered(process_single_image, tasks),
+            total=len(unique_images),
+            desc="Converting to GeoTIFF",
+        ):
+            results.append(result)
+
+    success_count = sum(1 for r in results if r["success"])
+
+    for result in results:
+        if result["success"]:
+            metadata_df.loc[
+                metadata_df["image_path"] == result["img_name"], "geotiff_path"
+            ] = result["geotiff_path"]
+
     print(
-        f"Validation: {split_counts.get('validation', 0)} samples ({100 * split_counts.get('validation', 0) / total_samples:.1f}%)"
-    )
-    print(
-        f"Test: {split_counts.get('test', 0)} samples ({100 * split_counts.get('test', 0) / total_samples:.1f}%)"
+        f"Successfully converted {success_count} out of {len(unique_images)} images to GeoTIFF format"
     )
 
-    source_split_check = df.groupby("original_image_base")["split"].nunique()
-    mixed_sources = source_split_check[source_split_check > 1]
-    if len(mixed_sources) > 0:
-        print(
-            f"Warning: {len(mixed_sources)} source images have patches in multiple splits!"
-        )
-    else:
-        print("All patches from the same source image are in the same split.")
-
-    # for split in df["split"].unique():
-    #     if os.path.exists(os.path.join(output_dir, split)):
-    #         shutil.rmtree(os.path.join(output_dir, split))
-    os.makedirs(os.path.join(output_dir, "images"), exist_ok=True)
-    os.makedirs(os.path.join(output_dir, "annotations"), exist_ok=True)
-
-    def process_row(row_tuple):
-        idx, row = row_tuple
-        img_path = os.path.join(input_dir, row["image_path"])
-        img = Image.open(img_path)
-        base_filename = os.path.splitext(os.path.basename(row["image_path"]))[0]
-
-        if row["strategy"] == "resize":
-            output_filename = f"{base_filename}.png"
-        else:
-            output_filename = f"{base_filename}_patch{row['patch_id']:02d}.png"
-
-        output_img_path = os.path.join(output_dir, "images", output_filename)
-        output_label_path = os.path.join(
-            output_dir, "annotations", f"{os.path.splitext(output_filename)[0]}.txt"
-        )
-
-        x1, y1, x2, y2 = row["patch_coords"]
-        patch_img = img.crop((x1, y1, x2, y2))
-
-        orig_width, orig_height = patch_img.size
-
-        patch_img = patch_img.resize(
-            (target_size, target_size), Image.Resampling.LANCZOS
-        )
-        patch_img.save(output_img_path, format="PNG", optimize=True)
-
-        with open(output_label_path, "w") as f:
-            for ann in row["patch_annotations"]:
-                class_name = ann["class_name"]
-                difficult = ann.get("difficult", 0)
-                target_points = []
-                for px_rel, py_rel in ann["points"]:
-                    px_abs = px_rel * target_size
-                    py_abs = py_rel * target_size
-                    target_points.append((px_abs, py_abs))
-
-                # DOTAV2 format: x1 y1 x2 y2 x3 y3 x4 y4 class_name difficult
-                coord_str = " ".join([f"{px:.1f} {py:.1f}" for px, py in target_points])
-                f.write(f"{coord_str} {class_name} {difficult}\n")
-
-        return {
-            "original_image": row["image_path"],
-            "processed_image": os.path.join("images", output_filename),
-            "processed_label": os.path.join(
-                "annotations", f"{os.path.splitext(output_filename)[0]}.txt"
-            ),
-            "strategy": row["strategy"],
-            "patch_id": row["patch_id"],
-            "annotation_count": row.get("patch_annotation_count", 0),
-            "split": row["split"],
-            "original_width": row["width"],
-            "original_height": row["height"],
-            "patch_width": x2 - x1,
-            "patch_height": y2 - y1,
-            "scale_factor_x": target_size / (x2 - x1),
-            "scale_factor_y": target_size / (y2 - y1),
-        }
-
-    total_items = len(df)
-    processed_records = []
-
-    print(f"Processing {total_items} images with {num_workers} workers...")
-
-    with concurrent.futures.ThreadPoolExecutor(max_workers=num_workers) as executor:
-        futures = {
-            executor.submit(process_row, (idx, row)): idx for idx, row in df.iterrows()
-        }
-        with tqdm(total=total_items, desc="Processing images") as pbar:
-            for future in concurrent.futures.as_completed(futures):
-                result = future.result()
-                if result is not None:
-                    processed_records.append(result)
-                pbar.update(1)
-
-    processed_df = pd.DataFrame(processed_records)
-    processed_df.to_csv(os.path.join(output_dir, "processed_metadata.csv"), index=False)
-
-    print(f"Processed {len(processed_df)} images/patches:")
-    print(f"  Train: {len(processed_df[processed_df['split'] == 'train'])}")
-    print(f"  Val: {len(processed_df[processed_df['split'] == 'validation'])}")
-    print(f"  Test: {len(processed_df[processed_df['split'] == 'test'])}")
-
-    return processed_df
+    return metadata_df
 
 
 def visualize_processing_results(df, input_dir, output_dir, num_samples=20, seed=42):
@@ -325,7 +214,7 @@ def visualize_processing_results(df, input_dir, output_dir, num_samples=20, seed
         "storage-tank": (255, 0, 255),  # Magenta
         "harbor": (0, 255, 255),  # Cyan
         "bridge": (128, 0, 0),  # Dark Red
-        "helicopter": (0, 128, 0),  # Dark Green
+        "helicopter": (0, 128, 0),  # Da    # Load annotationsrk Green
         "soccer-ball-field": (0, 0, 128),  # Dark Blue
         "swimming-pool": (128, 128, 0),  # Olive
         "roundabout": (128, 0, 128),  # Purple

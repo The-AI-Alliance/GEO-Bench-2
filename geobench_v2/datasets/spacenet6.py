@@ -48,15 +48,15 @@ class GeoBenchSpaceNet6(GeoBenchBaseDataset):
     dataset_band_config = DatasetBandRegistry.SPACENET6
 
     band_default_order = {
-        "rgbn": ("r", "g", "b", "nir"),
+        "rgbn": ("red", "green", "blue", "nir"),
         "sar": ("hh", "hv", "vv", "vh"),
     }
 
     normalization_stats = {
         "means": {
-            "r": 0.0,
-            "g": 0.0,
-            "b": 0.0,
+            "red": 0.0,
+            "green": 0.0,
+            "blue": 0.0,
             "nir": 0.0,
             "hh": 0.0,
             "hv": 0.0,
@@ -64,9 +64,9 @@ class GeoBenchSpaceNet6(GeoBenchBaseDataset):
             "vh": 0.0,
         },
         "stds": {
-            "r": 1000.0,
-            "g": 1000.0,
-            "b": 1000.0,
+            "red": 1000.0,
+            "green": 1000.0,
+            "blue": 1000.0,
             "nir": 1000.0,
             "hh": 100.0,
             "hv": 100.0,
