@@ -7,20 +7,15 @@
 This script creates an analysis-ready dataset from the downloaded FLOGA imagery.
 """
 
-from pathlib import Path
 import argparse
+from itertools import product
+from pathlib import Path
+
+import h5py
 import numpy as np
 import pandas as pd
-import h5py
-import hdf5plugin
-from tqdm import tqdm
-import shutil
-import copy
-from itertools import product
 from sklearn.model_selection import train_test_split
-
-import torch
-import torch.nn.functional as F
+from tqdm import tqdm
 
 
 class font_colors:

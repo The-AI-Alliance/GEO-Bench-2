@@ -3,40 +3,21 @@
 
 """Generate Benchmark version of Caffe dataset."""
 
-from torchgeo.datasets import CaFFe
 import argparse
-import rasterio
-import os
-
-from typing import Any
-import pandas as pd
 import glob
-import shutil
-import concurrent.futures
-from tqdm import tqdm
-
-import matplotlib.pyplot as plt
-import cartopy.crs as ccrs
-import cartopy.feature as cfeature
-from matplotlib.colors import LinearSegmentedColormap
-import numpy as np
-
-from geobench_v2.generate_benchmark.utils import (
-    plot_sample_locations,
-    plot_enhanced_hemisphere_locations,
-)
-
-
 import os
+import pickle
 import re
+import shutil
+from pathlib import Path
+from typing import Any
+
 import numpy as np
 import pandas as pd
-import json
-from pathlib import Path
-from argparse import ArgumentParser
-import pickle
+import rasterio
 from PIL import Image
 from sklearn.model_selection import train_test_split
+from tqdm import tqdm
 
 
 def load_metadata(metadata_path):
@@ -301,7 +282,6 @@ def create_geobench_ds(orig_dir: str, metadata_df: pd.DataFrame, save_dir: str) 
         metadata_df: Metadata DataFrame.
         save_dir: Directory to save the subset.
     """
-
     # root directoy of caffe, then subdirectory for sar_imagess and one for "zones"
     # then subdirectories for train, val, test
 

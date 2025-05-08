@@ -3,36 +3,21 @@
 
 """Generate Benchmark version of MMFlood dataset."""
 
-from torchgeo.datasets import MMFlood
-import geopandas as gpd
-import pandas as pd
-import os
 import argparse
-import rasterio
-from tqdm import tqdm
-import re
-from geobench_v2.generate_benchmark.utils import (
-    plot_sample_locations,
-    create_unittest_subset,
-    create_subset_from_df,
-)
-import tacotoolbox
-import tacoreader
 import glob
-import numpy as np
-
-
-from typing import List, Tuple, Dict, Any, Optional, Union
 import os
-import re
-import numpy as np
+
 import pandas as pd
 import rasterio
-from rasterio.windows import Window
-from pathlib import Path
+import tacoreader
+import tacotoolbox
 from tqdm import tqdm
-import glob
-import pandas as pd
+
+from geobench_v2.generate_benchmark.utils import (
+    create_subset_from_df,
+    create_unittest_subset,
+    plot_sample_locations,
+)
 
 
 def generate_metadata_df(root) -> pd.DataFrame:
@@ -107,7 +92,6 @@ def generate_metadata_df(root) -> pd.DataFrame:
 
 def create_tortilla(root_dir, df, save_dir, tortilla_name):
     """Create a tortilla version of the dataset."""
-
     # filter by valid_ratio, which is the percent of valid number of pixels in an image
     # df = df[df["valid_ratio"] > 0.4]
 
@@ -471,6 +455,7 @@ def create_geobench_version(
     n_test_samples: int,
 ) -> None:
     """Create a GeoBench version of the dataset.
+
     Args:
         metadata_df: DataFrame with metadata including geolocation for each patch
         n_train_samples: Number of final training samples, -1 means all

@@ -2,6 +2,7 @@
 # Licensed under the Apache License 2.0.
 
 import pytest
+
 from geobench_v2.datamodules import GeoBenchSen4AgriNetDataModule
 
 

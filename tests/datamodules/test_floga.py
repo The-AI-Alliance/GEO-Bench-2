@@ -4,6 +4,7 @@
 """GeoBench FLOGA Tests."""
 
 import pytest
+
 from geobench_v2.datamodules import GeoBenchFLOGADataModule
 
 

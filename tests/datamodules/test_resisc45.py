@@ -1,4 +1,5 @@
 import pytest
+
 from geobench_v2.datamodules import GeoBenchRESISC45DataModule
 
 

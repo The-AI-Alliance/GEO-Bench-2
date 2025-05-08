@@ -3,26 +3,24 @@
 
 """Generate GeoBenchV2 version of FLAIR2 dataset."""
 
-from torchvision.datasets.utils import download_url
-import pandas as pd
-import os
 import argparse
-import pyproj
-import tacotoolbox
-import tacoreader
 import glob
-from tqdm import tqdm
-import rasterio
-
-from geobench_v2.generate_benchmark.utils import (
-    plot_sample_locations,
-    create_unittest_subset,
-    create_subset_from_df,
-)
-
+import os
 from concurrent.futures import ProcessPoolExecutor
 
-from geobench_v2.datasets.flair2 import GeoBenchFLAIR2
+import pandas as pd
+import pyproj
+import rasterio
+import tacoreader
+import tacotoolbox
+from torchvision.datasets.utils import download_url
+from tqdm import tqdm
+
+from geobench_v2.generate_benchmark.utils import (
+    create_subset_from_df,
+    create_unittest_subset,
+    plot_sample_locations,
+)
 
 
 def generate_metadata_df(save_dir: str, root: str) -> pd.DataFrame:
@@ -145,7 +143,7 @@ def generate_metadata_df(save_dir: str, root: str) -> pd.DataFrame:
     )
 
     print(f"\nTotal patches: {len(metadata_df)}")
-    print(f"Split distribution:")
+    print("Split distribution:")
     split_counts = metadata_df["split"].value_counts()
     for split, count in split_counts.items():
         print(f"  {split}: {count} ({100 * count / len(metadata_df):.1f}%)")
@@ -167,7 +165,6 @@ def generate_metadata_df(save_dir: str, root: str) -> pd.DataFrame:
 
 def create_tortilla(root_dir, df, save_dir, tortilla_name):
     """Create a tortilla version of the dataset."""
-
     tortilla_dir = os.path.join(save_dir, "tortilla")
     os.makedirs(tortilla_dir, exist_ok=True)
 
@@ -407,6 +404,7 @@ def create_geobench_version(
     n_test_samples: int,
 ) -> pd.DataFrame:
     """Create a GeoBench version of the dataset.
+
     Args:
         metadata_df: DataFrame with metadata including geolocation for each patch
         n_train_samples: Number of final training samples, -1 means all
@@ -417,7 +415,6 @@ def create_geobench_version(
         block_size: Size of blocks for optimized GeoTIFF writing
         num_workers: Number of parallel workers
     """
-
     random_state = 24
 
     subset_df = create_subset_from_df(

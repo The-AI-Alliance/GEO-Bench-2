@@ -3,19 +3,19 @@
 
 """SpaceNet8 dataset."""
 
-from torch import Tensor
-from torchgeo.datasets import SpaceNet8
+from collections.abc import Sequence
 from pathlib import Path
-from typing import Type, Sequence
-from shapely import wkt
 
-from .sensor_util import DatasetBandRegistry
-from .data_util import MultiModalNormalizer
-from .base import GeoBenchBaseDataset
-import torch.nn as nn
-import rasterio
 import numpy as np
+import rasterio
 import torch
+import torch.nn as nn
+from shapely import wkt
+from torch import Tensor
+
+from .base import GeoBenchBaseDataset
+from .data_util import ClipZScoreNormalizer
+from .sensor_util import DatasetBandRegistry
 
 
 class GeoBenchSpaceNet8(GeoBenchBaseDataset):
@@ -41,8 +41,8 @@ class GeoBenchSpaceNet8(GeoBenchBaseDataset):
     dataset_band_config = DatasetBandRegistry.SPACENET8
 
     normalization_stats = {
-        "means": {"r": 0.0, "g": 0.0, "b": 0.0},
-        "stds": {"r": 255.0, "g": 255.0, "b": 255.0},
+        "means": {"red": 0.0, "green": 0.0, "blue": 0.0},
+        "stds": {"red": 255.0, "green": 255.0, "blue": 255.0},
     }
 
     band_default_order = ("red", "green", "blue")
@@ -63,7 +63,7 @@ class GeoBenchSpaceNet8(GeoBenchBaseDataset):
         root: Path,
         split: str,
         band_order: list[str] = band_default_order,
-        data_normalizer: Type[nn.Module] = MultiModalNormalizer,
+        data_normalizer: type[nn.Module] = ClipZScoreNormalizer,
         transforms: nn.Module = None,
         metadata: Sequence[str] | None = None,
         return_stacked_image: bool = False,
@@ -78,7 +78,7 @@ class GeoBenchSpaceNet8(GeoBenchBaseDataset):
                 specify ['red', 'green', 'blue', 'blue', 'blue'], the dataset would return images with 5 channels
                 in that order. This is useful for models that expect a certain band order, or
                 test the impact of band order on model performance.
-            data_normalizer: The data normalizer to apply to the data, defaults to :class:`data_util.MultiModalNormalizer`,
+            data_normalizer: The data normalizer to apply to the data, defaults to :class:`data_util.ClipZScoreNormalizer`,
             transforms: The transforms to apply to the data, defaults to None
             metadata: metadata names to be returned as part of the sample in the
                 __getitem__ method. If None, no metadata is returned.

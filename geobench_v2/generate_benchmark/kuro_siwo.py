@@ -4,40 +4,29 @@
 """Generate Benchmark version of SpaceNet8 dataset."""
 
 import argparse
-
-
-import geopandas as gpd
-import tacotoolbox
-import rasterio as rio
-import pathlib
-import tacoreader
-import pandas as pd
-from glob import glob
+import gzip
 import json
 import os
-import gzip
 import pickle as pkl
+from concurrent.futures import ProcessPoolExecutor
 from datetime import datetime
+from glob import glob
+
 import matplotlib.pyplot as plt
-from tqdm import tqdm
 import numpy as np
-from torchgeo.datasets.utils import percentile_normalization
+import pandas as pd
+import rasterio
+import rasterio as rio
+import tacoreader
+import tacotoolbox
 from mpl_toolkits.axes_grid1 import make_axes_locatable
+from torchgeo.datasets.utils import percentile_normalization
+from tqdm import tqdm
 
 from geobench_v2.generate_benchmark.utils import (
-    plot_sample_locations,
     create_subset_from_df,
     create_unittest_subset,
 )
-
-
-from concurrent.futures import ProcessPoolExecutor
-import os
-import numpy as np
-import rasterio
-from pathlib import Path
-from tqdm import tqdm
-
 
 # Configuration mappings
 modality_mapper = {
@@ -268,7 +257,6 @@ def visualize_complete_sample(sample, output_path=None):
 
 def process_kurosiwo_sample(task):
     """Process a single KuroSiwo sample with optimized profiles."""
-
     try:
         sample_id = task["sample_id"]
         output_dir = task["output_dir"]
@@ -484,7 +472,6 @@ def reprocess_kurosiwo_dataset(
 
 def generate_metadata_df(root_dir: str) -> pd.DataFrame:
     """Generate metadata DataFrame from the Kuro Siwo dataset."""
-
     extracted_data = extract_grid_data(
         os.path.join(root_dir, "KuroSiwo", "KuroV2_grid_dict_test_0_100.gz")
     )
@@ -639,6 +626,7 @@ def create_geobench_version(
     n_test_samples: int,
 ) -> pd.DataFrame:
     """Create a GeoBench version of the dataset.
+
     Args:
         metadata_df: DataFrame with metadata including geolocation for each patch
         n_train_samples: Number of final training samples, -1 means all
@@ -649,7 +637,6 @@ def create_geobench_version(
         block_size: Size of blocks for optimized GeoTIFF writing
         num_workers: Number of parallel workers
     """
-
     random_state = 24
 
     subset_df = create_subset_from_df(

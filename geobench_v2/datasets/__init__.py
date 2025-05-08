@@ -3,29 +3,29 @@
 
 """GeoBench Datasets."""
 
+from .benv2 import GeoBenchBENV2
+from .biomassters import GeoBenchBioMassters
+from .bright import GeoBenchBRIGHT
 from .caffe import GeoBenchCaFFe
+from .cloudsen12 import GeoBenchCloudSen12
+from .dotav2 import GeoBenchDOTAV2
+from .dynamic_earthnet import GeoBenchDynamicEarthNet
+from .everwatch import GeoBenchEverWatch
+from .flair2 import GeoBenchFLAIR2
+from .floga import GeoBenchFLOGA
 from .fotw import GeoBenchFieldsOfTheWorld
+from .kuro_siwo import GeoBenchKuroSiwo
+from .mados import GeoBenchMADOS
+from .mmflood import GeoBenchMMFlood
 from .pastis import GeoBenchPASTIS
+from .qfabric import GeoBenchQFabric
 from .resisc45 import GeoBenchRESISC45
+from .sen4agrinet import GeoBenchSen4AgriNet
 from .spacenet2 import GeoBenchSpaceNet2
 from .spacenet6 import GeoBenchSpaceNet6
 from .spacenet7 import GeoBenchSpaceNet7
 from .spacenet8 import GeoBenchSpaceNet8
-from .benv2 import GeoBenchBENV2
-from .everwatch import GeoBenchEverWatch
-from .dotav2 import GeoBenchDOTAV2
-from .flair2 import GeoBenchFLAIR2
-from .cloudsen12 import GeoBenchCloudSen12
-from .floga import GeoBenchFLOGA
-from .kuro_siwo import GeoBenchKuroSiwo
 from .treesatai import GeoBenchTreeSatAI
-from .biomassters import GeoBenchBioMassters
-from .mados import GeoBenchMADOS
-from .dynamic_earthnet import GeoBenchDynamicEarthNet
-from .sen4agrinet import GeoBenchSen4AgriNet
-from .mmflood import GeoBenchMMFlood
-from .bright import GeoBenchBRIGHT
-from .qfabric import GeoBenchQFabric
 from .wind_turbine import GeoBenchWindTurbine
 
 __all__ = (

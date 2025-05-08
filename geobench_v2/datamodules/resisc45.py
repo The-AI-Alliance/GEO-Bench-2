@@ -3,18 +3,18 @@
 
 """Resisc45 DataModule."""
 
-from collections.abc import Callable
-from typing import Any, Sequence
-
-import pandas as pd
-from torch import Tensor
 import os
+from collections.abc import Callable, Sequence
+from typing import Any
+
 import matplotlib.pyplot as plt
+import pandas as pd
+import torch.nn as nn
+from torch import Tensor
 
 from geobench_v2.datasets import GeoBenchRESISC45
 
 from .base import GeoBenchClassificationDataModule
-import torch.nn as nn
 
 
 class GeoBenchRESISC45DataModule(GeoBenchClassificationDataModule):

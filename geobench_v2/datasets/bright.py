@@ -3,18 +3,19 @@
 
 """BRIGHT dataset."""
 
-from torch import Tensor
+from collections.abc import Sequence
 from pathlib import Path
-from typing import Type, Sequence
-from shapely import wkt
 
-from .sensor_util import DatasetBandRegistry
-from .data_util import MultiModalNormalizer
-from .base import GeoBenchBaseDataset
-import torch.nn as nn
-import rasterio
 import numpy as np
+import rasterio
 import torch
+import torch.nn as nn
+from shapely import wkt
+from torch import Tensor
+
+from .base import GeoBenchBaseDataset
+from .data_util import ClipZScoreNormalizer
+from .sensor_util import DatasetBandRegistry
 
 
 class GeoBenchBRIGHT(GeoBenchBaseDataset):
@@ -55,7 +56,7 @@ class GeoBenchBRIGHT(GeoBenchBaseDataset):
         root: Path,
         split: str,
         band_order: dict[str, Sequence[str]] = band_default_order,
-        data_normalizer: Type[nn.Module] = MultiModalNormalizer,
+        data_normalizer: type[nn.Module] = ClipZScoreNormalizer,
         transforms: nn.Module = None,
         metadata: Sequence[str] | None = None,
         download: bool = False,
@@ -70,7 +71,7 @@ class GeoBenchBRIGHT(GeoBenchBaseDataset):
                 in that order. This is useful for models that expect a certain band order, or
                 test the impact of band order on model performance. The aerial bands are for the pre-event image, while
                 the sar bands are for the post-event image.
-            data_normalizer: The normalizer to use, defaults to MultiModalNormalizer, which normalizes the data
+            data_normalizer: The normalizer to use, defaults to ClipZScoreNormalizer, which normalizes the data
             transforms: The transforms to apply to the data, defaults to None
             metadata: metadata names to be returned as part of the sample in the
                 __getitem__ method. If None, no metadata is returned.

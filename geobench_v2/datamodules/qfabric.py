@@ -4,22 +4,21 @@
 
 """QFabric Datamodule."""
 
-from collections.abc import Callable
-from typing import Any, Sequence
-
-import pandas as pd
-from torch import Tensor
 import os
+from collections.abc import Callable, Sequence
+from typing import Any
+
 import matplotlib.pyplot as plt
-import torch
 import numpy as np
+import pandas as pd
+import torch
+import torch.nn as nn
+from torch import Tensor
 from torchgeo.datasets.utils import percentile_normalization
-from einops import rearrange
 
 from geobench_v2.datasets import GeoBenchQFabric
 
 from .base import GeoBenchSegmentationDataModule
-import torch.nn as nn
 
 
 class GeoBenchQFabricDataModule(GeoBenchSegmentationDataModule):

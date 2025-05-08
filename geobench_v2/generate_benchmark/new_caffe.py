@@ -3,46 +3,23 @@
 
 """Generate Benchmark version of Caffe dataset."""
 
-from torchgeo.datasets import CaFFe
 import argparse
-import rasterio
+import glob
 import os
 
-from typing import Any
+import numpy as np
 import pandas as pd
-import glob
-import shutil
-import concurrent.futures
+import pyproj
+import rasterio
+import tacoreader
+import tacotoolbox
+from PIL import Image
 from tqdm import tqdm
 
-import matplotlib.pyplot as plt
-import cartopy.crs as ccrs
-import cartopy.feature as cfeature
-from matplotlib.colors import LinearSegmentedColormap
-import numpy as np
-
 from geobench_v2.generate_benchmark.utils import (
-    plot_sample_locations,
     create_subset_from_df,
     create_unittest_subset,
 )
-
-import tacotoolbox
-import tacoreader
-
-import os
-import re
-import numpy as np
-import pandas as pd
-import json
-from pathlib import Path
-from argparse import ArgumentParser
-import pickle
-from PIL import Image
-import rasterio
-import pyproj
-from tqdm import tqdm
-import random
 
 
 def create_geospatial_train_val_split(df):
@@ -99,7 +76,7 @@ def create_geospatial_train_val_split(df):
     val_count = (result_df["split"] == "validation").sum()
     test_count = (result_df["split"] == "test").sum()
 
-    print(f"Split statistics:")
+    print("Split statistics:")
     print(f"  Train: {train_count} samples ({train_count / len(result_df):.1%})")
     print(f"  Validation: {val_count} samples ({val_count / len(result_df):.1%})")
     print(f"  Test: {test_count} samples ({test_count / len(result_df):.1%})")
@@ -429,7 +406,6 @@ def create_caffe_patches(metadata_df, root_dir, save_dir, num_workers=None):
 
 def create_tortilla(root_dir, df, save_dir, tortilla_name):
     """Create a tortilla version of the dataset."""
-
     tortilla_dir = os.path.join(save_dir, "tortilla")
     os.makedirs(tortilla_dir, exist_ok=True)
 
@@ -535,6 +511,7 @@ def create_geobench_version(
     n_test_samples: int,
 ) -> None:
     """Create a GeoBench version of the dataset.
+
     Args:
         metadata_df: DataFrame with metadata including geolocation for each patch
         n_train_samples: Number of final training samples, -1 means all

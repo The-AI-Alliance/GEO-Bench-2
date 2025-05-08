@@ -3,55 +3,28 @@
 
 """Generate Benchmark version of QFabric dataset."""
 
-import geopandas as gpd
-import pandas as pd
-import os
 import argparse
-import rasterio
-from tqdm import tqdm
-import re
-from geobench_v2.generate_benchmark.utils import plot_sample_locations
-import tacotoolbox
-import tacoreader
+import concurrent.futures
 import glob
+import json
+import os
+
+import matplotlib.patches as mpatches
+import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
+import rasterio
+import tacoreader
+import tacotoolbox
+from rasterio.features import rasterize
+from rasterio.windows import Window
+from shapely.geometry import Polygon, box
+from tqdm import tqdm
 
 from geobench_v2.generate_benchmark.utils import (
-    plot_sample_locations,
-    create_unittest_subset,
     create_subset_from_df,
+    create_unittest_subset,
 )
-
-from typing import List, Tuple, Dict, Any, Optional, Union
-import os
-import re
-import numpy as np
-import pandas as pd
-import rasterio
-from rasterio.windows import Window
-from pathlib import Path
-from tqdm import tqdm
-import json
-import pandas as pd
-import os
-from datetime import datetime
-
-import os
-import numpy as np
-import pandas as pd
-import rasterio
-from rasterio.windows import Window
-from rasterio.features import rasterize
-from shapely.geometry import shape, box
-import json
-import concurrent.futures
-from tqdm import tqdm
-import affine
-import geopandas as gpd
-from shapely.geometry import Polygon
-
-import matplotlib.pyplot as plt
-import matplotlib.patches as mpatches
 
 
 def parse_qfabric_annotation(json_path: str, sample_idx: int) -> pd.DataFrame:
@@ -64,7 +37,7 @@ def parse_qfabric_annotation(json_path: str, sample_idx: int) -> pd.DataFrame:
     Returns:
         DataFrame containing image metadata
     """
-    with open(json_path, "r") as f:
+    with open(json_path) as f:
         annotation_data = json.load(f)
 
     info = annotation_data.get("info", {})
@@ -104,7 +77,6 @@ COCO_PATH = "dataset/vectors/random-split-1_2023_04_18-11_51_35/COCO"
 
 def generate_metadata_df(root_dir: str) -> pd.DataFrame:
     """Generate metadata DataFrame for QFabric dataset."""
-
     vector_paths = glob.glob(os.path.join(root_dir, COCO_PATH, "*.json"))
 
     full_df = pd.DataFrame()
@@ -205,7 +177,8 @@ def create_patch_windows(height, width, patch_size=1024, overlap=0):
 
 def transform_polygon_to_patch_absolute(poly, patch_window, image_shape):
     """Transform polygon coordinates from absolute image coordinates to patch coordinates.
-    Uses absolute pixel coordinates instead of relative coordinates."""
+    Uses absolute pixel coordinates instead of relative coordinates.
+    """
 
     def transform_point(x, y):
         # Convert from absolute image coords to patch-local coords
@@ -399,7 +372,7 @@ def process_sample(args):
 
     json_path = os.path.join(root_dir, COCO_PATH, row["json_file"])
 
-    with open(json_path, "r") as f:
+    with open(json_path) as f:
         annotation_data = json.load(f)
 
     image_paths = []
@@ -606,7 +579,7 @@ def create_full_masks(sample_idx, row, root_dir, output_dir):
     json_path = os.path.join(root_dir, COCO_PATH, row["json_file"])
 
     # Load annotation data
-    with open(json_path, "r") as f:
+    with open(json_path) as f:
         annotation_data = json.load(f)
 
     # Get the first image to use as reference for dimensions and transform
@@ -1037,7 +1010,6 @@ def create_full_masks_parallel(args):
 
 def create_tortilla(root_dir, df, save_dir, tortilla_name):
     """Create a tortilla version of the dataset."""
-
     tortilla_dir = os.path.join(save_dir, "tortilla")
     os.makedirs(tortilla_dir, exist_ok=True)
 
@@ -1132,6 +1104,7 @@ def create_geobench_version(
     n_test_samples: int,
 ) -> None:
     """Create a GeoBench version of the dataset.
+
     Args:
         metadata_df: DataFrame with metadata including geolocation for each patch
         n_train_samples: Number of final training samples, -1 means all
@@ -1327,8 +1300,7 @@ def visualize_qfabric_patch(
 def visualize_qfabric_patches(
     patches_df, sample_indices, patch_positions, output_dir, save_dir=None
 ):
-    """
-    Visualize multiple QFabric patches with proper alignment of images and masks.
+    """Visualize multiple QFabric patches with proper alignment of images and masks.
 
     Args:
         patches_df: DataFrame containing patch information
@@ -1365,11 +1337,10 @@ def visualize_qfabric_patching(
 ):
     """Visualize how a QFabric tile is split into patches."""
     import matplotlib.pyplot as plt
-    import matplotlib.patches as mpatches
-    import rasterio
-    from rasterio.windows import Window
     import numpy as np
+    import rasterio
     from matplotlib.colors import ListedColormap
+    from rasterio.windows import Window
 
     sample_meta = metadata_df[metadata_df["sample_idx"] == sample_idx].iloc[0]
     sample_patches = patches_df[patches_df["sample_idx"] == sample_idx]
@@ -1795,7 +1766,7 @@ def collect_unique_classes_from_originals(metadata_df, root_dir):
         json_path = os.path.join(root_dir, COCO_PATH, tile["json_file"])
 
         # Load and parse annotations
-        with open(json_path, "r") as f:
+        with open(json_path) as f:
             annotation_data = json.load(f)
 
         # Extract class information from annotations

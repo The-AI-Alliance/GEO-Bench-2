@@ -4,15 +4,17 @@
 """KuroSiwo Tests."""
 
 import os
-import pytest
-from typing import Dict, Sequence, Union
-import torch
+from collections.abc import Sequence
 from pathlib import Path
-from torchgeo.datasets import DatasetNotFoundError
+
 import matplotlib.pyplot as plt
+import pytest
+import torch
 from pytest import MonkeyPatch
-from geobench_v2.datasets import GeoBenchKuroSiwo
+from torchgeo.datasets import DatasetNotFoundError
+
 from geobench_v2.datamodules import GeoBenchKuroSiwoDataModule
+from geobench_v2.datasets import GeoBenchKuroSiwo
 
 
 @pytest.fixture(params=[{"sar": ["vv", "vh", 0.2], "dem": [0.1, "dem"]}])
@@ -25,7 +27,7 @@ def band_order(request):
 def datamodule(
     monkeypatch: MonkeyPatch,
     tmp_path: Path,
-    band_order: Dict[str, Sequence[Union[str, float]]],
+    band_order: dict[str, Sequence[str | float]],
 ):
     """Initialize KuroSiwo datamodule with test configuration."""
     monkeypatch.setattr(GeoBenchKuroSiwo, "paths", ["kuro_siwo.tortilla"])
@@ -55,7 +57,7 @@ def datamodule(
 
 @pytest.fixture
 def stacked_datamodule(
-    monkeypatch: MonkeyPatch, band_order: Dict[str, Sequence[Union[str, float]]]
+    monkeypatch: MonkeyPatch, band_order: dict[str, Sequence[str | float]]
 ):
     """Initialize KuroSiwo datamodule with test configuration."""
     monkeypatch.setattr(GeoBenchKuroSiwo, "paths", ["kuro_siwo.tortilla"])
@@ -91,19 +93,19 @@ class TestKuroSiwoDataModule:
 
         # Define expected dimensions for testing
         expected_dims = {
-            "image_pre_1": (
+            "image_sar_pre_1": (
                 datamodule.batch_size,
                 len(datamodule.band_order["sar"]),
                 datamodule.img_size,
                 datamodule.img_size,
             ),
-            "image_pre_2": (
+            "image_sar_pre_2": (
                 datamodule.batch_size,
                 len(datamodule.band_order["sar"]),
                 datamodule.img_size,
                 datamodule.img_size,
             ),
-            "image_post": (
+            "image_sar_post": (
                 datamodule.batch_size,
                 len(datamodule.band_order["sar"]),
                 datamodule.img_size,
@@ -132,15 +134,15 @@ class TestKuroSiwoDataModule:
             for i, band in enumerate(datamodule.band_order["sar"]):
                 if isinstance(band, (int, float)):
                     assert torch.isclose(
-                        train_batch["image_pre_1"][:, i], torch.tensor(band)
+                        train_batch["image_sar_pre_1"][:, i], torch.tensor(band)
                     ).all(), f"Constant value mismatch for image_pre_1 channel {i}"
 
                     assert torch.isclose(
-                        train_batch["image_pre_2"][:, i], torch.tensor(band)
+                        train_batch["image_sar_pre_2"][:, i], torch.tensor(band)
                     ).all(), f"Constant value mismatch for image_pre_2 channel {i}"
 
                     assert torch.isclose(
-                        train_batch["image_post"][:, i], torch.tensor(band)
+                        train_batch["image_sar_post"][:, i], torch.tensor(band)
                     ).all(), f"Constant value mismatch for image_post channel {i}"
 
         # Check constants in dem bands if present

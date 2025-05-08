@@ -3,21 +3,18 @@
 
 """Cloud12Sen DataModule."""
 
-from collections.abc import Callable
-from typing import Any, Sequence
-
-import pandas as pd
-from torch import Tensor
 import os
-import matplotlib.pyplot as plt
+from collections.abc import Callable, Sequence
+from typing import Any
 
-import torch
+import matplotlib.pyplot as plt
+import pandas as pd
+import torch.nn as nn
+from torch import Tensor
 
 from geobench_v2.datasets import GeoBenchCloudSen12
 
 from .base import GeoBenchSegmentationDataModule
-import torch.nn as nn
-from torch.utils.data import random_split
 
 
 class GeoBenchCloudSen12DataModule(GeoBenchSegmentationDataModule):
