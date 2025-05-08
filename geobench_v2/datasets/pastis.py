@@ -337,8 +337,7 @@ class GeoBenchPASTIS(PASTIS, DataUtilsMixin):
         return masks, boxes, labels
 
     def validate_band_order(
-        self,
-        band_order: Sequence[str | float] | dict[str, Sequence[str | float]],
+        self, band_order: Sequence[str | float] | dict[str, Sequence[str | float]]
     ) -> list[str | float] | dict[str, list[str | float]]:
         """Validate band order configuration for PASTIS time-series data.
 

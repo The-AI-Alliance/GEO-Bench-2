@@ -32,7 +32,9 @@ class DataUtilsMixin(ABC):
 
     def resolve_band_order(
         self,
-        band_order: Sequence[str | float] | dict[str, Sequence[str | float]] | None = None,
+        band_order: Sequence[str | float]
+        | dict[str, Sequence[str | float]]
+        | None = None,
     ) -> list[str | float] | dict[str, list[str | float]]:
         """Resolve band names to canonical names using modality configurations."""
         if band_order is None:
@@ -136,10 +138,7 @@ class DataUtilsMixin(ABC):
         return self._rearrange_multimodal_to_tensor(data, target_order)
 
     def _rearrange_bands_single_modality(
-        self,
-        data: Tensor,
-        source_order: list[str],
-        target_order: list[str | float],
+        self, data: Tensor, source_order: list[str], target_order: list[str | float]
     ) -> dict[str, Tensor]:
         """Rearrange bands for single modality."""
         output_channels = []
@@ -419,9 +418,7 @@ class ClipZScoreNormalizer(DataNormalizer):
                 is_fill.append(False)
         return torch.tensor(means), torch.tensor(stds), torch.tensor(is_fill)
 
-    def _get_clip_values(
-        self, bands: Sequence[str | float]
-    ) -> tuple[Tensor, Tensor]:
+    def _get_clip_values(self, bands: Sequence[str | float]) -> tuple[Tensor, Tensor]:
         """Extract clip min/max tensors. Uses +/- infinity if clipping is not defined."""
         clip_mins, clip_maxs = [], []
         has_clip_min_stats = "clip_min" in self.stats

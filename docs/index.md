@@ -1,5 +1,7 @@
 # GEO-Bench-2
 
+Welcome to the GeoBenchV2 documentation.
+
 ## Table of contents
 
 ```{toctree}

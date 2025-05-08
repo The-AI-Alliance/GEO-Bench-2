@@ -1068,9 +1068,7 @@ class DatasetBandRegistry:
     WINDTURBINE = SensorBandRegistry.RGB
 
     @classmethod
-    def get_dataset_config(
-        cls, dataset_name: str
-    ) -> ModalityConfig | MultiModalConfig:
+    def get_dataset_config(cls, dataset_name: str) -> ModalityConfig | MultiModalConfig:
         """Get configuration for a specific dataset."""
         return getattr(cls, dataset_name.upper())
 

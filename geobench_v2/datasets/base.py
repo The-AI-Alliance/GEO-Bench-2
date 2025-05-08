@@ -35,7 +35,8 @@ class GeoBenchBaseDataset(NonGeoDataset, DataUtilsMixin):
         root: str,
         split: Literal["train", "validation", "test"],
         band_order: list[str],
-        data_normalizer: type[DataNormalizer] | Callable[[dict[str, Tensor]], dict[str, Tensor]] = nn.Identity,
+        data_normalizer: type[DataNormalizer]
+        | Callable[[dict[str, Tensor]], dict[str, Tensor]] = nn.Identity,
         transforms: nn.Module = None,
         metadata: Sequence[str] | None = None,
         download: bool = False,

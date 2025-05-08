@@ -3,7 +3,6 @@
 
 """CaFFe Dataset."""
 
-
 from collections.abc import Sequence
 
 import rasterio
