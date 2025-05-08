@@ -33,6 +33,7 @@ class GeoBenchBENV2(GeoBenchBaseDataset):
 
     sha256str: Sequence[str] = [
         "330876e91199cb179113224c6e4e9632f8971446fe29ffbb035e5b8bbdee8319"
+        
     ]
 
     band_default_order = {

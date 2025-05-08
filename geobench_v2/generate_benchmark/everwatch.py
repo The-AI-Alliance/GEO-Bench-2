@@ -9,6 +9,10 @@ import os
 import numpy as np
 import pandas as pd
 
+import json
+
+from shapely.geometry import shape
+
 from geobench_v2.generate_benchmark.object_detection_util import (
     process_everwatch_dataset,
 )
@@ -39,10 +43,6 @@ def generate_metadata_df(root: str) -> pd.DataFrame:
     Returns:
         DataFrame with annotations and geo-information
     """
-    import json
-
-    from shapely.geometry import shape
-
     # Load annotations
     annot_df_train = pd.read_csv(os.path.join(root, "train.csv"))
     annot_df_train["split"] = "train"

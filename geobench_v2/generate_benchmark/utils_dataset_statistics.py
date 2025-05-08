@@ -289,16 +289,15 @@ class DatasetStatistics(ABC):
                 .numpy(),
                 "pct_02": stats.pct_02.cpu().numpy()
                 if hasattr(stats, "pct_02")
-                and stats.pct_02 is not None  # Check existence and not None
+                and stats.pct_02 is not None  
                 else None,
                 "pct_98": stats.pct_98.cpu().numpy()
                 if hasattr(stats, "pct_98")
-                and stats.pct_98 is not None  # Check existence and not None
+                and stats.pct_98 is not None 
                 else None,
             }
             # Add used clip values if clipping was enabled for this key
             if stats.clipping_enabled:
-                # Store the per-channel expanded tensors
                 update_dict["clip_min_used"] = stats.clip_min_val.cpu().numpy()
                 update_dict["clip_max_used"] = stats.clip_max_val.cpu().numpy()
 
