@@ -116,9 +116,9 @@ class GeoBenchMMFlood(GeoBenchBaseDataset):
             with rasterio.open(s1_path) as src:
                 s1_img = src.read()
 
-            nan_mask = torch.from_numpy(np.isnan(s1_img)[0])
+            #nan_mask = torch.from_numpy(np.isnan(s1_img)[0])
             s1_img = torch.from_numpy(s1_img).float()
-            s1_img[..., nan_mask] = 0.0
+            #s1_img[..., nan_mask] = 0.0
             img_dict["s1"] = s1_img
 
         if "dem" in self.band_order:
@@ -134,11 +134,14 @@ class GeoBenchMMFlood(GeoBenchBaseDataset):
             img_dict["hydro"] = hydro_img
 
         img_dict = self.rearrange_bands(img_dict, self.band_order)
+        if "image_s1" in img_dict:
+            nan_mask = torch.isnan(img_dict["image"])[0]
         image_dict = self.data_normalizer(img_dict)
 
         # across all items in the image_dict replace nan_mask with 0 again
-        for key in img_dict.keys():
-            img_dict[key][..., nan_mask] = 0.0
+        if "image_s1" in image_dict:
+            for key in image_dict.keys():
+                image_dict[key][..., nan_mask] = 0.0
 
         sample.update(image_dict)
 
