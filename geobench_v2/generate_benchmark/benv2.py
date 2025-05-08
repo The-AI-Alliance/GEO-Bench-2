@@ -3,31 +3,24 @@
 
 """Generate Benchmark version of BenV2 dataset."""
 
-from torchgeo.datasets import BigEarthNetV2
 import argparse
-import rasterio
-import os
-
-from typing import Any
-import pandas as pd
-import glob
 import concurrent.futures
-import tacotoolbox
+import glob
+import os
+from typing import Any
+
+import numpy as np
+import pandas as pd
+import rasterio
 import tacoreader
+import tacotoolbox
+from rasterio.enums import Resampling
 from tqdm import tqdm
 
-import matplotlib.pyplot as plt
-import cartopy.crs as ccrs
-import cartopy.feature as cfeature
-from matplotlib.colors import LinearSegmentedColormap
-import numpy as np
 from geobench_v2.generate_benchmark.utils import (
-    plot_sample_locations,
-    create_unittest_subset,
     create_subset_from_df,
+    create_unittest_subset,
 )
-
-from rasterio.enums import Resampling
 
 
 def extract_date_from_patch_id(patch_id: str) -> str:
@@ -139,7 +132,6 @@ def generate_metadata_df(root_dir, num_workers: int = 8) -> pd.DataFrame:
 
 def create_tortilla(root_dir, metadata_df, save_dir, tortilla_name):
     """Create a tortilla version of the dataset."""
-
     tortilla_dir = os.path.join(save_dir, "tortilla")
     os.makedirs(tortilla_dir, exist_ok=True)
 
@@ -423,6 +415,7 @@ def create_geobench_version(
     n_test_samples: int,
 ) -> None:
     """Create a GeoBench version of the dataset.
+
     Args:
         metadata_df: DataFrame with metadata including geolocation for each patch
         n_train_samples: Number of final training samples, -1 means all

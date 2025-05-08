@@ -3,52 +3,31 @@
 
 """Generate Benchmark version of SpaceNet6 dataset."""
 
-from torchgeo.datasets import SpaceNet6
-import geopandas as gpd
-import pandas as pd
-import os
 import argparse
-import rasterio
-from tqdm import tqdm
-import re
-from geobench_v2.generate_benchmark.utils import (
-    plot_sample_locations,
-    create_unittest_subset,
-    create_subset_from_df,
-)
-import tacotoolbox
-import tacoreader
 import glob
-import numpy as np
-
+import os
+import re
 from concurrent.futures import ProcessPoolExecutor
-from rasterio.enums import Compression
+
+import geopandas as gpd
+import numpy as np
+import pandas as pd
+import rasterio
+import tacoreader
+import tacotoolbox
 from rasterio.features import rasterize
+from rasterio.windows import Window
+from tqdm import tqdm
 
 from geobench_v2.generate_benchmark.geospatial_split_utils import (
-    show_samples_per_valid_ratio,
-    split_geospatial_tiles_into_patches,
-    visualize_checkerboard_pattern,
-    visualize_geospatial_split,
     checkerboard_split,
-    geographic_buffer_split,
-    geographic_distance_split,
-    visualize_distance_clusters,
+    visualize_geospatial_split,
 )
-
-from typing import List, Tuple, Dict, Any, Optional, Union
-import os
-import re
-import numpy as np
-import pandas as pd
-import rasterio
-from rasterio.windows import Window
-from pathlib import Path
-from tqdm import tqdm
-
-from concurrent.futures import ProcessPoolExecutor
-from rasterio.enums import Compression
-from rasterio.features import rasterize
+from geobench_v2.generate_benchmark.utils import (
+    create_subset_from_df,
+    create_unittest_subset,
+    plot_sample_locations,
+)
 
 
 def process_spacenet6_tile(args):
@@ -333,7 +312,6 @@ def split_spacenet6_into_patches(
     Returns:
         DataFrame containing metadata for all created patches
     """
-
     blockxsize, blockysize = block_size
     blockxsize = blockxsize - (blockxsize % 16) if blockxsize % 16 != 0 else blockxsize
     blockysize = blockysize - (blockysize % 16) if blockysize % 16 != 0 else blockysize
@@ -421,7 +399,6 @@ def split_spacenet6_into_patches(
 
 def generate_metadata_df(root: str) -> pd.DataFrame:
     """Generate metadata DataFrame for SpaceNet6 dataset."""
-
     label_paths = glob.glob(
         os.path.join(
             root,
@@ -483,7 +460,6 @@ def generate_metadata_df(root: str) -> pd.DataFrame:
 
 def create_tortilla(root_dir, df, save_dir, tortilla_name):
     """Create a tortilla version of the dataset."""
-
     tortilla_dir = os.path.join(save_dir, "tortilla")
     os.makedirs(tortilla_dir, exist_ok=True)
 
@@ -567,6 +543,7 @@ def create_geobench_version(
     save_dir: str,
 ) -> None:
     """Create a GeoBench version of the dataset.
+
     Args:
         metadata_df: DataFrame with metadata including geolocation for each patch
         n_train_samples: Number of final training samples, -1 means all

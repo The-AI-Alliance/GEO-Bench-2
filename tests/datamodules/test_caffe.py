@@ -3,16 +3,17 @@
 
 """Test CaFFe Dataset."""
 
-import pytest
-from geobench_v2.datamodules import GeoBenchCaFFeDataModule
-from geobench_v2.datasets.caffe import GeoBenchCaFFe
+import os
+from collections.abc import Sequence
+from pathlib import Path
 
 import matplotlib.pyplot as plt
-import os
-from typing import Sequence
+import pytest
 from pytest import MonkeyPatch
 from torchgeo.datasets import DatasetNotFoundError
-from pathlib import Path
+
+from geobench_v2.datamodules import GeoBenchCaFFeDataModule
+from geobench_v2.datasets.caffe import GeoBenchCaFFe
 
 
 @pytest.fixture

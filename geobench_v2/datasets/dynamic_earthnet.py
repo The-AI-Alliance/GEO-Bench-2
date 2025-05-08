@@ -3,22 +3,19 @@
 
 """DynamicEarthNet Dataset."""
 
-from torch import Tensor
+from collections.abc import Sequence
 from pathlib import Path
-import numpy as np
-from typing import Any, Sequence, Union, Type, Literal
-import torch
-import os
-import json
-import pandas as pd
-import torch.nn as nn
+from typing import Literal
+
 import rasterio
+import torch
+import torch.nn as nn
 from shapely import wkt
+from torch import Tensor
 
 from .base import GeoBenchBaseDataset
-
+from .data_util import ClipZScoreNormalizer
 from .sensor_util import DatasetBandRegistry
-from .data_util import DataUtilsMixin, ClipZScoreNormalizer
 
 
 class GeoBenchDynamicEarthNet(GeoBenchBaseDataset):
@@ -147,7 +144,7 @@ class GeoBenchDynamicEarthNet(GeoBenchBaseDataset):
         band_order: dict[str, Sequence[float | str]] = {
             "plane": ["r", "g", "b", "nir"]
         },
-        data_normalizer: Type[nn.Module] = ClipZScoreNormalizer,
+        data_normalizer: type[nn.Module] = ClipZScoreNormalizer,
         transforms: nn.Module | None = None,
         metadata: Sequence[str] | None = None,
         temporal_setting: Literal["single", "daily", "weekly"] = "single",

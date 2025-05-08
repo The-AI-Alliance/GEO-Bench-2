@@ -15,18 +15,20 @@ datamodules:
   #       image_s2: [0, 3000]
   #     target_range_vals: [0, 1000]
     
-  # - name: mados
-  #   stats_computer:
-  #     _target_: geobench_v2.generate_benchmark.utils_dataset_statistics.SegmentationStatistics
-  #     datamodule:
-  #       _target_: geobench_v2.datamodules.GeoBenchMADOSDataModule
-  #       batch_size: 16
-  #       num_workers: 0
-  #       root: "/mnt/rg_climate_benchmark/data/geobenchV2/mados"
-  #     input_keys: ["image"]
-  #     target_key: "mask"
-  #     range_vals:
-  #       image: [0, 0.2]
+  - name: mados
+    stats_computer:
+      _target_: geobench_v2.generate_benchmark.utils_dataset_statistics.SegmentationStatistics
+      datamodule:
+        _target_: geobench_v2.datamodules.GeoBenchMADOSDataModule
+        batch_size: 16
+        num_workers: 0
+        # root: "/mnt/rg_climate_benchmark/data/geobenchV2/mados"
+        root: "/home/nils/projects/GEO-Bench-2/data/mados"
+
+      input_keys: ["image"]
+      target_key: "mask"
+      range_vals:
+        image: [0, 0.125]
 
   # - name: caffe
   #   stats_computer:
@@ -199,22 +201,22 @@ datamodules:
   #       image_s1_asc: [0, 1]
   #       image_s1_desc: [0, 1]
 
-  # - name: flair2x
+  # - name: flair2
 
-- name: fotw
-  stats_computer:
-    _target_: geobench_v2.generate_benchmark.utils_dataset_statistics.SegmentationStatistics
-    datamodule:
-      _target_: geobench_v2.datamodules.GeoBenchFieldsOfTheWorldDataModule
-      batch_size: 16
-      num_workers: 0
-      # root: "/mnt/rg_climate_benchmark/data/geobenchV2/fotw"
-      root: "/home/nils/projects/GEO-Bench-2/data/fotw/"
-    input_keys: ["image_a", "image_b"]
-    target_key: "mask"
-    range_vals:
-      image_a: [0, 6000]
-      image_b: [0, 6000]
+# - name: fotw
+#   stats_computer:
+#     _target_: geobench_v2.generate_benchmark.utils_dataset_statistics.SegmentationStatistics
+#     datamodule:
+#       _target_: geobench_v2.datamodules.GeoBenchFieldsOfTheWorldDataModule
+#       batch_size: 16
+#       num_workers: 0
+#       # root: "/mnt/rg_climate_benchmark/data/geobenchV2/fotw"
+#       root: "/home/nils/projects/GEO-Bench-2/data/fotw/"
+#     input_keys: ["image_a", "image_b"]
+#     target_key: "mask"
+#     range_vals:
+#       image_a: [0, 6000]
+#       image_b: [0, 6000]
 
   # - name: mmflood
   #   stats_computer:

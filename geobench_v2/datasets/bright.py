@@ -3,18 +3,19 @@
 
 """BRIGHT dataset."""
 
-from torch import Tensor
+from collections.abc import Sequence
 from pathlib import Path
-from typing import Type, Sequence
-from shapely import wkt
 
-from .sensor_util import DatasetBandRegistry
-from .data_util import ClipZScoreNormalizer
-from .base import GeoBenchBaseDataset
-import torch.nn as nn
-import rasterio
 import numpy as np
+import rasterio
 import torch
+import torch.nn as nn
+from shapely import wkt
+from torch import Tensor
+
+from .base import GeoBenchBaseDataset
+from .data_util import ClipZScoreNormalizer
+from .sensor_util import DatasetBandRegistry
 
 
 class GeoBenchBRIGHT(GeoBenchBaseDataset):
@@ -55,7 +56,7 @@ class GeoBenchBRIGHT(GeoBenchBaseDataset):
         root: Path,
         split: str,
         band_order: dict[str, Sequence[str]] = band_default_order,
-        data_normalizer: Type[nn.Module] = ClipZScoreNormalizer,
+        data_normalizer: type[nn.Module] = ClipZScoreNormalizer,
         transforms: nn.Module = None,
         metadata: Sequence[str] | None = None,
         download: bool = False,

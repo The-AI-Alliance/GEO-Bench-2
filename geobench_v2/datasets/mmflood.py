@@ -3,20 +3,18 @@
 
 """MMFlood dataset."""
 
-from torch import Tensor
-from torchgeo.datasets import MMFlood
+from collections.abc import Sequence
 from pathlib import Path
-from typing import Sequence, Type
+
+import rasterio
+import torch
 import torch.nn as nn
 from shapely import wkt
+from torch import Tensor
 
-from .sensor_util import DatasetBandRegistry
 from .base import GeoBenchBaseDataset
 from .data_util import ClipZScoreNormalizer
-import torch.nn as nn
-import rasterio
-import numpy as np
-import torch
+from .sensor_util import DatasetBandRegistry
 
 
 class GeoBenchMMFlood(GeoBenchBaseDataset):
@@ -60,7 +58,7 @@ class GeoBenchMMFlood(GeoBenchBaseDataset):
         root: Path,
         split: str,
         band_order: dict[str, Sequence[str]] = band_default_order,
-        data_normalizer: Type[nn.Module] = ClipZScoreNormalizer,
+        data_normalizer: type[nn.Module] = ClipZScoreNormalizer,
         transforms: nn.Module | None = None,
         metadata: Sequence[str] | None = None,
         return_stacked_image: bool = False,

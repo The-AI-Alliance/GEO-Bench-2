@@ -3,28 +3,23 @@
 
 """Cloud12Sen Dataset."""
 
-import os
+from collections.abc import Sequence
+from typing import Literal
+
 import numpy as np
 import rasterio
-
-
-from typing import Sequence, ClassVar, Union, Type, Literal
 import torch
 import torch.nn as nn
-from torch import Tensor
-from torchgeo.datasets import NonGeoDataset
-
-from .sensor_util import DatasetBandRegistry
-from .base import GeoBenchBaseDataset
-from .data_util import DataUtilsMixin, ClipZScoreNormalizer
-import tacoreader
-import numpy as np
 from shapely import wkt
+from torch import Tensor
+
+from .base import GeoBenchBaseDataset
+from .data_util import ClipZScoreNormalizer
+from .sensor_util import DatasetBandRegistry
 
 
 class GeoBenchCloudSen12(GeoBenchBaseDataset):
     """Implementation of CloudSen12 dataset Sentinel 2 L1C.
-
 
     CloudSen12 is a dataset for cloud segmentation that provides humanly annotated Sentinel-2 L1C imagery.
 
@@ -92,7 +87,7 @@ class GeoBenchCloudSen12(GeoBenchBaseDataset):
         root,
         split: Literal["train", "validation", "test"] = "train",
         band_order: Sequence[float | str] = ["B04", "B03", "B02"],
-        data_normalizer: Type[nn.Module] = ClipZScoreNormalizer,
+        data_normalizer: type[nn.Module] = ClipZScoreNormalizer,
         transforms: nn.Module | None = None,
         metadata: Sequence[str] | None = None,
         download: bool = False,

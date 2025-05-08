@@ -3,16 +3,15 @@
 
 """Generate Benchmark version of EverWatch dataset."""
 
-import pandas as pd
-import os
 import argparse
+import os
+
+import numpy as np
+import pandas as pd
+
 from geobench_v2.generate_benchmark.object_detection_util import (
-    process_dataset,
-    verify_patching,
-    compare_resize,
     process_everwatch_dataset,
 )
-import numpy as np
 
 
 def create_subset(metadata_df: pd.DataFrame, save_dir: str) -> None:
@@ -41,8 +40,8 @@ def generate_metadata_df(root: str) -> pd.DataFrame:
         DataFrame with annotations and geo-information
     """
     import json
-    import re
-    from shapely.geometry import shape, Point
+
+    from shapely.geometry import shape
 
     # Load annotations
     annot_df_train = pd.read_csv(os.path.join(root, "train.csv"))
@@ -57,7 +56,7 @@ def generate_metadata_df(root: str) -> pd.DataFrame:
     ].reset_index(drop=True)
 
     # Load colonies GeoJSON
-    with open(os.path.join(root, "colonies.geojson"), "r") as f:
+    with open(os.path.join(root, "colonies.geojson")) as f:
         colony_data = json.load(f)
 
     # Create dictionary mapping colony names to their geometries and centroid coordinates
@@ -204,7 +203,6 @@ def generate_metadata_df(root: str) -> pd.DataFrame:
 
 def create_unit_test_subset() -> None:
     """Create a subset of EverWatch dataset for GeoBench unit tests."""
-
     # create random images etc that respect the structure of the dataset in minimal format
     pass
 

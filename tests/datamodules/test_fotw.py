@@ -3,15 +3,17 @@
 
 """FieldsOfTheWorld Tests."""
 
-import pytest
 import os
-from pytest import MonkeyPatch
-from typing import Sequence
-import torch
+from collections.abc import Sequence
 from pathlib import Path
+
+import pytest
+import torch
+from pytest import MonkeyPatch
 from torchgeo.datasets import DatasetNotFoundError
-from geobench_v2.datasets import GeoBenchFieldsOfTheWorld
+
 from geobench_v2.datamodules import GeoBenchFieldsOfTheWorldDataModule
+from geobench_v2.datasets import GeoBenchFieldsOfTheWorld
 
 
 @pytest.fixture(params=[["red", "blue", "nir", 0.0]])

@@ -3,23 +3,19 @@
 
 """MADOS dataset."""
 
-from torch import Tensor
+import warnings
+from collections.abc import Sequence
 from pathlib import Path
-from typing import Sequence, Type
-import torch.nn as nn
-from shapely import wkt
 
-from .sensor_util import DatasetBandRegistry
+import rasterio
+import torch
+import torch.nn as nn
+from rasterio.errors import NotGeoreferencedWarning
+from torch import Tensor
+
 from .base import GeoBenchBaseDataset
 from .data_util import ClipZScoreNormalizer
-import torch.nn as nn
-import rasterio
-import numpy as np
-import torch
-import warnings
-from rasterio.errors import NotGeoreferencedWarning
-
-from rasterio.enums import Resampling
+from .sensor_util import DatasetBandRegistry
 
 
 class GeoBenchMADOS(GeoBenchBaseDataset):
@@ -115,7 +111,7 @@ class GeoBenchMADOS(GeoBenchBaseDataset):
         root: Path,
         split: str,
         band_order: Sequence[str] = ["B04", "B03", "B02", "B08"],
-        data_normalizer: Type[nn.Module] = ClipZScoreNormalizer,
+        data_normalizer: type[nn.Module] = ClipZScoreNormalizer,
         transforms: nn.Module | None = None,
         download: bool = False,
     ) -> None:
@@ -161,7 +157,7 @@ class GeoBenchMADOS(GeoBenchBaseDataset):
         img = torch.from_numpy(s2_img).float()
 
         img_dict = self.rearrange_bands(img, self.band_order)
-        nan_mask = torch.from_numpy(img_dict["image"].isnan())
+        nan_mask = img_dict["image"].isnan()
         img_dict = self.data_normalizer(img_dict)
 
         img_dict["image"] = torch.where(

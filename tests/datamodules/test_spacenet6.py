@@ -4,16 +4,17 @@
 """SpaceNet6 Tests."""
 
 import os
-import pytest
-from typing import Sequence, Dict, Union
-import torch
+from collections.abc import Sequence
 from pathlib import Path
-from torchgeo.datasets import DatasetNotFoundError
-from pytest import MonkeyPatch
-import matplotlib.pyplot as plt
 
-from geobench_v2.datasets import GeoBenchSpaceNet6
+import matplotlib.pyplot as plt
+import pytest
+import torch
+from pytest import MonkeyPatch
+from torchgeo.datasets import DatasetNotFoundError
+
 from geobench_v2.datamodules import GeoBenchSpaceNet6DataModule
+from geobench_v2.datasets import GeoBenchSpaceNet6
 
 
 @pytest.fixture(params=[{"rgbn": ["r", "g", 0.2, "b"], "sar": ["vv", 1.0, "vh"]}])
@@ -26,7 +27,7 @@ def band_order(request):
 def datamodule(
     monkeypatch: MonkeyPatch,
     tmp_path: Path,
-    band_order: Dict[str, Sequence[Union[str, float]]],
+    band_order: dict[str, Sequence[str | float]],
 ):
     """Initialize SpaceNet6 datamodule with test configuration."""
     monkeypatch.setattr(GeoBenchSpaceNet6, "paths", ["spacenet6.tortilla"])

@@ -4,17 +4,15 @@
 """Utilities for computing and storing input and target statistics."""
 
 import os
-from typing import Any, Optional
+from abc import ABC, abstractmethod
+from typing import Any
+
+import numpy as np
 import torch
 import torch.nn as nn
-from tqdm.auto import tqdm
-import numpy as np
-
 from lightning import LightningDataModule
-
-
 from torch import Tensor
-from abc import ABC, abstractmethod
+from tqdm.auto import tqdm
 
 
 class NoNormalization(nn.Module):
@@ -38,8 +36,8 @@ class ImageSatistics(torch.nn.Module):
         bins: int = 1000,
         range_vals: tuple[float, float] = (0, 100),
         compute_quantiles: bool = False,
-        clip_min_val: Optional[Tensor] = None,
-        clip_max_val: Optional[Tensor] = None,
+        clip_min_val: Tensor | None = None,
+        clip_max_val: Tensor | None = None,
     ):
         """Initializes the ImageSatistics method.
 
@@ -198,7 +196,7 @@ class DatasetStatistics(ABC):
         input_keys: list[str] = ["image"],
         target_key: str = "label",
         device: str = "cpu",
-        save_dir: Optional[str] = None,
+        save_dir: str | None = None,
         **kwargs,
     ):
         """Initialize statistics computer.
@@ -419,7 +417,7 @@ class ClassificationStatistics(DatasetStatistics):
         target_key: str = "label",
         multilabel: bool = False,
         device: str = "cpu",
-        save_dir: Optional[str] = None,
+        save_dir: str | None = None,
         **kwargs,
     ):
         """Initialize classification statistics computer.
@@ -547,7 +545,7 @@ class SegmentationStatistics(DatasetStatistics):
         input_keys: list[str] = ["image"],
         target_key: str = "mask",
         device: str = "cpu",
-        save_dir: Optional[str] = None,
+        save_dir: str | None = None,
         **kwargs,
     ):
         """Initialize segmentation statistics computer.
@@ -670,7 +668,7 @@ class PxRegressionStatistics(DatasetStatistics):
         input_keys: list[str] = ["image"],
         target_key: str = "label",
         device: str = "cpu",
-        save_dir: Optional[str] = None,
+        save_dir: str | None = None,
         **kwargs,
     ):
         """Initialize pixel regression statistics computer.
@@ -754,7 +752,7 @@ class ObjectDetectionStatistics(DatasetStatistics):
         input_keys: list[str] = ["image"],
         target_key: str = "boxes",
         device: str = "cpu",
-        save_dir: Optional[str] = None,
+        save_dir: str | None = None,
         **kwargs,
     ):
         """Initialize object detection statistics computer.

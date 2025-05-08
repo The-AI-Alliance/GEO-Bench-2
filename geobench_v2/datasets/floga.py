@@ -4,20 +4,17 @@
 """Forest wiLdfire Observations for the Greek Area (FLOGA) Dataset."""
 
 import os
-import numpy as np
-import rasterio
+from collections.abc import Sequence
+from typing import ClassVar, Literal
 
 import h5py
-
-from typing import Sequence, ClassVar, Union, Literal
+import pandas as pd
 import torch
 from torch import Tensor
 from torchgeo.datasets import NonGeoDataset
 
+from .data_util import ClipZScoreNormalizer, DataUtilsMixin
 from .sensor_util import DatasetBandRegistry
-from .data_util import DataUtilsMixin, ClipZScoreNormalizer
-import pandas as pd
-import numpy as np
 
 
 # TODO need to add automatic download
@@ -95,7 +92,6 @@ class GeoBenchFLOGA(NonGeoDataset, DataUtilsMixin):
         Raises:
             AssertionError: If *split* is not in the splits
         """
-
         assert split in self.splits, f"split must be one of {self.splits}"
 
         self.root = root

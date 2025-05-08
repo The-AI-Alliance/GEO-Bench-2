@@ -2,9 +2,9 @@
     "input_stats": {
         "image_aerial": {
             "band_names": [
-                "r",
-                "g",
-                "b",
+                "red",
+                "green",
+                "blue",
                 "nir"
             ],
             "mean": [

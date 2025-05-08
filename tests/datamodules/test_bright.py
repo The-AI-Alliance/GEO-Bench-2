@@ -3,15 +3,17 @@
 
 """BRIGHT Tests."""
 
-import pytest
 import os
+from collections.abc import Sequence
 from pathlib import Path
-from pytest import MonkeyPatch
-from typing import Sequence
+
+import pytest
 import torch
-from geobench_v2.datasets import GeoBenchBRIGHT
-from geobench_v2.datamodules import GeoBenchBRIGHTDataModule
+from pytest import MonkeyPatch
 from torchgeo.datasets import DatasetNotFoundError
+
+from geobench_v2.datamodules import GeoBenchBRIGHTDataModule
+from geobench_v2.datasets import GeoBenchBRIGHT
 
 
 @pytest.fixture(params=[{"aerial": ["red", 0.0, "blue"], "sar": ["sar", 1.0]}])

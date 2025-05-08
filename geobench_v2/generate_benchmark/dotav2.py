@@ -3,16 +3,18 @@
 
 """Generate Benchmark version of DOTAV2 dataset."""
 
-import pandas as pd
-import os
 import argparse
+import os
+
+import numpy as np
+import pandas as pd
+from PIL import Image
+from tqdm import tqdm
+
 from geobench_v2.generate_benchmark.object_detection_util import (
     process_dotav2_dataset,
     visualize_processing_results,
 )
-import numpy as np
-from PIL import Image
-from tqdm import tqdm
 
 Image.MAX_IMAGE_PIXELS = None
 
@@ -50,7 +52,7 @@ def generate_metadata_df(root: str) -> pd.DataFrame:
         # Load annotations to count objects
         annotations = []
         if os.path.exists(annotation_path):
-            with open(annotation_path, "r") as f:
+            with open(annotation_path) as f:
                 for line in f:
                     parts = line.strip().split()
                     if (

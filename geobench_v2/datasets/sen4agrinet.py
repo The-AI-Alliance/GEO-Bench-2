@@ -3,22 +3,21 @@
 
 """Sen4AgriNet dataset."""
 
-from torch import Tensor
-from pathlib import Path
-from typing import Sequence, Type, Literal
-import torch.nn as nn
-
-from .sensor_util import DatasetBandRegistry
-from torchgeo.datasets import NonGeoDataset
-from .data_util import ClipZScoreNormalizer, DataUtilsMixin
-import torch.nn.functional as F
-import torch.nn as nn
-import rasterio
-import numpy as np
-import torch
-import pandas as pd
 import os
+from collections.abc import Sequence
+from pathlib import Path
+from typing import Literal
+
 import h5py
+import pandas as pd
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+from torch import Tensor
+from torchgeo.datasets import NonGeoDataset
+
+from .data_util import ClipZScoreNormalizer, DataUtilsMixin
+from .sensor_util import DatasetBandRegistry
 
 
 class GeoBenchSen4AgriNet(NonGeoDataset, DataUtilsMixin):
@@ -118,7 +117,7 @@ class GeoBenchSen4AgriNet(NonGeoDataset, DataUtilsMixin):
         root: Path,
         split: Literal["train", "validation", "test"] = "train",
         band_order: dict[str, Sequence[float | str]] = band_default_order,
-        data_normalizer: Type[nn.Module] = ClipZScoreNormalizer,
+        data_normalizer: type[nn.Module] = ClipZScoreNormalizer,
         num_time_steps: int = 1,
         transforms: nn.Module | None = None,
     ) -> None:

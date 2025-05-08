@@ -3,9 +3,11 @@
 
 """GeoBench DOTAV2 Tests."""
 
-import pytest
 import os
+
 import matplotlib.pyplot as plt
+import pytest
+
 from geobench_v2.datamodules import GeoBenchDOTAV2DataModule
 
 

@@ -4,13 +4,13 @@
 """Data Processing Utility Mixin."""
 
 from abc import ABC, abstractmethod
-from typing import Union, Sequence, Optional
+from collections.abc import Sequence
+
 import torch
 import torch.nn as nn
 from torch import Tensor
-import kornia.augmentation as K
-from kornia.enhance import normalize, denormalize
-from .sensor_util import ModalityConfig, MultiModalConfig, DatasetBandRegistry
+
+from .sensor_util import ModalityConfig, MultiModalConfig
 
 
 class DataUtilsMixin(ABC):
@@ -21,7 +21,7 @@ class DataUtilsMixin(ABC):
         """Per-modality normalization statistics."""
         pass
 
-    def get_source_order(self) -> Union[list[str], dict[str, list[str]]]:
+    def get_source_order(self) -> list[str] | dict[str, list[str]]:
         """Derive source order from dataset configuration."""
         if isinstance(self.dataset_band_config, MultiModalConfig):
             return {
@@ -32,10 +32,8 @@ class DataUtilsMixin(ABC):
 
     def resolve_band_order(
         self,
-        band_order: Optional[
-            Union[Sequence[Union[str, float]], dict[str, Sequence[Union[str, float]]]]
-        ] = None,
-    ) -> Union[list[Union[str, float]], dict[str, list[Union[str, float]]]]:
+        band_order: Sequence[str | float] | dict[str, Sequence[str | float]] | None = None,
+    ) -> list[str | float] | dict[str, list[str | float]]:
         """Resolve band names to canonical names using modality configurations."""
         if band_order is None:
             return self.dataset_band_config.default_order
@@ -98,7 +96,7 @@ class DataUtilsMixin(ABC):
             return resolved_bands
 
     @staticmethod
-    def _resolve_in_config(band: str, config: ModalityConfig) -> Optional[str]:
+    def _resolve_in_config(band: str, config: ModalityConfig) -> str | None:
         """Resolve band name within a specific modality configuration.
 
         Args:
@@ -112,10 +110,8 @@ class DataUtilsMixin(ABC):
 
     def rearrange_bands(
         self,
-        data: Union[Tensor, dict[str, Tensor]],
-        target_order: Union[
-            list[Union[str, float]], dict[str, list[Union[str, float]]]
-        ],
+        data: Tensor | dict[str, Tensor],
+        target_order: list[str | float] | dict[str, list[str | float]],
     ) -> dict[str, Tensor]:
         """Rearrange bands using dataset configuration."""
         if not isinstance(self.dataset_band_config, MultiModalConfig):
@@ -143,7 +139,7 @@ class DataUtilsMixin(ABC):
         self,
         data: Tensor,
         source_order: list[str],
-        target_order: list[Union[str, float]],
+        target_order: list[str | float],
     ) -> dict[str, Tensor]:
         """Rearrange bands for single modality."""
         output_channels = []
@@ -179,7 +175,7 @@ class DataUtilsMixin(ABC):
             return {"image": torch.cat(output_channels, dim=0)}
 
     def _rearrange_multimodal_to_tensor(
-        self, data: dict[str, Tensor], target_order: list[Union[str, float]]
+        self, data: dict[str, Tensor], target_order: list[str | float]
     ) -> dict[str, Tensor]:
         """Create single tensor from multi-modal data."""
         resolved_order = self.resolve_band_order(target_order)
@@ -221,7 +217,7 @@ class DataUtilsMixin(ABC):
             return {"image": torch.cat(output_channels, dim=0)}
 
     def _rearrange_multimodal_to_dict(
-        self, data: dict[str, Tensor], target_order: dict[str, list[Union[str, float]]]
+        self, data: dict[str, Tensor], target_order: dict[str, list[str | float]]
     ) -> dict[str, Tensor]:
         """Create dict of tensors from multi-modal data."""
         output = {}
@@ -293,7 +289,7 @@ class DataNormalizer(nn.Module, ABC):
     def __init__(
         self,
         stats: dict[str, dict[str, float]],
-        band_order: Union[list[Union[str, float]], dict[str, list[Union[str, float]]]],
+        band_order: list[str | float] | dict[str, list[str | float]],
         image_keys: Sequence[str] | None = None,
     ) -> None:
         """Initialize normalizer.
@@ -319,8 +315,7 @@ class DataNormalizer(nn.Module, ABC):
 
 
 class ClipZScoreNormalizer(DataNormalizer):
-    """
-    Normalization module applying sequential optional clipping and z-score normalization.
+    """Normalization module applying sequential optional clipping and z-score normalization.
 
     Applies normalization per channel based on band configuration:
     1. If 'clip_min' and 'clip_max' are defined for a band in stats:
@@ -335,7 +330,7 @@ class ClipZScoreNormalizer(DataNormalizer):
     def __init__(
         self,
         stats: dict[str, dict[str, float]],
-        band_order: Union[list[Union[str, float]], dict[str, list[Union[str, float]]]],
+        band_order: list[str | float] | dict[str, list[str | float]],
         image_keys: Sequence[str] | None = None,
     ) -> None:
         """Initialize normalizer applying clip then z-score.
@@ -402,7 +397,7 @@ class ClipZScoreNormalizer(DataNormalizer):
                 self.clip_mins[key], self.clip_maxs[key] = clip_tuple
 
     def _get_band_stats(
-        self, bands: Sequence[Union[str, float]]
+        self, bands: Sequence[str | float]
     ) -> tuple[Tensor, Tensor, Tensor]:
         """Extract mean, std tensors and a boolean mask identifying fill value channels."""
         means, stds, is_fill = [], [], []
@@ -425,7 +420,7 @@ class ClipZScoreNormalizer(DataNormalizer):
         return torch.tensor(means), torch.tensor(stds), torch.tensor(is_fill)
 
     def _get_clip_values(
-        self, bands: Sequence[Union[str, float]]
+        self, bands: Sequence[str | float]
     ) -> tuple[Tensor, Tensor]:
         """Extract clip min/max tensors. Uses +/- infinity if clipping is not defined."""
         clip_mins, clip_maxs = [], []
@@ -458,7 +453,7 @@ class ClipZScoreNormalizer(DataNormalizer):
 
     def _reshape_and_expand(
         self, tensor_to_reshape: Tensor, target_tensor: Tensor
-    ) -> tuple[Tensor, Optional[Tensor]]:
+    ) -> tuple[Tensor, Tensor | None]:
         """Reshape 1D stat/mask tensor and optionally expand boolean masks for broadcasting."""
         orig_dim = target_tensor.dim()
         if orig_dim == 3:  # [C, H, W]
@@ -607,8 +602,7 @@ class ClipZScoreNormalizer(DataNormalizer):
 
 
 class SatMAENormalizer(DataNormalizer):
-    """
-    Normalization module for satellite imagery with SatMAE-style normalization.
+    """Normalization module for satellite imagery with SatMAE-style normalization.
 
     Several papers have cited SatMAE for this normalization procedure:
     - https://github.com/sustainlab-group/SatMAE/blob/e31c11fa1bef6f9a9aa3eb49e8637c8b8952ba5e/util/datasets.py#L358
@@ -631,7 +625,7 @@ class SatMAENormalizer(DataNormalizer):
     def __init__(
         self,
         stats: dict[str, dict[str, float]],
-        band_order: Union[list[Union[str, float]], dict[str, list[Union[str, float]]]],
+        band_order: list[str | float] | dict[str, list[str | float]],
         image_keys: Sequence[str] | None = None,
         output_range: str = "zero_one",
     ) -> None:
@@ -715,7 +709,7 @@ class SatMAENormalizer(DataNormalizer):
                 self.is_fill_value[key] = is_fill
 
     def _get_band_stats(
-        self, bands: Sequence[Union[str, float]]
+        self, bands: Sequence[str | float]
     ) -> tuple[Tensor, Tensor, Tensor]:
         """Extract mean and std values for specified bands and identify fill values.
 

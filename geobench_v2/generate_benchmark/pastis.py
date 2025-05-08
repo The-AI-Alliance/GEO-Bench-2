@@ -3,21 +3,22 @@
 
 """Generate Benchmark version of PASTIS dataset."""
 
-import geopandas as gpd
-from torchgeo.datasets import PASTIS
-import pandas as pd
-import os
 import argparse
-import json
-import tacotoolbox
-import tacoreader
 import glob
+import json
+import os
+
+import geopandas as gpd
+import pandas as pd
+import tacoreader
+import tacotoolbox
+from torchgeo.datasets import PASTIS
 from tqdm import tqdm
 
 from geobench_v2.generate_benchmark.utils import (
-    plot_sample_locations,
     create_subset_from_df,
     create_unittest_subset,
+    plot_sample_locations,
 )
 
 
@@ -123,7 +124,6 @@ def generate_metadata_df(ds: PASTIS) -> pd.DataFrame:
 
 def create_tortilla(root_dir, df, save_dir, tortilla_name) -> None:
     """Create a subset of PASTIS dataset for Tortilla Benchmark."""
-
     tortilla_dir = os.path.join(save_dir, "tortilla")
     os.makedirs(tortilla_dir, exist_ok=True)
 
@@ -206,6 +206,7 @@ def create_geobench_version(
     n_test_samples: int,
 ) -> pd.DataFrame:
     """Create a GeoBench version of the dataset.
+
     Args:
         metadata_df: DataFrame with metadata including geolocation for each patch
         n_train_samples: Number of final training samples, -1 means all
@@ -216,7 +217,6 @@ def create_geobench_version(
         block_size: Size of blocks for optimized GeoTIFF writing
         num_workers: Number of parallel workers
     """
-
     random_state = 24
 
     subset_df = create_subset_from_df(
@@ -232,7 +232,6 @@ def create_geobench_version(
 
 def create_unit_test_subset() -> None:
     """Create a subset of PASTIS dataset for GeoBench unit tests."""
-
     # create random images etc that respect the structure of the dataset in minimal format
     pass
 

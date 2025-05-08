@@ -3,13 +3,14 @@
 
 """Generate Benchmark version of Windturbine dataset."""
 
-import os
 import argparse
-import pandas as pd
-from tqdm import tqdm
 import glob
-from PIL import Image
+import os
+
 import numpy as np
+import pandas as pd
+from PIL import Image
+from tqdm import tqdm
 
 
 def resize_and_save_dataset(df, root_dir, save_dir, target_size=512):
@@ -21,7 +22,6 @@ def resize_and_save_dataset(df, root_dir, save_dir, target_size=512):
         save_dir (str): Directory to save the resized dataset.
         target_size (int): Target size for resizing images.
     """
-
     for split in ["train", "validation", "test"]:
         os.makedirs(os.path.join(save_dir, "images", split), exist_ok=True)
         os.makedirs(os.path.join(save_dir, "labels", split), exist_ok=True)
@@ -48,7 +48,7 @@ def resize_and_save_dataset(df, root_dir, save_dir, target_size=512):
         width_ratio = target_size / orig_width
         height_ratio = target_size / orig_height
 
-        with open(label_path, "r") as f:
+        with open(label_path) as f:
             annotations = f.readlines()
 
         new_annotations = []
@@ -131,7 +131,6 @@ def create_region_based_splits(
 
 def generate_metadata_df(root_dir: str) -> pd.DataFrame:
     """Generate metadata DataFrame for Windturbine dataset."""
-
     image_paths = glob.glob(os.path.join(root_dir, "JPEGImages", "*.png"))
 
     df = pd.DataFrame(image_paths, columns=["image_path"])

@@ -3,20 +3,17 @@
 
 """Flair 2 Aerial Dataset."""
 
-from torch import Tensor
-from torchgeo.datasets import SpaceNet6
-from pathlib import Path
-from typing import Sequence, Type
-import torch.nn as nn
+from collections.abc import Sequence
 
-from .sensor_util import DatasetBandRegistry
+import rasterio
+import torch
+import torch.nn as nn
+from shapely import wkt
+from torch import Tensor
+
 from .base import GeoBenchBaseDataset
 from .data_util import ClipZScoreNormalizer
-import torch.nn as nn
-import rasterio
-import numpy as np
-import torch
-from shapely import wkt
+from .sensor_util import DatasetBandRegistry
 
 
 class GeoBenchFLAIR2(GeoBenchBaseDataset):
@@ -68,7 +65,10 @@ class GeoBenchFLAIR2(GeoBenchBaseDataset):
         },
     }
 
-    band_default_order = {"aerial": ("r", "g", "b", "nir"), "elevation": ("elevation",)}
+    band_default_order = {
+        "aerial": ("red", "green", "blue", "nir"),
+        "elevation": ("elevation",),
+    }
 
     valid_metadata = ("lat", "lon")
 
@@ -77,7 +77,7 @@ class GeoBenchFLAIR2(GeoBenchBaseDataset):
         root,
         split="train",
         band_order: dict[str, Sequence[float | str]] = band_default_order,
-        data_normalizer: Type[nn.Module] = ClipZScoreNormalizer,
+        data_normalizer: type[nn.Module] = ClipZScoreNormalizer,
         transforms: nn.Module | None = None,
         metadata: Sequence[str] | None = None,
         download: bool = False,

@@ -3,25 +3,22 @@
 
 """GeoBench WindTurbine DataModule."""
 
-from collections.abc import Callable
-from typing import Any, Sequence
-import kornia.augmentation as K
-import torch
-import numpy as np
-from torchgeo.datasets.utils import percentile_normalization
-from einops import rearrange
-
-import pandas as pd
-from torch import Tensor
 import os
-import matplotlib.pyplot as plt
+from collections.abc import Callable, Sequence
+from typing import Any
 
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+import torch
+import torch.nn as nn
+from einops import rearrange
+from torch import Tensor
+from torchgeo.datasets.utils import percentile_normalization
 
 from geobench_v2.datasets import GeoBenchWindTurbine
-from torch.utils.data import random_split
 
 from .base import GeoBenchObjectDetectionDataModule
-import torch.nn as nn
 
 # TODO WindTurbine collate_fn check the different image sizes
 

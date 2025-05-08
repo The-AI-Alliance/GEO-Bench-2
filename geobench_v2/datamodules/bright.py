@@ -3,18 +3,18 @@
 
 """BRIGHT DataModule."""
 
-from collections.abc import Callable
-from typing import Any, Sequence
+import os
+from collections.abc import Callable, Sequence
+from typing import Any
+
 import matplotlib.pyplot as plt
 import pandas as pd
-import os
+import torch.nn as nn
 from torch import Tensor
-
 
 from geobench_v2.datasets import GeoBenchBRIGHT
 
 from .base import GeoBenchSegmentationDataModule
-import torch.nn as nn
 
 
 class GeoBenchBRIGHTDataModule(GeoBenchSegmentationDataModule):

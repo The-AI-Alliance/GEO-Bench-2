@@ -3,15 +3,15 @@
 
 """Resisc45 Dataset."""
 
-import torch
+from collections.abc import Sequence
+from pathlib import Path
+
+import torch.nn as nn
 from torch import Tensor
 from torchgeo.datasets import RESISC45
-from pathlib import Path
-from typing import Sequence, Type
-import torch.nn as nn
 
+from .data_util import ClipZScoreNormalizer, DataUtilsMixin
 from .sensor_util import DatasetBandRegistry
-from .data_util import DataUtilsMixin, ClipZScoreNormalizer
 
 
 class GeoBenchRESISC45(RESISC45, DataUtilsMixin):
@@ -37,7 +37,7 @@ class GeoBenchRESISC45(RESISC45, DataUtilsMixin):
         root: Path,
         split: str,
         band_order: Sequence["str"] = band_default_order,
-        data_normalizer: Type[nn.Module] = ClipZScoreNormalizer,
+        data_normalizer: type[nn.Module] = ClipZScoreNormalizer,
         **kwargs,
     ):
         """Initialize Resisc45 Dataset.

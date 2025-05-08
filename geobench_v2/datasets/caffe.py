@@ -3,23 +3,18 @@
 
 """CaFFe Dataset."""
 
-import os
 
-from typing import Sequence, Type
-import numpy as np
-import torch
-from PIL import Image
-from torch import Tensor
-from torchgeo.datasets import CaFFe
-from pathlib import Path
-import pandas as pd
-import torch.nn as nn
+from collections.abc import Sequence
+
 import rasterio
+import torch
+import torch.nn as nn
 from shapely import wkt
+from torch import Tensor
 
-from .sensor_util import DatasetBandRegistry
-from .data_util import ClipZScoreNormalizer
 from .base import GeoBenchBaseDataset
+from .data_util import ClipZScoreNormalizer
+from .sensor_util import DatasetBandRegistry
 
 
 class GeoBenchCaFFe(GeoBenchBaseDataset):
@@ -47,7 +42,7 @@ class GeoBenchCaFFe(GeoBenchBaseDataset):
         root,
         split="train",
         band_order: Sequence[float | str] = ["r", "g", "b"],
-        data_normalizer: Type[nn.Module] = ClipZScoreNormalizer,
+        data_normalizer: type[nn.Module] = ClipZScoreNormalizer,
         transforms: nn.Module | None = None,
         metadata: Sequence[str] | None = None,
         download: bool = False,

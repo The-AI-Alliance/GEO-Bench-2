@@ -3,21 +3,21 @@
 
 """TreesatAI dataset."""
 
-from torch import Tensor
+import os
+from collections.abc import Sequence
 from pathlib import Path
-from typing import Sequence, Type
+
+import h5py
+import numpy as np
+import rasterio
+import torch
 import torch.nn as nn
 from shapely import wkt
+from torch import Tensor
 
-from .sensor_util import DatasetBandRegistry
 from .base import GeoBenchBaseDataset
 from .data_util import ClipZScoreNormalizer
-import torch.nn as nn
-import rasterio
-import numpy as np
-import h5py
-import torch
-import os
+from .sensor_util import DatasetBandRegistry
 
 
 class GeoBenchTreeSatAI(GeoBenchBaseDataset):
@@ -135,7 +135,7 @@ class GeoBenchTreeSatAI(GeoBenchBaseDataset):
         band_order: dict[str, Sequence[str]] = {
             "aerial": ["red", "green", "blue", "nir"]
         },
-        data_normalizer: Type[nn.Module] = ClipZScoreNormalizer,
+        data_normalizer: type[nn.Module] = ClipZScoreNormalizer,
         transforms: nn.Module | None = None,
         metadata: Sequence[str] | None = None,
         include_ts: bool = False,

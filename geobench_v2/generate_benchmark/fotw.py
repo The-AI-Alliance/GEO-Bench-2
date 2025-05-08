@@ -4,32 +4,30 @@
 """Generate GeoBenchV2 version of Fields of the World dataset."""
 
 import argparse
-import os
+import concurrent
+import glob
 import json
+import os
 import shutil
-import pandas as pd
-from torchgeo.datasets import FieldsOfTheWorld
-import shapely.wkb
-from tqdm import tqdm
-from concurrent.futures import ThreadPoolExecutor, as_completed
-from geobench_v2.generate_benchmark.utils import (
-    plot_sample_locations,
-    create_unittest_subset,
-    create_subset_from_df,
-)
-import matplotlib.pyplot as plt
+
 import cartopy.crs as ccrs
 import cartopy.feature as cfeature
-from matplotlib.lines import Line2D
-import numpy as np
-
-import rasterio
-import tacotoolbox
-import tacoreader
-import glob
 import cartopy.io.shapereader as shpreader
-import concurrent
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+import rasterio
+import shapely.wkb
+import tacoreader
+import tacotoolbox
+from matplotlib.lines import Line2D
+from torchgeo.datasets import FieldsOfTheWorld
+from tqdm import tqdm
 
+from geobench_v2.generate_benchmark.utils import (
+    create_subset_from_df,
+    create_unittest_subset,
+)
 
 TOTAL_N = 20000
 
@@ -53,8 +51,7 @@ CC_BY_COUNTRIES = (
 
 
 def copy_subset_files(ds, subset: pd.DataFrame, save_dir: str) -> None:
-    """
-    Copy files from the original dataset (ds.root) to the new directory (save_dir)
+    """Copy files from the original dataset (ds.root) to the new directory (save_dir)
     following the same directory structure and naming convention.
 
     For each sample (identified by its country and aoi_id) the following files are
@@ -123,7 +120,7 @@ def generate_metadata_df(ds: FieldsOfTheWorld) -> pd.DataFrame:
     for country in tqdm(selected_countries, desc="Collecting metadata"):
         country_df = pd.read_parquet(f"{ds.root}/{country}/chips_{country}.parquet")
 
-        with open(f"{ds.root}/{country}/data_config_{country}.json", "r") as f:
+        with open(f"{ds.root}/{country}/data_config_{country}.json") as f:
             data_config = json.load(f)
 
         country_df["year_of_collection"] = data_config["year_of_collection"]
@@ -222,7 +219,7 @@ def plot_country_distribution(
     n_countries = len(country_counts)
 
     print(f"Dataset contains {total_samples:,} samples across {n_countries} countries")
-    print(f"Top 5 countries by sample count:")
+    print("Top 5 countries by sample count:")
     for country, count in country_counts.head(5).items():
         percentage = 100 * count / total_samples
         print(f"  {country}: {count:,} samples ({percentage:.1f}%)")
@@ -684,6 +681,7 @@ def create_geobench_version(
     n_test_samples: int,
 ) -> None:
     """Create a GeoBench version of the dataset.
+
     Args:
         metadata_df: DataFrame with metadata including geolocation for each patch
         n_train_samples: Number of final training samples, -1 means all

@@ -3,15 +3,17 @@
 
 """CloudSen12 Tests."""
 
-import pytest
-from pathlib import Path
-from torchgeo.datasets import DatasetNotFoundError
 import os
-from pytest import MonkeyPatch
-from typing import Sequence
+from collections.abc import Sequence
+from pathlib import Path
+
+import pytest
 import torch
-from geobench_v2.datasets import GeoBenchCloudSen12
+from pytest import MonkeyPatch
+from torchgeo.datasets import DatasetNotFoundError
+
 from geobench_v2.datamodules import GeoBenchCloudSen12DataModule
+from geobench_v2.datasets import GeoBenchCloudSen12
 
 
 @pytest.fixture(params=[["B01", "B02", "B08", "B02", 0.0]])

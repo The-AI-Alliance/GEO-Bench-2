@@ -1,17 +1,7 @@
 import pytest
 import torch
-from geobench_v2.datasets.data_util import (
-    DataUtilsMixin,
-    ClipZScoreNormalizer,
-    SatMAENormalizer,
-)
-from geobench_v2.datasets.sensor_util import (
-    ModalityConfig,
-    MultiModalConfig,
-    BandConfig,
-    DatasetBandRegistry,
-    SensorBandRegistry,
-)
+
+from geobench_v2.datasets.data_util import ClipZScoreNormalizer, SatMAENormalizer
 
 
 class TestSatMAENormalizer:

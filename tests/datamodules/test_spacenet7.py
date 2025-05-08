@@ -3,16 +3,18 @@
 
 """SpaceNet7 Tests."""
 
-import pytest
 import os
-from pytest import MonkeyPatch
-from typing import Sequence
-import torch
+from collections.abc import Sequence
 from pathlib import Path
-from torchgeo.datasets import DatasetNotFoundError
+
 import matplotlib.pyplot as plt
-from geobench_v2.datasets import GeoBenchSpaceNet7
+import pytest
+import torch
+from pytest import MonkeyPatch
+from torchgeo.datasets import DatasetNotFoundError
+
 from geobench_v2.datamodules import GeoBenchSpaceNet7DataModule
+from geobench_v2.datasets import GeoBenchSpaceNet7
 
 
 @pytest.fixture(params=[["red", 0.0, "blue", "nir", "green"]])

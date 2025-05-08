@@ -6,21 +6,17 @@
 
 """BigEarthNet V2 Dataset."""
 
-from torch import Tensor
-from torchgeo.datasets import SpaceNet6
+from collections.abc import Sequence
 from pathlib import Path
-from typing import Sequence, Type
-import torch.nn as nn
 
-from .sensor_util import DatasetBandRegistry
+import rasterio
+import torch
+import torch.nn as nn
+from torch import Tensor
+
 from .base import GeoBenchBaseDataset
 from .data_util import ClipZScoreNormalizer
-import torch.nn as nn
-import rasterio
-import numpy as np
-import torch
-
-from rasterio.enums import Resampling
+from .sensor_util import DatasetBandRegistry
 
 
 class GeoBenchBENV2(GeoBenchBaseDataset):
@@ -135,7 +131,7 @@ class GeoBenchBENV2(GeoBenchBaseDataset):
         root: Path,
         split: str,
         band_order: dict[str, Sequence[float | str]] = band_default_order,
-        data_normalizer: Type[nn.Module] = ClipZScoreNormalizer,
+        data_normalizer: type[nn.Module] = ClipZScoreNormalizer,
         transforms: nn.Module | None = None,
         metadata: Sequence[str] = None,
         return_stacked_image: bool = False,

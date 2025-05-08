@@ -3,21 +3,19 @@
 
 """DynamicEarthNet DataModule."""
 
-from collections.abc import Callable
-from typing import Any, Sequence
+import os
+from collections.abc import Callable, Sequence
+from typing import Any
+
+import matplotlib.pyplot as plt
+import pandas as pd
+import torch.nn as nn
+from torch import Tensor
 
 from geobench_v2.datasets import GeoBenchDynamicEarthNet
 
-import pandas as pd
-from torch import Tensor
-import os
-import matplotlib.pyplot as plt
-
-import torch
 from .base import GeoBenchSegmentationDataModule
 from .utils import TimeSeriesResize
-import torch.nn as nn
-from torch import Tensor
 
 
 # TODO add timeseries argument

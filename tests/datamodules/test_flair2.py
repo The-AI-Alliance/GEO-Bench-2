@@ -3,16 +3,18 @@
 
 """FLAIR2 Tests."""
 
-import pytest
 import os
+from collections.abc import Sequence
 from pathlib import Path
-from pytest import MonkeyPatch
-from typing import Sequence
-import torch
+
 import matplotlib.pyplot as plt
-from geobench_v2.datasets import GeoBenchFLAIR2
-from geobench_v2.datamodules import GeoBenchFLAIR2DataModule
+import pytest
+import torch
+from pytest import MonkeyPatch
 from torchgeo.datasets import DatasetNotFoundError
+
+from geobench_v2.datamodules import GeoBenchFLAIR2DataModule
+from geobench_v2.datasets import GeoBenchFLAIR2
 
 
 @pytest.fixture(params=[{"aerial": ["r", 1.0, "g", "b"], "elevation": ["elevation"]}])

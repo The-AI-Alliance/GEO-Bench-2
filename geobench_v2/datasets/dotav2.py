@@ -4,22 +4,16 @@
 """DOTAV2 dataset."""
 
 import os
+from pathlib import Path
+from typing import Literal
 
-from typing import Type, Literal
-from torchgeo.datasets import DOTA
-import numpy as np
-from PIL import Image
+import pandas as pd
 import torch.nn as nn
 from torch import Tensor
-import torch
-from pathlib import Path
-import kornia.augmentation as K
-import torch.nn.functional as F
-import pandas as pd
+from torchgeo.datasets import DOTA
 
-
+from .data_util import ClipZScoreNormalizer, DataUtilsMixin
 from .sensor_util import DatasetBandRegistry
-from .data_util import DataUtilsMixin, ClipZScoreNormalizer
 
 
 class GeoBenchDOTAV2(DOTA, DataUtilsMixin):
@@ -66,7 +60,7 @@ class GeoBenchDOTAV2(DOTA, DataUtilsMixin):
         root: Path,
         split: str,
         band_order: list[str] = band_default_order,
-        data_normalizer: Type[nn.Module] = ClipZScoreNormalizer,
+        data_normalizer: type[nn.Module] = ClipZScoreNormalizer,
         bbox_orientation: Literal["horizontal", "oriented"] = "oriented",
         transforms: nn.Module | None = None,
     ) -> None:

@@ -3,20 +3,19 @@
 
 """Fields of the World Dataset."""
 
-from torch import Tensor
-from torchgeo.datasets import SpaceNet6
+from collections.abc import Sequence
 from pathlib import Path
-from typing import Sequence, Type, Literal
+from typing import Literal
+
+import rasterio
+import torch
 import torch.nn as nn
 from shapely import wkt
+from torch import Tensor
 
-from .sensor_util import DatasetBandRegistry
 from .base import GeoBenchBaseDataset
 from .data_util import ClipZScoreNormalizer
-import torch.nn as nn
-import rasterio
-import numpy as np
-import torch
+from .sensor_util import DatasetBandRegistry
 
 
 class GeoBenchFieldsOfTheWorld(GeoBenchBaseDataset):
@@ -62,7 +61,7 @@ class GeoBenchFieldsOfTheWorld(GeoBenchBaseDataset):
         root: Path,
         split: str,
         band_order: Sequence[str | float] = dataset_band_config.default_order,
-        data_normalizer: Type[nn.Module] = ClipZScoreNormalizer,
+        data_normalizer: type[nn.Module] = ClipZScoreNormalizer,
         label_type: Literal["instance_seg", "semantic_seg"] = "semantic_seg",
         transforms: nn.Module | None = None,
         metadata: Sequence[str] | None = None,

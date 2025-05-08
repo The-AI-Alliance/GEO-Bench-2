@@ -4,13 +4,14 @@
 """BioMassters Tests."""
 
 import os
-import pytest
-from typing import Sequence, Dict, Union
-import torch
+from collections.abc import Sequence
 from pathlib import Path
+
+import pytest
 from pytest import MonkeyPatch
-from geobench_v2.datasets import GeoBenchBioMassters
+
 from geobench_v2.datamodules import GeoBenchBioMasstersDataModule
+from geobench_v2.datasets import GeoBenchBioMassters
 
 
 @pytest.fixture(
@@ -28,7 +29,7 @@ def band_order(request):
 def datamodule(
     monkeypatch: MonkeyPatch,
     tmp_path: Path,
-    band_order: Dict[str, Sequence[Union[str, float]]],
+    band_order: dict[str, Sequence[str | float]],
 ):
     """Initialize BioMassters datamodule with test configuration."""
     monkeypatch.setattr(GeoBenchBioMassters, "paths", ["biomassters.tortilla"])
@@ -60,7 +61,7 @@ def datamodule(
 def ts_datamodule(
     monkeypatch: MonkeyPatch,
     tmp_path: Path,
-    band_order: Dict[str, Sequence[Union[str, float]]],
+    band_order: dict[str, Sequence[str | float]],
 ):
     """Initialize BioMassters datamodule with time series support."""
     monkeypatch.setattr(GeoBenchBioMassters, "paths", ["biomassters.tortilla"])

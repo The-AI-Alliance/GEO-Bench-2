@@ -3,19 +3,20 @@
 
 """SpaceNet2 dataset."""
 
-from torch import Tensor
-from torchgeo.datasets import SpaceNet2
+from collections.abc import Sequence
 from pathlib import Path
-from typing import Type, Literal, Sequence
-from shapely import wkt
+from typing import Literal
 
-from .sensor_util import DatasetBandRegistry
-from .data_util import ClipZScoreNormalizer
-from .base import GeoBenchBaseDataset
-import torch.nn as nn
-import rasterio
 import numpy as np
+import rasterio
 import torch
+import torch.nn as nn
+from shapely import wkt
+from torch import Tensor
+
+from .base import GeoBenchBaseDataset
+from .data_util import ClipZScoreNormalizer
+from .sensor_util import DatasetBandRegistry
 
 
 class GeoBenchSpaceNet2(GeoBenchBaseDataset):
@@ -98,7 +99,7 @@ class GeoBenchSpaceNet2(GeoBenchBaseDataset):
         root: Path,
         split: str,
         band_order: list[str] = band_default_order,
-        data_normalizer: Type[nn.Module] = ClipZScoreNormalizer,
+        data_normalizer: type[nn.Module] = ClipZScoreNormalizer,
         label_type: Literal["instance_seg", "semantic_seg"] = "semantic_seg",
         transforms: nn.Module = None,
         metadata: Sequence[str] | None = None,

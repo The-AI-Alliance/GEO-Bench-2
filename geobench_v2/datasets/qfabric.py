@@ -3,18 +3,17 @@
 
 """QFabric dataset."""
 
-from torch import Tensor
+from collections.abc import Sequence
 from pathlib import Path
-from typing import Sequence, Type
-import torch.nn as nn
 
-from .sensor_util import DatasetBandRegistry
+import rasterio
+import torch
+import torch.nn as nn
+from torch import Tensor
+
 from .base import GeoBenchBaseDataset
 from .data_util import ClipZScoreNormalizer
-import torch.nn as nn
-import rasterio
-import numpy as np
-import torch
+from .sensor_util import DatasetBandRegistry
 
 
 class GeoBenchQFabric(GeoBenchBaseDataset):
@@ -75,7 +74,7 @@ class GeoBenchQFabric(GeoBenchBaseDataset):
         root: Path,
         split: str,
         band_order: Sequence[str] = band_default_order,
-        data_normalizer: Type[nn.Module] = ClipZScoreNormalizer,
+        data_normalizer: type[nn.Module] = ClipZScoreNormalizer,
         transforms: nn.Module | None = None,
         time_steps: Sequence[int] = [0, 1, 2, 3, 4],
         metadata: Sequence[str] | None = None,

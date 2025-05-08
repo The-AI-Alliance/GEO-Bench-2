@@ -4,22 +4,16 @@
 """Visualization utilities for GeoBench datasets."""
 
 import json
-import matplotlib.pyplot as plt
-import numpy as np
 
-import json
 import matplotlib.pyplot as plt
 import numpy as np
-import torch
-from torch import Tensor
-from typing import Dict, List, Tuple, Union, Optional, Type
-import torch.nn as nn
 import seaborn as sns
+import torch.nn as nn
+from torch import Tensor
 
 
 def plot_channel_histograms(stats_json_path: str) -> plt.Figure:
-    """
-    Plots channel-wise histograms for each modality from a dataset statistics JSON file.
+    """Plots channel-wise histograms for each modality from a dataset statistics JSON file.
 
     Args:
         stats_json_path: Path to the JSON file containing dataset statistics.
@@ -28,7 +22,7 @@ def plot_channel_histograms(stats_json_path: str) -> plt.Figure:
                          to statistics including 'band_names', 'histograms', and
                          'histogram_bins'.
     """
-    with open(stats_json_path, "r") as f:
+    with open(stats_json_path) as f:
         stats = json.load(f)
 
     input_stats = stats["input_stats"]
@@ -126,12 +120,11 @@ def create_normalization_stats(dataset_stats: dict) -> dict:
 
 
 def compute_batch_histograms(
-    batch: Dict[str, Tensor],
+    batch: dict[str, Tensor],
     n_bins: int = 100,
-    hist_range: Optional[Tuple[float, float]] = None,
-) -> Dict[str, Dict[str, Union[List, np.ndarray]]]:
-    """
-    Compute channel-wise histograms for image modalities in a batch.
+    hist_range: tuple[float, float] | None = None,
+) -> dict[str, dict[str, list | np.ndarray]]:
+    """Compute channel-wise histograms for image modalities in a batch.
 
     Args:
         batch: Dictionary with keys like 'image_s1', 'image_s2' containing tensors [B, C, H, W]
@@ -178,15 +171,12 @@ def compute_batch_histograms(
 
 
 def plot_batch_histograms(
-    batch_stats: Dict[str, Dict[str, Union[List, np.ndarray]]],
-    band_order: Optional[
-        Union[Dict[str, List[Union[str, float]]], List[Union[str, float]]]
-    ] = None,
-    figsize: Tuple[int, int] = (12, 5),
+    batch_stats: dict[str, dict[str, list | np.ndarray]],
+    band_order: dict[str, list[str | float]] | list[str | float] | None = None,
+    figsize: tuple[int, int] = (12, 5),
     title_suffix: str = "",
-) -> List[plt.Figure]:
-    """
-    Plot channel-wise histograms for image modalities.
+) -> list[plt.Figure]:
+    """Plot channel-wise histograms for image modalities.
 
     Args:
         batch_stats: Dictionary with statistics for each modality
@@ -298,9 +288,8 @@ def plot_batch_histograms(
 
 def get_normalized_batch(
     datamodule, normalizer: nn.Module, split: str = "train", batch_index: int = 0
-) -> Tuple[Dict[str, Tensor], Dict[str, Tensor]]:
-    """
-    Get a batch of data and its normalized version.
+) -> tuple[dict[str, Tensor], dict[str, Tensor]]:
+    """Get a batch of data and its normalized version.
 
     Args:
         datamodule: Lightning DataModule instance
@@ -357,10 +346,9 @@ def get_normalized_batch(
 
 
 def visualize_segmentation_target_statistics(
-    stats_json_path: str, dataset_name: str = None, figsize: Tuple[int, int] = (26, 10)
+    stats_json_path: str, dataset_name: str = None, figsize: tuple[int, int] = (26, 10)
 ) -> plt.Figure:
-    """
-    Visualizes target statistics from earth observation datasets with three informative subplots.
+    """Visualizes target statistics from earth observation datasets with three informative subplots.
 
     Args:
         stats_json_path: Path to dataset statistics JSON file.
@@ -370,7 +358,7 @@ def visualize_segmentation_target_statistics(
     Returns:
         Matplotlib figure with subplots showing class distribution, presence, and co-occurrence
     """
-    with open(stats_json_path, "r") as f:
+    with open(stats_json_path) as f:
         stats = json.load(f)
 
     target_stats = stats.get("target_stats", {})

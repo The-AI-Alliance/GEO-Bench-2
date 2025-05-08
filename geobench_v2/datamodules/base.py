@@ -4,22 +4,19 @@
 """Base DataModules."""
 
 from abc import ABC, abstractmethod
-from collections.abc import Callable
-from typing import Any, Sequence, Literal
+from collections.abc import Callable, Sequence
+from typing import Any, Literal
+
 import cartopy.crs as ccrs
 import cartopy.feature as cfeature
-from matplotlib.lines import Line2D
-
 import kornia.augmentation as K
 import pandas as pd
-import torch
 import torch.nn as nn
 from lightning import LightningDataModule
 from matplotlib import pyplot as plt
+from matplotlib.lines import Line2D
 from torch import Tensor
 from torch.utils.data import DataLoader, Dataset
-from torch.utils.data import random_split
-
 
 # TODO come up with an expected metadata file scheme
 # with common names etc. so a standardization

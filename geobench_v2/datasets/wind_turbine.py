@@ -4,23 +4,18 @@
 """WindTurbine dataset."""
 
 import os
-
-from typing import Type
-import numpy as np
-from PIL import Image
-import torch.nn as nn
-from torch import Tensor
-import torch
 from pathlib import Path
-import kornia.augmentation as K
-import torch.nn.functional as F
-import pandas as pd
 
+import numpy as np
+import pandas as pd
+import torch
+import torch.nn as nn
+from PIL import Image
+from torch import Tensor
 from torchgeo.datasets import NonGeoDataset
 
-
+from .data_util import ClipZScoreNormalizer, DataUtilsMixin
 from .sensor_util import DatasetBandRegistry
-from .data_util import DataUtilsMixin, ClipZScoreNormalizer
 
 
 class GeoBenchWindTurbine(NonGeoDataset, DataUtilsMixin):
@@ -48,7 +43,7 @@ class GeoBenchWindTurbine(NonGeoDataset, DataUtilsMixin):
         root: Path,
         split: str,
         band_order: list[str] = band_default_order,
-        data_normalizer: Type[nn.Module] = ClipZScoreNormalizer,
+        data_normalizer: type[nn.Module] = ClipZScoreNormalizer,
         transforms: nn.Module | None = None,
     ) -> None:
         """Initialize WindTurbine dataset.
@@ -169,7 +164,7 @@ class GeoBenchWindTurbine(NonGeoDataset, DataUtilsMixin):
         boxes = []
         labels = []
 
-        with open(path, "r") as f:
+        with open(path) as f:
             for line in f:
                 parts = line.strip().split()
                 if len(parts) >= 5:

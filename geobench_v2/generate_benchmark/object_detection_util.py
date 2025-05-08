@@ -1,25 +1,13 @@
-import os
-import pandas as pd
-import numpy as np
-from PIL import Image
-import matplotlib.pyplot as plt
-import matplotlib.patches as patches
-from tqdm import tqdm
-import argparse
-from pathlib import Path
-import matplotlib.pyplot as plt
-import matplotlib.patches as patches
-import random
-import numpy as np
-from PIL import Image, ImageDraw, ImageFont
-import os
-import shutil
 import concurrent.futures
-from tqdm.auto import tqdm
 import os
-from PIL import Image
-import pandas as pd
+import random
 import shutil
+
+import numpy as np
+import pandas as pd
+from PIL import Image, ImageDraw
+from tqdm import tqdm
+from tqdm.auto import tqdm
 
 
 def process_everwatch_dataset(image_dir, annotations_df, output_dir, target_size=512):
@@ -86,7 +74,7 @@ def process_everwatch_dataset(image_dir, annotations_df, output_dir, target_size
                         "split": ann["split"] if "split" in ann else "unknown",
                     }
                 )
-        except (OSError, IOError, SyntaxError) as e:
+        except (OSError, SyntaxError) as e:
             print(f"Error processing image {image_path}: {str(e)}")
             corrupted_images.append(img_name)
             continue
@@ -161,7 +149,7 @@ def process_dotav2_dataset(df, input_dir, output_dir, target_size=512, num_worke
     ] = "validation"
 
     split_counts = df["split"].value_counts()
-    print(f"\nSplit distribution:")
+    print("\nSplit distribution:")
     print(
         f"Train: {split_counts.get('train', 0)} samples ({100 * split_counts.get('train', 0) / total_samples:.1f}%)"
     )
@@ -273,8 +261,7 @@ def process_dotav2_dataset(df, input_dir, output_dir, target_size=512, num_worke
 
 
 def visualize_processing_results(df, input_dir, output_dir, num_samples=20, seed=42):
-    """
-    Visualize the processing results by showing before and after images with bounding boxes.
+    """Visualize the processing results by showing before and after images with bounding boxes.
 
     Args:
         df: DataFrame with processing metadata
@@ -369,7 +356,7 @@ def visualize_processing_results(df, input_dir, output_dir, num_samples=20, seed
         draw = ImageDraw.Draw(orig_img_with_boxes)
 
         if os.path.exists(annotation_path):
-            with open(annotation_path, "r") as f:
+            with open(annotation_path) as f:
                 for line in f:
                     parts = line.strip().split()
                     if len(parts) >= 9:
@@ -473,7 +460,7 @@ def visualize_processing_results(df, input_dir, output_dir, num_samples=20, seed
 
             if os.path.exists(processed_label_path):
                 draw = ImageDraw.Draw(processed_img)
-                with open(processed_label_path, "r") as f:
+                with open(processed_label_path) as f:
                     for line in f:
                         parts = line.strip().split()
                         if len(parts) >= 9:
