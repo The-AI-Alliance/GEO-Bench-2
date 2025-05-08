@@ -3,31 +3,24 @@
 
 """Generate Benchmark version of BenV2 dataset."""
 
-from torchgeo.datasets import BigEarthNetV2
 import argparse
-import rasterio
-import os
-
-from typing import Any
-import pandas as pd
-import glob
 import concurrent.futures
-import tacotoolbox
+import glob
+import os
+from typing import Any
+
+import numpy as np
+import pandas as pd
+import rasterio
 import tacoreader
+import tacotoolbox
+from rasterio.enums import Resampling
 from tqdm import tqdm
 
-import matplotlib.pyplot as plt
-import cartopy.crs as ccrs
-import cartopy.feature as cfeature
-from matplotlib.colors import LinearSegmentedColormap
-import numpy as np
 from geobench_v2.generate_benchmark.utils import (
-    plot_sample_locations,
-    create_unittest_subset,
     create_subset_from_df,
+    create_unittest_subset,
 )
-
-from rasterio.enums import Resampling
 
 
 def extract_date_from_patch_id(patch_id: str) -> str:
@@ -139,7 +132,6 @@ def generate_metadata_df(root_dir, num_workers: int = 8) -> pd.DataFrame:
 
 def create_tortilla(root_dir, metadata_df, save_dir, tortilla_name):
     """Create a tortilla version of the dataset."""
-
     tortilla_dir = os.path.join(save_dir, "tortilla")
     os.makedirs(tortilla_dir, exist_ok=True)
 
@@ -423,6 +415,7 @@ def create_geobench_version(
     n_test_samples: int,
 ) -> None:
     """Create a GeoBench version of the dataset.
+
     Args:
         metadata_df: DataFrame with metadata including geolocation for each patch
         n_train_samples: Number of final training samples, -1 means all
@@ -443,45 +436,47 @@ def create_geobench_version(
 
 def load_random_s1_image(metadata_df, root_dir):
     """Load a random S1 image from the metadata DataFrame.
-    
+
     Args:
         metadata_df: DataFrame containing metadata with s1_name column
         root_dir: Root directory containing the BigEarthNet dataset
         random_seed: Random seed for reproducibility
-        
+
     Returns:
         tuple: (vh_array, vv_array, row_info) - VH and VV polarization arrays and metadata row
     """
     # Filter for rows that have S1 data
-    valid_rows = metadata_df[metadata_df['s1_name'].notna()]
-    
+    valid_rows = metadata_df[metadata_df["s1_name"].notna()]
+
     if valid_rows.empty:
         raise ValueError("No valid S1 samples found in the metadata.")
-    
+
     # Pick a random row
     import random
+
     random_idx = random.randint(0, len(valid_rows) - 1)
     row = valid_rows.iloc[random_idx]
-    
+
     # Get paths to S1 images
     s1_patch_id = row["s1_name"]
     s1_patch_dir = "_".join(s1_patch_id.split("_")[0:-3])
     s1_dir = os.path.join(root_dir, "BigEarthNet-S1", s1_patch_dir, s1_patch_id)
-    
+
     vh_path = os.path.join(s1_dir, f"{s1_patch_id}_VH.tif")
     vv_path = os.path.join(s1_dir, f"{s1_patch_id}_VV.tif")
-    
+
     # Read the data
     with rasterio.open(vh_path) as src:
         import pdb
+
         pdb.set_trace()
         vh_array = src.read(1)
-    
+
     with rasterio.open(vv_path) as src:
         vv_array = src.read(1)
 
     return np.stack([vh_array, vv_array])
-    
+
 
 def main():
     """Generate BigEarthNet Benchmark."""
@@ -505,7 +500,6 @@ def main():
         metadata_df.to_parquet(new_metadata_path)
     else:
         metadata_df = pd.read_parquet(new_metadata_path)
-
 
     result_df_path = os.path.join(args.save_dir, "geobench_benv2_optimized.parquet")
     # if os.path.exists(result_df_path):

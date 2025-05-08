@@ -3,22 +3,22 @@
 
 """KuroSiwo DataModule."""
 
-from collections.abc import Callable
-from typing import Any, Sequence
-
-import pandas as pd
-from torch import Tensor
 import os
+from collections.abc import Callable, Sequence
+from typing import Any
+
 import matplotlib.pyplot as plt
+import pandas as pd
+import tacoreader
 import torch
-import numpy as np
-from torchgeo.datasets.utils import percentile_normalization
+import torch.nn as nn
 from einops import rearrange
+from torch import Tensor
+from torchgeo.datasets.utils import percentile_normalization
 
 from geobench_v2.datasets import GeoBenchKuroSiwo
 
 from .base import GeoBenchSegmentationDataModule
-import torch.nn as nn
 
 
 class GeoBenchKuroSiwoDataModule(GeoBenchSegmentationDataModule):
@@ -76,9 +76,10 @@ class GeoBenchKuroSiwoDataModule(GeoBenchSegmentationDataModule):
         Returns:
             pandas DataFrame with metadata.
         """
-        return pd.read_parquet(
-            os.path.join(self.kwargs["root"], "geobench_kuro_siwo.parquet")
+        self.data_df = tacoreader.load(
+            [os.path.join(self.kwargs["root"], f) for f in GeoBenchKuroSiwo.paths]
         )
+        return self.data_df
 
     def visualize_batch(
         self, batch: dict[str, Tensor] | None = None, split: str = "train"
@@ -103,7 +104,8 @@ class GeoBenchKuroSiwoDataModule(GeoBenchSegmentationDataModule):
             else:
                 batch = next(iter(self.test_dataloader()))
 
-        batch = self.data_normalizer.unnormalize(batch)
+        if hasattr(self.data_normalizer, "unnormalize"):
+            batch = self.data_normalizer.unnormalize(batch)
 
         batch_size = batch["mask"].shape[0]
         n_samples = min(8, batch_size)
@@ -226,6 +228,6 @@ class GeoBenchKuroSiwoDataModule(GeoBenchSegmentationDataModule):
 
         return fig, batch
 
-    def visualize_geolocation_distribution(self) -> None:
+    def visualize_geospatial_distribution(self) -> None:
         """Visualize the geolocation distribution of the dataset."""
-        pass
+        print("Dataset does not have geolocation information.")

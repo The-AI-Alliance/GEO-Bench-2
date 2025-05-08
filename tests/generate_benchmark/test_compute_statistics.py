@@ -3,13 +3,12 @@
 
 """Unit test for statistics computation."""
 
+import tempfile
+
+import numpy as np
 import pytest
 import torch
-import numpy as np
 from torch.utils.data import Dataset
-import os
-import tempfile
-import pandas as pd
 
 from geobench_v2.generate_benchmark.compute_statistics import (
     ClassificationDatasetStatistics,

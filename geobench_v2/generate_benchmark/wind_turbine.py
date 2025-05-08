@@ -3,13 +3,18 @@
 
 """Generate Benchmark version of Windturbine dataset."""
 
-import os
 import argparse
-import pandas as pd
-from tqdm import tqdm
 import glob
-from PIL import Image
+import os
+
 import numpy as np
+import pandas as pd
+from PIL import Image
+from tqdm import tqdm
+
+from geobench_v2.generate_benchmark.object_detection_util import (
+    convert_pngs_to_geotiffs,
+)
 
 
 def resize_and_save_dataset(df, root_dir, save_dir, target_size=512):
@@ -21,7 +26,6 @@ def resize_and_save_dataset(df, root_dir, save_dir, target_size=512):
         save_dir (str): Directory to save the resized dataset.
         target_size (int): Target size for resizing images.
     """
-
     for split in ["train", "validation", "test"]:
         os.makedirs(os.path.join(save_dir, "images", split), exist_ok=True)
         os.makedirs(os.path.join(save_dir, "labels", split), exist_ok=True)
@@ -48,7 +52,7 @@ def resize_and_save_dataset(df, root_dir, save_dir, target_size=512):
         width_ratio = target_size / orig_width
         height_ratio = target_size / orig_height
 
-        with open(label_path, "r") as f:
+        with open(label_path) as f:
             annotations = f.readlines()
 
         new_annotations = []
@@ -131,8 +135,9 @@ def create_region_based_splits(
 
 def generate_metadata_df(root_dir: str) -> pd.DataFrame:
     """Generate metadata DataFrame for Windturbine dataset."""
-
-    image_paths = glob.glob(os.path.join(root_dir, "JPEGImages", "*.png"))
+    image_paths = glob.glob(
+        os.path.join(root_dir, "windTurbineDataSet", "JPEGImages", "*.png")
+    )
 
     df = pd.DataFrame(image_paths, columns=["image_path"])
     df["label_path"] = (
@@ -155,6 +160,9 @@ def generate_metadata_df(root_dir: str) -> pd.DataFrame:
     # make paths relative
     df["image_path"] = df["image_path"].str.replace(root_dir + os.sep, "")
     df["label_path"] = df["label_path"].str.replace(root_dir + os.sep, "")
+
+    df["lat"] = None
+    df["lon"] = None
 
     # create splits
     df = create_region_based_splits(df)
@@ -186,10 +194,23 @@ def main():
     metadata_df = generate_metadata_df(args.root)
     metadata_df.to_parquet(metadata_path)
 
-    resized_metadata_df = resize_and_save_dataset(metadata_df, args.root, args.save_dir)
-    resized_metadata_df.to_parquet(
-        os.path.join(args.save_dir, "geobench_wind_turbine.parquet")
-    )
+    resized_path = os.path.join(args.save_dir, "geobench_wind_turbine_resized.parquet")
+    if os.path.exists(resized_path):
+        resized_metadata_df = pd.read_parquet(resized_path)
+    else:
+        resized_metadata_df = generate_metadata_df(args.root)
+        resized_metadata_df.to_parquet(resized_path)
+
+    final_path = os.path.join(args.save_dir, "geobench_wind_turbine.parquet")
+    if os.path.exists(final_path):
+        final_metadata_df = pd.read_parquet(final_path)
+    else:
+        final_df = convert_pngs_to_geotiffs(
+            resized_metadata_df, args.save_dir, args.save_dir, num_workers=16
+        )
+        final_df.to_parquet(final_path)
+
+    # create taco
 
 
 if __name__ == "__main__":

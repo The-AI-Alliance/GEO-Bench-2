@@ -4,22 +4,23 @@
 
 """MMFlood Datamodule."""
 
-from collections.abc import Callable
-from typing import Any, Sequence
-
-import pandas as pd
-from torch import Tensor
 import os
+from collections.abc import Callable, Sequence
+from typing import Any
+
 import matplotlib.pyplot as plt
-import torch
 import numpy as np
-from torchgeo.datasets.utils import percentile_normalization
+import pandas as pd
+import tacoreader
+import torch
+import torch.nn as nn
 from einops import rearrange
+from torch import Tensor
+from torchgeo.datasets.utils import percentile_normalization
 
 from geobench_v2.datasets import GeoBenchMMFlood
 
 from .base import GeoBenchSegmentationDataModule
-import torch.nn as nn
 
 
 class GeoBenchMMFloodDataModule(GeoBenchSegmentationDataModule):
@@ -77,9 +78,10 @@ class GeoBenchMMFloodDataModule(GeoBenchSegmentationDataModule):
         Returns:
             pandas DataFrame with metadata.
         """
-        return pd.read_parquet(
-            os.path.join(self.kwargs["root"], "geobench_mmflood.parquet")
+        self.data_df = tacoreader.load(
+            [os.path.join(self.kwargs["root"], f) for f in GeoBenchMMFlood.paths]
         )
+        return self.data_df
 
     def visualize_batch(
         self, split: str = "train"
@@ -99,7 +101,8 @@ class GeoBenchMMFloodDataModule(GeoBenchSegmentationDataModule):
         else:
             batch = next(iter(self.test_dataloader()))
 
-        batch = self.data_normalizer.unnormalize(batch)
+        if hasattr(self.data_normalizer, "unnormalize"):
+            batch = self.data_normalizer.unnormalize(batch)
 
         batch_size = batch["mask"].shape[0]
         n_samples = min(8, batch_size)

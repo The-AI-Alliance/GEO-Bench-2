@@ -3,15 +3,15 @@
 
 """Resisc45 Dataset."""
 
-import torch
+from collections.abc import Sequence
+from pathlib import Path
+
+import torch.nn as nn
 from torch import Tensor
 from torchgeo.datasets import RESISC45
-from pathlib import Path
-from typing import Sequence, Type
-import torch.nn as nn
 
+from .data_util import ClipZScoreNormalizer, DataUtilsMixin
 from .sensor_util import DatasetBandRegistry
-from .data_util import DataUtilsMixin, MultiModalNormalizer
 
 
 class GeoBenchRESISC45(RESISC45, DataUtilsMixin):
@@ -37,7 +37,7 @@ class GeoBenchRESISC45(RESISC45, DataUtilsMixin):
         root: Path,
         split: str,
         band_order: Sequence["str"] = band_default_order,
-        data_normalizer: Type[nn.Module] = MultiModalNormalizer,
+        data_normalizer: type[nn.Module] = ClipZScoreNormalizer,
         **kwargs,
     ):
         """Initialize Resisc45 Dataset.
@@ -49,7 +49,7 @@ class GeoBenchRESISC45(RESISC45, DataUtilsMixin):
                 specify ['g', 'r', 'b', 'b], the dataset would return the green band first, then the red band,
                 and then the blue band twice. This is useful for models that expect a certain band order, or
                 test the impact of band order on model performance.
-            data_normalizer: The data normalizer to apply to the data, defaults to :class:`data_util.MultiModalNormalizer`,
+            data_normalizer: The data normalizer to apply to the data, defaults to :class:`data_util.ClipZScoreNormalizer`,
                 which applies z-score normalization to each band.
             **kwargs: Additional keyword arguments passed to ``torchgeo.datasts.RESISC45``
         """

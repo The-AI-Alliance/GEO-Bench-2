@@ -3,26 +3,22 @@
 
 """GeoBench DOTAV2 DataModule."""
 
-from collections.abc import Callable
-from typing import Any, Sequence
-import kornia.augmentation as K
-import torch
-
-import pandas as pd
-from torch import Tensor
 import os
+from collections.abc import Callable, Sequence
+from typing import Any
+
 import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
 import torch
-from torchgeo.datasets.utils import percentile_normalization
+import torch.nn as nn
 from einops import rearrange
-
+from torch import Tensor
+from torchgeo.datasets.utils import percentile_normalization
 
 from geobench_v2.datasets import GeoBenchDOTAV2
-from torch.utils.data import random_split
 
 from .base import GeoBenchObjectDetectionDataModule
-import torch.nn as nn
 
 
 def dotaV2_collate_fn(batch: Sequence[dict[str, Any]]) -> dict[str, Any]:

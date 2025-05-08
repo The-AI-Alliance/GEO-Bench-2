@@ -3,25 +3,24 @@
 
 """Script to compute Dataset Statistics for GeoBenchV2."""
 
-import os
-from typing import Any
 import argparse
 import json
-from omegaconf import OmegaConf
-from hydra.utils import instantiate
-import pandas as pd
+import os
+from typing import Any
+
+import matplotlib.pyplot as plt
 import numpy as np
+import seaborn as sns
 import torch
-from tqdm import tqdm
-from geobench_v2.generate_benchmark.utils_dataset_statistics import NoNormalization
+from hydra.utils import instantiate
+from omegaconf import OmegaConf
+
 from geobench_v2.generate_benchmark.utils_dataset_statistics import (
-    PxRegressionStatistics,
-    SegmentationStatistics,
     ClassificationStatistics,
     ObjectDetectionStatistics,
+    PxRegressionStatistics,
+    SegmentationStatistics,
 )
-import matplotlib.pyplot as plt
-import seaborn as sns
 
 sns.set(style="whitegrid")
 
@@ -304,6 +303,7 @@ def save_statistics(stats: tuple, save_dir: str, dataset_name: str) -> None:
 
     dataset_stats = {"input_stats": input_stats, "target_stats": target_stats}
     dataset_stats_path = os.path.join(save_dir, f"{dataset_name}_stats.json")
+
     with open(dataset_stats_path, "w") as f:
         json.dump(dataset_stats, f, cls=NumpyEncoder, indent=4)
 

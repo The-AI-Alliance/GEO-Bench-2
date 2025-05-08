@@ -1,11 +1,11 @@
 import pytest
+
 from geobench_v2.datasets.sensor_util import (
     BandConfig,
+    DatasetBandRegistry,
     ModalityConfig,
     MultiModalConfig,
-    SensorType,
     SensorBandRegistry,
-    DatasetBandRegistry,
 )
 
 

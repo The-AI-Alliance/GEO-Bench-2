@@ -1,42 +1,30 @@
 """Unit tests for GeoBench datamodules."""
 
-import os
+from pathlib import Path
+
 import pytest
 import torch
-from pathlib import Path
-from typing import List, Type
 
 from geobench_v2.datamodules import (
+    GeoBenchBENV2DataModule,
+    GeoBenchBioMasstersDataModule,
     GeoBenchCaFFeDataModule,
+    GeoBenchCloudSen12DataModule,
+    GeoBenchDataModule,
     GeoBenchFieldsOfTheWorldDataModule,
+    GeoBenchFLAIR2DataModule,
+    GeoBenchKuroSiwoDataModule,
+    GeoBenchMADOSDataModule,
+    GeoBenchMMFloodDataModule,
     GeoBenchPASTISDataModule,
-    GeoBenchRESISC45DataModule,
     GeoBenchSpaceNet2DataModule,
     GeoBenchSpaceNet6DataModule,
     GeoBenchSpaceNet7DataModule,
     GeoBenchSpaceNet8DataModule,
-    GeoBenchBENV2DataModule,
-    GeoBenchEverWatchDataModule,
-    GeoBenchDOTAV2DataModule,
-    GeoBenchFLAIR2DataModule,
-    GeoBenchCloudSen12DataModule,
-    GeoBenchFLOGADataModule,
-    GeoBenchKuroSiwoDataModule,
     GeoBenchTreeSatAIDataModule,
-    GeoBenchMADOSDataModule,
-    GeoBenchBioMasstersDataModule,
-    GeoBenchDynamicEarthNetDataModule,
-    GeoBenchSen4AgriNetDataModule,
-    GeoBenchMMFloodDataModule,
-    GeoBenchBRIGHTDataModule,
-    # GeoBenchQFabricDataModule,
-    GeoBenchWindTurbineDataModule,
-    GeoBenchDataModule,
 )
 
-
 ALL_DATAMODULES = [
-    GeoBenchCaFFeDataModule,
     GeoBenchFieldsOfTheWorldDataModule,
     GeoBenchSpaceNet2DataModule,
     GeoBenchSpaceNet6DataModule,
@@ -52,6 +40,7 @@ ALL_DATAMODULES = [
     GeoBenchKuroSiwoDataModule,
     GeoBenchPASTISDataModule,
     # WIP
+    # GeoBenchCaFFeDataModule,
     # GeoBenchBRIGHTDataModule,
     # GeoBenchDynamicEarthNetDataModule,
     # GeoBenchWindTurbineDataModule,
@@ -100,7 +89,7 @@ class TestDataModules:
         return Path("/mnt/rg_climate_benchmark/data/final_geobenchV2")
 
     def get_dataset_path(
-        self, datamodule_class: Type[GeoBenchDataModule], data_root: Path
+        self, datamodule_class: type[GeoBenchDataModule], data_root: Path
     ) -> Path:
         """Get path for specific dataset."""
         class_name = datamodule_class.__name__
@@ -111,7 +100,7 @@ class TestDataModules:
         )
 
     def setup_datamodule(
-        self, datamodule_class: Type[GeoBenchDataModule], dataset_path: Path
+        self, datamodule_class: type[GeoBenchDataModule], dataset_path: Path
     ):
         """Initialize a datamodule with test params."""
         dm = datamodule_class(

@@ -4,16 +4,16 @@
 """BenV2 Tests."""
 
 import os
-
-import pytest
-from typing import Sequence
-import torch
+from collections.abc import Sequence
 from pathlib import Path
+
 import matplotlib.pyplot as plt
+import pytest
 from pytest import MonkeyPatch
-from geobench_v2.datasets import GeoBenchBENV2
-from geobench_v2.datamodules import GeoBenchBENV2DataModule
 from torchgeo.datasets import DatasetNotFoundError
+
+from geobench_v2.datamodules import GeoBenchBENV2DataModule
+from geobench_v2.datasets import GeoBenchBENV2
 
 
 @pytest.fixture(
@@ -41,7 +41,7 @@ def datamodule(
     monkeypatch.setattr(
         GeoBenchBENV2,
         "sha256str",
-        ["94a1bf150f7a25df6acd16c7f46ddc9b0b0e4d581e40fd282e22853115e26023"],
+        ["a3eb9c6f40e7c46aa2a79c4a3b64d014d680257a343485c0406997a6e9e8c6fa"],
     )
     dm = GeoBenchBENV2DataModule(
         img_size=74,

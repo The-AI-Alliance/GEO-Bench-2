@@ -3,21 +3,20 @@
 
 """CaFFe DataMdule."""
 
-from collections.abc import Callable
-from typing import Any, Sequence
-import kornia.augmentation as K
-import pandas as pd
-from torch import Tensor
 import os
-import matplotlib.pyplot as plt
-import torch
-from torchgeo.datasets.utils import percentile_normalization
+from collections.abc import Callable, Sequence
+from typing import Any
 
+import matplotlib.pyplot as plt
+import pandas as pd
+import torch
+import torch.nn as nn
+from torch import Tensor
+from torchgeo.datasets.utils import percentile_normalization
 
 from geobench_v2.datasets.caffe import GeoBenchCaFFe
 
 from .base import GeoBenchSegmentationDataModule
-import torch.nn as nn
 
 
 class GeoBenchCaFFeDataModule(GeoBenchSegmentationDataModule):

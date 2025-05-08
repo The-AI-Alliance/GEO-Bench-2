@@ -3,19 +3,20 @@
 
 """PASTIS Dataset."""
 
+import os
+from collections.abc import Sequence
+from pathlib import Path
+from typing import Literal
+
+import numpy as np
+import pandas as pd
+import torch
+import torch.nn as nn
 from torch import Tensor
 from torchgeo.datasets import PASTIS
-from pathlib import Path
-import numpy as np
-from typing import Any, Sequence, Union, Type, Literal
-import torch
-import os
-import json
-import pandas as pd
-import torch.nn as nn
 
+from .data_util import ClipZScoreNormalizer, DataUtilsMixin, DataNormalizer
 from .sensor_util import DatasetBandRegistry
-from .data_util import DataUtilsMixin, MultiModalNormalizer, DataNormalizer
 
 
 class GeoBenchPASTIS(PASTIS, DataUtilsMixin):
@@ -104,7 +105,7 @@ class GeoBenchPASTIS(PASTIS, DataUtilsMixin):
         root: Path,
         split: str,
         band_order: dict[str, Sequence[float | str]] = {"s2": ["B04", "B03", "B02"]},
-        data_normalizer: Type[nn.Module] = MultiModalNormalizer,
+        data_normalizer: type[nn.Module] = ClipZScoreNormalizer,
         num_time_steps: int = 1,
         transforms: nn.Module | None = None,
         metadata: Sequence[str] | None = None,
@@ -124,7 +125,7 @@ class GeoBenchPASTIS(PASTIS, DataUtilsMixin):
                 if set to 10, the latest 10 time steps will be returned. If a time series has fewer time steps than
                 specified, it will be padded with zeros. A value of 1 will return a [C, H, W] tensor, while a value
                 of 10 will return a [T, C, H, W] tensor.
-            data_normalizer: The data normalizer to apply to the data, defaults to :class:`data_util.MultiModalNormalizer`,
+            data_normalizer: The data normalizer to apply to the data, defaults to :class:`data_util.ClipZScoreNormalizer`,
                 which applies z-score normalization to each band.
             transforms:
             metadata: metadata names to be returned under specified keys as part of the sample in the
@@ -336,11 +337,8 @@ class GeoBenchPASTIS(PASTIS, DataUtilsMixin):
         return masks, boxes, labels
 
     def validate_band_order(
-        self,
-        band_order: Union[
-            Sequence[Union[str, float]], dict[str, Sequence[Union[str, float]]]
-        ],
-    ) -> Union[list[Union[str, float]], dict[str, list[Union[str, float]]]]:
+        self, band_order: Sequence[str | float] | dict[str, Sequence[str | float]]
+    ) -> list[str | float] | dict[str, list[str | float]]:
         """Validate band order configuration for PASTIS time-series data.
 
         For PASTIS, we need to ensure that bands in a sequence belong to the same modality,

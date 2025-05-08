@@ -4,22 +4,15 @@
 """EverWatch dataset."""
 
 import os
+from pathlib import Path
 
-from typing import Type
-from torchgeo.datasets import EverWatch
-import numpy as np
-from PIL import Image
+import pandas as pd
 import torch.nn as nn
 from torch import Tensor
-import torch
-from pathlib import Path
-import kornia.augmentation as K
-import torch.nn.functional as F
-import pandas as pd
+from torchgeo.datasets import EverWatch
 
-
+from .data_util import ClipZScoreNormalizer, DataUtilsMixin, DataNormalizer
 from .sensor_util import DatasetBandRegistry
-from .data_util import DataUtilsMixin, MultiModalNormalizer
 
 
 class GeoBenchEverWatch(EverWatch, DataUtilsMixin):
@@ -31,11 +24,11 @@ class GeoBenchEverWatch(EverWatch, DataUtilsMixin):
     """
 
     dataset_band_config = DatasetBandRegistry.EVERWATCH
-    band_default_order = ("r", "g", "b")
+    band_default_order = ("red", "green", "blue")
 
     normalization_stats = {
-        "means": {"r": 0.0, "g": 0.0, "b": 0.0},
-        "stds": {"r": 255.0, "g": 255.0, "b": 255.0},
+        "means": {"red": 0.0, "green": 0.0, "blue": 0.0},
+        "stds": {"red": 255.0, "green": 255.0, "blue": 255.0},
     }
 
     classes = classes = (
@@ -56,7 +49,7 @@ class GeoBenchEverWatch(EverWatch, DataUtilsMixin):
         root: Path,
         split: str,
         band_order: list[str] = band_default_order,
-        data_normalizer: Type[nn.Module] = MultiModalNormalizer,
+        data_normalizer: type[nn.Module] = ClipZScoreNormalizer,
         transforms: nn.Module | None = None,
     ) -> None:
         """Initialize EverWatch dataset.
@@ -68,7 +61,7 @@ class GeoBenchEverWatch(EverWatch, DataUtilsMixin):
                 specify ['red', 'green', 'blue', 'blue'], the dataset would return images with 4 channels
                 in that order. This is useful for models that expect a certain band order, or
                 test the impact of band order on model performance.
-            data_normalizer: The data normalizer to apply to the data, defaults to :class:`data_util.MultiModalNormalizer`,
+            data_normalizer: The data normalizer to apply to the data, defaults to :class:`data_util.ClipZScoreNormalizer`,
                 which applies z-score normalization to each band.
             transforms:
         """

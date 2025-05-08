@@ -3,16 +3,14 @@
 
 """GeoBenchFLOGA DataModule."""
 
-from collections.abc import Callable
-from typing import Any, Sequence
+from collections.abc import Callable, Sequence
+from typing import Any
 
-import torch
+import torch.nn as nn
 
 from geobench_v2.datasets import GeoBenchFLOGA
 
 from .base import GeoBenchSegmentationDataModule
-import torch.nn as nn
-from torch.utils.data import random_split
 
 
 class GeoBenchFLOGADataModule(GeoBenchSegmentationDataModule):

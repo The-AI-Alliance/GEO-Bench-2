@@ -3,16 +3,18 @@
 
 """MADOS Tests."""
 
-import pytest
 import os
-from pytest import MonkeyPatch
-from typing import Sequence
-import torch
+from collections.abc import Sequence
 from pathlib import Path
-from torchgeo.datasets import DatasetNotFoundError
+
 import matplotlib.pyplot as plt
-from geobench_v2.datasets import GeoBenchMADOS
+import pytest
+import torch
+from pytest import MonkeyPatch
+from torchgeo.datasets import DatasetNotFoundError
+
 from geobench_v2.datamodules import GeoBenchMADOSDataModule
+from geobench_v2.datasets import GeoBenchMADOS
 
 
 @pytest.fixture(params=[["red", "blue", "green", "B07", 0.0]])

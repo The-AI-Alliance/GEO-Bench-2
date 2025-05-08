@@ -3,29 +3,23 @@
 
 """Utility functions for geospatial dataset splitting and visualization."""
 
+import os
+import re
+
+import geopandas as gpd
+import matplotlib.gridspec as gridspec
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import geopandas as gpd
-import matplotlib.pyplot as plt
-from sklearn.cluster import DBSCAN
-from matplotlib.colors import ListedColormap
-from typing import Optional, Tuple, Union, List
-
-import geopandas as gpd
-from rasterio.features import rasterize
-
-import os
-from tqdm import tqdm
 import rasterio
-import re
-from rasterio.windows import Window
-from rasterio.enums import Compression
-
-import matplotlib.pyplot as plt
+from matplotlib.colors import ListedColormap
 from matplotlib.patches import Rectangle
-import matplotlib.gridspec as gridspec
-import numpy as np
+from rasterio.enums import Compression
+from rasterio.features import rasterize
+from rasterio.windows import Window
 from skimage.transform import resize
+from sklearn.cluster import DBSCAN
+from tqdm import tqdm
 
 
 def dataframe_to_geodataframe(
@@ -47,7 +41,7 @@ def geographic_distance_split(
     lat_col: str = "lat",
     test_ratio: float = 0.2,
     val_ratio: float = 0.1,
-    n_clusters: Optional[int] = None,
+    n_clusters: int | None = None,
     crs: str = "EPSG:4326",
     random_state: int = 42,
 ) -> pd.DataFrame:
@@ -448,12 +442,12 @@ def visualize_geospatial_split(
     split_col: str = "split",
     lon_col: str = "lon",
     lat_col: str = "lat",
-    cluster_col: Optional[str] = None,
+    cluster_col: str | None = None,
     title: str = "Geospatial Data Split",
     marker_size: int = 20,
     alpha: float = 0.7,
-    figsize: Tuple[int, int] = (15, 10),
-    output_path: Optional[str] = None,
+    figsize: tuple[int, int] = (15, 10),
+    output_path: str | None = None,
     buffer_degrees: float = 1.0,
 ) -> None:
     """Visualize the spatial distribution of data splits using Cartopy features."""
@@ -646,8 +640,8 @@ def visualize_distance_clusters(
     title: str = "Distance-Based Clustering Split",
     marker_size: int = 40,
     alpha: float = 0.8,
-    figsize: Tuple[int, int] = (15, 10),
-    output_path: Optional[str] = None,
+    figsize: tuple[int, int] = (15, 10),
+    output_path: str | None = None,
     show_cluster_centers: bool = True,
     buffer_degrees: float = 1.0,
 ) -> None:
@@ -693,7 +687,6 @@ def visualize_distance_clusters(
     unique_clusters = sorted(df[cluster_col].unique())
     splits = df[split_col].unique()
 
-    import matplotlib.cm as cm
     from matplotlib.colors import to_rgba
 
     cluster_cmap = plt.cm.get_cmap("tab20", len(unique_clusters))
@@ -885,8 +878,8 @@ def visualize_checkerboard_pattern(
     block_x_col: str = "block_x",
     block_y_col: str = "block_y",
     title: str = "Checkerboard Split Pattern",
-    figsize: Tuple[int, int] = (10, 8),
-    output_path: Optional[str] = None,
+    figsize: tuple[int, int] = (10, 8),
+    output_path: str | None = None,
 ) -> None:
     """Visualize the checkerboard pattern used for splitting."""
     grid = np.zeros((n_blocks_y, n_blocks_x), dtype=object)
@@ -1023,7 +1016,7 @@ def visualize_checkerboard_pattern(
 def analyze_split_results(
     df: pd.DataFrame,
     split_col: str = "split",
-    additional_columns: Optional[List[str]] = None,
+    additional_columns: list[str] | None = None,
 ) -> pd.DataFrame:
     """Analyze the distribution of data across splits."""
     split_counts = df[split_col].value_counts().reset_index()
@@ -2097,14 +2090,14 @@ def create_geospatial_temporal_split(
     val_count = len(val_indices)
     test_count = len(test_indices)
 
-    print(f"\nOverall Split Statistics:")
+    print("\nOverall Split Statistics:")
     print(f"  Train: {train_count} samples ({train_count / total_samples:.1%})")
     print(f"  Validation: {val_count} samples ({val_count / total_samples:.1%})")
     print(f"  Test: {test_count} samples ({test_count / total_samples:.1%})")
 
     stats_df = pd.DataFrame(area_stats)
     geo_stats = stats_df[stats_df["split_type"] == "geographic"]
-    print(f"\nGeographically Exclusive Areas:")
+    print("\nGeographically Exclusive Areas:")
     print(f"  Train: {len(geo_stats[geo_stats['split'] == 'train'])} areas")
     print(f"  Validation: {len(geo_stats[geo_stats['split'] == 'validation'])} areas")
     print(f"  Test: {len(geo_stats[geo_stats['split'] == 'test'])} areas")
@@ -2115,7 +2108,7 @@ def create_geospatial_temporal_split(
     test_periods_total = temp_stats["test_periods"].sum()
     total_periods_all = temp_stats["total_periods"].sum()
 
-    print(f"\nTemporal Distribution (for temporally split areas):")
+    print("\nTemporal Distribution (for temporally split areas):")
     print(
         f"  Train: {train_periods_total} periods ({train_periods_total / total_periods_all:.1%})"
     )
@@ -2130,7 +2123,7 @@ def create_geospatial_temporal_split(
     val_areas = df[df["split"] == "validation"]["area_id"].nunique()
     test_areas = df[df["split"] == "test"]["area_id"].nunique()
 
-    print(f"\nGeographic Coverage:")
+    print("\nGeographic Coverage:")
     print(
         f"  Train: {train_areas}/{len(unique_areas)} areas ({train_areas / len(unique_areas):.1%})"
     )
@@ -2150,7 +2143,7 @@ def create_geospatial_temporal_split(
     print("\nSplit Type by Area:")
     for split_type in ["geographic", "temporal"]:
         if split_type == "geographic":
-            print(f"\nGeographically Exclusive Areas:")
+            print("\nGeographically Exclusive Areas:")
             for split in ["train", "validation", "test"]:
                 areas = stats_df[
                     (stats_df["split_type"] == "geographic")
@@ -2158,7 +2151,7 @@ def create_geospatial_temporal_split(
                 ]["area_id"].tolist()
                 print(f"  {split}: {areas}")
         else:
-            print(f"\nTemporally Split Areas:")
+            print("\nTemporally Split Areas:")
             areas = stats_df[stats_df["split_type"] == "temporal"]["area_id"].tolist()
             print(f"  {areas}")
 
@@ -2169,7 +2162,7 @@ def create_bright_patches(
     metadata_df: pd.DataFrame, root_dir: str, output_dir: str, visualize=True
 ) -> pd.DataFrame:
     import os
-    import numpy as np
+
     import pandas as pd
     import rasterio
     from rasterio.windows import Window
@@ -2316,7 +2309,7 @@ def create_bright_patches(
     patches_df.to_parquet(metadata_path)
 
     print(f"Created {len(patches_df)} patches from {len(metadata_df)} original images")
-    print(f"Patches distribution by split:")
+    print("Patches distribution by split:")
     print(patches_df["split"].value_counts())
 
     return patches_df
@@ -2325,13 +2318,14 @@ def create_bright_patches(
 def visualize_bright_patches(
     pre_data, post_data, target_data, patches_info, output_path=None, figsize=(22, 12)
 ):
-    import matplotlib.pyplot as plt
-    import matplotlib.gridspec as gridspec
-    from matplotlib.patches import Rectangle
-    import matplotlib.patches as mpatches
-    import numpy as np
-    import matplotlib.colors as mcolors
     import os
+
+    import matplotlib.colors as mcolors
+    import matplotlib.gridspec as gridspec
+    import matplotlib.patches as mpatches
+    import matplotlib.pyplot as plt
+    import numpy as np
+    from matplotlib.patches import Rectangle
 
     if output_path:
         os.makedirs(os.path.dirname(output_path), exist_ok=True)

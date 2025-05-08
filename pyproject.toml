@@ -37,7 +37,7 @@ classifiers = [
 ]
 dependencies = [
     # lightning 2+ required for LightningCLI args + sys.argv support
-    "lightning>=2.4.0",
+    "lightning>=2.3.3",
     # matplotlib 3.5 required for Python 3.10 wheels
     "matplotlib>=3.5",
     # numpy 1.21.1+ required by Python 3.10 wheels
@@ -55,7 +55,8 @@ dependencies = [
     # torchvision 0.13+ required for torchvision.models._api.WeightsEnum
     "torchvision>=0.16.1",
     # torchgeo 
-    "torchgeo @ git+https://github.com/microsoft/torchgeo.git"
+    #"torchgeo @ git+https://github.com/microsoft/torchgeo.git"
+    "torchgeo>=0.7",
 ]
 dynamic = ["version"]
 
@@ -93,6 +94,12 @@ docs = [
     "jupytext>=1.15.2",
     # ipykernel to run notebooks
     "ipykernel>=6.29.3",
+    # pandoc
+    "pandoc>=2.4",
+]
+
+all = [
+    "geobench_v2[docs,tests]",
 ]
 
 [project.scripts]

@@ -3,16 +3,19 @@
 
 """Generate Benchmark version of DOTAV2 dataset."""
 
-import pandas as pd
-import os
 import argparse
-from geobench_v2.generate_benchmark.object_detection_util import (
-    process_dotav2_dataset,
-    visualize_processing_results,
-)
+import os
+
 import numpy as np
+import pandas as pd
 from PIL import Image
 from tqdm import tqdm
+
+from geobench_v2.generate_benchmark.object_detection_util import (
+    visualize_processing_results,
+    convert_pngs_to_geotiffs,
+)
+from geobench_v2.generate_benchmark.utils import create_subset_from_df
 
 Image.MAX_IMAGE_PIXELS = None
 
@@ -50,7 +53,7 @@ def generate_metadata_df(root: str) -> pd.DataFrame:
         # Load annotations to count objects
         annotations = []
         if os.path.exists(annotation_path):
-            with open(annotation_path, "r") as f:
+            with open(annotation_path) as f:
                 for line in f:
                     parts = line.strip().split()
                     if (
@@ -463,6 +466,161 @@ def generate_metadata_df(root: str) -> pd.DataFrame:
     return expanded_df
 
 
+def process_dotav2_dataset(df, input_dir, output_dir, target_size=512, num_workers=8):
+    """Process DOTAV2 dataset according to the determined strategies with parallel processing.
+
+    Args:
+        df: DataFrame with processing strategy information
+        input_dir: Path to original dataset
+        output_dir: Path to save processed dataset
+        target_size: Target patch size (default: 512)
+        num_workers: Number of parallel workers (default: 8)
+    """
+    df.loc[df["split"] == "val", "split"] = "test"
+
+    total_samples = len(df)
+    train_samples = int(0.7 * total_samples)
+    val_samples = int(0.1 * total_samples)
+
+    df["original_image_base"] = df["image_path"].apply(
+        lambda x: os.path.basename(x).split(".")[0]
+    )
+
+    total_samples = len(df)
+    target_val_ratio = 0.10
+
+    train_source_images = df[df["split"] == "train"]["original_image_base"].unique()
+    np.random.seed(42)
+    np.random.shuffle(train_source_images)
+
+    source_counts = df[df["split"] == "train"].groupby("original_image_base").size()
+    total_train_samples = source_counts.sum()
+
+    target_val_samples = int(total_samples * target_val_ratio)
+
+    val_sources = []
+    current_val_samples = 0
+
+    for source in train_source_images:
+        if current_val_samples < target_val_samples:
+            val_sources.append(source)
+            current_val_samples += source_counts.get(source, 0)
+        else:
+            break
+
+    df.loc[
+        df["original_image_base"].isin(val_sources) & (df["split"] == "train"), "split"
+    ] = "validation"
+
+    split_counts = df["split"].value_counts()
+    print("\nSplit distribution:")
+    print(
+        f"Train: {split_counts.get('train', 0)} samples ({100 * split_counts.get('train', 0) / total_samples:.1f}%)"
+    )
+    print(
+        f"Validation: {split_counts.get('validation', 0)} samples ({100 * split_counts.get('validation', 0) / total_samples:.1f}%)"
+    )
+    print(
+        f"Test: {split_counts.get('test', 0)} samples ({100 * split_counts.get('test', 0) / total_samples:.1f}%)"
+    )
+
+    source_split_check = df.groupby("original_image_base")["split"].nunique()
+    mixed_sources = source_split_check[source_split_check > 1]
+    if len(mixed_sources) > 0:
+        print(
+            f"Warning: {len(mixed_sources)} source images have patches in multiple splits!"
+        )
+    else:
+        print("All patches from the same source image are in the same split.")
+
+    os.makedirs(os.path.join(output_dir, "images"), exist_ok=True)
+    os.makedirs(os.path.join(output_dir, "annotations"), exist_ok=True)
+
+    def process_row(row_tuple):
+        idx, row = row_tuple
+        img_path = os.path.join(input_dir, row["image_path"])
+        img = Image.open(img_path)
+        base_filename = os.path.splitext(os.path.basename(row["image_path"]))[0]
+
+        if row["strategy"] == "resize":
+            output_filename = f"{base_filename}.png"
+        else:
+            output_filename = f"{base_filename}_patch{row['patch_id']:02d}.png"
+
+        output_img_path = os.path.join(output_dir, "images", output_filename)
+        output_label_path = os.path.join(
+            output_dir, "annotations", f"{os.path.splitext(output_filename)[0]}.txt"
+        )
+
+        x1, y1, x2, y2 = row["patch_coords"]
+        patch_img = img.crop((x1, y1, x2, y2))
+
+        orig_width, orig_height = patch_img.size
+
+        patch_img = patch_img.resize(
+            (target_size, target_size), Image.Resampling.LANCZOS
+        )
+        patch_img.save(output_img_path, format="PNG", optimize=True)
+
+        with open(output_label_path, "w") as f:
+            for ann in row["patch_annotations"]:
+                class_name = ann["class_name"]
+                difficult = ann.get("difficult", 0)
+                target_points = []
+                for px_rel, py_rel in ann["points"]:
+                    px_abs = px_rel * target_size
+                    py_abs = py_rel * target_size
+                    target_points.append((px_abs, py_abs))
+
+                # DOTAV2 format: x1 y1 x2 y2 x3 y3 x4 y4 class_name difficult
+                coord_str = " ".join([f"{px:.1f} {py:.1f}" for px, py in target_points])
+                f.write(f"{coord_str} {class_name} {difficult}\n")
+
+        return {
+            "original_image": row["image_path"],
+            "processed_image": os.path.join("images", output_filename),
+            "processed_label": os.path.join(
+                "annotations", f"{os.path.splitext(output_filename)[0]}.txt"
+            ),
+            "strategy": row["strategy"],
+            "patch_id": row["patch_id"],
+            "annotation_count": row.get("patch_annotation_count", 0),
+            "split": row["split"],
+            "original_width": row["width"],
+            "original_height": row["height"],
+            "patch_width": x2 - x1,
+            "patch_height": y2 - y1,
+            "scale_factor_x": target_size / (x2 - x1),
+            "scale_factor_y": target_size / (y2 - y1),
+        }
+
+    total_items = len(df)
+    processed_records = []
+
+    print(f"Processing {total_items} images with {num_workers} workers...")
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=num_workers) as executor:
+        futures = {
+            executor.submit(process_row, (idx, row)): idx for idx, row in df.iterrows()
+        }
+        with tqdm(total=total_items, desc="Processing images") as pbar:
+            for future in concurrent.futures.as_completed(futures):
+                result = future.result()
+                if result is not None:
+                    processed_records.append(result)
+                pbar.update(1)
+
+    processed_df = pd.DataFrame(processed_records)
+    processed_df.to_csv(os.path.join(output_dir, "processed_metadata.csv"), index=False)
+
+    print(f"Processed {len(processed_df)} images/patches:")
+    print(f"  Train: {len(processed_df[processed_df['split'] == 'train'])}")
+    print(f"  Val: {len(processed_df[processed_df['split'] == 'validation'])}")
+    print(f"  Test: {len(processed_df[processed_df['split'] == 'test'])}")
+
+    return processed_df
+
+
 def main():
     """Generate DOTAV2 Benchmark."""
     parser = argparse.ArgumentParser()
@@ -474,7 +632,7 @@ def main():
     )
     args = parser.parse_args()
 
-    path = os.path.join(args.root, "geobench_dotav2.parquet")
+    path = os.path.join(args.root, "geobench_metadata.parquet")
     if os.path.exists(path):
         metadata_df = pd.read_parquet(path)
     else:
@@ -489,6 +647,23 @@ def main():
             metadata_df, args.root, args.save_dir, target_size=512, num_workers=6
         )
         processed_df.to_parquet(processed_path)
+
+    converted_path = os.path.join(args.save_dir, "geobench_dotav2.parquet")
+    if os.path.exists(converted_path):
+        converted_df = pd.read_parquet(converted_path)
+    else:
+        print("Converting PNGs to GeoTIFFs...")
+        converted_df = convert_pngs_to_geotiffs(
+            processed_df, args.save_dir, args.save_dir, num_workers=16
+        )
+        subset_df = create_subset_df(
+            converted_df,
+            n_train_samples=7000,
+            n_val_samples=1000,
+            n_test_samples=2000,
+            random_state=42,
+        )
+        converted_df.to_parquet(converted_path)
 
     vis_dir = visualize_processing_results(
         processed_df, args.root, args.save_dir, num_samples=25

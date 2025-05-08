@@ -4,23 +4,18 @@
 """WindTurbine dataset."""
 
 import os
-
-from typing import Type
-import numpy as np
-from PIL import Image
-import torch.nn as nn
-from torch import Tensor
-import torch
 from pathlib import Path
-import kornia.augmentation as K
-import torch.nn.functional as F
-import pandas as pd
 
+import numpy as np
+import pandas as pd
+import torch
+import torch.nn as nn
+from PIL import Image
+from torch import Tensor
 from torchgeo.datasets import NonGeoDataset
 
-
+from .data_util import ClipZScoreNormalizer, DataUtilsMixin, DataNormalizer
 from .sensor_util import DatasetBandRegistry
-from .data_util import DataUtilsMixin, MultiModalNormalizer
 
 
 class GeoBenchWindTurbine(NonGeoDataset, DataUtilsMixin):
@@ -32,11 +27,11 @@ class GeoBenchWindTurbine(NonGeoDataset, DataUtilsMixin):
     """
 
     dataset_band_config = DatasetBandRegistry.WINDTURBINE
-    band_default_order = ("r", "g", "b")
+    band_default_order = ("red", "green", "blue")
 
     normalization_stats = {
-        "means": {"r": 0.0, "g": 0.0, "b": 0.0},
-        "stds": {"r": 255.0, "g": 255.0, "b": 255.0},
+        "means": {"red": 0.0, "green": 0.0, "blue": 0.0},
+        "stds": {"red": 255.0, "green": 255.0, "blue": 255.0},
     }
 
     classes = classes = "wind_turbine"
@@ -48,7 +43,7 @@ class GeoBenchWindTurbine(NonGeoDataset, DataUtilsMixin):
         root: Path,
         split: str,
         band_order: list[str] = band_default_order,
-        data_normalizer: Type[nn.Module] = MultiModalNormalizer,
+        data_normalizer: type[nn.Module] = ClipZScoreNormalizer,
         transforms: nn.Module | None = None,
     ) -> None:
         """Initialize WindTurbine dataset.
@@ -60,7 +55,7 @@ class GeoBenchWindTurbine(NonGeoDataset, DataUtilsMixin):
                 specify ['red', 'green', 'blue', 'blue'], the dataset would return images with 4 channels
                 in that order. This is useful for models that expect a certain band order, or
                 test the impact of band order on model performance.
-            data_normalizer: The data normalizer to apply to the data, defaults to :class:`data_util.MultiModalNormalizer`,
+            data_normalizer: The data normalizer to apply to the data, defaults to :class:`data_util.ClipZScoreNormalizer`,
                 which applies z-score normalization to each band.
             transforms: image transformations to apply to the data, defaults to None
         """
@@ -169,7 +164,7 @@ class GeoBenchWindTurbine(NonGeoDataset, DataUtilsMixin):
         boxes = []
         labels = []
 
-        with open(path, "r") as f:
+        with open(path) as f:
             for line in f:
                 parts = line.strip().split()
                 if len(parts) >= 5:

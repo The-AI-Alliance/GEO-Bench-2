@@ -3,23 +3,17 @@
 
 """CaFFe Dataset."""
 
-import os
+from collections.abc import Sequence
 
-from typing import Sequence, Type
-import numpy as np
-import torch
-from PIL import Image
-from torch import Tensor
-from torchgeo.datasets import CaFFe
-from pathlib import Path
-import pandas as pd
-import torch.nn as nn
 import rasterio
+import torch
+import torch.nn as nn
 from shapely import wkt
+from torch import Tensor
 
-from .sensor_util import DatasetBandRegistry
-from .data_util import MultiModalNormalizer
 from .base import GeoBenchBaseDataset
+from .data_util import ClipZScoreNormalizer
+from .sensor_util import DatasetBandRegistry
 
 
 class GeoBenchCaFFe(GeoBenchBaseDataset):
@@ -54,7 +48,7 @@ class GeoBenchCaFFe(GeoBenchBaseDataset):
         root,
         split="train",
         band_order: Sequence[float | str] = ["r", "g", "b"],
-        data_normalizer: Type[nn.Module] = MultiModalNormalizer,
+        data_normalizer: type[nn.Module] = ClipZScoreNormalizer,
         transforms: nn.Module | None = None,
         metadata: Sequence[str] | None = None,
         download: bool = False,
@@ -66,7 +60,7 @@ class GeoBenchCaFFe(GeoBenchBaseDataset):
             split: The dataset split, supports 'train', 'val', 'test'
             band_order: The order of bands to return, defaults to ['gray'], if one would
                 specify ['gray', 'gray', 'gray], the dataset would return the gray band three times.
-            data_normalizer: The data normalizer to apply to the data, defaults to :class:`data_util.MultiModalNormalizer`,
+            data_normalizer: The data normalizer to apply to the data, defaults to :class:`data_util.ClipZScoreNormalizer`,
                 which applies z-score normalization to each band.
             transforms:
 
@@ -161,7 +155,7 @@ class GeoBenchCaFFe(GeoBenchBaseDataset):
 #         root: Path,
 #         split: str,
 #         band_order: list[str] = band_default_order,
-#         data_normalizer: Type[nn.Module] = MultiModalNormalizer,
+#         data_normalizer: Type[nn.Module] = ClipZScoreNormalizer,
 #         transforms: nn.Module | None = None,
 #         metadata: Sequence[str] | None = None,
 #     ) -> None:
@@ -174,7 +168,7 @@ class GeoBenchCaFFe(GeoBenchBaseDataset):
 #                 specify ['gray', 'gray', 'gray], the dataset would return the gray band three times.
 #                 This is useful for models that expect a certain band order, or
 #                 test the impact of band order on model performance.
-#             data_normalizer: The data normalizer to apply to the data, defaults to :class:`data_util.MultiModalNormalizer`,
+#             data_normalizer: The data normalizer to apply to the data, defaults to :class:`data_util.ClipZScoreNormalizer`,
 #                 which applies z-score normalization to each band.
 #             transforms:
 #             metadata: metadata names to be returned under specified keys as part of the sample in the

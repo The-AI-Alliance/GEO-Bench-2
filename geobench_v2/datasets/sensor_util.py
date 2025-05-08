@@ -3,11 +3,9 @@
 
 """Utility functions for handling satellite imagery datasets."""
 
+from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import Dict, List, Union, Optional, Sequence
 from enum import Enum
-import torch
-from torch import Tensor
 
 
 @dataclass
@@ -15,9 +13,9 @@ class BandConfig:
     """Configuration for a single band."""
 
     canonical_name: str
-    aliases: List[str]
-    wavelength: Optional[float] = None
-    resolution: Optional[int] = None  # spatial resolution in meters
+    aliases: list[str]
+    wavelength: float | None = None
+    resolution: int | None = None  # spatial resolution in meters
 
     def matches_alias(self, name: str) -> bool:
         """Check if name matches canonical name or aliases."""
@@ -28,23 +26,23 @@ class BandConfig:
 class ModalityConfig:
     """Configuration for a satellite/sensor modality."""
 
-    bands: Dict[str, BandConfig]
-    default_order: List[str]  # Default band order for this modality
-    native_resolution: Optional[int] = None  # Native resolution in meters
-    plot_bands: Optional[Sequence[str]] = None  # Bands to be plotted
+    bands: dict[str, BandConfig]
+    default_order: list[str]  # Default band order for this modality
+    native_resolution: int | None = None  # Native resolution in meters
+    plot_bands: Sequence[str] | None = None  # Bands to be plotted
 
     # Add band_to_modality mapping for consistency with MultiModalConfig
     @property
-    def band_to_modality(self) -> Dict[str, str]:
+    def band_to_modality(self) -> dict[str, str]:
         """Maps band names to their modality. For single modality, all bands map to same modality."""
         return {band: "self" for band in self.bands.keys()}
 
     @property
-    def modalities(self) -> Dict[str, "ModalityConfig"]:
+    def modalities(self) -> dict[str, "ModalityConfig"]:
         """For consistency with MultiModalConfig interface."""
         return {"self": self}
 
-    def resolve_band(self, band_spec: str) -> Optional[str]:
+    def resolve_band(self, band_spec: str) -> str | None:
         """Resolve band name to canonical name within this modality.
 
         Args:
@@ -63,10 +61,10 @@ class ModalityConfig:
 class MultiModalConfig:
     """Configuration for multi-modal datasets combining multiple sensors."""
 
-    modalities: Dict[str, ModalityConfig]
-    default_order: List[str]  # Default band order across all modalities
-    band_to_modality: Dict[str, str]  # Maps band names to their modality
-    plot_bands: Optional[Sequence[str]] = None  # Bands to be plotted
+    modalities: dict[str, ModalityConfig]
+    default_order: list[str]  # Default band order across all modalities
+    band_to_modality: dict[str, str]  # Maps band names to their modality
+    plot_bands: Sequence[str] | None = None  # Bands to be plotted
 
 
 class SensorType(Enum):
@@ -91,12 +89,12 @@ class SensorBandRegistry:
 
     RGB = ModalityConfig(
         bands={
-            "r": BandConfig("red", ["r", "red", "RED"], wavelength=0.665),
-            "g": BandConfig("green", ["g", "green", "GREEN"], wavelength=0.560),
-            "b": BandConfig("blue", ["b", "blue", "BLUE"], wavelength=0.490),
+            "red": BandConfig("red", ["r", "red", "RED"], wavelength=0.665),
+            "green": BandConfig("green", ["g", "green", "GREEN"], wavelength=0.560),
+            "blue": BandConfig("blue", ["b", "blue", "BLUE"], wavelength=0.490),
         },
-        default_order=["r", "g", "b"],
-        plot_bands=["r", "g", "b"],
+        default_order=["red", "green", "blue"],
+        plot_bands=["red", "green", "blue"],
     )
 
     RGBN = ModalityConfig(
@@ -104,8 +102,8 @@ class SensorBandRegistry:
             **RGB.bands,
             "nir": BandConfig("nir", ["nir", "NIR", "near_infrared"], wavelength=0.842),
         },
-        default_order=["r", "g", "b", "nir"],
-        plot_bands=["r", "g", "b"],
+        default_order=["red", "green", "blue", "nir"],
+        plot_bands=["red", "green", "blue"],
     )
 
     SENTINEL2 = ModalityConfig(
@@ -293,7 +291,7 @@ class SensorBandRegistry:
     )
 
     @classmethod
-    def get_modality_config(cls, modality: Union[str, SensorType]) -> ModalityConfig:
+    def get_modality_config(cls, modality: str | SensorType) -> ModalityConfig:
         """Get configuration for a specific modality."""
         if isinstance(modality, str):
             modality = SensorType(modality)
@@ -304,6 +302,7 @@ class DatasetBandRegistry:
     """Registry of dataset-specific band configurations."""
 
     BENV2 = MultiModalConfig(
+        # s2 does not have B10 band
         modalities={
             "s2": ModalityConfig(
                 bands={
@@ -496,9 +495,7 @@ class DatasetBandRegistry:
 
     EVERWATCH = SensorBandRegistry.RGB
 
-    FOTW = ModalityConfig(
-        bands=SensorBandRegistry.RGBN.bands, default_order=["r", "g", "b", "nir"]
-    )
+    FOTW = SensorBandRegistry.RGBN
 
     RESISC45 = ModalityConfig(
         bands=SensorBandRegistry.RGB.bands, default_order=["r", "g", "b"]
@@ -574,11 +571,11 @@ class DatasetBandRegistry:
                 plot_bands=["vv", "vh"],
             ),
         },
-        default_order=["r", "g", "b", "nir", "hh", "hv", "vv", "vh"],
+        default_order=["red", "green", "blue", "nir", "hh", "hv", "vv", "vh"],
         band_to_modality={
-            "r": "rgbn",
-            "g": "rgbn",
-            "b": "rgbn",
+            "red": "rgbn",
+            "green": "rgbn",
+            "blue": "rgbn",
             "nir": "rgbn",
             "hh": "sar",
             "hv": "sar",
@@ -587,25 +584,31 @@ class DatasetBandRegistry:
         },
     )
 
-    SPACENET7 = ModalityConfig(
-        bands=SensorBandRegistry.RGBN.bands,
-        default_order=["r", "g", "b", "nir"],
-        plot_bands=["r", "g", "b"],
-    )
+    SPACENET7 = SensorBandRegistry.RGBN
 
-    # SPACENET8 = ModalityConfig(
-    #     bands=SensorBandRegistry.RGB.bands, default_order=["r", "g", "b"], plot_bands=["r", "g", "b"]
-    # )
     SPACENET8 = SensorBandRegistry.RGB
 
     # flair 2 has rgbn and elevation bands
-    FLAIR2 = ModalityConfig(
-        bands={
-            **SensorBandRegistry.RGBN.bands,
-            "elevation": BandConfig("elevation", ["elevation"], wavelength=None),
+    FLAIR2 = MultiModalConfig(
+        modalities={
+            "aerial": SensorBandRegistry.RGBN,
+            "elevation": ModalityConfig(
+                bands={
+                    "elevation": BandConfig("elevation", ["elevation"], wavelength=None)
+                },
+                default_order=["elevation"],
+                plot_bands=["elevation"],
+            ),
         },
-        default_order=["r", "g", "b", "nir", "elevation"],
-        plot_bands=["r", "g", "b"],
+        default_order=["red", "green", "blue", "nir", "elevation"],
+        band_to_modality={
+            "red": "aerial",
+            "green": "aerial",
+            "blue": "aerial",
+            "nir": "aerial",
+            "elevation": "elevation",
+        },
+        plot_bands=["red", "green", "blue", "elevation"],
     )
 
     # CLOUDSEN12 has cloudsen12-l1c Sentinel2 data is actually just a single ModalityConfig
@@ -832,9 +835,9 @@ class DatasetBandRegistry:
         },
         default_order=[
             "nir",
-            "g",
-            "b",
-            "r",
+            "green",
+            "blue",
+            "red",
             "vv",
             "vh",
             "vv/vh",
@@ -853,9 +856,9 @@ class DatasetBandRegistry:
         ],
         band_to_modality={
             "nir": "aerial",
-            "g": "aerial",
-            "b": "aerial",
-            "r": "aerial",
+            "green": "aerial",
+            "blue": "aerial",
+            "red": "aerial",
             "vv": "s1",
             "vh": "s1",
             "vv/vh": "s1",
@@ -1065,14 +1068,12 @@ class DatasetBandRegistry:
     WINDTURBINE = SensorBandRegistry.RGB
 
     @classmethod
-    def get_dataset_config(
-        cls, dataset_name: str
-    ) -> Union[ModalityConfig, MultiModalConfig]:
+    def get_dataset_config(cls, dataset_name: str) -> ModalityConfig | MultiModalConfig:
         """Get configuration for a specific dataset."""
         return getattr(cls, dataset_name.upper())
 
 
-def get_wavelengths(band_order: Sequence[str], sensor_type: SensorType) -> List[float]:
+def get_wavelengths(band_order: Sequence[str], sensor_type: SensorType) -> list[float]:
     """Get wavelengths in micrometers for given bands."""
     config = SensorBandRegistry.get_modality_config(sensor_type)
     wavelengths = []

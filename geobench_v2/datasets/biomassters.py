@@ -3,20 +3,18 @@
 
 """Biomassters dataset."""
 
-from torch import Tensor
+from collections.abc import Sequence
 from pathlib import Path
-from typing import Sequence, Type
-import torch.nn as nn
 
-from .sensor_util import DatasetBandRegistry
-from .base import GeoBenchBaseDataset
-from .data_util import MultiModalNormalizer
-import torch.nn as nn
-import rasterio
-import numpy as np
-import torch
 import einops
-from PIL import Image
+import rasterio
+import torch
+import torch.nn as nn
+from torch import Tensor
+
+from .base import GeoBenchBaseDataset
+from .data_util import ClipZScoreNormalizer
+from .sensor_util import DatasetBandRegistry
 
 
 class GeoBenchBioMassters(GeoBenchBaseDataset):
@@ -113,7 +111,7 @@ class GeoBenchBioMassters(GeoBenchBaseDataset):
             "s1": ["VV_asc", "VH_asc"],
             "s2": ["B04", "B03", "B02", "B08"],
         },
-        data_normalizer: Type[nn.Module] = MultiModalNormalizer,
+        data_normalizer: type[nn.Module] = ClipZScoreNormalizer,
         transforms: nn.Module | None = None,
         metadata: Sequence[str] | None = None,
         num_time_steps: int = 1,
@@ -128,7 +126,7 @@ class GeoBenchBioMassters(GeoBenchBaseDataset):
                 specify ['red', 'green', 'blue', 'nir', 'nir'], the dataset would return images with 5 channels
                 in that order. This is useful for models that expect a certain band order, or
                 test the impact of band order on model performance.
-            data_normalizer: The data normalizer to apply to the data, defaults to :class:`data_util.MultiModalNormalizer`,
+            data_normalizer: The data normalizer to apply to the data, defaults to :class:`data_util.ClipZScoreNormalizer`,
                 which applies z-score normalization to each band.
             transforms:
             metadata: metadata names to be returned under specified keys as part of the sample in the
@@ -156,6 +154,7 @@ class GeoBenchBioMassters(GeoBenchBaseDataset):
 
         # data does not have georeferencing information, yet is a Gtiff, that the tacoreader can only read with rasterio
         import warnings
+
         from rasterio.errors import NotGeoreferencedWarning
 
         warnings.filterwarnings("ignore", category=NotGeoreferencedWarning)

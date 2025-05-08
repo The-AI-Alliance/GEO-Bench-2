@@ -1,9 +1,11 @@
 # Copyright (c) 2025 GeoBenchV2. All rights reserved.
 # Licensed under the Apache License 2.0.
 
-import pytest
 import os
+
 import matplotlib.pyplot as plt
+import pytest
+
 from geobench_v2.datamodules import GeoBenchWindTurbineDataModule
 
 
@@ -53,7 +55,7 @@ class TestWindTurbineDataModule:
     def test_band_order_resolution(self, datamodule):
         """Test if band order is correctly resolved."""
         assert len(datamodule.band_order) == 4
-        assert datamodule.band_order[0] == "r"
+        assert datamodule.band_order[0] == "red"
 
     def test_batch_visualization(self, datamodule):
         """Test batch visualization."""

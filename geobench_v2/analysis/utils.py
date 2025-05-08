@@ -3,10 +3,9 @@
 
 """Utility functions for GeoBenchV2 result analysis."""
 
-import pandas as pd
-import numpy as np
 import os
-from glob import glob
+
+import pandas as pd
 from omegaconf import OmegaConf
 
 
@@ -145,8 +144,7 @@ def collect_overview_df(exp_dir: str, select_criteria: str) -> pd.DataFrame:
 
 
 def find_best_model(results_df, best_metric):
-    """
-    Finds the best model based on the specified metric(s).
+    """Finds the best model based on the specified metric(s).
 
     Args:
         results_df (pd.DataFrame): DataFrame containing experiment results.

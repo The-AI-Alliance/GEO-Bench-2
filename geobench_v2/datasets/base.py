@@ -3,23 +3,21 @@
 
 """Base dataset."""
 
-import torch.nn as nn
-from torch import Tensor
-from typing import Type, Literal, Sequence, Callable, Union
-import rasterio
-from torchgeo.datasets import NonGeoDataset
-import tacoreader
-import os
 import hashlib
+import os
+import urllib.request
+from collections.abc import Callable, Sequence
+from typing import Literal
+
+import rasterio
+import tacoreader
 import torch
 import torch.nn as nn
+from torch import Tensor
+from torchgeo.datasets import DatasetNotFoundError, NonGeoDataset
 from torchvision.datasets.utils import download_url
-import urllib.request
 
-from torchgeo.datasets import DatasetNotFoundError
-
-
-from .data_util import DataUtilsMixin, DataNormalizer
+from .data_util import DataNormalizer, DataUtilsMixin
 
 
 class GeoBenchBaseDataset(NonGeoDataset, DataUtilsMixin):
@@ -37,20 +35,20 @@ class GeoBenchBaseDataset(NonGeoDataset, DataUtilsMixin):
         root: str,
         split: Literal["train", "validation", "test"],
         band_order: list[str],
-        data_normalizer: Union[
-            Type[DataNormalizer], Callable[[dict[str, Tensor]], dict[str, Tensor]]
-        ] = nn.Identity,
+        data_normalizer: type[DataNormalizer]
+        | Callable[[dict[str, Tensor]], dict[str, Tensor]] = nn.Identity,
         transforms: nn.Module = None,
         metadata: Sequence[str] | None = None,
         download: bool = False,
     ) -> None:
         """Initialize the dataset.
+
         Args:
             root: Root directory where the dataset can be found
             split: The dataset split, supports 'train', 'val', 'test'
             band_order:
             data_normalizer: Normalization strategy. Can be:
-                             - A class type inheriting from DataNormalizer (e.g., MultiModalNormalizer)
+                             - A class type inheriting from DataNormalizer (e.g., ClipZScoreNormalizer)
                                or a basic callable class (e.g., nn.Identity - default).
                                It will be initialized appropriately (using stats/band_order if needed).
                              - An initialized callable instance (e.g., a custom nn.Module or nn.Identity()).
@@ -126,7 +124,7 @@ class GeoBenchBaseDataset(NonGeoDataset, DataUtilsMixin):
         Args:
             path: Path to the TIFF file
 
-        Return
+        Return:
             The image tensor
         """
         with rasterio.open(path) as src:

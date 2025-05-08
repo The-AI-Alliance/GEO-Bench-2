@@ -3,48 +3,16 @@
 
 """Generate Benchmark version of Sen4Agrinet dataset."""
 
-import geopandas as gpd
-import pandas as pd
-import os
 import argparse
-import rasterio
-from tqdm import tqdm
-import re
-from geobench_v2.generate_benchmark.utils import plot_sample_locations
-import tacotoolbox
-import tacoreader
-import glob
-import numpy as np
 import datetime
-
-
-from geobench_v2.generate_benchmark.geospatial_split_utils import (
-    show_samples_per_valid_ratio,
-    split_geospatial_tiles_into_patches,
-    visualize_checkerboard_pattern,
-    visualize_geospatial_split,
-    checkerboard_split,
-    geographic_buffer_split,
-    geographic_distance_split,
-    visualize_distance_clusters,
-)
-import numpy as np
-from itertools import combinations
-from sklearn.model_selection import train_test_split
-
-from typing import List, Tuple, Dict, Any, Optional, Union
+import glob
 import os
 import re
+from itertools import combinations
+
 import numpy as np
 import pandas as pd
-import rasterio
-from rasterio.windows import Window
-from pathlib import Path
 from tqdm import tqdm
-
-import h5py
-import glob
-from pathlib import Path
 
 
 def create_geographic_splits(df, val_size=0.1, test_size=0.2, seed=42):
@@ -129,7 +97,7 @@ def create_geographic_splits(df, val_size=0.1, test_size=0.2, seed=42):
     val_ratio = val_count / total_samples
     test_ratio = test_count / total_samples
 
-    print(f"Final split distribution:")
+    print("Final split distribution:")
     print(
         f"Train: {train_count} samples ({train_ratio:.2%}) from tiles: {sorted(train_tiles)}"
     )

@@ -3,16 +3,18 @@
 
 """EverWatch Tests."""
 
-import pytest
 import os
+
 import matplotlib.pyplot as plt
+import pytest
+
 from geobench_v2.datamodules import GeoBenchEverWatchDataModule
 
 
 @pytest.fixture
 def data_root():
     """Path to test data directory."""
-    return "/mnt/rg_climate_benchmark/data/geobenchV2/EverWatch"
+    return "/mnt/rg_climate_benchmark/data/final_geobenchV2/everwatch"
 
 
 @pytest.fixture

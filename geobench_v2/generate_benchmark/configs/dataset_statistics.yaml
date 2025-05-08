@@ -15,18 +15,20 @@ datamodules:
   #       image_s2: [0, 3000]
   #     target_range_vals: [0, 1000]
     
-  # - name: mados
-  #   stats_computer:
-  #     _target_: geobench_v2.generate_benchmark.utils_dataset_statistics.SegmentationStatistics
-  #     datamodule:
-  #       _target_: geobench_v2.datamodules.GeoBenchMADOSDataModule
-  #       batch_size: 16
-  #       num_workers: 0
-  #       root: "/mnt/rg_climate_benchmark/data/geobenchV2/mados"
-  #     input_keys: ["image"]
-  #     target_key: "mask"
-  #     range_vals:
-  #       image: [0, 0.2]
+  - name: mados
+    stats_computer:
+      _target_: geobench_v2.generate_benchmark.utils_dataset_statistics.SegmentationStatistics
+      datamodule:
+        _target_: geobench_v2.datamodules.GeoBenchMADOSDataModule
+        batch_size: 16
+        num_workers: 0
+        # root: "/mnt/rg_climate_benchmark/data/geobenchV2/mados"
+        root: "/home/nils/projects/GEO-Bench-2/data/mados"
+
+      input_keys: ["image"]
+      target_key: "mask"
+      range_vals:
+        image: [0, 0.125]
 
   # - name: caffe
   #   stats_computer:
@@ -40,19 +42,6 @@ datamodules:
   #     target_key: "mask"
   #     range_vals:
   #       image: [0, 255]
-
-  # - name: fotw
-  #   stats_computer:
-  #     _target_: geobench_v2.generate_benchmark.utils_dataset_statistics.SegmentationStatistics
-  #     datamodule:
-  #       _target_: geobench_v2.datamodules.GeoBenchFieldsOfTheWorldDataModule
-  #       batch_size: 16
-  #       num_workers: 0
-  #       root: "/mnt/rg_climate_benchmark/data/geobenchV2/fotw"
-  #     input_keys: ["image"]
-  #     target_key: "mask"
-  #     range_vals:
-  #       image: [0, 3000]
 
   # - name: spacenet2
   #   stats_computer:
@@ -105,7 +94,7 @@ datamodules:
   #       num_workers: 0
   #       root: "/mnt/rg_climate_benchmark/data/geobenchV2/spacenet8"
   #     input_keys: ["image_pre", "image_post"]
-  #     target_key: "mask"
+  #     target_key: "mask"            # Binary mask indicating which classes are present in this image
   #     range_vals:
   #       image_pre: [0, 255]
   #       image_post: [0, 255]
@@ -213,17 +202,21 @@ datamodules:
   #       image_s1_desc: [0, 1]
 
   # - name: flair2
-  #   stats_computer:
-  #     _target_: geobench_v2.generate_benchmark.utils_dataset_statistics.SegmentationStatistics
-  #     datamodule:
-  #       _target_: geobench_v2.datamodules.GeoBenchFLAIR2DataModule
-  #       batch_size: 16
-  #       num_workers: 0
-  #       root: "/mnt/rg_climate_benchmark/data/geobenchV2/flair2"
-  #     input_keys: ["image"]
-  #     target_key: "mask"
-  #     range_vals:
-  #       image: [0, 255]
+
+# - name: fotw
+#   stats_computer:
+#     _target_: geobench_v2.generate_benchmark.utils_dataset_statistics.SegmentationStatistics
+#     datamodule:
+#       _target_: geobench_v2.datamodules.GeoBenchFieldsOfTheWorldDataModule
+#       batch_size: 16
+#       num_workers: 0
+#       # root: "/mnt/rg_climate_benchmark/data/geobenchV2/fotw"
+#       root: "/home/nils/projects/GEO-Bench-2/data/fotw/"
+#     input_keys: ["image_a", "image_b"]
+#     target_key: "mask"
+#     range_vals:
+#       image_a: [0, 6000]
+#       image_b: [0, 6000]
 
   # - name: mmflood
   #   stats_computer:
@@ -240,16 +233,16 @@ datamodules:
   #       image_dem: [-1000, 2000]
   #       image_hydro: [0, 1]
 
-  - name: benv2
-    stats_computer:
-      _target_: geobench_v2.generate_benchmark.utils_dataset_statistics.ClassificationStatistics
-      datamodule:
-        _target_: geobench_v2.datamodules.GeoBenchBENV2DataModule
-        batch_size: 64
-        num_workers: 4
-        root: "/mnt/rg_climate_benchmark/data/final_geobenchV2/benv2"
-      input_keys: ["image_s2", "image_s1"]
-      target_key: "label"
-      range_vals:
-        image_s2: [0, 10000]
-        image_s1: [-100, 100]
+  # - name: benv2
+  #   stats_computer:
+  #     _target_: geobench_v2.generate_benchmark.utils_dataset_statistics.ClassificationStatistics
+  #     datamodule:
+  #       _target_: geobench_v2.datamodules.GeoBenchBENV2DataModule
+  #       batch_size: 64
+  #       num_workers: 4
+  #       root: "/mnt/rg_climate_benchmark/data/final_geobenchV2/benv2"
+  #     input_keys: ["image_s2", "image_s1"]
+  #     target_key: "label"
+  #     range_vals:
+  #       image_s2: [0, 10000]
+  #       image_s1: [-100, 100]
