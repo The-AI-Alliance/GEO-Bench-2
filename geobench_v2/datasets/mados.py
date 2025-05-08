@@ -157,11 +157,11 @@ class GeoBenchMADOS(GeoBenchBaseDataset):
             warnings.filterwarnings("ignore", category=NotGeoreferencedWarning)
             with rasterio.open(sample_row.read(0)) as src:
                 s2_img = src.read()
-                nan_mask = torch.from_numpy(np.isnan(s2_img))
 
         img = torch.from_numpy(s2_img).float()
 
         img_dict = self.rearrange_bands(img, self.band_order)
+        nan_mask = torch.from_numpy(img_dict["image"].isnan())
         img_dict = self.data_normalizer(img_dict)
 
         img_dict["image"] = torch.where(
