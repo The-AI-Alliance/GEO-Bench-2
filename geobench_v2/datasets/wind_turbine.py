@@ -14,7 +14,7 @@ from PIL import Image
 from torch import Tensor
 from torchgeo.datasets import NonGeoDataset
 
-from .data_util import ClipZScoreNormalizer, DataUtilsMixin
+from .data_util import ClipZScoreNormalizer, DataUtilsMixin, DataNormalizer
 from .sensor_util import DatasetBandRegistry
 
 
@@ -27,11 +27,11 @@ class GeoBenchWindTurbine(NonGeoDataset, DataUtilsMixin):
     """
 
     dataset_band_config = DatasetBandRegistry.WINDTURBINE
-    band_default_order = ("r", "g", "b")
+    band_default_order = ("red", "green", "blue")
 
     normalization_stats = {
-        "means": {"r": 0.0, "g": 0.0, "b": 0.0},
-        "stds": {"r": 255.0, "g": 255.0, "b": 255.0},
+        "means": {"red": 0.0, "green": 0.0, "blue": 0.0},
+        "stds": {"red": 255.0, "green": 255.0, "blue": 255.0},
     }
 
     classes = classes = "wind_turbine"

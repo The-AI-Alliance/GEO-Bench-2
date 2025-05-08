@@ -48,7 +48,7 @@ class GeoBenchSpaceNet6(GeoBenchBaseDataset):
     dataset_band_config = DatasetBandRegistry.SPACENET6
 
     band_default_order = {
-        "rgbn": ("r", "g", "b", "nir"),
+        "rgbn": ("red", "green", "blue", "nir"),
         "sar": ("hh", "hv", "vv", "vh"),
     }
 
