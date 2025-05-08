@@ -288,12 +288,10 @@ class DatasetStatistics(ABC):
                 .cpu()
                 .numpy(),
                 "pct_02": stats.pct_02.cpu().numpy()
-                if hasattr(stats, "pct_02")
-                and stats.pct_02 is not None  
+                if hasattr(stats, "pct_02") and stats.pct_02 is not None
                 else None,
                 "pct_98": stats.pct_98.cpu().numpy()
-                if hasattr(stats, "pct_98")
-                and stats.pct_98 is not None 
+                if hasattr(stats, "pct_98") and stats.pct_98 is not None
                 else None,
             }
             # Add used clip values if clipping was enabled for this key
