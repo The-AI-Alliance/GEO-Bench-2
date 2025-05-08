@@ -15,20 +15,20 @@ datamodules:
   #       image_s2: [0, 3000]
   #     target_range_vals: [0, 1000]
     
-  - name: mados
-    stats_computer:
-      _target_: geobench_v2.generate_benchmark.utils_dataset_statistics.SegmentationStatistics
-      datamodule:
-        _target_: geobench_v2.datamodules.GeoBenchMADOSDataModule
-        batch_size: 16
-        num_workers: 0
-        # root: "/mnt/rg_climate_benchmark/data/geobenchV2/mados"
-        root: "/home/nils/projects/GEO-Bench-2/data/mados"
+  # - name: mados
+  #   stats_computer:
+  #     _target_: geobench_v2.generate_benchmark.utils_dataset_statistics.SegmentationStatistics
+  #     datamodule:
+  #       _target_: geobench_v2.datamodules.GeoBenchMADOSDataModule
+  #       batch_size: 16
+  #       num_workers: 0
+  #       # root: "/mnt/rg_climate_benchmark/data/geobenchV2/mados"
+  #       root: "/home/nils/projects/GEO-Bench-2/data/mados"
 
-      input_keys: ["image"]
-      target_key: "mask"
-      range_vals:
-        image: [0, 0.125]
+  #     input_keys: ["image"]
+  #     target_key: "mask"
+  #     range_vals:
+  #       image: [0, 0.125]
 
   # - name: caffe
   #   stats_computer:
@@ -233,16 +233,20 @@ datamodules:
   #       image_dem: [-1000, 2000]
   #       image_hydro: [0, 1]
 
-  # - name: benv2
-  #   stats_computer:
-  #     _target_: geobench_v2.generate_benchmark.utils_dataset_statistics.ClassificationStatistics
-  #     datamodule:
-  #       _target_: geobench_v2.datamodules.GeoBenchBENV2DataModule
-  #       batch_size: 64
-  #       num_workers: 4
-  #       root: "/mnt/rg_climate_benchmark/data/final_geobenchV2/benv2"
-  #     input_keys: ["image_s2", "image_s1"]
-  #     target_key: "label"
-  #     range_vals:
-  #       image_s2: [0, 10000]
-  #       image_s1: [-100, 100]
+  - name: benv2
+    stats_computer:
+      _target_: geobench_v2.generate_benchmark.utils_dataset_statistics.ClassificationStatistics
+      multi_label: True
+      datamodule:
+        _target_: geobench_v2.datamodules.GeoBenchBENV2DataModule
+        batch_size: 64
+        num_workers: 4
+        # root: "/mnt/rg_climate_benchmark/data/final_geobenchV2/benv2"
+        root: "/home/nils/projects/GEO-Bench-2/data/benv2"
+      input_keys: ["image_s2", "image_s1"]
+      target_key: "label"
+      range_vals:
+        image_s2: [0, 10000]
+        image_s1: [-50, 100]
+      compute_normalized_stats: True
+
