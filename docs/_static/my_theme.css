@@ -1,0 +1,17 @@
+@import url("theme.css");
+
+.rst-content {
+    max-width: 95%;
+}
+
+img[alt="Logo image"] {
+    width: 100px;  /* or whatever size you want */
+    height: auto;  /* to maintain aspect ratio */
+}
+
+
+div.nboutput.container div.output_area .highlight,
+div.nboutput.container div.output_area pre {
+    background-color: #080000 !important; /* Background color of cell output */
+    color: #07adee !important; /* Text color inside cell output */
+}

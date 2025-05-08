@@ -3,29 +3,35 @@
 
 """GeoBench DataModules."""
 
+from .base import (
+    GeoBenchClassificationDataModule,
+    GeoBenchDataModule,
+    GeoBenchObjectDetectionDataModule,
+    GeoBenchSegmentationDataModule,
+)
+from .benv2 import GeoBenchBENV2DataModule
+from .biomassters import GeoBenchBioMasstersDataModule
+from .bright import GeoBenchBRIGHTDataModule
 from .caffe import GeoBenchCaFFeDataModule
+from .cloudsen12 import GeoBenchCloudSen12DataModule
+from .dotav2 import GeoBenchDOTAV2DataModule
+from .dynamic_earthnet import GeoBenchDynamicEarthNetDataModule
+from .everwatch import GeoBenchEverWatchDataModule
+from .flair2 import GeoBenchFLAIR2DataModule
+from .floga import GeoBenchFLOGADataModule
 from .fotw import GeoBenchFieldsOfTheWorldDataModule
+from .kuro_siwo import GeoBenchKuroSiwoDataModule
+from .mados import GeoBenchMADOSDataModule
+from .mmflood import GeoBenchMMFloodDataModule
 from .pastis import GeoBenchPASTISDataModule
+from .qfabric import GeoBenchQFabricDataModule
 from .resisc45 import GeoBenchRESISC45DataModule
+from .sen4agrinet import GeoBenchSen4AgriNetDataModule
 from .spacenet2 import GeoBenchSpaceNet2DataModule
 from .spacenet6 import GeoBenchSpaceNet6DataModule
 from .spacenet7 import GeoBenchSpaceNet7DataModule
 from .spacenet8 import GeoBenchSpaceNet8DataModule
-from .benv2 import GeoBenchBENV2DataModule
-from .everwatch import GeoBenchEverWatchDataModule
-from .dotav2 import GeoBenchDOTAV2DataModule
-from .flair2 import GeoBenchFLAIR2DataModule
-from .cloudsen12 import GeoBenchCloudSen12DataModule
-from .floga import GeoBenchFLOGADataModule
-from .kuro_siwo import GeoBenchKuroSiwoDataModule
 from .treesatai import GeoBenchTreeSatAIDataModule
-from .mados import GeoBenchMADOSDataModule
-from .biomassters import GeoBenchBioMasstersDataModule
-from .dynamic_earthnet import GeoBenchDynamicEarthNetDataModule
-from .sen4agrinet import GeoBenchSen4AgriNetDataModule
-from .mmflood import GeoBenchMMFloodDataModule
-from .bright import GeoBenchBRIGHTDataModule
-from .qfabric import GeoBenchQFabricDataModule
 from .wind_turbine import GeoBenchWindTurbineDataModule
 
 from .base import (

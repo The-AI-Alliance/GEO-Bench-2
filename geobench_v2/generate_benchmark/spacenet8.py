@@ -3,40 +3,30 @@
 
 """Generate Benchmark version of SpaceNet8 dataset."""
 
-from torchgeo.datasets import SpaceNet8
-import geopandas as gpd
-import pandas as pd
-import os
 import argparse
-import rasterio
-from tqdm import tqdm
-import re
-import tacotoolbox
-import tacoreader
 import glob
-
+import os
 from concurrent.futures import ProcessPoolExecutor
-from rasterio.enums import Compression
+
+import geopandas as gpd
+import numpy as np
+import pandas as pd
+import rasterio
+import tacoreader
+import tacotoolbox
 from rasterio.features import rasterize
 from rasterio.windows import Window
+from torchgeo.datasets import SpaceNet8
+from tqdm import tqdm
 
-
-from geobench_v2.generate_benchmark.utils import (
-    plot_sample_locations,
-    create_unittest_subset,
-    create_subset_from_df,
-)
 from geobench_v2.generate_benchmark.geospatial_split_utils import (
-    visualize_checkerboard_pattern,
-    split_geospatial_tiles_into_patches,
-    visualize_geospatial_split,
-    checkerboard_split,
-    geographic_buffer_split,
     geographic_distance_split,
     visualize_distance_clusters,
-    show_samples_per_valid_ratio,
 )
-import numpy as np
+from geobench_v2.generate_benchmark.utils import (
+    create_subset_from_df,
+    create_unittest_subset,
+)
 
 
 def process_spacenet8_tile(args):
@@ -386,8 +376,6 @@ def split_spacenet8_into_patches(
     Returns:
         DataFrame containing metadata for all created patches
     """
-    from concurrent.futures import ProcessPoolExecutor
-
     blockxsize, blockysize = block_size
 
     if stride is None:
@@ -447,7 +435,6 @@ def generate_metadata_df(root_dir) -> pd.DataFrame:
     Args:
         ds: SpaceNet8 dataset.
     """
-
     paths = [
         os.path.join(root_dir, "Germany_Training_Public_label_image_mapping.csv"),
         os.path.join(
@@ -526,7 +513,6 @@ def generate_metadata_df(root_dir) -> pd.DataFrame:
 
 def create_tortilla(root_dir, df, save_dir, tortilla_name):
     """Create a tortilla version of the dataset."""
-
     tortilla_dir = os.path.join(save_dir, "tortilla")
     os.makedirs(tortilla_dir, exist_ok=True)
 
@@ -614,6 +600,7 @@ def create_geobench_version(
     save_dir: str,
 ) -> None:
     """Create a GeoBench version of the dataset.
+
     Args:
         metadata_df: DataFrame with metadata including geolocation for each patch
         n_train_samples: Number of final training samples, -1 means all

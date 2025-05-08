@@ -3,20 +3,18 @@
 
 """Sen4AgriNet DataModule."""
 
-from collections.abc import Callable
-from typing import Any, Sequence
+import os
+from collections.abc import Callable, Sequence
+from typing import Any
+
+import matplotlib.pyplot as plt
+import pandas as pd
+import torch.nn as nn
+from torch import Tensor
 
 from geobench_v2.datasets import GeoBenchSen4AgriNet
 
-import pandas as pd
-from torch import Tensor
-import os
-import matplotlib.pyplot as plt
-
-import torch
 from .base import GeoBenchSegmentationDataModule
-import torch.nn as nn
-from torch import Tensor
 
 
 class GeoBenchSen4AgriNetDataModule(GeoBenchSegmentationDataModule):

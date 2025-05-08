@@ -3,18 +3,18 @@
 
 """Generate Benchmark version of CloudSen12 dataset."""
 
-from geopandas import GeoDataFrame, points_from_xy
-import tacoreader
-from huggingface_hub import snapshot_download
-import os
 import argparse
+import os
+
 import numpy as np
 import pandas as pd
+import tacoreader
+from huggingface_hub import snapshot_download
 
 from geobench_v2.generate_benchmark.utils import (
-    plot_sample_locations,
-    create_unittest_subset,
     create_subset_from_df,
+    create_unittest_subset,
+    plot_sample_locations,
 )
 
 

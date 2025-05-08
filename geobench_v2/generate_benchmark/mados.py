@@ -3,53 +3,23 @@
 
 """Generate Benchmark version of MADOS dataset."""
 
-import geopandas as gpd
-import pandas as pd
-import os
 import argparse
-import rasterio
-from tqdm import tqdm
-import re
-from geobench_v2.generate_benchmark.utils import (
-    plot_sample_locations,
-    create_unittest_subset,
-    create_subset_from_df,
-)
-import tacotoolbox
-import tacoreader
 import glob
-import numpy as np
-
 import os
-import pandas as pd
-import numpy as np
-import rasterio
-from rasterio.warp import Resampling
 from concurrent.futures import ProcessPoolExecutor
-from tqdm import tqdm
 
-
-from geobench_v2.generate_benchmark.geospatial_split_utils import (
-    show_samples_per_valid_ratio,
-    split_geospatial_tiles_into_patches,
-    visualize_checkerboard_pattern,
-    visualize_geospatial_split,
-    checkerboard_split,
-    geographic_buffer_split,
-    geographic_distance_split,
-    visualize_distance_clusters,
-)
-
-from typing import List, Tuple, Dict, Any, Optional, Union
-import os
-import re
 import numpy as np
 import pandas as pd
 import rasterio
-from rasterio.windows import Window
-from pathlib import Path
+import tacoreader
+import tacotoolbox
+from rasterio.warp import Resampling
 from tqdm import tqdm
 
+from geobench_v2.generate_benchmark.utils import (
+    create_subset_from_df,
+    create_unittest_subset,
+)
 
 mados_name_to_band = {
     # 10m resolution bands
@@ -113,7 +83,7 @@ def generate_metadata_df(root: str) -> pd.DataFrame:
     split_files = glob.glob(os.path.join(root, "MADOS", "splits", "*.txt"))
     for split_file in split_files:
         split_name = os.path.basename(split_file).split(".")[0].split("_")[0]
-        with open(split_file, "r") as f:
+        with open(split_file) as f:
             scene_ids = [line.strip() for line in f.readlines()]
             for scene_id in scene_ids:
                 splits[scene_id] = split_name
@@ -422,7 +392,6 @@ def convert_mados_dataset(
     metadata_df, output_dir, root_dir, target_size=224, num_workers=8
 ):
     """Convert MADOS dataset to optimized GeoTIFF format with all bands stacked."""
-
     os.makedirs(output_dir, exist_ok=True)
 
     tasks = [
@@ -482,6 +451,7 @@ def create_geobench_version(
     save_dir: str,
 ) -> None:
     """Create a GeoBench version of the dataset.
+
     Args:
         metadata_df: DataFrame with metadata including geolocation for each patch
         n_train_samples: Number of final training samples, -1 means all

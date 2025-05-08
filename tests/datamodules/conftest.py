@@ -8,7 +8,6 @@ from typing import Any
 import pytest
 import torchvision.datasets.utils
 from pytest import MonkeyPatch
-
 from torchgeo.datasets.utils import Path
 
 
@@ -20,4 +19,4 @@ def copy(url: str, root: Path, *args: Any, **kwargs: Any) -> None:
 @pytest.fixture(autouse=True)
 def download_url(monkeypatch: MonkeyPatch) -> None:
     monkeypatch.setattr(torchvision.datasets.utils, "download_url", copy)
-    monkeypatch.setattr(f"geobench_v2.datasets.base.download_url", copy)
+    monkeypatch.setattr("geobench_v2.datasets.base.download_url", copy)

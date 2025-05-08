@@ -3,22 +3,23 @@
 
 """Flair 2 Aerial DataModule."""
 
-from collections.abc import Callable
-from typing import Any, Sequence
-
-import torch
-import pandas as pd
-from torch import Tensor
 import os
+from collections.abc import Callable, Sequence
+from typing import Any
+
 import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+import tacoreader
+import torch
+import torch.nn as nn
+from einops import rearrange
+from torch import Tensor
+from torchgeo.datasets.utils import percentile_normalization
 
 from geobench_v2.datasets import GeoBenchFLAIR2
 
 from .base import GeoBenchSegmentationDataModule
-import torch.nn as nn
-from torch.utils.data import random_split
-from torchgeo.datasets.utils import percentile_normalization
-from einops import rearrange
 
 
 class GeoBenchFLAIR2DataModule(GeoBenchSegmentationDataModule):
@@ -75,9 +76,10 @@ class GeoBenchFLAIR2DataModule(GeoBenchSegmentationDataModule):
         Returns:
             pandas DataFrame with metadata.
         """
-        return pd.read_parquet(
-            os.path.join(self.kwargs["root"], "geobench_flair2.parquet")
+        self.data_df = tacoreader.load(
+            [os.path.join(self.kwargs["root"], f) for f in GeoBenchFLAIR2.paths]
         )
+        return self.data_df
 
     def visualize_batch(
         self, split: str = "train"
@@ -97,34 +99,49 @@ class GeoBenchFLAIR2DataModule(GeoBenchSegmentationDataModule):
         else:
             batch = next(iter(self.test_dataloader()))
 
-        batch = self.data_normalizer.unnormalize(batch)
+        if hasattr(self.data_normalizer, "unnormalize"):
+            batch = self.data_normalizer.unnormalize(batch)
 
-        images = batch["image"]
-        masks = batch["mask"]
+        batch_size = batch["mask"].shape[0]
+        n_samples = min(8, batch_size)
+        indices = torch.randperm(batch_size)[:n_samples]
 
-        n_samples = min(8, images.shape[0])
-        indices = torch.randperm(images.shape[0])[:n_samples]
+        modalities = {}
 
-        images = images[indices]
-        masks = masks[indices]
+        for mod in self.band_order.keys():
+            mod_plot_bands = self.dataset_band_config.modalities[mod].plot_bands
+            missing_bands = [
+                band for band in mod_plot_bands if band not in self.band_order[mod]
+            ]
+            if missing_bands:
+                raise AssertionError(
+                    f"Plotting bands {missing_bands} for modality '{mod}' not found in band_order {self.band_order[mod]}"
+                )
 
-        plot_bands = self.dataset_band_config.plot_bands
-        rgb_indices = [
-            self.band_order.index(band)
-            for band in plot_bands
-            if band in self.band_order
-        ]
-        images = images[:, rgb_indices, :, :]
+            # Get plot indices for bands that exist
+            mod_plot_indices = [
+                self.band_order[mod].index(band) for band in mod_plot_bands
+            ]
+            mod_images = batch[f"image_{mod}"][:, mod_plot_indices, :, :][indices]
+            mod_images = rearrange(mod_images, "b c h w -> b h w c").cpu().numpy()
+            modalities[mod] = mod_images
 
+        num_modalities = len(modalities)
         fig, axes = plt.subplots(
             n_samples,
-            3,
-            figsize=(12, 3 * n_samples),
-            gridspec_kw={"width_ratios": [1, 1, 0.5]},
+            num_modalities,
+            figsize=(num_modalities * 4, 3 * n_samples),
+            gridspec_kw={"width_ratios": num_modalities * [1]},
         )
 
-        if n_samples == 1:
+        if n_samples == 1 and num_modalities == 1:
+            axes = np.array([[axes]])
+        elif n_samples == 1:
             axes = axes.reshape(1, -1)
+        elif num_modalities == 1:
+            axes = axes.reshape(-1, 1)
+
+        masks = batch["mask"][indices]
 
         unique_classes = torch.unique(masks).cpu().numpy()
         unique_classes = [
@@ -134,40 +151,39 @@ class GeoBenchFLAIR2DataModule(GeoBenchSegmentationDataModule):
         cmap = plt.cm.tab20
 
         for i in range(n_samples):
-            ax = axes[i, 0]
-            img = rearrange(images[i], "c h w -> h w c").cpu().numpy()
-            img = percentile_normalization(img, lower=2, upper=98)
-            ax.imshow(img)
-            ax.set_title("Aerial Image" if i == 0 else "")
-            ax.axis("off")
+            for j, (mod, modality_img) in enumerate(modalities.items()):
+                plot_img = modality_img[i]
+                img = percentile_normalization(plot_img, lower=2, upper=98)
+                ax = axes[i, j]
+                ax.imshow(img)
+                ax.set_title(f"{mod} image" if i == 0 else "", fontsize=20)
+                ax.axis("off")
 
-            ax = axes[i, 1]
+            ax = axes[i, -1]
             mask_img = masks[i].cpu().numpy()
-            im = ax.imshow(mask_img, cmap="tab20", vmin=0, vmax=19)
+            im = ax.imshow(mask_img, cmap=cmap, vmin=0, vmax=19)
             ax.set_title("Mask" if i == 0 else "")
-            ax.axis("off")
-
-            ax = axes[i, 2]
             ax.axis("off")
 
             if i == 0:
                 legend_elements = []
-                for cls in unique_classes:
-                    if cls < len(self.class_names):
-                        color = cmap(cls / 20.0 if cls < 20 else 0)
+                for class_val in unique_classes:
+                    if class_val < len(self.class_names):
+                        color = cmap(class_val / 20.0 if class_val < 20 else 0)
                         legend_elements.append(
                             plt.Rectangle(
                                 (0, 0),
                                 1,
                                 1,
                                 color=color,
-                                label=f"{cls}: {self.class_names[cls]}",
+                                label=f"{class_val}: {self.class_names[class_val]}",
                             )
                         )
 
                 ax.legend(
                     handles=legend_elements,
-                    loc="center",
+                    loc="center left",
+                    bbox_to_anchor=(1.05, 0.5),
                     frameon=True,
                     fontsize="small",
                     title="Classes",

@@ -3,20 +3,17 @@
 
 """Flair 2 Aerial Dataset."""
 
-from torch import Tensor
-from torchgeo.datasets import SpaceNet6
-from pathlib import Path
-from typing import Sequence, Type
-import torch.nn as nn
+from collections.abc import Sequence
 
-from .sensor_util import DatasetBandRegistry
-from .base import GeoBenchBaseDataset
-from .data_util import MultiModalNormalizer
-import torch.nn as nn
 import rasterio
-import numpy as np
 import torch
+import torch.nn as nn
 from shapely import wkt
+from torch import Tensor
+
+from .base import GeoBenchBaseDataset
+from .data_util import ClipZScoreNormalizer
+from .sensor_util import DatasetBandRegistry
 
 
 class GeoBenchFLAIR2(GeoBenchBaseDataset):
@@ -24,7 +21,7 @@ class GeoBenchFLAIR2(GeoBenchBaseDataset):
 
     url = "https://hf.co/datasets/aialliance/flair2/resolve/main/{}"
 
-    sha256str = ["1d11c38a775bafc5a0790bac3b257b02203b8f0f2c6e285bebccb2917dd3d3ed"]
+    sha256str = ["96d18b1e7673fa2233145d69fd67db530c53bf68027b30466f7c94fd456df689"]
 
     # paths: Sequence[str] = (
     #     "FullFlair2.0000.part.tortilla",
@@ -62,7 +59,10 @@ class GeoBenchFLAIR2(GeoBenchBaseDataset):
         "stds": {"r": 50.71001052856445, "g": 44.31645584106445, "b": 43.294822692871094, "nir": 39.049617767333984, "elevation": 29.94267463684082},
     }
 
-    band_default_order = ("r", "g", "b", "nir", "elevation")
+    band_default_order = {
+        "aerial": ("red", "green", "blue", "nir"),
+        "elevation": ("elevation",),
+    }
 
     valid_metadata = ("lat", "lon")
 
@@ -70,8 +70,8 @@ class GeoBenchFLAIR2(GeoBenchBaseDataset):
         self,
         root,
         split="train",
-        band_order: Sequence[float | str] = ["r", "g", "b"],
-        data_normalizer: Type[nn.Module] = MultiModalNormalizer,
+        band_order: dict[str, Sequence[float | str]] = band_default_order,
+        data_normalizer: type[nn.Module] = ClipZScoreNormalizer,
         transforms: nn.Module | None = None,
         metadata: Sequence[str] | None = None,
         download: bool = False,
@@ -83,7 +83,7 @@ class GeoBenchFLAIR2(GeoBenchBaseDataset):
             split: The dataset split, supports 'train', 'test'
             band_order: The order of bands to return, defaults to ['r', 'g', 'b'], if one would
                 specify ['r', 'g', 'b', 'nir'], the dataset would return images with 4 channels
-            data_normalizer: The data normalizer to apply to the data, defaults to :class:`data_util.MultiModalNormalizer`,
+            data_normalizer: The data normalizer to apply to the data, defaults to :class:`data_util.ClipZScoreNormalizer`,
                 which applies z-score normalization to each band.
             transforms:
 
@@ -116,9 +116,18 @@ class GeoBenchFLAIR2(GeoBenchBaseDataset):
         aerial_path = sample_row.read(0)
         mask_path = sample_row.read(1)
 
+        data_dict = {}
         with rasterio.open(aerial_path) as f:
-            image = f.read()
-        image = torch.from_numpy(image).float()
+            # read aerial bands
+            data = f.read()
+            image = data[:-1, :, :]
+            data_dict["aerial"] = torch.from_numpy(image).float()
+            if "elevation" in self.band_order:
+                # read elevation band
+                elevation = data[-1, :, :]
+                data_dict["elevation"] = (
+                    torch.from_numpy(elevation).unsqueeze(0).float()
+                )
 
         with rasterio.open(mask_path) as f:
             mask = f.read(1)
@@ -128,7 +137,7 @@ class GeoBenchFLAIR2(GeoBenchBaseDataset):
         # shift the classes to start from 0 so class values will be 0-12
         mask -= 1
 
-        image_dict = self.rearrange_bands(image, self.band_order)
+        image_dict = self.rearrange_bands(data_dict, self.band_order)
 
         image_dict = self.data_normalizer(image_dict)
         sample.update(image_dict)

@@ -3,27 +3,22 @@
 
 """Generate Benchmark version of BRIGHT dataset."""
 
-from torchgeo.datasets import SpaceNet8
-import geopandas as gpd
-import pandas as pd
-import os
 import argparse
-import rasterio
-from tqdm import tqdm
-import re
-
-import tacotoolbox
-import tacoreader
 import glob
+import os
+
 import numpy as np
 import pandas as pd
-
-from geobench_v2.generate_benchmark.utils import (
-    plot_sample_locations,
-    create_unittest_subset,
-)
+import rasterio
+import tacoreader
+import tacotoolbox
+from tqdm import tqdm
 
 from geobench_v2.generate_benchmark.geospatial_split_utils import create_bright_patches
+from geobench_v2.generate_benchmark.utils import (
+    create_unittest_subset,
+    plot_sample_locations,
+)
 
 
 def create_bright_dataset_splits(
@@ -38,7 +33,6 @@ def create_bright_dataset_splits(
     Returns:
         DataFrame with updated split assignments
     """
-
     df = metadata_df.copy()
 
     df.loc[df["split"] == "validation", "split"] = "test"
@@ -63,7 +57,7 @@ def create_bright_dataset_splits(
     val_event_count = len(val_events)
     test_event_count = len(df[df["split"] == "test"]["event_id"].unique())
 
-    print(f"Split statistics:")
+    print("Split statistics:")
     print(f"Train: {split_counts.get('train', 0)} samples ({train_event_count} events)")
     print(
         f"Validation: {split_counts.get('validation', 0)} samples ({val_event_count} events)"
@@ -71,7 +65,7 @@ def create_bright_dataset_splits(
     print(f"Test: {split_counts.get('test', 0)} samples ({test_event_count} events)")
 
     total_samples = len(df)
-    print(f"\nSplit percentages:")
+    print("\nSplit percentages:")
     print(f"Train: {100 * split_counts.get('train', 0) / total_samples:.1f}%")
     print(f"Validation: {100 * split_counts.get('validation', 0) / total_samples:.1f}%")
     print(f"Test: {100 * split_counts.get('test', 0) / total_samples:.1f}%")
@@ -142,10 +136,10 @@ def generate_metadata_df(root_dir) -> pd.DataFrame:
     train_split_path = os.path.join(root_dir, "train_setlevel.txt")
     val_split_path = os.path.join(root_dir, "holdout_setlevel.txt")
 
-    with open(train_split_path, "r") as f:
+    with open(train_split_path) as f:
         train_ids = f.read().splitlines()
 
-    with open(val_split_path, "r") as f:
+    with open(val_split_path) as f:
         val_ids = f.read().splitlines()
 
     # assign split based on event_ids
@@ -158,7 +152,6 @@ def generate_metadata_df(root_dir) -> pd.DataFrame:
 
 def create_tortilla(root_dir, df, save_dir):
     """Create a tortilla version of the dataset."""
-
     tortilla_dir = os.path.join(save_dir, "tortilla")
     os.makedirs(tortilla_dir, exist_ok=True)
 

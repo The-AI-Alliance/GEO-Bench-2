@@ -3,20 +3,18 @@
 
 """MMFlood dataset."""
 
-from torch import Tensor
-from torchgeo.datasets import MMFlood
+from collections.abc import Sequence
 from pathlib import Path
-from typing import Sequence, Type
+
+import rasterio
+import torch
 import torch.nn as nn
 from shapely import wkt
+from torch import Tensor
 
-from .sensor_util import DatasetBandRegistry
 from .base import GeoBenchBaseDataset
-from .data_util import MultiModalNormalizer
-import torch.nn as nn
-import rasterio
-import numpy as np
-import torch
+from .data_util import ClipZScoreNormalizer
+from .sensor_util import DatasetBandRegistry
 
 
 class GeoBenchMMFlood(GeoBenchBaseDataset):
@@ -38,7 +36,7 @@ class GeoBenchMMFlood(GeoBenchBaseDataset):
     # paths = ["MMFlood.tortilla"]
     paths = ["geobench_mmflood.tortilla"]
 
-    sha256str = [""]
+    sha256str = ["bb58a1cf0d8b801b647b8eae98718e708ae5d35331b9bc34d9dff9d30832b4e9"]
 
     dataset_band_config = DatasetBandRegistry.MMFLOOD
 
@@ -60,7 +58,7 @@ class GeoBenchMMFlood(GeoBenchBaseDataset):
         root: Path,
         split: str,
         band_order: dict[str, Sequence[str]] = band_default_order,
-        data_normalizer: Type[nn.Module] = MultiModalNormalizer,
+        data_normalizer: type[nn.Module] = ClipZScoreNormalizer,
         transforms: nn.Module | None = None,
         metadata: Sequence[str] | None = None,
         return_stacked_image: bool = False,
@@ -75,7 +73,7 @@ class GeoBenchMMFlood(GeoBenchBaseDataset):
                 specify ['red', 'green', 'blue', 'nir', 'nir'], the dataset would return images with 5 channels
                 in that order. This is useful for models that expect a certain band order, or
                 test the impact of band order on model performance.
-            data_normalizer: The data normalizer to apply to the data, defaults to :class:`data_util.MultiModalNormalizer`,
+            data_normalizer: The data normalizer to apply to the data, defaults to :class:`data_util.ClipZScoreNormalizer`,
                 which applies z-score normalization to each band.
             transforms:
             metadata: metadata names to be returned as part of the sample in the
@@ -116,9 +114,7 @@ class GeoBenchMMFlood(GeoBenchBaseDataset):
             with rasterio.open(s1_path) as src:
                 s1_img = src.read()
 
-            nan_mask = torch.from_numpy(np.isnan(s1_img)[0])
             s1_img = torch.from_numpy(s1_img).float()
-            s1_img[..., nan_mask] = 0.0
             img_dict["s1"] = s1_img
 
         if "dem" in self.band_order:
@@ -134,11 +130,15 @@ class GeoBenchMMFlood(GeoBenchBaseDataset):
             img_dict["hydro"] = hydro_img
 
         img_dict = self.rearrange_bands(img_dict, self.band_order)
+        if "image_s1" in img_dict:
+            nan_mask = img_dict["image_s1"].isnan()[0]
+
         image_dict = self.data_normalizer(img_dict)
 
         # across all items in the image_dict replace nan_mask with 0 again
-        for key in img_dict.keys():
-            img_dict[key][..., nan_mask] = 0.0
+        if "image_s1" in image_dict:
+            for key in img_dict.keys():
+                img_dict[key][..., nan_mask] = 0.0
 
         sample.update(image_dict)
 

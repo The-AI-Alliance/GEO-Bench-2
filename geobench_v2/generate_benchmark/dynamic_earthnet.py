@@ -3,43 +3,25 @@
 
 """Generate GeoBenchV2 version of DynamicEarthNet dataset."""
 
-from torchvision.datasets.utils import download_url
-import pandas as pd
-import os
 import argparse
-import pyproj
-import tacotoolbox
-import tacoreader
 import glob
-from tqdm import tqdm
-import rasterio
-
-import os
-import pandas as pd
-import numpy as np
-import rasterio
-from rasterio.windows import Window
 import multiprocessing
+import os
+import random
+import shutil
 from functools import partial
-from tqdm import tqdm
+from itertools import combinations
 
 import matplotlib.pyplot as plt
 import numpy as np
-import rasterio
-import random
-import os
-from matplotlib.colors import ListedColormap
-import numpy as np
 import pandas as pd
-from itertools import combinations
-from sklearn.model_selection import train_test_split
-
-from geobench_v2.generate_benchmark.utils import plot_sample_locations
-
+import rasterio
+import tacoreader
+import tacotoolbox
+from matplotlib.colors import ListedColormap
+from rasterio.windows import Window
 from skimage.transform import resize
-import shutil
-import numpy as np
-
+from tqdm import tqdm
 
 # TODO add automatic download of dataset to have a starting point for benchmark generation
 
@@ -48,7 +30,6 @@ def create_geospatial_temporal_split(
     metadata_df, train_ratio=0.7, val_ratio=0.1, test_ratio=0.2, random_seed=42
 ):
     """Create geospatial and temporal split for DynamicEarthNet, ensuring global coverage in each split."""
-
     np.random.seed(random_seed)
     location_time_df = metadata_df.drop_duplicates(subset=["new_id"]).copy()
     print(f"Found {len(location_time_df)} unique location-time combinations")
@@ -321,7 +302,6 @@ def generate_metadata_df(root: str) -> pd.DataFrame:
 
 def create_tortilla(root_dir, df, save_dir, tortilla_name):
     """Create a tortilla version of the dataset."""
-
     tortilla_dir = os.path.join(save_dir, "tortilla")
     os.makedirs(tortilla_dir, exist_ok=True)
 
@@ -643,7 +623,6 @@ def process_single_modality(record, input_root, output_dir, patch_positions, mod
 
 def process_planet(record, input_root, output_dir, patch_mappings, patch_positions):
     """Process a Planet image and associate with pre-processed S1, S2, and label patches."""
-
     sample_id = f"{record['area_id']}_{record['range_id']}_{record['lat_id']}_{record['year_month']}"
     planet_date = record.get("planet_date", "")
 
@@ -875,7 +854,6 @@ def visualize_dynamic_earthnet_patches(
     patches_df, output_root, num_samples=3, save_dir=None
 ):
     """Visualize patches from the DynamicEarthNet dataset to check correctness."""
-
     if save_dir and os.path.exists(save_dir):
         shutil.rmtree(save_dir)
 
@@ -991,8 +969,7 @@ def visualize_dynamic_earthnet_patches(
 
 
 def create_geobench_subset(patches_df, train_series=10, val_series=5, test_series=5):
-    """
-    Create a subset of the dataset with specified number of unique time-series per split.
+    """Create a subset of the dataset with specified number of unique time-series per split.
 
     Args:
         patches_df: DataFrame with patch information
@@ -1003,7 +980,6 @@ def create_geobench_subset(patches_df, train_series=10, val_series=5, test_serie
     Returns:
         DataFrame containing the selected subset
     """
-
     train_ids = patches_df[patches_df["split"] == "train"]["patch_id"].unique()
     val_ids = patches_df[patches_df["split"] == "validation"]["patch_id"].unique()
     test_ids = patches_df[patches_df["split"] == "test"]["patch_id"].unique()
@@ -1020,7 +996,7 @@ def create_geobench_subset(patches_df, train_series=10, val_series=5, test_serie
 
     subset_df = patches_df[patches_df["patch_id"].isin(selected_ids)].copy()
 
-    print(f"Selected subset contains:")
+    print("Selected subset contains:")
     print(
         f"- {len(selected_train)} training time-series with {len(subset_df[subset_df['split'] == 'train'])} total samples"
     )
@@ -1035,8 +1011,7 @@ def create_geobench_subset(patches_df, train_series=10, val_series=5, test_serie
 
 
 def verify_split_disjointness(metadata_df):
-    """
-    Verify that train, validation, and test splits are disjoint in space-time.
+    """Verify that train, validation, and test splits are disjoint in space-time.
 
     For proper disjointness:
     1. A location can appear in multiple splits only if the time periods are different
@@ -1128,8 +1103,7 @@ def verify_split_disjointness(metadata_df):
 
 
 def add_coordinates_to_subset(subset_df, metadata_df):
-    """
-    Add lat/lon coordinates from metadata_df to subset_df based on matching location identifiers.
+    """Add lat/lon coordinates from metadata_df to subset_df based on matching location identifiers.
 
     Args:
         subset_df: DataFrame with patch information (output from create_geobench_subset)
@@ -1138,7 +1112,6 @@ def add_coordinates_to_subset(subset_df, metadata_df):
     Returns:
         subset_df with added lat/lon columns
     """
-
     subset_df["location_id"] = subset_df["original_id"].apply(lambda x: x)
 
     coord_map = {}

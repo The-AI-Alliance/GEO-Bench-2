@@ -3,22 +3,23 @@
 
 """GeoBench BigEarthNetV2 DataModule."""
 
-from collections.abc import Callable
-from typing import Any, Sequence
-import pandas as pd
-from torch import Tensor
-import matplotlib.pyplot as plt
 import os
-import torch
-from einops import rearrange
+from collections.abc import Callable, Sequence
+from typing import Any, Literal
+
+import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
+import tacoreader
+import torch
+import torch.nn as nn
+from einops import rearrange
+from torch import Tensor
 from torchgeo.datasets.utils import percentile_normalization
 
 from geobench_v2.datasets import GeoBenchBENV2
-import kornia.augmentation as K
 
 from .base import GeoBenchClassificationDataModule
-import torch.nn as nn
 
 
 class GeoBenchBENV2DataModule(GeoBenchClassificationDataModule):
@@ -68,9 +69,10 @@ class GeoBenchBENV2DataModule(GeoBenchClassificationDataModule):
         Returns:
             pandas DataFrame with metadata.
         """
-        return pd.read_parquet(
-            os.path.join(self.kwargs["root"], "geobench_benv2.parquet")
+        self.data_df = tacoreader.load(
+            [os.path.join(self.kwargs["root"], f) for f in GeoBenchBENV2.paths]
         )
+        return self.data_df
 
     def visualize_batch(
         self, split: str = "train"
@@ -93,7 +95,8 @@ class GeoBenchBENV2DataModule(GeoBenchClassificationDataModule):
         else:
             batch = next(iter(self.test_dataloader()))
 
-        batch = self.data_normalizer.unnormalize(batch)
+        if hasattr(self.data_normalizer, "unnormalize"):
+            batch = self.data_normalizer.unnormalize(batch)
 
         batch_size = batch["label"].shape[0]
         n_samples = min(8, batch_size)
@@ -120,11 +123,9 @@ class GeoBenchBENV2DataModule(GeoBenchClassificationDataModule):
             modalities[mod] = mod_images
 
         num_modalities = len(modalities)
-        fig, axes = plt.subplots(
-            n_samples,
-            num_modalities,
-            figsize=(num_modalities * 4, 3 * n_samples),
-            gridspec_kw={"width_ratios": num_modalities * [1]},
+        fig = plt.figure(figsize=(num_modalities * 4 + 2, 3 * n_samples))
+        gs = fig.add_gridspec(
+            n_samples, num_modalities + 1, width_ratios=[*[1] * num_modalities, 0.4]
         )
 
         if n_samples == 1 and num_modalities == 1:
@@ -142,6 +143,7 @@ class GeoBenchBENV2DataModule(GeoBenchClassificationDataModule):
 
         for i in range(n_samples):
             for j, (mod, modality_img) in enumerate(modalities.items()):
+                ax = fig.add_subplot(gs[i, j])
                 plot_img = modality_img[i]
 
                 if mod == "s1":
@@ -160,16 +162,36 @@ class GeoBenchBENV2DataModule(GeoBenchClassificationDataModule):
                 else:
                     img = percentile_normalization(plot_img, lower=2, upper=98)
 
-                ax = axes[i, j]
                 ax.imshow(img)
                 ax.set_title(f"{mod} image" if i == 0 else "", fontsize=20)
                 ax.axis("off")
 
-            label_names = [self.class_names[label] for label in sample_labels[i]]
-            separator = ", \n"
-            suptitle = f"Labels: {separator.join(label_names)}"
-            ax = axes[i, -1]
-            ax.set_title(suptitle, fontsize=8)
+            label_ax = fig.add_subplot(gs[i, -1])
+            label_ax.axis("off")
+
+            label_names = [f"- {self.class_names[label]}" for label in sample_labels[i]]
+
+            label_text = "\n".join(label_names)
+
+            label_ax.text(
+                0.05,
+                0.5,
+                label_text,
+                ha="left",
+                va="center",
+                fontsize=9,
+                bbox=dict(
+                    boxstyle="round,pad=0.5",
+                    facecolor="lightyellow",
+                    alpha=0.8,
+                    edgecolor="lightgray",
+                ),
+                transform=label_ax.transAxes,
+                wrap=True,
+            )
+
+            if i == 0:
+                label_ax.set_title("Labels", fontsize=15)
 
         plt.tight_layout()
 
@@ -177,6 +199,14 @@ class GeoBenchBENV2DataModule(GeoBenchClassificationDataModule):
 
         return fig, batch
 
-    def visualize_geolocation_distribution(self) -> None:
-        """Visualize the geolocation distribution of the dataset."""
-        pass
+    def visualize_geospatial_distribution(
+        self,
+        output_path: str = None,
+        split_column="tortilla:data_split",
+        buffer_degrees: float = 5.0,
+        sample_fraction: float = 1.0,
+        scale: Literal["10m", "50m", "110m"] = "50m",
+        alpha: float = 0.5,
+        s: float = 0.5,
+    ) -> None:
+        return super().visualize_geospatial_distribution(split_column=split_column)

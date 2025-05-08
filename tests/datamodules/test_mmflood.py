@@ -4,15 +4,17 @@
 """MMFlood Tests."""
 
 import os
-import pytest
-from typing import Sequence, Dict, Union
-import torch
+from collections.abc import Sequence
 from pathlib import Path
-from torchgeo.datasets import DatasetNotFoundError
-from pytest import MonkeyPatch
+
 import matplotlib.pyplot as plt
-from geobench_v2.datasets import GeoBenchMMFlood
+import pytest
+import torch
+from pytest import MonkeyPatch
+from torchgeo.datasets import DatasetNotFoundError
+
 from geobench_v2.datamodules import GeoBenchMMFloodDataModule
+from geobench_v2.datasets import GeoBenchMMFlood
 
 
 @pytest.fixture(
@@ -27,7 +29,7 @@ def band_order(request):
 def datamodule(
     monkeypatch: MonkeyPatch,
     tmp_path: Path,
-    band_order: Dict[str, Sequence[Union[str, float]]],
+    band_order: dict[str, Sequence[str | float]],
 ):
     """Initialize MMFlood datamodule with test configuration."""
     monkeypatch.setattr(GeoBenchMMFlood, "paths", ["mmflood.tortilla"])

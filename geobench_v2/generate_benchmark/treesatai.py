@@ -3,59 +3,37 @@
 
 """Generate Benchmark version of TreeSatAI dataset."""
 
-from torchgeo.datasets import TreeSatAI
+import argparse
+import concurrent
+import glob
+import json
+import os
+
 import geopandas as gpd
 import pandas as pd
-import os
-import argparse
 import rasterio
-from tqdm import tqdm
-import re
-import tacotoolbox
 import tacoreader
-import glob
-import numpy as np
-import json
-import concurrent
-
+import tacotoolbox
+from tqdm import tqdm
 
 from geobench_v2.generate_benchmark.geospatial_split_utils import (
-    show_samples_per_valid_ratio,
-    split_geospatial_tiles_into_patches,
-    visualize_checkerboard_pattern,
-    visualize_geospatial_split,
     checkerboard_split,
-    geographic_buffer_split,
-    geographic_distance_split,
-    visualize_distance_clusters,
+    visualize_geospatial_split,
 )
-
 from geobench_v2.generate_benchmark.utils import (
-    plot_sample_locations,
     create_subset_from_df,
     create_unittest_subset,
 )
 
-from typing import List, Tuple, Dict, Any, Optional, Union
-import os
-import re
-import numpy as np
-import pandas as pd
-import rasterio
-from rasterio.windows import Window
-from pathlib import Path
-from tqdm import tqdm
-
 
 def generate_metadata_df(root: str) -> pd.DataFrame:
     """Generate metadata DataFrame for TreeSatAI dataset."""
-
     df = pd.DataFrame()
-    path = os.path.join(root, f"train_filenames.lst")
+    path = os.path.join(root, "train_filenames.lst")
     with open(path) as f:
         train_files = f.read().strip().split("\n")
 
-    path = os.path.join(root, f"test_filenames.lst")
+    path = os.path.join(root, "test_filenames.lst")
     with open(path) as f:
         test_files = f.read().strip().split("\n")
 
@@ -113,7 +91,6 @@ def generate_metadata_df(root: str) -> pd.DataFrame:
 
 def create_tortilla(root_dir, df, save_dir, tortilla_name):
     """Create a tortilla version of the dataset."""
-
     tortilla_dir = os.path.join(save_dir, "tortilla")
     os.makedirs(tortilla_dir, exist_ok=True)
 
@@ -317,6 +294,7 @@ def create_geobench_version(
     n_test_samples: int,
 ) -> None:
     """Create a GeoBench version of the dataset.
+
     Args:
         metadata_df: DataFrame with metadata including geolocation for each patch
         n_train_samples: Number of final training samples, -1 means all

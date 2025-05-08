@@ -3,9 +3,9 @@
 
 """DataModule utils."""
 
-import torch.nn as nn
-import torch
 import kornia.augmentation as K
+import torch
+import torch.nn as nn
 import einops
 
 class MultiTemporalSegmentationAugmentation(nn.Module):

@@ -4,16 +4,16 @@
 """BenV2 Tests."""
 
 import os
-
-import pytest
-from typing import Sequence
-import torch
+from collections.abc import Sequence
 from pathlib import Path
+
 import matplotlib.pyplot as plt
+import pytest
 from pytest import MonkeyPatch
-from geobench_v2.datasets import GeoBenchBENV2
-from geobench_v2.datamodules import GeoBenchBENV2DataModule
 from torchgeo.datasets import DatasetNotFoundError
+
+from geobench_v2.datamodules import GeoBenchBENV2DataModule
+from geobench_v2.datasets import GeoBenchBENV2
 
 
 @pytest.fixture(

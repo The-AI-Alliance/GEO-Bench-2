@@ -6,21 +6,17 @@
 
 """BigEarthNet V2 Dataset."""
 
-from torch import Tensor
-from torchgeo.datasets import SpaceNet6
+from collections.abc import Sequence
 from pathlib import Path
-from typing import Sequence, Type
-import torch.nn as nn
 
-from .sensor_util import DatasetBandRegistry
-from .base import GeoBenchBaseDataset
-from .data_util import MultiModalNormalizer
-import torch.nn as nn
 import rasterio
-import numpy as np
 import torch
+import torch.nn as nn
+from torch import Tensor
 
-from rasterio.enums import Resampling
+from .base import GeoBenchBaseDataset
+from .data_util import ClipZScoreNormalizer
+from .sensor_util import DatasetBandRegistry
 
 
 class GeoBenchBENV2(GeoBenchBaseDataset):
@@ -36,7 +32,7 @@ class GeoBenchBENV2(GeoBenchBaseDataset):
     paths: Sequence[str] = ["geobench_benv2.tortilla"]
 
     sha256str: Sequence[str] = [
-        "e1a3b214bd6118d39ec2c0c34b310de7b8e048b4914f8aa52aa6b24625c2b286"
+        "330876e91199cb179113224c6e4e9632f8971446fe29ffbb035e5b8bbdee8319"
     ]
 
     band_default_order = {
@@ -126,14 +122,16 @@ class GeoBenchBENV2(GeoBenchBaseDataset):
 
     num_classes: int = len(label_names)
 
+    multilabel: bool = True
+
     valid_metadata: Sequence[str] = ("lat", "lon")
 
     def __init__(
         self,
         root: Path,
         split: str,
-        band_order: dict[str, Sequence[float | str]] = {"s2": ["B04", "B03", "B02"]},
-        data_normalizer: Type[nn.Module] = MultiModalNormalizer,
+        band_order: dict[str, Sequence[float | str]] = band_default_order,
+        data_normalizer: type[nn.Module] = ClipZScoreNormalizer,
         transforms: nn.Module | None = None,
         metadata: Sequence[str] = None,
         return_stacked_image: bool = False,
@@ -148,7 +146,7 @@ class GeoBenchBENV2(GeoBenchBaseDataset):
                 specify ['B04', 'B03', 'B02], the dataset would return the red, green, and blue bands.
                 This is useful for models that expect a certain band order, or
                 test the impact of band order on model performance.
-            data_normalizer: The data normalizer to apply to the data, defaults to :class:`data_util.MultiModalNormalizer`,
+            data_normalizer: The data normalizer to apply to the data, defaults to :class:`data_util.ClipZScoreNormalizer`,
                 which applies z-score normalization to each band.
             transforms: Transforms to apply to the data
             metadata: metadata names to be returned under specified keys as part of the sample in the

@@ -4,16 +4,16 @@
 """Dynamic EarthNet."""
 
 import os
+from collections.abc import Sequence
+from pathlib import Path
 
 import pytest
-from pathlib import Path
-from torchgeo.datasets import DatasetNotFoundError
 import torch
-import matplotlib.pyplot as plt
 from pytest import MonkeyPatch
-from typing import Sequence
-from geobench_v2.datasets import GeoBenchDynamicEarthNet
+from torchgeo.datasets import DatasetNotFoundError
+
 from geobench_v2.datamodules import GeoBenchDynamicEarthNetDataModule
+from geobench_v2.datasets import GeoBenchDynamicEarthNet
 
 
 @pytest.fixture(params=[{"s2": ["B02", "B03", 0.0], "planet": ["r", "b", 0.0]}])

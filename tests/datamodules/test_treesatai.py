@@ -4,15 +4,17 @@
 """TreeSatAI Tests."""
 
 import os
-import pytest
-import matplotlib.pyplot as plt
-from typing import Sequence
-import torch
+from collections.abc import Sequence
 from pathlib import Path
-from torchgeo.datasets import DatasetNotFoundError
+
+import matplotlib.pyplot as plt
+import pytest
+import torch
 from pytest import MonkeyPatch
-from geobench_v2.datasets import GeoBenchTreeSatAI
+from torchgeo.datasets import DatasetNotFoundError
+
 from geobench_v2.datamodules import GeoBenchTreeSatAIDataModule
+from geobench_v2.datasets import GeoBenchTreeSatAI
 
 
 @pytest.fixture(

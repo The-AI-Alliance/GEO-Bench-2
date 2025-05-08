@@ -3,15 +3,15 @@
 
 """Utility functions for benchmark generation."""
 
-from matplotlib.lines import Line2D
-import pandas as pd
-import matplotlib.pyplot as plt
+import os
+from glob import glob
+
 import cartopy.crs as ccrs
 import cartopy.feature as cfeature
-from glob import glob
-import os
-import numpy as np
+import matplotlib.pyplot as plt
+import pandas as pd
 import tacoreader
+from matplotlib.lines import Line2D
 
 
 def plot_sample_locations(
@@ -244,7 +244,6 @@ def plot_enhanced_hemisphere_locations(
 
 def _plot_region(ax, df, split_column, split_colors, buffer_degrees, s, alpha, title):
     """Helper function to plot a specific region on the given axis."""
-
     min_lon = df["lon"].min() - buffer_degrees
     max_lon = df["lon"].max() + buffer_degrees
     min_lat = df["lat"].min() - buffer_degrees
@@ -374,7 +373,6 @@ def create_unittest_subset(
         n_val_samples: Number of validation samples to include in the subset
         n_test_samples: Number of test samples to include in the subset
     """
-
     taco_glob = sorted(glob(os.path.join(data_dir, tortilla_pattern)))
     taco_ben = tacoreader.load(taco_glob)
 

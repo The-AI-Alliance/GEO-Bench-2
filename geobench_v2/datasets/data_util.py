@@ -4,13 +4,13 @@
 """Data Processing Utility Mixin."""
 
 from abc import ABC, abstractmethod
-from typing import Union, Sequence, Optional
+from collections.abc import Sequence
+
 import torch
 import torch.nn as nn
 from torch import Tensor
-import kornia.augmentation as K
-from kornia.enhance import normalize, denormalize
-from .sensor_util import ModalityConfig, MultiModalConfig, DatasetBandRegistry
+
+from .sensor_util import ModalityConfig, MultiModalConfig
 
 
 class DataUtilsMixin(ABC):
@@ -21,7 +21,7 @@ class DataUtilsMixin(ABC):
         """Per-modality normalization statistics."""
         pass
 
-    def get_source_order(self) -> Union[list[str], dict[str, list[str]]]:
+    def get_source_order(self) -> list[str] | dict[str, list[str]]:
         """Derive source order from dataset configuration."""
         if isinstance(self.dataset_band_config, MultiModalConfig):
             return {
@@ -32,10 +32,10 @@ class DataUtilsMixin(ABC):
 
     def resolve_band_order(
         self,
-        band_order: Optional[
-            Union[Sequence[Union[str, float]], dict[str, Sequence[Union[str, float]]]]
-        ] = None,
-    ) -> Union[list[Union[str, float]], dict[str, list[Union[str, float]]]]:
+        band_order: Sequence[str | float]
+        | dict[str, Sequence[str | float]]
+        | None = None,
+    ) -> list[str | float] | dict[str, list[str | float]]:
         """Resolve band names to canonical names using modality configurations."""
         if band_order is None:
             return self.dataset_band_config.default_order
@@ -98,7 +98,7 @@ class DataUtilsMixin(ABC):
             return resolved_bands
 
     @staticmethod
-    def _resolve_in_config(band: str, config: ModalityConfig) -> Optional[str]:
+    def _resolve_in_config(band: str, config: ModalityConfig) -> str | None:
         """Resolve band name within a specific modality configuration.
 
         Args:
@@ -112,10 +112,8 @@ class DataUtilsMixin(ABC):
 
     def rearrange_bands(
         self,
-        data: Union[Tensor, dict[str, Tensor]],
-        target_order: Union[
-            list[Union[str, float]], dict[str, list[Union[str, float]]]
-        ],
+        data: Tensor | dict[str, Tensor],
+        target_order: list[str | float] | dict[str, list[str | float]],
     ) -> dict[str, Tensor]:
         """Rearrange bands using dataset configuration."""
         if not isinstance(self.dataset_band_config, MultiModalConfig):
@@ -140,10 +138,7 @@ class DataUtilsMixin(ABC):
         return self._rearrange_multimodal_to_tensor(data, target_order)
 
     def _rearrange_bands_single_modality(
-        self,
-        data: Tensor,
-        source_order: list[str],
-        target_order: list[Union[str, float]],
+        self, data: Tensor, source_order: list[str], target_order: list[str | float]
     ) -> dict[str, Tensor]:
         """Rearrange bands for single modality."""
         output_channels = []
@@ -179,7 +174,7 @@ class DataUtilsMixin(ABC):
             return {"image": torch.cat(output_channels, dim=0)}
 
     def _rearrange_multimodal_to_tensor(
-        self, data: dict[str, Tensor], target_order: list[Union[str, float]]
+        self, data: dict[str, Tensor], target_order: list[str | float]
     ) -> dict[str, Tensor]:
         """Create single tensor from multi-modal data."""
         resolved_order = self.resolve_band_order(target_order)
@@ -221,7 +216,7 @@ class DataUtilsMixin(ABC):
             return {"image": torch.cat(output_channels, dim=0)}
 
     def _rearrange_multimodal_to_dict(
-        self, data: dict[str, Tensor], target_order: dict[str, list[Union[str, float]]]
+        self, data: dict[str, Tensor], target_order: dict[str, list[str | float]]
     ) -> dict[str, Tensor]:
         """Create dict of tensors from multi-modal data."""
         output = {}
@@ -250,7 +245,13 @@ class DataUtilsMixin(ABC):
                         shape[0] = 1
                     channel = torch.full(shape, float(band))
                 else:
-                    idx = mod_config.default_order.index(band)
+                    try:
+                        idx = mod_config.default_order.index(band)
+                    except ValueError:
+                        raise ValueError(
+                            f"Band {band} not found in {modality} default order.\n"
+                            f"Available bands: {', '.join(mod_config.default_order)}"
+                        )
                     if len(source_data.shape) == 4:  # timeseries of [T, C, H, W]
                         channel = source_data[:, idx : idx + 1]
                     else:  # assume [C, H, W]
@@ -287,7 +288,8 @@ class DataNormalizer(nn.Module, ABC):
     def __init__(
         self,
         stats: dict[str, dict[str, float]],
-        band_order: Union[list[Union[str, float]], dict[str, list[Union[str, float]]]],
+        band_order: list[str | float] | dict[str, list[str | float]],
+        image_keys: Sequence[str] | None = None,
     ) -> None:
         """Initialize normalizer.
 
@@ -298,6 +300,7 @@ class DataNormalizer(nn.Module, ABC):
         super().__init__()
         self.stats = stats
         self.band_order = band_order
+        self.image_keys = image_keys or ["image"]
 
     @abstractmethod
     def forward(self, data: dict[str, Tensor]) -> dict[str, Tensor]:
@@ -310,9 +313,8 @@ class DataNormalizer(nn.Module, ABC):
         pass
 
 
-class MultiModalNormalizer(DataNormalizer):
-    """
-    Normalization module applying sequential clipping and z-score normalization.
+class ClipZScoreNormalizer(DataNormalizer):
+    """Normalization module applying sequential optional clipping and z-score normalization.
 
     Applies normalization per channel based on band configuration:
     1. If 'clip_min' and 'clip_max' are defined for a band in stats:
@@ -327,7 +329,8 @@ class MultiModalNormalizer(DataNormalizer):
     def __init__(
         self,
         stats: dict[str, dict[str, float]],
-        band_order: Union[list[Union[str, float]], dict[str, list[Union[str, float]]]],
+        band_order: list[str | float] | dict[str, list[str | float]],
+        image_keys: Sequence[str] | None = None,
     ) -> None:
         """Initialize normalizer applying clip then z-score.
 
@@ -341,8 +344,9 @@ class MultiModalNormalizer(DataNormalizer):
             band_order: Sequence of band names/fill values, or dict mapping modality names
                         (e.g., "s1", "s2") to such sequences. Determines the channel order
                         and identifies fill value channels.
+
         """
-        super().__init__(stats, band_order)
+        super().__init__(stats, band_order, image_keys)
 
         self.means = {}
         self.stds = {}
@@ -351,22 +355,48 @@ class MultiModalNormalizer(DataNormalizer):
         self.is_fill_value = {}
 
         if isinstance(band_order, dict):
+            # Case 2 & 4: Multi-modal with different bands for each modality
             for modality, bands in band_order.items():
-                key = f"image_{modality}"
-                (self.means[key], self.stds[key], self.is_fill_value[key]) = (
-                    self._get_band_stats(bands)
-                )
-                # Only need clip values now, not the is_clipped mask
-                self.clip_mins[key], self.clip_maxs[key] = self._get_clip_values(bands)
+                # Get stats for this modality
+                stats_tuple = self._get_band_stats(bands)
+                clip_tuple = self._get_clip_values(bands)
+
+                # Case 2: Basic multi-modal (image_modality)
+                base_key = f"image_{modality}"
+                (
+                    self.means[base_key],
+                    self.stds[base_key],
+                    self.is_fill_value[base_key],
+                ) = stats_tuple
+                self.clip_mins[base_key], self.clip_maxs[base_key] = clip_tuple
+
+                # Case 4: Handle modality+timestamp combinations
+                # For each image_key, create entries with modality
+                if len(self.image_keys) > 1 and self.image_keys != ["image"]:
+                    for key in self.image_keys:
+                        if key == "image":
+                            continue  # Already handled
+
+                        # Create modality+timestamp key (e.g. image_pre_s1)
+                        modality_key = f"{key}_{modality}"
+
+                        # Add normalized stats
+                        self.means[modality_key] = self.means[base_key]
+                        self.stds[modality_key] = self.stds[base_key]
+                        self.is_fill_value[modality_key] = self.is_fill_value[base_key]
+                        self.clip_mins[modality_key] = self.clip_mins[base_key]
+                        self.clip_maxs[modality_key] = self.clip_maxs[base_key]
         else:
-            key = "image"
-            (self.means[key], self.stds[key], self.is_fill_value[key]) = (
-                self._get_band_stats(band_order)
-            )
-            self.clip_mins[key], self.clip_maxs[key] = self._get_clip_values(band_order)
+            # Cases 1 & 3: Single band order for one or multiple image keys
+            stats_tuple = self._get_band_stats(band_order)
+            clip_tuple = self._get_clip_values(band_order)
+
+            for key in self.image_keys:
+                self.means[key], self.stds[key], self.is_fill_value[key] = stats_tuple
+                self.clip_mins[key], self.clip_maxs[key] = clip_tuple
 
     def _get_band_stats(
-        self, bands: Sequence[Union[str, float]]
+        self, bands: Sequence[str | float]
     ) -> tuple[Tensor, Tensor, Tensor]:
         """Extract mean, std tensors and a boolean mask identifying fill value channels."""
         means, stds, is_fill = [], [], []
@@ -379,6 +409,7 @@ class MultiModalNormalizer(DataNormalizer):
                 if band not in self.stats.get(
                     "means", {}
                 ) or band not in self.stats.get("stds", {}):
+                    print(band), print(self.stats)
                     raise ValueError(
                         f"Band '{band}' not found in normalization statistics (means/stds)."
                     )
@@ -387,9 +418,7 @@ class MultiModalNormalizer(DataNormalizer):
                 is_fill.append(False)
         return torch.tensor(means), torch.tensor(stds), torch.tensor(is_fill)
 
-    def _get_clip_values(
-        self, bands: Sequence[Union[str, float]]
-    ) -> tuple[Tensor, Tensor]:
+    def _get_clip_values(self, bands: Sequence[str | float]) -> tuple[Tensor, Tensor]:
         """Extract clip min/max tensors. Uses +/- infinity if clipping is not defined."""
         clip_mins, clip_maxs = [], []
         has_clip_min_stats = "clip_min" in self.stats
@@ -421,7 +450,7 @@ class MultiModalNormalizer(DataNormalizer):
 
     def _reshape_and_expand(
         self, tensor_to_reshape: Tensor, target_tensor: Tensor
-    ) -> tuple[Tensor, Optional[Tensor]]:
+    ) -> tuple[Tensor, Tensor | None]:
         """Reshape 1D stat/mask tensor and optionally expand boolean masks for broadcasting."""
         orig_dim = target_tensor.dim()
         if orig_dim == 3:  # [C, H, W]
@@ -541,10 +570,36 @@ class MultiModalNormalizer(DataNormalizer):
 
         return result
 
+    def __repr__(self) -> str:
+        """Return string representation."""
+        lines = [f"{self.__class__.__name__}("]
+        for key in sorted(self.means.keys()):
+            lines.append(f"\n  {key}:")
+            n_channels = len(self.means[key])
+
+            # Display stats for each channel/band
+            for i in range(n_channels):
+                if self.is_fill_value[key][i]:
+                    lines.append(f"    Channel {i}: Fill Value (no normalization)")
+                else:
+                    mean = self.means[key][i].item()
+                    std = self.stds[key][i].item()
+                    clip_min = self.clip_mins[key][i].item()
+                    clip_max = self.clip_maxs[key][i].item()
+
+                    clip_info = ""
+                    if clip_min > float("-inf") or clip_max < float("inf"):
+                        clip_info = f", clipping: [{clip_min:.4f}, {clip_max:.4f}]"
+
+                    lines.append(
+                        f"    Channel {i}: mean={mean:.4f}, std={std:.4f}{clip_info}"
+                    )
+
+        return "\n".join(lines)
+
 
 class SatMAENormalizer(DataNormalizer):
-    """
-    Normalization module for satellite imagery with SatMAE-style normalization.
+    """Normalization module for satellite imagery with SatMAE-style normalization.
 
     Several papers have cited SatMAE for this normalization procedure:
     - https://github.com/sustainlab-group/SatMAE/blob/e31c11fa1bef6f9a9aa3eb49e8637c8b8952ba5e/util/datasets.py#L358
@@ -567,7 +622,8 @@ class SatMAENormalizer(DataNormalizer):
     def __init__(
         self,
         stats: dict[str, dict[str, float]],
-        band_order: Union[list[Union[str, float]], dict[str, list[Union[str, float]]]],
+        band_order: list[str | float] | dict[str, list[str | float]],
+        image_keys: Sequence[str] | None = None,
         output_range: str = "zero_one",
     ) -> None:
         """Initialize SatMAE-style normalizer.
@@ -583,7 +639,7 @@ class SatMAENormalizer(DataNormalizer):
         Raises:
             AssertionError: If output_range is not one of the valid options
         """
-        super().__init__(stats, band_order)
+        super().__init__(stats, band_order, image_keys)
 
         if output_range not in self.valid_ranges:
             raise AssertionError(
@@ -609,25 +665,48 @@ class SatMAENormalizer(DataNormalizer):
         self.is_fill_value = {}  # Boolean mask for fill value channels
 
         if isinstance(band_order, dict):
+            # Case 2 & 4: Multi-modal with different bands for each modality
             for modality, bands in band_order.items():
-                key = f"image_{modality}"
+                # Calculate stats for this modality
                 means, stds, is_fill = self._get_band_stats(bands)
+
+                # Case 2: Basic multi-modal (image_modality)
+                base_key = f"image_{modality}"
+                self.means[base_key] = means
+                self.stds[base_key] = stds
+                self.min_values[base_key] = means - 2 * stds
+                self.max_values[base_key] = means + 2 * stds
+                self.is_fill_value[base_key] = is_fill
+
+                # Case 4: Handle modality+timestamp combinations
+                # For each image_key, create entries with modality
+                if len(self.image_keys) > 1 and self.image_keys != ["image"]:
+                    for key in self.image_keys:
+                        if key == "image":
+                            continue  # Already handled
+
+                        # Create modality+timestamp key (e.g. image_pre_s1)
+                        modality_key = f"{key}_{modality}"
+
+                        # Add normalized stats
+                        self.means[modality_key] = means
+                        self.stds[modality_key] = stds
+                        self.min_values[modality_key] = means - 2 * stds
+                        self.max_values[modality_key] = means + 2 * stds
+                        self.is_fill_value[modality_key] = is_fill
+        else:
+            # Cases 1 & 3: Single band order for one or multiple image keys
+            means, stds, is_fill = self._get_band_stats(band_order)
+
+            for key in self.image_keys:
                 self.means[key] = means
                 self.stds[key] = stds
                 self.min_values[key] = means - 2 * stds
                 self.max_values[key] = means + 2 * stds
                 self.is_fill_value[key] = is_fill
-        else:
-            key = "image"
-            means, stds, is_fill = self._get_band_stats(band_order)
-            self.means[key] = means
-            self.stds[key] = stds
-            self.min_values[key] = means - 2 * stds
-            self.max_values[key] = means + 2 * stds
-            self.is_fill_value[key] = is_fill
 
     def _get_band_stats(
-        self, bands: Sequence[Union[str, float]]
+        self, bands: Sequence[str | float]
     ) -> tuple[Tensor, Tensor, Tensor]:
         """Extract mean and std values for specified bands and identify fill values.
 
@@ -814,3 +893,28 @@ class SatMAENormalizer(DataNormalizer):
                 result[key] = tensor
 
         return result
+
+    def __repr__(self) -> str:
+        """Return string representation."""
+        lines = [f"{self.__class__.__name__}: (output_range={self.output_range}):"]
+
+        for key in sorted(self.means.keys()):
+            lines.append(f"\n  {key}:")
+            n_channels = len(self.means[key])
+
+            # Display stats for each channel/band
+            for i in range(n_channels):
+                if self.is_fill_value[key][i]:
+                    lines.append(f"    Channel {i}: Fill Value (no normalization)")
+                else:
+                    mean = self.means[key][i].item()
+                    std = self.stds[key][i].item()
+                    min_val = self.min_values[key][i].item()
+                    max_val = self.max_values[key][i].item()
+
+                    lines.append(
+                        f"    Channel {i}: mean={mean:.4f}, std={std:.4f}, "
+                        f"clipping: [{min_val:.4f}, {max_val:.4f}]"
+                    )
+
+        return "\n".join(lines)

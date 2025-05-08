@@ -3,20 +3,19 @@
 
 """SpaceNet6 dataset."""
 
-from torch import Tensor
-from torchgeo.datasets import SpaceNet6
+from collections.abc import Sequence
 from pathlib import Path
-from typing import Sequence, Type
+
+import numpy as np
+import rasterio
+import torch
 import torch.nn as nn
 from shapely import wkt
+from torch import Tensor
 
-from .sensor_util import DatasetBandRegistry
 from .base import GeoBenchBaseDataset
-from .data_util import MultiModalNormalizer
-import torch.nn as nn
-import rasterio
-import numpy as np
-import torch
+from .data_util import ClipZScoreNormalizer
+from .sensor_util import DatasetBandRegistry
 
 
 class GeoBenchSpaceNet6(GeoBenchBaseDataset):
@@ -87,7 +86,7 @@ class GeoBenchSpaceNet6(GeoBenchBaseDataset):
         root: Path,
         split: str,
         band_order: Sequence[str] = band_default_order,
-        data_normalizer: Type[nn.Module] = MultiModalNormalizer,
+        data_normalizer: type[nn.Module] = ClipZScoreNormalizer,
         transforms: nn.Module | None = None,
         return_stacked_image: bool = False,
         metadata: Sequence[str] | None = None,
@@ -102,7 +101,7 @@ class GeoBenchSpaceNet6(GeoBenchBaseDataset):
                 specify ['red', 'green', 'blue', 'nir', 'nir'], the dataset would return images with 5 channels
                 in that order. This is useful for models that expect a certain band order, or
                 test the impact of band order on model performance.
-            data_normalizer: The data normalizer to apply to the data, defaults to :class:`data_util.MultiModalNormalizer`,
+            data_normalizer: The data normalizer to apply to the data, defaults to :class:`data_util.ClipZScoreNormalizer`,
                 which applies z-score normalization to each band.
             transforms:
             metadata: metadata names to be returned as part of the sample in the

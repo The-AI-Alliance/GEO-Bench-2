@@ -1,17 +1,7 @@
 import pytest
 import torch
-from geobench_v2.datasets.data_util import (
-    DataUtilsMixin,
-    MultiModalNormalizer,
-    SatMAENormalizer,
-)
-from geobench_v2.datasets.sensor_util import (
-    ModalityConfig,
-    MultiModalConfig,
-    BandConfig,
-    DatasetBandRegistry,
-    SensorBandRegistry,
-)
+
+from geobench_v2.datasets.data_util import ClipZScoreNormalizer, SatMAENormalizer
 
 
 class TestSatMAENormalizer:
@@ -196,9 +186,9 @@ class TestSatMAENormalizer:
         )
 
 
-class TestMultiModalNormalizer:
+class TestClipZScoreNormalizer:
     """
-    Tests the MultiModalNormalizer class with sequential clip then z-score logic.
+    Tests the ClipZScoreNormalizer class with sequential clip then z-score logic.
 
     Verifies correct normalization (clip then z-score) and denormalization (inverse z-score only)
     behavior, handling of fill values, and both single-tensor and multi-modal dictionary inputs.
@@ -262,7 +252,7 @@ class TestMultiModalNormalizer:
 
     def test_normalization_values(self, stats):
         """Verify normalization applies clip then z-score correctly per band."""
-        normalizer = MultiModalNormalizer(stats, self.BAND_ORDER)
+        normalizer = ClipZScoreNormalizer(stats, self.BAND_ORDER)
 
         input_tensor = self.INPUT_VALS.unsqueeze(-1).unsqueeze(-1)
         test_tensor = input_tensor.permute(1, 0, 2, 3)
@@ -281,7 +271,7 @@ class TestMultiModalNormalizer:
 
     def test_denormalization_roundtrip(self, stats):
         """Verify denormalization reverses only the z-score step."""
-        normalizer = MultiModalNormalizer(stats, self.BAND_ORDER)
+        normalizer = ClipZScoreNormalizer(stats, self.BAND_ORDER)
 
         input_tensor = self.INPUT_VALS.unsqueeze(-1).unsqueeze(-1)
         test_tensor = input_tensor.permute(1, 0, 2, 3)
@@ -315,7 +305,7 @@ class TestMultiModalNormalizer:
     def test_multimodal_input_dict(self, stats):
         """Test sequential normalization and denormalization with dict input."""
         band_order_dict = {"mod1": ["B1", self.FILL_VALUE], "mod2": ["B2", "B3"]}
-        normalizer = MultiModalNormalizer(stats, band_order_dict)
+        normalizer = ClipZScoreNormalizer(stats, band_order_dict)
 
         input_mod1 = (
             torch.tensor([[self.TEST_VALUES_B1_IN[0]], [self.FILL_VALUE]])

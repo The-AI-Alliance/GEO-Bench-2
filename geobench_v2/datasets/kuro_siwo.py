@@ -3,19 +3,18 @@
 
 """Kuro Siwo dataset."""
 
-from torch import Tensor
-from torchgeo.datasets import SpaceNet6
-from pathlib import Path
-from typing import Sequence, Type, Literal
-import torch.nn as nn
+from collections.abc import Sequence
+from typing import Literal
 
-from .sensor_util import DatasetBandRegistry
-from .base import GeoBenchBaseDataset
-from .data_util import MultiModalNormalizer
-import torch.nn as nn
-import rasterio
 import numpy as np
+import rasterio
 import torch
+import torch.nn as nn
+from torch import Tensor
+
+from .base import GeoBenchBaseDataset
+from .data_util import ClipZScoreNormalizer
+from .sensor_util import DatasetBandRegistry
 
 
 class GeoBenchKuroSiwo(GeoBenchBaseDataset):
@@ -41,7 +40,7 @@ class GeoBenchKuroSiwo(GeoBenchBaseDataset):
         "geobench_kuro_siwo.tortilla"
     ]
 
-    sha256str = [""]
+    sha256str = ["0b546c54df70cb7548081df688cc2317f00f7b81e541e09fa0ddcd787d647eef"]
 
     dataset_band_config = DatasetBandRegistry.KURO_SIWO
 
@@ -76,8 +75,8 @@ class GeoBenchKuroSiwo(GeoBenchBaseDataset):
         root: str,
         split: Literal["train", "val", "test"],
         band_order: dict[str, Sequence[str]] = band_default_order,
-        data_normalizer: Type[nn.Module] = MultiModalNormalizer,
-        transforms: Type[nn.Module] = None,
+        data_normalizer: type[nn.Module] = ClipZScoreNormalizer,
+        transforms: type[nn.Module] = None,
         return_stacked_image: bool = False,
         time_step: Sequence[str] = ["pre_1","pre_1","post"],
         download: bool = False,
@@ -195,7 +194,7 @@ class GeoBenchKuroSiwo(GeoBenchBaseDataset):
 
         if self.return_stacked_image:
             modality_keys = {
-                "sar": ["image_pre_1", "image_pre_2", "image_post"],
+                "sar": ["image_sar_pre_1", "image_sar_pre_2", "image_sar_post"],
                 "dem": ["image_dem"],
             }
             stacked_images = [

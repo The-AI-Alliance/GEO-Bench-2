@@ -3,23 +3,19 @@
 
 """MADOS dataset."""
 
-from torch import Tensor
-from pathlib import Path
-from typing import Sequence, Type
-import torch.nn as nn
-from shapely import wkt
-
-from .sensor_util import DatasetBandRegistry
-from .base import GeoBenchBaseDataset
-from .data_util import MultiModalNormalizer
-import torch.nn as nn
-import rasterio
-import numpy as np
-import torch
 import warnings
-from rasterio.errors import NotGeoreferencedWarning
+from collections.abc import Sequence
+from pathlib import Path
 
-from rasterio.enums import Resampling
+import rasterio
+import torch
+import torch.nn as nn
+from rasterio.errors import NotGeoreferencedWarning
+from torch import Tensor
+
+from .base import GeoBenchBaseDataset
+from .data_util import ClipZScoreNormalizer
+from .sensor_util import DatasetBandRegistry
 
 
 class GeoBenchMADOS(GeoBenchBaseDataset):
@@ -35,7 +31,7 @@ class GeoBenchMADOS(GeoBenchBaseDataset):
     # paths = ["MADOS.tortilla"]
     paths = ["geobench_mados.tortilla"]
 
-    sha256str = [""]
+    sha256str = ["d9cbf591afbd7631b4d968c527f7d91cb4a2a98524d51b00b4ccb6d715502035"]
 
     dataset_band_config = DatasetBandRegistry.MADOS
 
@@ -115,7 +111,7 @@ class GeoBenchMADOS(GeoBenchBaseDataset):
         root: Path,
         split: str,
         band_order: Sequence[str] = ["B04", "B03", "B02", "B08"],
-        data_normalizer: Type[nn.Module] = MultiModalNormalizer,
+        data_normalizer: type[nn.Module] = ClipZScoreNormalizer,
         transforms: nn.Module | None = None,
         download: bool = False,
     ) -> None:
@@ -128,7 +124,7 @@ class GeoBenchMADOS(GeoBenchBaseDataset):
                 specify ['red', 'green', 'blue', 'nir', 'nir'], the dataset would return images with 5 channels
                 in that order. This is useful for models that expect a certain band order, or
                 test the impact of band order on model performance.
-            data_normalizer: The data normalizer to apply to the data, defaults to :class:`data_util.MultiModalNormalizer`,
+            data_normalizer: The data normalizer to apply to the data, defaults to :class:`data_util.ClipZScoreNormalizer`,
                 which applies z-score normalization to each band.
             transforms:
         """
@@ -164,7 +160,6 @@ class GeoBenchMADOS(GeoBenchBaseDataset):
         nan_mask = torch.isnan(img_dict["image"])
         img_dict = self.data_normalizer(img_dict)
 
-        # replace NaN values with 0 after normalization
         img_dict["image"] = torch.where(
             nan_mask, torch.zeros_like(img_dict["image"]), img_dict["image"]
         )
