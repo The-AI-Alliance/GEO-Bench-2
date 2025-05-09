@@ -15,18 +15,6 @@ from torch import Tensor
 from tqdm.auto import tqdm
 
 
-class NoNormalization(nn.Module):
-    """No normalization applied to the input batch, used to replace
-    the datamodule or dataset normalization scheme to compute original stas
-    """
-
-    def __init__(self, stats, band_order):
-        super().__init__()
-
-    def forward(self, batch: dict[str, Tensor]) -> Tensor:
-        return batch
-
-
 # Using Caleb Robinson's implementation: https://gist.github.com/calebrob6/1ef1e64bd62b1274adf2c6f91e20d215
 class ImageStatistics(torch.nn.Module):
     def __init__(
@@ -38,7 +26,7 @@ class ImageStatistics(torch.nn.Module):
         compute_quantiles: bool = False,
         clip_min_val: Tensor | None = None,
         clip_max_val: Tensor | None = None,
-        normalization_mode: str = "none",  # Options: "none", "clip_only", "simple_rescale", "satmae"
+        normalization_mode: str = "none",
     ):
         """Initializes the ImageStatistics method with support for multiple normalization schemes.
 
@@ -58,7 +46,6 @@ class ImageStatistics(torch.nn.Module):
         """
         super(ImageStatistics, self).__init__()
 
-        # Raw statistics (first stage)
         self.register_buffer("mean", torch.zeros(shape))
         self.register_buffer("min", torch.full(shape, float("inf")))
         self.register_buffer("max", torch.full(shape, float("-inf")))
@@ -66,10 +53,8 @@ class ImageStatistics(torch.nn.Module):
         self.register_buffer("std", torch.ones(shape))
         self.register_buffer("count", torch.zeros(1))
 
-        # Track shift values needed for bands with negative values (for satmae mode)
         self.register_buffer("shift_offsets", torch.zeros(shape))
 
-        # For second stage normalization stats
         self.normalization_mode = normalization_mode
 
         if normalization_mode in ["clip_only", "simple_rescale", "satmae"]:
@@ -88,7 +73,6 @@ class ImageStatistics(torch.nn.Module):
         self.range_min, self.range_max = range_vals
         self.register_buffer("hist", torch.zeros(shape[0], bins))
 
-        # For clipping
         if clip_min_val is not None and clip_max_val is not None:
             self.register_buffer("clip_min_val", torch.tensor(clip_min_val))
             self.register_buffer("clip_max_val", torch.tensor(clip_max_val))
@@ -105,37 +89,28 @@ class ImageStatistics(torch.nn.Module):
         Computes both raw statistics and normalized statistics if enabled.
         """
         with torch.no_grad():
-            # 1. Always compute raw statistics with original data
             self._update_raw_stats(x)
 
-            # 2. Apply normalization if needed for normalized statistics
-            # Apply optional clipping for modes that need it
             if self.clipping_enabled and self.normalization_mode != "none":
                 x_clipped = torch.clamp(x, min=self.clip_min_val, max=self.clip_max_val)
             else:
                 x_clipped = x
 
             if self.normalization_mode == "none":
-                # Skip second stage normalization
                 normalized_x = None
 
             elif self.normalization_mode == "clip_only":
-                # Just use the clipped data for second stage
                 normalized_x = x_clipped
 
             elif self.normalization_mode == "simple_rescale":
-                # Simple rescaling to [0,1] by dividing by max value
                 normalized_x = self._apply_simple_rescale(x_clipped)
 
             elif self.normalization_mode == "satmae":
-                # Apply SatMAE normalization
-                # Uses the statistics computed so far for normalization
                 if self.count > 0:
                     normalized_x = self._apply_satmae_normalization(x)
                 else:
                     normalized_x = None
 
-            # Update normalized statistics if we have a valid normalized tensor
             if normalized_x is not None and self.normalization_mode != "none":
                 self._update_normalized_stats(normalized_x)
 
@@ -146,7 +121,6 @@ class ImageStatistics(torch.nn.Module):
         batch_var = torch.var(x, dim=self.dims)
         batch_count = torch.tensor(x.shape[self.dims[0]], dtype=torch.float)
 
-        # Update running mean and variance using Welford's algorithm
         n_ab = self.count + batch_count
         m_a = self.mean * self.count
         m_b = batch_mean * batch_count
@@ -160,7 +134,6 @@ class ImageStatistics(torch.nn.Module):
         self.count += batch_count
         self.std = torch.sqrt(self.var + 1e-8)
 
-        # Update min/max
         min_vals = x
         max_vals = x
         for dim in sorted(self.dims, reverse=True):
@@ -173,13 +146,11 @@ class ImageStatistics(torch.nn.Module):
         self.min = torch.min(self.min, min_vals)
         self.max = torch.max(self.max, max_vals)
 
-        # Update shift offsets for satmae mode - compute once
         if self.normalization_mode == "satmae":
             negative_channels = self.min < 0
             if negative_channels.any():
                 self.shift_offsets[negative_channels] = -self.min[negative_channels]
 
-        # Compute channel histograms
         all_dims = set(range(x.ndim))
         dims_set = set(self.dims)
         channel_dims = list(all_dims - dims_set)
@@ -189,7 +160,6 @@ class ImageStatistics(torch.nn.Module):
         channel_dim = channel_dims[0]
         channels = self.hist.shape[0]
 
-        # Loop over channels to compute histogram for each
         for i in range(channels):
             channel_data = x.select(dim=channel_dim, index=i).flatten()
             hist_channel = torch.histc(
@@ -211,42 +181,33 @@ class ImageStatistics(torch.nn.Module):
 
         This is more direct than full min/max normalization when we just want a simple positive rescaling.
         """
-        # Determine channel dimension from self.dims
         all_dims = set(range(x.ndim))
         dims_set = set(self.dims)
         channel_dim = list(all_dims - dims_set)[0]
 
-        # Create appropriate shape for broadcasting
         broadcast_shape = [1] * x.ndim
         broadcast_shape[channel_dim] = (
             self.clip_min_val.shape[0] if self.clip_min_val.ndim > 0 else 1
         )
 
-        # Reshape clip values for proper broadcasting
         min_val = self.clip_min_val.view(broadcast_shape)
         max_val = self.clip_max_val.view(broadcast_shape)
 
-        # 1. Shift to make all values non-negative (only if min_val < 0)
         shifted_x = x.clone()
         negative_ranges = min_val < 0
 
         if negative_ranges.any():
-            # Create shift values tensor with same shape as min_val
             shift_values = torch.zeros_like(min_val)
             shift_values[negative_ranges] = -min_val[negative_ranges]
 
-            # Apply shift
             shifted_x = x + shift_values
 
-            # Also adjust max_val to account for the shift
             shifted_max = max_val + shift_values
         else:
             shifted_max = max_val
 
-        # 2. Simply divide by the maximum value
         normalized = shifted_x / shifted_max
 
-        # Ensure values stay in [0,1] range
         normalized = torch.clamp(normalized, min=0.0, max=1.0)
 
         return normalized
@@ -261,32 +222,24 @@ class ImageStatistics(torch.nn.Module):
         3. Clamp values to the adjusted range mean±2std
         4. Rescale to [0,1]
         """
-        # Determine channel dimension from self.dims
         all_dims = set(range(x.ndim))
         dims_set = set(self.dims)
         channel_dim = list(all_dims - dims_set)[0]
 
-        # Create appropriate shape for broadcasting
         broadcast_shape = [1] * x.ndim
         broadcast_shape[channel_dim] = self.mean.shape[0]
 
-        # Reshape tensors for broadcasting
         shift_offsets = self.shift_offsets.view(broadcast_shape)
         mean = self.mean.view(broadcast_shape)
         std = self.std.view(broadcast_shape)
 
-        # 1. Apply shift to all channels simultaneously
         normalized = x + shift_offsets
 
-        # 2. Calculate adjusted mean after shifting
         adjusted_mean = mean + shift_offsets
-        # std remains the same after constant shifting
 
-        # 3. Calculate min/max bounds for clipping
         channel_min = adjusted_mean - 2 * std
         channel_max = adjusted_mean + 2 * std
 
-        # 4. Rescale
         normalized = (normalized - channel_min) / (channel_max - channel_min)
         normalized = torch.clamp(normalized, min=0.0, max=1.0)
 
@@ -299,7 +252,6 @@ class ImageStatistics(torch.nn.Module):
         batch_var = torch.var(x, dim=self.dims)
         batch_count = torch.tensor(x.shape[self.dims[0]], dtype=torch.float)
 
-        # Update normalized statistics using Welford's algorithm
         n_ab = self.norm_count + batch_count
         m_a = self.norm_mean * self.norm_count
         m_b = batch_mean * batch_count
@@ -430,7 +382,6 @@ class DatasetStatistics(ABC):
 
     def aggregate_image_statistics(self) -> dict[str, dict[str, Any]]:
         """Aggregate image input statistics, including two-stage normalization if enabled."""
-        # Extract statistics from running_stats
         for key in self.running_stats:
             stats = self.running_stats[key]
             update_dict = {
@@ -457,7 +408,6 @@ class DatasetStatistics(ABC):
                 else None,
             }
 
-            # Add normalized statistics if they were computed
             if (
                 hasattr(stats, "compute_normalized_stats")
                 and stats.compute_normalized_stats
@@ -470,7 +420,6 @@ class DatasetStatistics(ABC):
                     }
                 )
 
-            # Add used clip values if clipping was enabled for this key
             if stats.clipping_enabled:
                 update_dict["clip_min_used"] = stats.clip_min_val.cpu().numpy()
                 update_dict["clip_max_used"] = stats.clip_max_val.cpu().numpy()
