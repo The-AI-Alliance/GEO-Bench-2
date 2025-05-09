@@ -31,10 +31,9 @@ def plot_channel_histograms(stats_json_path: str) -> plt.Figure:
 
     for modality_key, modality_stats in input_stats.items():
         band_names = modality_stats["band_names"]
-        # Ensure histograms is a list of lists, even if only one band exists
         histograms = modality_stats["histograms"]
         if not isinstance(histograms[0], list):
-            histograms = [histograms]  # Wrap if it's a single flat list for one band
+            histograms = [histograms]
 
         bins = modality_stats["histogram_bins"]
 
@@ -56,12 +55,9 @@ def plot_channel_histograms(stats_json_path: str) -> plt.Figure:
         for i, band_name in enumerate(band_names):
             counts = np.array(histograms[i])
 
-            # Determine x-values (pixel values) for plotting
             if len(bin_edges) == len(counts) + 1:
-                # Standard case: bins are edges, plot at bin centers
                 x_values = (bin_edges[:-1] + bin_edges[1:]) / 2
             elif len(bin_edges) == len(counts):
-                # Assume bins are centers or left edges
                 x_values = bin_edges
                 print(
                     f"Warning: Assuming histogram_bins for {band_name} in {modality_key} represent bin centers/starts."
@@ -72,7 +68,6 @@ def plot_channel_histograms(stats_json_path: str) -> plt.Figure:
                 )
                 continue
 
-            # Plot as a line plot
             ax.plot(x_values, counts, label=band_name, alpha=0.8)
 
         ax.set_title(f"Channel Histograms for Modality: {modality_key}")
@@ -83,42 +78,6 @@ def plot_channel_histograms(stats_json_path: str) -> plt.Figure:
         fig.tight_layout()
 
     return fig
-
-
-def create_normalization_stats(dataset_stats: dict) -> dict:
-    """Extract normalization stats from dataset stats format to normalizer format."""
-    norm_stats = {"means": {}, "stds": {}, "clip_min": {}, "clip_max": {}}
-
-    for modality_key, modality_stats in dataset_stats["input_stats"].items():
-        band_names = modality_stats["band_names"]
-        means = modality_stats["mean"]
-        stds = modality_stats["std"]
-
-        # Handle case where not all bands have stats
-        if len(band_names) > len(means):
-            print(
-                f"Warning: Number of band names ({len(band_names)}) > number of mean values ({len(means)}) for {modality_key}"
-            )
-            band_names = band_names[: len(means)]
-
-        for i, band in enumerate(band_names):
-            if i < len(means) and i < len(stds):
-                norm_stats["means"][band] = means[i]
-                norm_stats["stds"][band] = stds[i]
-
-                # Add optional clipping values (2% to 98% percentiles if available)
-                if "pct_02" in modality_stats and "pct_98" in modality_stats:
-                    if (
-                        modality_stats["pct_02"] is not None
-                        and modality_stats["pct_98"] is not None
-                    ):
-                        if i < len(modality_stats["pct_02"]) and i < len(
-                            modality_stats["pct_98"]
-                        ):
-                            norm_stats["clip_min"][band] = modality_stats["pct_02"][i]
-                            norm_stats["clip_max"][band] = modality_stats["pct_98"][i]
-
-    return norm_stats
 
 
 def compute_batch_histograms(
@@ -142,24 +101,19 @@ def compute_batch_histograms(
         if key.startswith("image") and isinstance(tensor, Tensor) and tensor.ndim == 4:
             modality = key
 
-            # Extract number of channels
             num_channels = tensor.shape[1]
             histograms = []
             bin_edges = None
 
-            # Compute per-channel histograms
             for c in range(num_channels):
                 channel_data = tensor[:, c, :, :].detach().cpu().numpy().flatten()
                 counts, edges = np.histogram(
                     channel_data, bins=n_bins, range=hist_range
                 )
                 histograms.append(counts.tolist())
-
-                # Store bin edges (same for all channels if range is fixed)
                 if bin_edges is None:
                     bin_edges = edges.tolist()
 
-            # Store stats for this modality
             batch_stats[modality] = {
                 "histograms": histograms,
                 "histogram_bins": bin_edges,
@@ -192,21 +146,14 @@ def plot_batch_histograms(
     """
     figs = []
 
-    # Convert band_order to dictionary format if it's a list
     if isinstance(band_order, list):
-        # If band_order is a list, we assume there's only one modality
-        # Check if there's just one key in batch_stats that starts with "image"
-        # or exactly one key named "image"
         image_keys = [key for key in batch_stats.keys() if key.startswith("image")]
 
         if len(image_keys) == 1:
-            # Use the detected image key
             band_order = {image_keys[0]: band_order}
         elif "image" in batch_stats:
-            # Use the "image" key directly
             band_order = {"image": band_order}
         else:
-            # Default to creating entries for all modalities with the same band_order
             band_order = {modality: band_order for modality in batch_stats.keys()}
             print(
                 f"Warning: Applying the same band names to all modalities: {list(batch_stats.keys())}"
@@ -216,7 +163,6 @@ def plot_batch_histograms(
         fig, ax = plt.subplots(figsize=figsize)
         figs.append(fig)
 
-        # Get histogram data
         histograms = stats["histograms"]
         bin_edges = stats["histogram_bins"]
 
@@ -226,21 +172,15 @@ def plot_batch_histograms(
             )
             continue
 
-        # Convert bin_edges to numpy array if it's not already
         bin_edges = np.array(bin_edges)
 
-        # Get labels for each channel
         if band_order and modality in band_order:
-            # Get all band names including numeric scaling factors
             labels = [str(item) for item in band_order[modality]]
 
-            # Ensure length matches number of histograms
             if len(labels) != len(histograms):
-                # Keep only the number of labels that match the histograms
                 if len(labels) > len(histograms):
                     labels = labels[: len(histograms)]
                 else:
-                    # Append generic labels if we have more histograms than labels
                     labels.extend(
                         [
                             f"Channel {i + len(labels)}"
@@ -250,14 +190,11 @@ def plot_batch_histograms(
         else:
             labels = [f"Channel {i}" for i in range(len(histograms))]
 
-        # Plot histograms as line plots
         for i, (hist, label) in enumerate(zip(histograms, labels)):
-            # Convert histogram to numpy array if it's not already
             hist = np.array(hist)
             bin_centers = 0.5 * (bin_edges[:-1] + bin_edges[1:])
             ax.plot(bin_centers, hist, label=label, alpha=0.7)
 
-        # Customize plot
         title = f"Histogram for {modality}{title_suffix}"
         ax.set_title(title)
         ax.set_xlabel("Pixel Value")
@@ -265,7 +202,6 @@ def plot_batch_histograms(
         ax.legend()
         ax.grid(True, linestyle="--", alpha=0.6)
 
-        # Add stats to plot as text
         stats_text = []
         for i, label in enumerate(labels):
             if i < len(stats["mean"]) and i < len(stats["std"]):
@@ -286,65 +222,6 @@ def plot_batch_histograms(
         plt.tight_layout()
 
     return figs
-
-
-def get_normalized_batch(
-    datamodule, normalizer: nn.Module, split: str = "train", batch_index: int = 0
-) -> tuple[dict[str, Tensor], dict[str, Tensor]]:
-    """Get a batch of data and its normalized version.
-
-    Args:
-        datamodule: Lightning DataModule instance
-        normalizer: Normalizer module
-        split: Data split ('train', 'val', 'test')
-        batch_index: Index of batch to retrieve
-
-    Returns:
-        Tuple of (original_batch, normalized_batch)
-    """
-    # Store original normalizer
-    original_normalizer = None
-
-    # Find the dataset attribute based on split
-    if split == "train":
-        dataset = datamodule.train_dataset
-    elif split == "val":
-        dataset = datamodule.val_dataset
-    elif split == "test":
-        dataset = datamodule.test_dataset
-    else:
-        raise ValueError(f"Invalid split: {split}. Must be 'train', 'val', or 'test'")
-
-    # Store original normalizer and set to None temporarily
-    if hasattr(dataset, "data_normalizer"):
-        original_normalizer = dataset.data_normalizer
-        dataset.data_normalizer = nn.Identity()  # Temporarily disable normalization
-
-    # Get dataloader for specified split
-    if split == "train":
-        dataloader = datamodule.train_dataloader()
-    elif split == "val":
-        dataloader = datamodule.val_dataloader()
-    else:
-        dataloader = datamodule.test_dataloader()
-
-    # Get batch
-    for i, batch in enumerate(dataloader):
-        if i == batch_index:
-            # Apply custom normalizer
-            normalized_batch = normalizer(batch)
-
-            # Restore original normalizer
-            if original_normalizer is not None:
-                dataset.data_normalizer = original_normalizer
-
-            return batch, normalized_batch
-
-    # Restore original normalizer if we didn't find the batch
-    if original_normalizer is not None:
-        dataset.data_normalizer = original_normalizer
-
-    raise IndexError(f"Batch index {batch_index} out of range for {split} split")
 
 
 def visualize_segmentation_target_statistics(
@@ -408,7 +285,6 @@ def visualize_segmentation_target_statistics(
     ax1.grid(axis="y", linestyle="--", alpha=0.7)
     ax1.tick_params(axis="both", which="major", labelsize=13)
 
-    # center plot about overall class distribution
     ax2 = fig.add_subplot(gs[0, 1])
 
     sorted_indices = np.argsort(pixel_distribution)[::-1]
@@ -505,10 +381,10 @@ def visualize_effect_of_normalization(
     Args:
         batch: Dictionary containing the batch data
         normalizer_module: The normalizer to apply
-        datamodule: Optional datamodule to extract band information (if None, infers from batch)
+        datamodule: datamodule to extract band information
 
     Returns:
-        matplotlib figure with the visualizations
+        matplotlib figure with the visualizations, and normalized batch
     """
     normalized_batch = normalizer_module(batch.copy())
 
