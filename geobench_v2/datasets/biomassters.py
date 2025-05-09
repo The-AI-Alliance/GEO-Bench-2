@@ -108,7 +108,7 @@ class GeoBenchBioMassters(GeoBenchBaseDataset):
         root: Path,
         split: str,
         band_order: dict[str, Sequence[str]] = {
-            "s1": ["VV_asc", "VH_asx"],
+            "s1": ["VV_asc", "VH_asc"],
             "s2": ["B04", "B03", "B02", "B08"],
         },
         data_normalizer: type[nn.Module] = ClipZScoreNormalizer,
@@ -205,9 +205,9 @@ class GeoBenchBioMassters(GeoBenchBaseDataset):
             img_dict["s1"] = s1_data
 
         if "s2" in self.band_order:
-            sample_s1_row = sample_row[sample_row["modality"] == "S2"]
+            sample_s2_row = sample_row[sample_row["modality"] == "S2"]
             s2_data = []
-            for i in sample_s1_row.index[: self.num_time_steps]:
+            for i in sample_s2_row.index[: self.num_time_steps]:
                 s2_step = sample_row.read(i)
                 with rasterio.open(s2_step) as src:
                     img = src.read()

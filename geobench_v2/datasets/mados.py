@@ -157,7 +157,9 @@ class GeoBenchMADOS(GeoBenchBaseDataset):
         img = torch.from_numpy(s2_img).float()
 
         img_dict = self.rearrange_bands(img, self.band_order)
-        nan_mask = img_dict["image"].isnan()
+
+        nan_mask = torch.isnan(img_dict["image"])
+
         img_dict = self.data_normalizer(img_dict)
 
         img_dict["image"] = torch.where(

@@ -215,6 +215,25 @@ class GeoBenchTreeSatAI(GeoBenchBaseDataset):
         if self.transforms is not None:
             sample = self.transforms(sample)
 
+        if self.return_stacked_image:
+            sample = {
+                "image": torch.cat(
+                    [sample[f"image_{key}"] for key in self.band_order.keys()], 0
+                )
+            }
+
+        sample["label"] = self._format_label(
+            sample_row.iloc[0]["species_labels"], sample_row.iloc[0]["dist_labels"]
+        )
+
+        point = wkt.loads(sample_row.iloc[0]["stac:centroid"])
+        lon, lat = point.x, point.y
+
+        if "lon" in self.metadata:
+            sample["lon"] = torch.tensor(lon)
+        if "lat" in self.metadata:
+            sample["lat"] = torch.tensor(lat)
+
         if self.include_ts:
             with h5py.File(
                 os.path.join(self.root, sample_row.iloc[0]["ts_path"]), "r"
@@ -246,32 +265,6 @@ class GeoBenchTreeSatAI(GeoBenchBaseDataset):
                 sample["image_s2_ts"] = torch.from_numpy(sen_2_data)[
                     -self.num_time_steps :
                 ]
-
-        if self.return_stacked_image:
-            sample = {
-                "image": torch.cat(
-                    [sample[f"image_{key}"] for key in self.band_order.keys()], 0
-                )
-            }
-
-        sample["label"] = self._format_label(
-            sample_row.iloc[0]["species_labels"], sample_row.iloc[0]["dist_labels"]
-        )
-
-        point = wkt.loads(sample_row.iloc[0]["stac:centroid"])
-        lon, lat = point.x, point.y
-        sample["lon"], sample["lat"] = torch.tensor(lon), torch.tensor(lat)
-
-        if "lon" in self.metadata:
-            sample["lon"] = torch.tensor(lon)
-        if "lat" in self.metadata:
-            sample["lat"] = torch.tensor(lat)
-
-        # if self.include_ts:
-        #     metadata = ["image_s1_asc_ts", "image_s1_des_ts", "image_s2_ts"]
-        #     for key in metadata:
-        #         if key not in output:
-        #             output[key] = sample[key]
 
         return sample
 
