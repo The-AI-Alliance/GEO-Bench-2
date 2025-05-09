@@ -15,7 +15,8 @@ import torch.nn as nn
 from torch import Tensor
 from torchgeo.datasets import PASTIS
 
-from .data_util import ClipZScoreNormalizer, DataUtilsMixin
+from .data_util import DataUtilsMixin
+from .normalization import ClipZScoreNormalizer, DataNormalizer
 from .sensor_util import DatasetBandRegistry
 
 

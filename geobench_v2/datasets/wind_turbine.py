@@ -14,7 +14,8 @@ from PIL import Image
 from torch import Tensor
 from torchgeo.datasets import NonGeoDataset
 
-from .data_util import ClipZScoreNormalizer, DataUtilsMixin
+from .data_util import DataUtilsMixin
+from .normalization import DataNormalizer, ClipZScoreNormalizer
 from .sensor_util import DatasetBandRegistry
 
 

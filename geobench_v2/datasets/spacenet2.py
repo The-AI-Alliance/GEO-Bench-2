@@ -15,7 +15,7 @@ from shapely import wkt
 from torch import Tensor
 
 from .base import GeoBenchBaseDataset
-from .data_util import ClipZScoreNormalizer
+from .normalization import ClipZScoreNormalizer
 from .sensor_util import DatasetBandRegistry
 
 

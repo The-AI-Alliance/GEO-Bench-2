@@ -204,55 +204,57 @@ class ImageStatistics(torch.nn.Module):
     @torch.no_grad()
     def _apply_simple_rescale(self, x: Tensor) -> Tensor:
         """Simple rescaling to [0,1] by shifting to non-negative range and dividing by max value.
-        
+
         This approach:
         1. Shifts all values to be non-negative (if min_val < 0)
         2. Divides by the max value to normalize to [0,1] range
-        
+
         This is more direct than full min/max normalization when we just want a simple positive rescaling.
         """
         # Determine channel dimension from self.dims
         all_dims = set(range(x.ndim))
         dims_set = set(self.dims)
         channel_dim = list(all_dims - dims_set)[0]
-        
+
         # Create appropriate shape for broadcasting
         broadcast_shape = [1] * x.ndim
-        broadcast_shape[channel_dim] = self.clip_min_val.shape[0] if self.clip_min_val.ndim > 0 else 1
-        
+        broadcast_shape[channel_dim] = (
+            self.clip_min_val.shape[0] if self.clip_min_val.ndim > 0 else 1
+        )
+
         # Reshape clip values for proper broadcasting
         min_val = self.clip_min_val.view(broadcast_shape)
         max_val = self.clip_max_val.view(broadcast_shape)
-        
+
         # 1. Shift to make all values non-negative (only if min_val < 0)
         shifted_x = x.clone()
         negative_ranges = min_val < 0
-        
+
         if negative_ranges.any():
             # Create shift values tensor with same shape as min_val
             shift_values = torch.zeros_like(min_val)
             shift_values[negative_ranges] = -min_val[negative_ranges]
-            
+
             # Apply shift
             shifted_x = x + shift_values
-            
+
             # Also adjust max_val to account for the shift
             shifted_max = max_val + shift_values
         else:
             shifted_max = max_val
-        
+
         # 2. Simply divide by the maximum value
         normalized = shifted_x / shifted_max
-        
+
         # Ensure values stay in [0,1] range
         normalized = torch.clamp(normalized, min=0.0, max=1.0)
-        
+
         return normalized
 
     @torch.no_grad()
     def _apply_satmae_normalization(self, x: Tensor) -> Tensor:
         """Apply SatMAE-style normalization: shift negatives, min/max norm by mean±2std, clip to [0,1].
-        
+
         The normalization procedure:
         1. Shift negative values to make all values non-negative
         2. Calculate the new clamping range based on the offset-adjusted mean and std
@@ -263,23 +265,23 @@ class ImageStatistics(torch.nn.Module):
         all_dims = set(range(x.ndim))
         dims_set = set(self.dims)
         channel_dim = list(all_dims - dims_set)[0]
-        
+
         # Create appropriate shape for broadcasting
         broadcast_shape = [1] * x.ndim
         broadcast_shape[channel_dim] = self.mean.shape[0]
-        
+
         # Reshape tensors for broadcasting
         shift_offsets = self.shift_offsets.view(broadcast_shape)
         mean = self.mean.view(broadcast_shape)
         std = self.std.view(broadcast_shape)
-        
+
         # 1. Apply shift to all channels simultaneously
         normalized = x + shift_offsets
-        
+
         # 2. Calculate adjusted mean after shifting
         adjusted_mean = mean + shift_offsets
         # std remains the same after constant shifting
-        
+
         # 3. Calculate min/max bounds for clipping
         channel_min = adjusted_mean - 2 * std
         channel_max = adjusted_mean + 2 * std
@@ -287,7 +289,7 @@ class ImageStatistics(torch.nn.Module):
         # 4. Rescale
         normalized = (normalized - channel_min) / (channel_max - channel_min)
         normalized = torch.clamp(normalized, min=0.0, max=1.0)
-        
+
         return normalized
 
     @torch.no_grad()
@@ -559,7 +561,6 @@ class DatasetStatistics(ABC):
                 else None,
                 normalization_mode=self.normalization_mode,
                 compute_quantiles=True,
-                
             ).to(self.device)
 
     def compute_statistics(self) -> dict[str, dict[str, Any]]:

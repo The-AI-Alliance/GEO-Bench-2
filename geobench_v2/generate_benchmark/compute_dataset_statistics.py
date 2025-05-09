@@ -247,7 +247,9 @@ class NumpyEncoder(json.JSONEncoder):
         return super(NumpyEncoder, self).default(obj)
 
 
-def process_dataset(dataset_config: dict[str, Any], save_dir: str, device: str, normalization_mode: str) -> None:
+def process_dataset(
+    dataset_config: dict[str, Any], save_dir: str, device: str, normalization_mode: str
+) -> None:
     """Process a single dataset and compute its statistics.
 
     Args:
@@ -269,7 +271,9 @@ def process_dataset(dataset_config: dict[str, Any], save_dir: str, device: str, 
         "_target_": "torch.nn.Identity"
     }
 
-    stats_computer = instantiate(stats_computer_config, normalization_mode=normalization_mode)
+    stats_computer = instantiate(
+        stats_computer_config, normalization_mode=normalization_mode
+    )
 
     print(f"Computing statistics for {dataset_name}...")
     stats = stats_computer.compute_statistics()
@@ -347,7 +351,9 @@ def main():
     config = OmegaConf.load(args.config)
 
     for dataset_config in config["datamodules"]:
-        process_dataset(dataset_config, args.save_dir, args.device, args.normalization_mode)
+        process_dataset(
+            dataset_config, args.save_dir, args.device, args.normalization_mode
+        )
 
     print(f"\nAll dataset statistics computed and saved to {args.save_dir}")
 

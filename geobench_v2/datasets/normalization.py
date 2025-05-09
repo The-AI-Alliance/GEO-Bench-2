@@ -669,23 +669,29 @@ class SatMAENormalizer(DataNormalizer):
         mean = self.means[key][channel_idx].item()
         std = self.stds[key][channel_idx].item()
         offset = self.offsets[key][channel_idx].item() if key in self.offsets else 0.0
-        min_val = self.min_values[key][channel_idx].item() if key in self.min_values else 0.0
-        max_val = self.max_values[key][channel_idx].item() if key in self.max_values else 0.0
-        
+        min_val = (
+            self.min_values[key][channel_idx].item() if key in self.min_values else 0.0
+        )
+        max_val = (
+            self.max_values[key][channel_idx].item() if key in self.max_values else 0.0
+        )
+
         offset_info = f", offset: {offset:.4f}" if offset > 0 else ""
         norm_info = ""
         if self.apply_second_stage and key in self.norm_means:
             norm_mean = self.norm_means[key][channel_idx].item()
             norm_std = self.norm_stds[key][channel_idx].item()
             norm_info = f", norm_mean: {norm_mean:.4f}, norm_std: {norm_std:.4f}"
-            
-        return (f"    Channel {channel_idx}: mean={mean:.4f}, std={std:.4f}, "
-                f"range: [{min_val:.4f}, {max_val:.4f}]{offset_info}{norm_info}")
+
+        return (
+            f"    Channel {channel_idx}: mean={mean:.4f}, std={std:.4f}, "
+            f"range: [{min_val:.4f}, {max_val:.4f}]{offset_info}{norm_info}"
+        )
 
 
 class SimpleRescaleNormalizer(DataNormalizer):
     """Normalization module applying simple rescaling to [0,1] range with optional second stage.
-    
+
     This normalizer performs a two-stage process:
     1. First stage:
        - Applies optional clipping based on min/max values in stats
@@ -694,7 +700,7 @@ class SimpleRescaleNormalizer(DataNormalizer):
     2. Optional second stage (when apply_second_stage=True):
        - Applies z-score normalization to the [0,1] data using normalized statistics
        - Can rescale to different output ranges
-    
+
     Fill value bands are passed through unchanged in all operations.
     """
 
@@ -762,19 +768,19 @@ class SimpleRescaleNormalizer(DataNormalizer):
         clip_min, clip_max = self._get_clip_values(bands)
         self.clip_mins[key] = clip_min
         self.clip_maxs[key] = clip_max
-        
+
         # Calculate shift values for negative ranges
         shift_values = torch.zeros_like(clip_min)
         negative_ranges = clip_min < 0
         if negative_ranges.any():
             shift_values[negative_ranges] = -clip_min[negative_ranges]
-        
+
         self.shift_values[key] = shift_values
         self.adjusted_maxs[key] = clip_max + shift_values
 
         # Second stage: normalized mean/std for [0,1] data (if available)
         if (
-            self.apply_second_stage 
+            self.apply_second_stage
             and key in self.stats
             and "norm_mean" in self.stats[key]
         ):
@@ -783,10 +789,10 @@ class SimpleRescaleNormalizer(DataNormalizer):
 
     def forward(self, data: dict[str, Tensor]) -> dict[str, Tensor]:
         """Apply one or two-stage normalization to input tensors.
-        
+
         Args:
             data: Dictionary mapping keys to tensors.
-            
+
         Returns:
             Dictionary with normalized tensors under the same keys.
         """
@@ -840,21 +846,21 @@ class SimpleRescaleNormalizer(DataNormalizer):
         normalized_tensor = tensor.clone()
 
         # Apply normalization where not a fill value
-        # 1. Apply clipping 
+        # 1. Apply clipping
         clipped = torch.clamp(tensor, min=clip_min_r, max=clip_max_r)
-        
+
         # 2. Apply shift for negative values
         shifted = clipped + shift_r
-        
+
         # 3. Scale to [0,1] range
         rescaled = shifted / (adj_max_r + 1e-6)
-        
+
         # 4. Ensure values stay in [0,1] range
         rescaled = torch.clamp(rescaled, min=0.0, max=1.0)
-        
+
         # Apply only to non-fill values
         normalized_tensor = torch.where(~is_fill_e, rescaled, normalized_tensor)
-        
+
         return normalized_tensor
 
     def _normalize_second_stage(
@@ -888,7 +894,7 @@ class SimpleRescaleNormalizer(DataNormalizer):
                 continue
 
             unnormalized_tensor = tensor
-            
+
             # First undo second stage if it was applied
             if self.apply_second_stage and key in self.norm_means:
                 unnormalized_tensor = self._denormalize_second_stage(
@@ -951,17 +957,17 @@ class SimpleRescaleNormalizer(DataNormalizer):
 
         # Initialize result
         unnormalized_tensor = tensor.clone()
-        
+
         # Undo normalization
         # 1. Undo scaling
         unscaled = tensor * (adj_max_r + 1e-6)
-        
+
         # 2. Undo shift
         unshifted = unscaled - shift_r
-        
+
         # Apply only to non-fill values
         unnormalized_tensor = torch.where(~is_fill_e, unshifted, unnormalized_tensor)
-        
+
         return unnormalized_tensor
 
     def _format_channel_stats(self, key: str, channel_idx: int) -> str:
@@ -971,18 +977,20 @@ class SimpleRescaleNormalizer(DataNormalizer):
         clip_min = self.clip_mins[key][channel_idx].item()
         clip_max = self.clip_maxs[key][channel_idx].item()
         shift = self.shift_values[key][channel_idx].item()
-        
+
         clip_info = ""
         if clip_min > float("-inf") or clip_max < float("inf"):
             clip_info = f", clipping: [{clip_min:.4f}, {clip_max:.4f}]"
-            
+
         shift_info = f", shift: {shift:.4f}" if shift > 0 else ""
-        
+
         norm_info = ""
         if self.apply_second_stage and key in self.norm_means:
             norm_mean = self.norm_means[key][channel_idx].item()
             norm_std = self.norm_stds[key][channel_idx].item()
             norm_info = f", norm_mean: {norm_mean:.4f}, norm_std: {norm_std:.4f}"
-        
-        return (f"    Channel {channel_idx}: mean={mean:.4f}, std={std:.4f}"
-                f"{clip_info}{shift_info}{norm_info}")
+
+        return (
+            f"    Channel {channel_idx}: mean={mean:.4f}, std={std:.4f}"
+            f"{clip_info}{shift_info}{norm_info}"
+        )

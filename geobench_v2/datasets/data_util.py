@@ -280,4 +280,3 @@ class DataUtilsMixin(ABC):
                 aliases = ", ".join(band.aliases)
                 lines.append(f"  - {name} ({band.canonical_name}): {aliases}")
         return "\n".join(lines)
-

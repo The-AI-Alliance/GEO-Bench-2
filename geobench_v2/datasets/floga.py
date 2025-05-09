@@ -13,7 +13,7 @@ import torch
 from torch import Tensor
 from torchgeo.datasets import NonGeoDataset
 
-from .data_util import ClipZScoreNormalizer, DataUtilsMixin
+from .data_util import DataUtilsMixin
 from .sensor_util import DatasetBandRegistry
 
 
