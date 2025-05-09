@@ -78,7 +78,7 @@ class GeoBenchKuroSiwo(GeoBenchBaseDataset):
         data_normalizer: type[nn.Module] = ClipZScoreNormalizer,
         transforms: type[nn.Module] = None,
         return_stacked_image: bool = False,
-        time_step: Sequence[str] = ["pre_1","pre_1","post"],
+        time_step: Sequence[str] = ["pre_1","pre_2","post"],
         download: bool = False,
     ) -> None:
         """Initialize Kuro Siwo Dataset.
@@ -158,6 +158,7 @@ class GeoBenchKuroSiwo(GeoBenchBaseDataset):
             with rasterio.open(post_event_path) as src:
                 post_event_img = src.read()
                 post_event_img = torch.from_numpy(post_event_img)
+
             if "pre_1" in self.time_step:
                 sample["image_pre_1"] = process_sar_image(pre_event_1_img)
             if "pre_2" in self.time_step:
