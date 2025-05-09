@@ -10,34 +10,80 @@ import torch
 import torch.nn as nn
 from torch import Tensor
 
+from pathlib import Path
+import json
+
+
+def _load_stats_from_path_or_dict(stats_path: str):
+    """Load statistics from a path to a JSON file or use provided dict directly."""
+    stats_path = Path(stats_path)
+    if not stats_path.exists():
+        raise FileNotFoundError(f"Statistics file not found: {stats_path}")
+
+    with open(stats_path, "r") as f:
+        stats_dict = json.load(f)
+
+    if "input_stats" in stats_dict:
+        processed_stats = {"means": {}, "stds": {}}
+
+        for modality_key, modality_stats in stats_dict["input_stats"].items():
+            for i, band_name in enumerate(modality_stats["band_names"]):
+                processed_stats["means"][band_name] = modality_stats["mean"][i]
+                processed_stats["stds"][band_name] = modality_stats["std"][i]
+
+                for stat_key in [
+                    "norm_mean",
+                    "norm_std",
+                    "pct_02",
+                    "pct_98",
+                    "shift_offsets",
+                ]:
+                    if stat_key in modality_stats:
+                        if stat_key not in processed_stats:
+                            processed_stats[stat_key] = {}
+                        processed_stats[stat_key][band_name] = modality_stats[stat_key][
+                            i
+                        ]
+
+                if "pct_02" in modality_stats and "clip_min" not in processed_stats:
+                    processed_stats["clip_min"] = {}
+                    processed_stats["clip_min"][band_name] = modality_stats["pct_02"][i]
+
+                if "pct_98" in modality_stats and "clip_max" not in processed_stats:
+                    processed_stats["clip_max"] = {}
+                    processed_stats["clip_max"][band_name] = modality_stats["pct_98"][i]
+
+        return processed_stats
+    return stats_dict
+
 
 class DataNormalizer(nn.Module, ABC):
     """Base Class for Data Normalization."""
 
     def __init__(
         self,
-        stats: dict[str, dict[str, float]],
+        stats: dict[str, dict[str, float]] | str,
         band_order: list[str | float] | dict[str, list[str | float]],
         image_keys: Sequence[str] | None = None,
     ) -> None:
         """Initialize normalizer.
 
         Args:
-            stats: dictionary containing mean and std for each band
+            stats: dictionary containing mean and std for each band, or path to a JSON file
             band_order: Either a sequence of bands or dict mapping modalities to sequences
             image_keys: Keys in the data dictionary to normalize (default: ["image"])
         """
         super().__init__()
+        if isinstance(stats, str):
+            stats = _load_stats_from_path_or_dict(stats)
         self.stats = stats
         self.band_order = band_order
         self.image_keys = image_keys or ["image"]
 
-        # Common attributes to be populated by subclasses
         self.means = {}
         self.stds = {}
         self.is_fill_value = {}
 
-        # Initialize statistics
         self._initialize_statistics()
 
     def _initialize_statistics(self) -> None:
@@ -49,26 +95,20 @@ class DataNormalizer(nn.Module, ABC):
         Subclasses should override this to set additional statistics they need.
         """
         if isinstance(self.band_order, dict):
-            # Multi-modal with different bands for each modality
             for modality, bands in self.band_order.items():
-                # Get stats for this modality
                 means, stds, is_fill = self._get_band_stats(bands)
 
-                # Basic multi-modal (image_modality)
                 base_key = f"image_{modality}"
                 self.means[base_key] = means
                 self.stds[base_key] = stds
                 self.is_fill_value[base_key] = is_fill
 
-                # Process additional image keys if provided
                 self._process_additional_keys(base_key, means, stds, is_fill)
 
-                # Allow subclasses to set additional statistics for this modality
                 self._set_additional_stats_for_key(
                     base_key, bands, means, stds, is_fill
                 )
         else:
-            # Single band order for one or multiple image keys
             means, stds, is_fill = self._get_band_stats(self.band_order)
 
             for key in self.image_keys:
@@ -76,7 +116,6 @@ class DataNormalizer(nn.Module, ABC):
                 self.stds[key] = stds
                 self.is_fill_value[key] = is_fill
 
-                # Allow subclasses to set additional statistics for this key
                 self._set_additional_stats_for_key(
                     key, self.band_order, means, stds, is_fill
                 )
@@ -88,17 +127,14 @@ class DataNormalizer(nn.Module, ABC):
         if len(self.image_keys) > 1 and self.image_keys != ["image"]:
             for key in self.image_keys:
                 if key == "image":
-                    continue  # Already handled
+                    continue
 
-                # Create modality+timestamp key (e.g. image_pre_s1)
                 modality_key = f"{key}_{base_key.split('_')[1]}"
 
-                # Add normalized stats
                 self.means[modality_key] = means
                 self.stds[modality_key] = stds
                 self.is_fill_value[modality_key] = is_fill
 
-                # Allow subclasses to set additional statistics for this key
                 self._set_additional_stats_for_key(
                     modality_key,
                     self.band_order[base_key.split("_")[1]],
@@ -182,7 +218,6 @@ class DataNormalizer(nn.Module, ABC):
             lines.append(f"\n  {key}:")
             n_channels = len(self.means[key])
 
-            # Display stats for each channel/band
             for i in range(n_channels):
                 if self.is_fill_value[key][i]:
                     lines.append(f"    Channel {i}: Fill Value (no normalization)")
@@ -216,12 +251,11 @@ class ClipZScoreNormalizer(DataNormalizer):
 
     def __init__(
         self,
-        stats: dict[str, dict[str, float]],
+        stats: dict[str, dict[str, float]] | str,
         band_order: list[str | float] | dict[str, list[str | float]],
         image_keys: Sequence[str] | None = None,
     ) -> None:
         """Initialize normalizer applying clip then z-score."""
-        # Additional attributes needed for this specific normalizer
         self.clip_mins = {}
         self.clip_maxs = {}
 
@@ -250,7 +284,6 @@ class ClipZScoreNormalizer(DataNormalizer):
 
         for band in bands:
             if isinstance(band, (int, float)):
-                # No clipping for fill values (use +/- inf)
                 clip_mins.append(float("-inf"))
                 clip_maxs.append(float("inf"))
             elif (
@@ -259,15 +292,12 @@ class ClipZScoreNormalizer(DataNormalizer):
                 and band in clip_min_dict
                 and band in clip_max_dict
             ):
-                # Clipping is defined for this specific band
                 clip_mins.append(clip_min_dict[band])
                 clip_maxs.append(clip_max_dict[band])
             else:
-                # No clipping defined for this band (use +/- inf)
                 clip_mins.append(float("-inf"))
                 clip_maxs.append(float("inf"))
 
-        # Return only clip_mins and clip_maxs
         return torch.tensor(clip_mins), torch.tensor(clip_maxs)
 
     def forward(self, data: dict[str, Tensor]) -> dict[str, Tensor]:
@@ -292,12 +322,10 @@ class ClipZScoreNormalizer(DataNormalizer):
                 result[key] = tensor
                 continue
 
-            # Retrieve stats for the current key
             mean, std = self.means[key], self.stds[key]
             clip_min, clip_max = self.clip_mins[key], self.clip_maxs[key]
             is_fill = self.is_fill_value[key]
 
-            # Reshape stats and expand fill mask
             mean_r, _ = self._reshape_and_expand(mean, tensor)
             std_r, _ = self._reshape_and_expand(std, tensor)
             clip_min_r, _ = self._reshape_and_expand(clip_min, tensor)
@@ -306,13 +334,10 @@ class ClipZScoreNormalizer(DataNormalizer):
 
             normalized_tensor = tensor.clone()
 
-            # 1. Apply clipping (uses +/- inf for non-clipped bands)
             clipped_tensor = torch.clamp(tensor, min=clip_min_r, max=clip_max_r)
 
-            # 2. Apply z-score to the (potentially) clipped tensor
             z_score_clipped_vals = (clipped_tensor - mean_r) / (std_r + 1e-6)
 
-            # 3. Apply the result only where it's NOT a fill value
             normalized_tensor = torch.where(
                 ~is_fill_e, z_score_clipped_vals, normalized_tensor
             )
@@ -329,22 +354,17 @@ class ClipZScoreNormalizer(DataNormalizer):
                 result[key] = tensor
                 continue
 
-            # Retrieve stats needed for inverse z-score
             mean, std = self.means[key], self.stds[key]
             is_fill = self.is_fill_value[key]
 
-            # Reshape stats and expand fill mask
             mean_r, _ = self._reshape_and_expand(mean, tensor)
             std_r, _ = self._reshape_and_expand(std, tensor)
             _, is_fill_e = self._reshape_and_expand(is_fill, tensor)
 
-            # Initialize result tensor
             unnormalized_tensor = tensor.clone()
 
-            # 1. Apply inverse z-score
             un_z_score_vals = tensor * (std_r + 1e-6) + mean_r
 
-            # 2. Apply the result only where it's NOT a fill value
             unnormalized_tensor = torch.where(
                 ~is_fill_e, un_z_score_vals, unnormalized_tensor
             )
@@ -389,7 +409,7 @@ class SatMAENormalizer(DataNormalizer):
 
     def __init__(
         self,
-        stats: dict[str, dict[str, float]],
+        stats: dict[str, dict[str, float]] | str,
         band_order: list[str | float] | dict[str, list[str | float]],
         image_keys: Sequence[str] | None = None,
         output_range: str = "zero_one",
@@ -413,27 +433,24 @@ class SatMAENormalizer(DataNormalizer):
         self.output_range = output_range
         self.apply_second_stage = apply_second_stage
 
-        # Configure scaling factors based on output range
         if output_range == "zero_255":
             self.scale_factor = 255.0
             self.shift_factor = 0.0
         elif output_range == "neg_one_one":
             self.scale_factor = 2.0
             self.shift_factor = -1.0
-        else:  # "zero_one"
+        else:
             self.scale_factor = 1.0
             self.shift_factor = 0.0
 
-        # Store attributes for both normalization stages
-        self.raw_min_values = {}  # mean - 2*std
-        self.raw_max_values = {}  # mean + 2*std
-        self.offsets = {}  # For shifting negative values
-        self.min_values = {}  # After applying offsets
-        self.max_values = {}  # After applying offsets
+        self.raw_min_values = {}
+        self.raw_max_values = {}
+        self.offsets = {}
+        self.min_values = {}
+        self.max_values = {}
 
-        # For second stage (normalized stats)
-        self.norm_means = {}  # mean of data in [0,1] range
-        self.norm_stds = {}  # std of data in [0,1] range
+        self.norm_means = {}
+        self.norm_stds = {}
 
         super().__init__(stats, band_order, image_keys)
 
@@ -446,42 +463,64 @@ class SatMAENormalizer(DataNormalizer):
         is_fill: Tensor,
     ) -> None:
         """Set normalization parameters for both stages."""
-        # First stage parameters
         raw_min_values = means - 2 * stds
         raw_max_values = means + 2 * stds
 
-        # Get offsets from stats if available, or calculate them
-        if key in self.stats and "shift_offsets" in self.stats[key]:
-            offsets = torch.tensor(self.stats[key]["shift_offsets"])
+        offsets = torch.zeros_like(raw_min_values)
+
+        shift_offsets_for_bands = []
+        for i, band in enumerate(bands):
+            if isinstance(band, (str, float)):
+                if isinstance(band, str) and band in self.stats.get(
+                    "shift_offsets", {}
+                ):
+                    shift_offsets_for_bands.append(self.stats["shift_offsets"][band])
+                else:
+                    if raw_min_values[i] < 0:
+                        shift_offsets_for_bands.append(-raw_min_values[i].item())
+                    else:
+                        shift_offsets_for_bands.append(0.0)
+
+        if len(shift_offsets_for_bands) == len(bands):
+            offsets = torch.tensor(shift_offsets_for_bands)
         else:
-            # Calculate offsets for channels with negative values
-            offsets = torch.zeros_like(raw_min_values)
             neg_mask = raw_min_values < 0
             if neg_mask.any():
                 offsets[neg_mask] = -raw_min_values[neg_mask]
 
-        # Store first stage parameters
         self.raw_min_values[key] = raw_min_values
         self.raw_max_values[key] = raw_max_values
         self.offsets[key] = offsets
         self.min_values[key] = raw_min_values + offsets
         self.max_values[key] = raw_max_values + offsets
 
-        # Second stage parameters (if available and requested)
-        if (
-            self.apply_second_stage
-            and key in self.stats
-            and "norm_mean" in self.stats[key]
-        ):
-            self.norm_means[key] = torch.tensor(self.stats[key]["norm_mean"])
-            self.norm_stds[key] = torch.tensor(self.stats[key]["norm_std"])
+        if self.apply_second_stage:
+            norm_means = []
+            norm_stds = []
+
+            for band in bands:
+                if isinstance(band, (int, float)):
+                    norm_means.append(0.0)
+                    norm_stds.append(1.0)
+                else:
+                    if (
+                        band in self.stats.get("norm_mean", {})
+                        or band in self.stats["norm_mean"]
+                    ):
+                        norm_means.append(self.stats["norm_mean"][band])
+                        norm_stds.append(self.stats["norm_std"][band])
+                    else:
+                        norm_means.append(0.0)
+                        norm_stds.append(1.0)
+
+            self.norm_means[key] = torch.tensor(norm_means)
+            self.norm_stds[key] = torch.tensor(norm_stds)
 
     def forward(self, data: dict[str, Tensor]) -> dict[str, Tensor]:
         """Apply two-stage SatMAE normalization to input tensors."""
         result = {}
         for key, tensor in data.items():
             if key in self.min_values:
-                # Apply first stage normalization
                 normalized_tensor = self._normalize_first_stage(
                     tensor,
                     self.min_values[key],
@@ -490,7 +529,6 @@ class SatMAENormalizer(DataNormalizer):
                     self.is_fill_value[key],
                 )
 
-                # Apply second stage if requested and stats are available
                 if self.apply_second_stage and key in self.norm_means:
                     normalized_tensor = self._normalize_second_stage(
                         normalized_tensor,
@@ -514,34 +552,27 @@ class SatMAENormalizer(DataNormalizer):
         is_fill: Tensor,
     ) -> Tensor:
         """First stage: shift, clip to mean±2std, scale to target range."""
-        # Reshape for broadcasting
         min_reshaped, _ = self._reshape_and_expand(min_value, tensor)
         max_reshaped, _ = self._reshape_and_expand(max_value, tensor)
         offsets_reshaped, _ = self._reshape_and_expand(offsets, tensor)
         _, fill_mask_expanded = self._reshape_and_expand(is_fill, tensor)
 
-        # Start with original values
         normalized = tensor.clone()
 
-        # Step 1: Apply offset to shift negative values to non-negative range
         shifted_tensor = tensor + offsets_reshaped
 
-        # Step 2: Apply min-max normalization on the shifted data
         temp_normalized = (shifted_tensor - min_reshaped) / (
             max_reshaped - min_reshaped + 1e-6
         )
 
-        # Step 3: Clamp to [0,1]
         temp_normalized = torch.clamp(temp_normalized, 0, 1)
 
-        # Step 4: Scale to target range if requested and not using second stage
         if not (self.apply_second_stage and self.output_range == "zero_one"):
             if self.output_range != "zero_one":
                 temp_normalized = (
                     temp_normalized * self.scale_factor + self.shift_factor
                 )
 
-        # Apply normalized values only where it's NOT a fill value
         normalized = torch.where(fill_mask_expanded, normalized, temp_normalized)
 
         return normalized
@@ -550,20 +581,13 @@ class SatMAENormalizer(DataNormalizer):
         self, tensor: Tensor, norm_mean: Tensor, norm_std: Tensor, is_fill: Tensor
     ) -> Tensor:
         """Second stage: apply ImageNet-style normalization to [0,1] data."""
-        # Reshape for broadcasting
         mean_reshaped, _ = self._reshape_and_expand(norm_mean, tensor)
         std_reshaped, _ = self._reshape_and_expand(norm_std, tensor)
         _, fill_mask_expanded = self._reshape_and_expand(is_fill, tensor)
 
-        # Apply z-score normalization
         normalized = tensor.clone()
         imagenet_style = (tensor - mean_reshaped) / (std_reshaped + 1e-6)
 
-        # Scale to target range if needed
-        if self.output_range != "zero_one":
-            imagenet_style = imagenet_style * self.scale_factor + self.shift_factor
-
-        # Apply only to non-fill values
         normalized = torch.where(fill_mask_expanded, normalized, imagenet_style)
 
         return normalized
@@ -573,7 +597,6 @@ class SatMAENormalizer(DataNormalizer):
         result = {}
         for key, tensor in data.items():
             if key in self.min_values:
-                # First undo second stage if it was applied
                 if self.apply_second_stage and key in self.norm_means:
                     tensor = self._denormalize_second_stage(
                         tensor,
@@ -582,7 +605,6 @@ class SatMAENormalizer(DataNormalizer):
                         self.is_fill_value[key],
                     )
 
-                # Then undo first stage
                 result[key] = self._denormalize_first_stage(
                     tensor,
                     self.min_values[key],
@@ -599,15 +621,12 @@ class SatMAENormalizer(DataNormalizer):
         self, tensor: Tensor, norm_mean: Tensor, norm_std: Tensor, is_fill: Tensor
     ) -> Tensor:
         """Undo the ImageNet-style normalization of second stage."""
-        # Reshape for broadcasting
         mean_reshaped, _ = self._reshape_and_expand(norm_mean, tensor)
         std_reshaped, _ = self._reshape_and_expand(norm_std, tensor)
         _, fill_mask_expanded = self._reshape_and_expand(is_fill, tensor)
 
-        # Start with original values
         denormalized = tensor.clone()
 
-        # Undo scaling to target range if applied
         temp = tensor.clone()
         if self.output_range != "zero_one":
             if self.shift_factor != 0:
@@ -615,10 +634,8 @@ class SatMAENormalizer(DataNormalizer):
             else:
                 temp = temp / self.scale_factor
 
-        # Reverse z-score normalization
         original_range = temp * (std_reshaped + 1e-6) + mean_reshaped
 
-        # Apply only to non-fill values
         denormalized = torch.where(fill_mask_expanded, denormalized, original_range)
 
         return denormalized
@@ -632,16 +649,13 @@ class SatMAENormalizer(DataNormalizer):
         is_fill: Tensor,
     ) -> Tensor:
         """Undo the first stage normalization (scaling, shifting)."""
-        # Reshape for broadcasting
         min_reshaped, _ = self._reshape_and_expand(min_value, tensor)
         max_reshaped, _ = self._reshape_and_expand(max_value, tensor)
         offsets_reshaped, _ = self._reshape_and_expand(offsets, tensor)
         _, fill_mask_expanded = self._reshape_and_expand(is_fill, tensor)
 
-        # Start with original values
         denormalized = tensor.clone()
 
-        # Step 1: Revert output range scaling if not already handled in second stage
         temp_denormalized = tensor.clone()
         if not self.apply_second_stage and self.output_range != "zero_one":
             if self.shift_factor != 0:
@@ -651,15 +665,11 @@ class SatMAENormalizer(DataNormalizer):
             else:
                 temp_denormalized = temp_denormalized / self.scale_factor
 
-        # Step 2: Revert min-max normalization
         temp_denormalized = (
             temp_denormalized * (max_reshaped - min_reshaped) + min_reshaped
         )
-
-        # Step 3: Remove the offset we applied during normalization
         temp_denormalized = temp_denormalized - offsets_reshaped
 
-        # Apply the denormalized values only where it's NOT a fill value
         denormalized = torch.where(fill_mask_expanded, denormalized, temp_denormalized)
 
         return denormalized
@@ -708,7 +718,7 @@ class SimpleRescaleNormalizer(DataNormalizer):
 
     def __init__(
         self,
-        stats: dict[str, dict[str, float]],
+        stats: dict[str, dict[str, float]] | str,
         band_order: list[str | float] | dict[str, list[str | float]],
         image_keys: Sequence[str] | None = None,
         output_range: str = "zero_one",
@@ -728,28 +738,24 @@ class SimpleRescaleNormalizer(DataNormalizer):
                 f"output_range must be one of {self.valid_ranges}, got {output_range}"
             )
 
-        # Configure two-stage normalization parameters
         self.output_range = output_range
         self.apply_second_stage = apply_second_stage
 
-        # Configure scaling factors based on output range
         if output_range == "zero_255":
             self.scale_factor = 255.0
             self.shift_factor = 0.0
         elif output_range == "neg_one_one":
             self.scale_factor = 2.0
             self.shift_factor = -1.0
-        else:  # "zero_one"
+        else:
             self.scale_factor = 1.0
             self.shift_factor = 0.0
 
-        # First stage normalization parameters
         self.clip_mins = {}
         self.clip_maxs = {}
         self.shift_values = {}
         self.adjusted_maxs = {}
 
-        # Second stage normalization parameters
         self.norm_means = {}
         self.norm_stds = {}
 
@@ -764,12 +770,10 @@ class SimpleRescaleNormalizer(DataNormalizer):
         is_fill: Tensor,
     ) -> None:
         """Set statistics for both normalization stages."""
-        # First stage: clipping and rescaling parameters
         clip_min, clip_max = self._get_clip_values(bands)
         self.clip_mins[key] = clip_min
         self.clip_maxs[key] = clip_max
 
-        # Calculate shift values for negative ranges
         shift_values = torch.zeros_like(clip_min)
         negative_ranges = clip_min < 0
         if negative_ranges.any():
@@ -778,7 +782,6 @@ class SimpleRescaleNormalizer(DataNormalizer):
         self.shift_values[key] = shift_values
         self.adjusted_maxs[key] = clip_max + shift_values
 
-        # Second stage: normalized mean/std for [0,1] data (if available)
         if (
             self.apply_second_stage
             and key in self.stats
@@ -802,7 +805,6 @@ class SimpleRescaleNormalizer(DataNormalizer):
                 result[key] = tensor
                 continue
 
-            # Apply first stage normalization
             normalized_tensor = self._normalize_first_stage(
                 tensor,
                 self.clip_mins[key],
@@ -812,7 +814,6 @@ class SimpleRescaleNormalizer(DataNormalizer):
                 self.is_fill_value[key],
             )
 
-            # Apply second stage if requested and stats are available
             if self.apply_second_stage and key in self.norm_means:
                 normalized_tensor = self._normalize_second_stage(
                     normalized_tensor,
@@ -835,30 +836,22 @@ class SimpleRescaleNormalizer(DataNormalizer):
         is_fill: Tensor,
     ) -> Tensor:
         """First stage: clip, shift negative values, scale to [0,1]."""
-        # Reshape for broadcasting
         clip_min_r, _ = self._reshape_and_expand(clip_min, tensor)
         clip_max_r, _ = self._reshape_and_expand(clip_max, tensor)
         shift_r, _ = self._reshape_and_expand(shift_values, tensor)
         adj_max_r, _ = self._reshape_and_expand(adjusted_max, tensor)
         _, is_fill_e = self._reshape_and_expand(is_fill, tensor)
 
-        # Initialize with original tensor
         normalized_tensor = tensor.clone()
 
-        # Apply normalization where not a fill value
-        # 1. Apply clipping
         clipped = torch.clamp(tensor, min=clip_min_r, max=clip_max_r)
 
-        # 2. Apply shift for negative values
         shifted = clipped + shift_r
 
-        # 3. Scale to [0,1] range
         rescaled = shifted / (adj_max_r + 1e-6)
 
-        # 4. Ensure values stay in [0,1] range
         rescaled = torch.clamp(rescaled, min=0.0, max=1.0)
 
-        # Apply only to non-fill values
         normalized_tensor = torch.where(~is_fill_e, rescaled, normalized_tensor)
 
         return normalized_tensor
@@ -867,20 +860,16 @@ class SimpleRescaleNormalizer(DataNormalizer):
         self, tensor: Tensor, norm_mean: Tensor, norm_std: Tensor, is_fill: Tensor
     ) -> Tensor:
         """Second stage: apply z-score normalization to [0,1] data."""
-        # Reshape for broadcasting
         mean_reshaped, _ = self._reshape_and_expand(norm_mean, tensor)
         std_reshaped, _ = self._reshape_and_expand(norm_std, tensor)
         _, fill_mask_expanded = self._reshape_and_expand(is_fill, tensor)
 
-        # Apply z-score normalization
         normalized = tensor.clone()
         z_score_norm = (tensor - mean_reshaped) / (std_reshaped + 1e-6)
 
-        # Scale to target range if needed
         if self.output_range != "zero_one":
             z_score_norm = z_score_norm * self.scale_factor + self.shift_factor
 
-        # Apply only to non-fill values
         normalized = torch.where(fill_mask_expanded, normalized, z_score_norm)
 
         return normalized
@@ -895,7 +884,6 @@ class SimpleRescaleNormalizer(DataNormalizer):
 
             unnormalized_tensor = tensor
 
-            # First undo second stage if it was applied
             if self.apply_second_stage and key in self.norm_means:
                 unnormalized_tensor = self._denormalize_second_stage(
                     unnormalized_tensor,
@@ -904,7 +892,6 @@ class SimpleRescaleNormalizer(DataNormalizer):
                     self.is_fill_value[key],
                 )
 
-            # Then undo first stage
             result[key] = self._denormalize_first_stage(
                 unnormalized_tensor,
                 self.shift_values[key],
@@ -918,26 +905,20 @@ class SimpleRescaleNormalizer(DataNormalizer):
         self, tensor: Tensor, norm_mean: Tensor, norm_std: Tensor, is_fill: Tensor
     ) -> Tensor:
         """Undo the z-score normalization of second stage."""
-        # Reshape for broadcasting
         mean_reshaped, _ = self._reshape_and_expand(norm_mean, tensor)
         std_reshaped, _ = self._reshape_and_expand(norm_std, tensor)
         _, fill_mask_expanded = self._reshape_and_expand(is_fill, tensor)
 
-        # Start with original values
         denormalized = tensor.clone()
 
-        # Undo scaling to target range if applied
         temp = tensor.clone()
         if self.output_range != "zero_one":
             if self.shift_factor != 0:
                 temp = (temp - self.shift_factor) / self.scale_factor
             else:
                 temp = temp / self.scale_factor
-
-        # Reverse z-score normalization
         original_range = temp * (std_reshaped + 1e-6) + mean_reshaped
 
-        # Apply only to non-fill values
         denormalized = torch.where(fill_mask_expanded, denormalized, original_range)
 
         return denormalized
@@ -950,22 +931,17 @@ class SimpleRescaleNormalizer(DataNormalizer):
         is_fill: Tensor,
     ) -> Tensor:
         """Undo the first stage normalization (scaling, shifting)."""
-        # Reshape for broadcasting
+
         shift_r, _ = self._reshape_and_expand(shift_values, tensor)
         adj_max_r, _ = self._reshape_and_expand(adjusted_max, tensor)
         _, is_fill_e = self._reshape_and_expand(is_fill, tensor)
 
-        # Initialize result
         unnormalized_tensor = tensor.clone()
 
-        # Undo normalization
-        # 1. Undo scaling
         unscaled = tensor * (adj_max_r + 1e-6)
 
-        # 2. Undo shift
         unshifted = unscaled - shift_r
 
-        # Apply only to non-fill values
         unnormalized_tensor = torch.where(~is_fill_e, unshifted, unnormalized_tensor)
 
         return unnormalized_tensor
