@@ -23,38 +23,34 @@ def _load_stats_from_path_or_dict(stats_path: str):
     with open(stats_path, "r") as f:
         stats_dict = json.load(f)
 
-    if "input_stats" in stats_dict:
-        processed_stats = {"means": {}, "stds": {}}
+    processed_stats = {"means": {}, "stds": {}}
 
-        for modality_key, modality_stats in stats_dict["input_stats"].items():
-            for i, band_name in enumerate(modality_stats["band_names"]):
-                processed_stats["means"][band_name] = modality_stats["mean"][i]
-                processed_stats["stds"][band_name] = modality_stats["std"][i]
+    for modality_key, modality_stats in stats_dict["input_stats"].items():
+        for i, band_name in enumerate(modality_stats["band_names"]):
+            processed_stats["means"][band_name] = modality_stats["mean"][i]
+            processed_stats["stds"][band_name] = modality_stats["std"][i]
 
-                for stat_key in [
-                    "norm_mean",
-                    "norm_std",
-                    "pct_02",
-                    "pct_98",
-                    "shift_offsets",
-                ]:
-                    if stat_key in modality_stats:
-                        if stat_key not in processed_stats:
-                            processed_stats[stat_key] = {}
-                        processed_stats[stat_key][band_name] = modality_stats[stat_key][
-                            i
-                        ]
+            for stat_key in [
+                "norm_mean",
+                "norm_std",
+                "pct_02",
+                "pct_98",
+                "shift_offsets",
+            ]:
+                if stat_key in modality_stats:
+                    if stat_key not in processed_stats:
+                        processed_stats[stat_key] = {}
+                    processed_stats[stat_key][band_name] = modality_stats[stat_key][i]
 
-                if "pct_02" in modality_stats and "clip_min" not in processed_stats:
-                    processed_stats["clip_min"] = {}
-                    processed_stats["clip_min"][band_name] = modality_stats["pct_02"][i]
+            if "pct_02" in modality_stats and "clip_min" not in processed_stats:
+                processed_stats["clip_min"] = {}
+                processed_stats["clip_min"][band_name] = modality_stats["pct_02"][i]
 
-                if "pct_98" in modality_stats and "clip_max" not in processed_stats:
-                    processed_stats["clip_max"] = {}
-                    processed_stats["clip_max"][band_name] = modality_stats["pct_98"][i]
+            if "pct_98" in modality_stats and "clip_max" not in processed_stats:
+                processed_stats["clip_max"] = {}
+                processed_stats["clip_max"][band_name] = modality_stats["pct_98"][i]
 
-        return processed_stats
-    return stats_dict
+    return processed_stats
 
 
 class DataNormalizer(nn.Module, ABC):
@@ -74,8 +70,9 @@ class DataNormalizer(nn.Module, ABC):
             image_keys: Keys in the data dictionary to normalize (default: ["image"])
         """
         super().__init__()
-        if isinstance(stats, str):
+        if isinstance(stats, str | Path):
             stats = _load_stats_from_path_or_dict(stats)
+
         self.stats = stats
         self.band_order = band_order
         self.image_keys = image_keys or ["image"]
@@ -425,6 +422,7 @@ class SatMAENormalizer(DataNormalizer):
             apply_second_stage: Whether to apply ImageNet-style normalization
                                after first stage [0,1] normalization
         """
+
         if output_range not in self.valid_ranges:
             raise AssertionError(
                 f"output_range must be one of {self.valid_ranges}, got {output_range}"
