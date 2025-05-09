@@ -247,7 +247,7 @@ class NumpyEncoder(json.JSONEncoder):
         return super(NumpyEncoder, self).default(obj)
 
 
-def process_dataset(dataset_config: dict[str, Any], save_dir: str, device: str) -> None:
+def process_dataset(dataset_config: dict[str, Any], save_dir: str, device: str, normalization_mode: str) -> None:
     """Process a single dataset and compute its statistics.
 
     Args:
@@ -269,7 +269,7 @@ def process_dataset(dataset_config: dict[str, Any], save_dir: str, device: str) 
         "_target_": "torch.nn.Identity"
     }
 
-    stats_computer = instantiate(stats_computer_config)
+    stats_computer = instantiate(stats_computer_config, normalization_mode=normalization_mode)
 
     print(f"Computing statistics for {dataset_name}...")
     stats = stats_computer.compute_statistics()
@@ -329,6 +329,12 @@ def main():
         help="Directory to save statistics",
     )
     parser.add_argument(
+        "--normalization_mode",
+        type=str,
+        default="none",
+        choices=["none", "clip_only", "simple_rescale", "satmae"],
+    )
+    parser.add_argument(
         "--device",
         type=str,
         default="cuda" if torch.cuda.is_available() else "cpu",
@@ -341,7 +347,7 @@ def main():
     config = OmegaConf.load(args.config)
 
     for dataset_config in config["datamodules"]:
-        process_dataset(dataset_config, args.save_dir, args.device)
+        process_dataset(dataset_config, args.save_dir, args.device, args.normalization_mode)
 
     print(f"\nAll dataset statistics computed and saved to {args.save_dir}")
 

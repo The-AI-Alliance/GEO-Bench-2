@@ -240,13 +240,12 @@ datamodules:
       datamodule:
         _target_: geobench_v2.datamodules.GeoBenchBENV2DataModule
         batch_size: 64
-        num_workers: 4
-        # root: "/mnt/rg_climate_benchmark/data/final_geobenchV2/benv2"
-        root: "/home/nils/projects/GEO-Bench-2/data/benv2"
+        num_workers: 16
+        root: "/mnt/rg_climate_benchmark/data/final_geobenchV2/benv2"
+        # root: "/home/nils/projects/GEO-Bench-2/data/benv2"
       input_keys: ["image_s2", "image_s1"]
       target_key: "label"
       range_vals:
         image_s2: [0, 10000]
         image_s1: [-50, 100]
-      compute_normalized_stats: True
 
