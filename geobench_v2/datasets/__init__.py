@@ -27,6 +27,7 @@ from .spacenet7 import GeoBenchSpaceNet7
 from .spacenet8 import GeoBenchSpaceNet8
 from .treesatai import GeoBenchTreeSatAI
 from .wind_turbine import GeoBenchWindTurbine
+from .nzcattle import GeoBenchNZCattleObjectDetection
 
 __all__ = (
     "GeoBenchCaFFe",
@@ -53,4 +54,5 @@ __all__ = (
     "GeoBenchBRIGHT",
     "GeoBenchWindTurbine",
     "GeoBenchQFabric",
+    "GeoBenchNZCattleObjectDetection"
 )
