@@ -36,7 +36,7 @@ def datamodule(
     monkeypatch.setattr(
         GeoBenchCaFFe,
         "sha256str",
-        ["5639e31002f42999718e084a56ebf99903afa2d867e7e2bd8082926dfa3a019b"],
+        ["c59595f7ca5232a16c778e32ce6994309e357c4a52abda3c13a1ef20643d62a0"],
     )
     dm = GeoBenchCaFFeDataModule(
         img_size=512,

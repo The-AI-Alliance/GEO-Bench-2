@@ -17,6 +17,12 @@ from tqdm.auto import tqdm
 
 # Using Caleb Robinson's implementation: https://gist.github.com/calebrob6/1ef1e64bd62b1274adf2c6f91e20d215
 class ImageStatistics(torch.nn.Module):
+    valid_normalization_modes = (
+        "none",
+        "clip_only",
+        "simple_rescale",
+        "satmae",
+    )
     def __init__(
         self,
         shape: tuple[int],
@@ -45,6 +51,11 @@ class ImageStatistics(torch.nn.Module):
                 - "satmae": Shift negatives, clip to mean±2std, scale to [0,1] range
         """
         super(ImageStatistics, self).__init__()
+
+        assert normalization_mode in self.valid_normalization_modes, (
+            f"Invalid normalization mode '{normalization_mode}'. "
+            f"Valid options are: {self.valid_normalization_modes}"
+        )
 
         self.register_buffer("mean", torch.zeros(shape))
         self.register_buffer("min", torch.full(shape, float("inf")))
@@ -282,7 +293,7 @@ class ImageStatistics(torch.nn.Module):
             f"normalization_mode={self.normalization_mode})"
         )
 
-        if self.compute_normalized_stats:
+        if (hasattr(self, "norm_mean")):
             base_repr += (
                 f"\nNormalized stats: norm_mean={self.norm_mean}, norm_var={self.norm_var}, "
                 f"norm_std={self.norm_std}, norm_count={self.norm_count})"
