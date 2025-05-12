@@ -53,7 +53,7 @@ ALL_DATAMODULES = [
 ]
 
 dataset_path_mapping = {
-    # "GeoBenchCaFFeDataModule": "caffe",
+    "GeoBenchCaFFeDataModule": "caffe",
     "GeoBenchFieldsOfTheWorldDataModule": "fotw",
     "GeoBenchPASTISDataModule": "pastis",
     "GeoBenchSpaceNet2DataModule": "spacenet2",

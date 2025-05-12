@@ -409,8 +409,7 @@ class DatasetStatistics(ABC):
             }
 
             if (
-                hasattr(stats, "compute_normalized_stats")
-                and stats.compute_normalized_stats
+                hasattr(stats, "norm_mean")
             ):
                 update_dict.update(
                     {

@@ -25,11 +25,11 @@ class GeoBenchEverWatch(EverWatch, DataUtilsMixin):
     """
 
     dataset_band_config = DatasetBandRegistry.EVERWATCH
-    band_default_order = ("r", "g", "b")
+    band_default_order = ("red", "green", "blue")
 
     normalization_stats = {
-        "means": {"r": 0.0, "g": 0.0, "b": 0.0},
-        "stds": {"r": 255.0, "g": 255.0, "b": 255.0},
+        "means": {"red": 0.0, "green": 0.0, "blue": 0.0},
+        "stds": {"red": 255.0, "green": 255.0, "blue": 255.0},
     }
 
     classes = classes = (
@@ -57,7 +57,7 @@ class GeoBenchEverWatch(EverWatch, DataUtilsMixin):
 
         Args:
             root: Path to the dataset root directory
-            split: The dataset split, supports 'train', 'val', 'test'
+            split: The dataset split, supports 'train', 'validation', 'test'
             band_order: The order of bands to return, defaults to ['red', 'green', 'blue'], if one would
                 specify ['red', 'green', 'blue', 'blue'], the dataset would return images with 4 channels
                 in that order. This is useful for models that expect a certain band order, or
@@ -75,10 +75,13 @@ class GeoBenchEverWatch(EverWatch, DataUtilsMixin):
 
         self.annot_df = pd.read_csv(os.path.join(self.root, "resized_annotations.csv"))
 
-        # remove all entries where xmin == xmax or ymin == ymax
         self.annot_df = self.annot_df[
             (self.annot_df["xmin"] != self.annot_df["xmax"])
             & (self.annot_df["ymin"] != self.annot_df["ymax"])
+        ].reset_index(drop=True)
+
+        self.annot_df = self.annot_df[
+            self.annot_df["split"] == self.split
         ].reset_index(drop=True)
 
         # group per image path to get all annotations for one sample

@@ -31,12 +31,12 @@ def datamodule(
     """Initialize CaFFe datamodule with test configuration."""
     monkeypatch.setattr(GeoBenchCaFFe, "paths", ["caffe.tortilla"])
     monkeypatch.setattr(
-        GeoBenchCaFFe, "url", os.path.join("tests", "data", "benv2", "{}")
+        GeoBenchCaFFe, "url", os.path.join("tests", "data", "caffe", "{}")
     )
     monkeypatch.setattr(
         GeoBenchCaFFe,
         "sha256str",
-        ["94a1bf150f7a25df6acd16c7f46ddc9b0b0e4d581e40fd282e22853115e26023"],
+        ["5639e31002f42999718e084a56ebf99903afa2d867e7e2bd8082926dfa3a019b"],
     )
     dm = GeoBenchCaFFeDataModule(
         img_size=512,

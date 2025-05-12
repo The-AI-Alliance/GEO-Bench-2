@@ -6,396 +6,135 @@
 import argparse
 import glob
 import os
-import pickle
-import re
-import shutil
-from pathlib import Path
-from typing import Any
 
 import numpy as np
 import pandas as pd
+import pyproj
 import rasterio
+import tacoreader
+import tacotoolbox
 from PIL import Image
-from sklearn.model_selection import train_test_split
 from tqdm import tqdm
 
-
-def load_metadata(metadata_path):
-    try:
-        metadata_df = pd.read_csv(metadata_path, delimiter=";", encoding="latin-1")
-        metadata_df.columns = metadata_df.columns.str.strip()
-        metadata_df["date"] = pd.to_datetime(
-            metadata_df["date"], format="%d.%m.%Y", errors="coerce"
-        )
-
-        def parse_bbox(bbox_str):
-            pattern = r"BoundingBox\(left=([-\d.]+),\s*bottom=([-\d.]+),\s*right=([-\d.]+),\s*top=([-\d.]+)\)"
-            match = re.search(pattern, bbox_str)
-            if match:
-                return (
-                    float(match.group(1)),
-                    float(match.group(2)),
-                    float(match.group(3)),
-                    float(match.group(4)),
-                )
-            return None, None, None, None
-
-        metadata_df[["left", "bottom", "right", "top"]] = metadata_df[
-            "Bounding box coordinates"
-        ].apply(lambda x: pd.Series(parse_bbox(x)))
-        return metadata_df
-    except Exception as e:
-        print(f"Error loading metadata: {e}")
-        return pd.DataFrame()
+from geobench_v2.generate_benchmark.utils import (
+    create_subset_from_df,
+    create_unittest_subset,
+)
+from geobench_v2.generate_benchmark.geospatial_split_utils import show_samples_per_valid_ratio
 
 
-def calculate_patch_coordinates(
-    img_width,
-    img_height,
-    patch_x,
-    patch_y,
-    patch_size,
-    bbox_left,
-    bbox_bottom,
-    bbox_right,
-    bbox_top,
-    coord_system,
-):
-    patch_center_x = patch_x + patch_size / 2
-    patch_center_y = patch_y + patch_size / 2
+def create_geospatial_train_val_split(df):
+    """Split training data into train/validation sets based on regions."""
+    test_df = df[df["split"] == "test"].copy()
+    train_df = df[df["split"] == "train"].copy()
 
-    coord_x = bbox_left + (bbox_right - bbox_left) * (patch_center_x / img_width)
-    coord_y = bbox_bottom + (bbox_top - bbox_bottom) * (
-        1 - (patch_center_y / img_height)
-    )
+    region_counts = train_df["region"].value_counts()
+    total_train = len(train_df)
+    target_val = total_train * 0.2
 
-    lat, lon = None, None
-    if coord_system.startswith("EPSG:"):
-        try:
-            import pyproj
+    sorted_regions = region_counts.sort_values(ascending=True).index.tolist()
+    val_regions = []
+    val_count = 0
 
-            if coord_system != "EPSG:4326":
-                projection = pyproj.Transformer.from_crs(
-                    coord_system, "EPSG:4326", always_xy=True
-                )
-                lon, lat = projection.transform(coord_x, coord_y)
-            else:
-                lon, lat = coord_x, coord_y
-        except ImportError:
-            pass
+    for region in sorted_regions:
+        region_size = region_counts[region]
 
-    return coord_x, coord_y, lat, lon
+        if val_count + region_size <= target_val * 1.1:
+            val_regions.append(region)
+            val_count += region_size
+        if val_count >= target_val * 0.9:
+            break
 
+    if val_count < target_val * 0.8:
+        val_regions = []
+        val_count = 0
 
-def process_files_for_coordinates(
-    files,
-    modality_dir,
-    data_split_dir,
-    patch_size,
-    overlap,
-    metadata_df,
-    patch_metadata,
-):
-    parent_dir = os.path.dirname(os.getcwd())
+        size_diff = [
+            (r, abs(region_counts[r] - target_val)) for r in region_counts.index
+        ]
+        size_diff.sort(key=lambda x: x[1])
 
-    for file in files:
-        file_basename = os.path.basename(file)
-        img_name = os.path.splitext(file_basename)[0]
+        best_region = size_diff[0][0]
+        val_regions = [best_region]
+        val_count = region_counts[best_region]
 
-        original_name = img_name.split("__")[0] if "__" in img_name else img_name
-        tif_match = metadata_df[metadata_df["image_name"].str.startswith(original_name)]
+        if val_count < target_val * 0.8:
+            for region in sorted_regions:
+                if (
+                    region != best_region
+                    and val_count + region_counts[region] <= target_val * 1.1
+                ):
+                    val_regions.append(region)
+                    val_count += region_counts[region]
+                    if val_count >= target_val * 0.9:
+                        break
 
-        if len(tif_match) == 0:
-            print(f"WARNING: No metadata match found for {original_name}")
-            continue
+    train_df.loc[train_df["region"].isin(val_regions), "split"] = "validation"
 
-        img_metadata = tif_match.iloc[0]
-        image_date = img_metadata["date"]
-        bbox_left = img_metadata["left"]
-        bbox_bottom = img_metadata["bottom"]
-        bbox_right = img_metadata["right"]
-        bbox_top = img_metadata["top"]
-        coord_system = img_metadata["Coordinate system"]
+    result_df = pd.concat([train_df, test_df])
 
-        try:
-            # image = cv2.imread(file.__str__(), cv2.IMREAD_GRAYSCALE)
-            image = Image.open(file.__str__())
-            if image is not None:
-                orig_height, orig_width = image.shape
-            else:
-                resolution_m = float(img_metadata["resolution (m)"])
-                orig_width = int((bbox_right - bbox_left) / resolution_m)
-                orig_height = int((bbox_top - bbox_bottom) / resolution_m)
-        except:
-            resolution_m = float(img_metadata["resolution (m)"])
-            orig_width = int((bbox_right - bbox_left) / resolution_m)
-            orig_height = int((bbox_top - bbox_bottom) / resolution_m)
+    train_count = (result_df["split"] == "train").sum()
+    val_count = (result_df["split"] == "validation").sum()
+    test_count = (result_df["split"] == "test").sum()
 
-        bottom = patch_size - (orig_height % patch_size)
-        bottom = bottom % patch_size
-        right = patch_size - (orig_width % patch_size)
-        right = right % patch_size
+    print("Split statistics:")
+    print(f"  Train: {train_count} samples ({train_count / len(result_df):.1%})")
+    print(f"  Validation: {val_count} samples ({val_count / len(result_df):.1%})")
+    print(f"  Test: {test_count} samples ({test_count / len(result_df):.1%})")
+    print(f"Validation regions: {val_regions}")
 
-        if overlap > 0:
-            bottom = (patch_size - overlap) - (
-                (orig_height - patch_size) % (patch_size - overlap)
-            )
-            right = (patch_size - overlap) - (
-                (orig_width - patch_size) % (patch_size - overlap)
-            )
-
-        stride = (patch_size - overlap, patch_size - overlap)
-        padded_height = orig_height + bottom
-        padded_width = orig_width + right
-
-        x_tmp = np.arange(0, padded_height - patch_size + 1, stride[0])
-        y_tmp = np.arange(0, padded_width - patch_size + 1, stride[1])
-
-        x_coord, y_coord = np.meshgrid(x_tmp, y_tmp)
-        x_coord = x_coord.ravel()
-        y_coord = y_coord.ravel()
-
-        for j in range(len(x_coord)):
-            patch_x = x_coord[j]
-            patch_y = y_coord[j]
-
-            center_x, center_y, lat, lon = calculate_patch_coordinates(
-                orig_width,
-                orig_height,
-                patch_x,
-                patch_y,
-                patch_size,
-                bbox_left,
-                bbox_bottom,
-                bbox_right,
-                bbox_top,
-                coord_system,
-            )
-
-            add_to_name = f"__{bottom}_{right}_{j}_{patch_x}_{patch_y}.png"
-            patch_filename = img_name + add_to_name
-
-            patch_metadata[patch_filename] = {
-                "timestamp": image_date.strftime("%Y-%m-%d")
-                if not pd.isna(image_date)
-                else None,
-                "center_x": float(center_x),
-                "center_y": float(center_y),
-                "latitude": float(lat) if lat is not None else None,
-                "longitude": float(lon) if lon is not None else None,
-                "coordinate_system": coord_system,
-                "original_image": img_metadata["image_name"],
-                "glacier_name": img_metadata["glacier_name"].strip()
-                if not pd.isna(img_metadata["glacier_name"])
-                else None,
-                "sensor": img_metadata["sensor"].strip()
-                if not pd.isna(img_metadata["sensor"])
-                else None,
-                "resolution_m": float(img_metadata["resolution (m)"])
-                if not pd.isna(img_metadata["resolution (m)"])
-                else None,
-                "polarization": img_metadata["polarization"].strip()
-                if not pd.isna(img_metadata["polarization"])
-                else None,
-                "data_split": data_split_dir,
-                "patch_x": int(patch_x),
-                "patch_y": int(patch_y),
-                "patch_idx": int(j),
-            }
+    return result_df
 
 
-def save_patch_coordinates_only(
-    raw_data_dir, patch_size, overlap, overlap_test, overlap_val
-):
-    patch_metadata = {}
-
-    metadata_df = load_metadata(os.path.join(raw_data_dir, "meta_data.csv"))
-    if metadata_df.empty:
-        print("ERROR: Failed to load metadata from meta_data.csv")
-        return
-
-    for modality_dir in ["sar_imagess"]:
-        for data_split_dir in ["test", "train"]:
-            raw_dir_path = os.path.join(raw_data_dir, modality_dir, data_split_dir)
-            if not os.path.exists(raw_dir_path):
-                print(f"Directory not found: {raw_dir_path}")
-                continue
-
-            folder = sorted(Path(raw_dir_path).rglob("*.png"))
-            files = [x for x in folder]
-
-            if data_split_dir == "train":
-                if not os.path.exists("data_splits"):
-                    os.makedirs("data_splits")
-
-                data_idx = np.arange(len(files))
-                train_idx, val_idx = train_test_split(
-                    data_idx, test_size=0.1, random_state=1
-                )
-
-                with open(os.path.join("data_splits", "train_idx.txt"), "wb") as fp:
-                    pickle.dump(train_idx, fp)
-
-                with open(os.path.join("data_splits", "val_idx.txt"), "wb") as fp:
-                    pickle.dump(val_idx, fp)
-
-                process_files_for_coordinates(
-                    [files[i] for i in train_idx],
-                    modality_dir,
-                    data_split_dir,
-                    patch_size,
-                    overlap,
-                    metadata_df,
-                    patch_metadata,
-                )
-
-                process_files_for_coordinates(
-                    [files[i] for i in val_idx],
-                    modality_dir,
-                    "val",
-                    patch_size,
-                    overlap_val,
-                    metadata_df,
-                    patch_metadata,
-                )
-            else:
-                process_files_for_coordinates(
-                    files,
-                    modality_dir,
-                    data_split_dir,
-                    patch_size,
-                    overlap_test,
-                    metadata_df,
-                    patch_metadata,
-                )
-
-    patches_df = pd.DataFrame.from_dict(patch_metadata, orient="index").reset_index()
-    patches_df.rename(columns={"index": "filename"}, inplace=True)
-    return patches_df
-
-
-def create_geobench_ds(orig_dir: str, metadata_df: pd.DataFrame, save_dir: str) -> None:
-    """Create a subset of CaFFe dataset.
+def generate_metadata_df(root: str, save_dir: str) -> pd.DataFrame:
+    """Generate metadata for CaFFe dataset by matching masks with images.
 
     Args:
-        orig_dir: Original directory of the CaFFe dataset, patches
-        metadata_df: Metadata DataFrame.
-        save_dir: Directory to save the subset.
-    """
-    # root directoy of caffe, then subdirectory for sar_imagess and one for "zones"
-    # then subdirectories for train, val, test
-
-    # create a subset of the caffe dataset
-    # create a new directory structure with the same structure as the caffe dataset
-    # but with a subset of the images, based on the ones contained in metadata_df filenames column
-
-    os.makedirs(save_dir, exist_ok=True)
-    os.makedirs(os.path.join(save_dir, "caffe"), exist_ok=True)
-    new_sar_dir = os.path.join(save_dir, "caffe", "sar_images")
-    os.makedirs(new_sar_dir, exist_ok=True)
-    new_zones_dir = os.path.join(save_dir, "caffe", "zones")
-    os.makedirs(new_zones_dir, exist_ok=True)
-
-    for split in metadata_df["split"].unique():
-        os.makedirs(os.path.join(save_dir, "caffe", "sar_images", split), exist_ok=True)
-        os.makedirs(os.path.join(save_dir, "caffe", "zones", split), exist_ok=True)
-
-        orig_img_dir = os.path.join(orig_dir, "sar_images", split)
-        orig_zone_dir = os.path.join(orig_dir, "zones", split)
-
-        for idx, row in tqdm(
-            metadata_df[metadata_df["split"] == split].iterrows(),
-            total=len(metadata_df[metadata_df["split"] == split]),
-            desc=f"Processing {split} split",
-        ):
-            # copy the image and zone files to the new directory
-            img_path = os.path.join(orig_img_dir, row["filename"])
-            zone_path = os.path.join(
-                orig_zone_dir, row["filename"].replace("__", "_zones__")
-            )
-
-            assert os.path.exists(img_path), f"Image file not found: {img_path}"
-            assert os.path.exists(zone_path), f"Zone file not found: {zone_path}"
-
-            img_save_path = os.path.join(new_sar_dir, split, os.path.basename(img_path))
-            zone_save_path = os.path.join(
-                new_zones_dir, split, os.path.basename(zone_path)
-            )
-
-            # use shutil
-            shutil.copy(img_path, img_save_path)
-            shutil.copy(zone_path, zone_save_path)
-
-    # save the metadata_df to the save_dir
-    metadata_df.to_parquet(
-        os.path.join(save_dir, "caffe", "geobench_caffe_metadata.parquet")
-    )
-
-    # create a zip file of the save_dir, that preserves the directory structure when unzipping
-    shutil.make_archive(save_dir, "zip", save_dir)
-
-
-def process_row(args: tuple) -> dict[str, Any]:
-    """Process a single row from the metadata DataFrame.
-
-    Args:
-        args: Tuple containing (row, root, dir_file_names)
+        root: Root directory for CaFFe dataset.
 
     Returns:
-        Dictionary with patch_id, lon, and lat
+        DataFrame containing matched metadata for image and mask pairs.
     """
-    row, root, dir_file_names = args
-    patch_id = row["patch_id"]
-    patch_dir = "_".join(patch_id.split("_")[0:-2])
-
-    # Find the first TIF file in the patch directory
-    path_pattern = os.path.join(
-        root, dir_file_names["s2"], patch_dir, patch_id, "*.tif"
+    mask_paths = glob.glob(
+        os.path.join(root, "data_raw", "zones", "**", "*.png"), recursive=True
     )
-    paths = glob.glob(path_pattern)
+    df = pd.DataFrame(mask_paths, columns=["mask_path"])
 
-    if not paths:
-        return {
-            "patch_id": patch_id,
-            "lon": None,
-            "lat": None,
-            "error": "No TIF files found",
-        }
+    df["mask_basename"] = df["mask_path"].apply(os.path.basename)
+    df["region"] = df["mask_basename"].str.split("_").str[0]  # thinks like COL, DBE
+    df["date"] = df["mask_basename"].str.split("_").str[1]  # liek 2016-08-14
+    df["sensor"] = df["mask_basename"].str.split("_").str[2]  # like S1, TDX
 
-    try:
-        with rasterio.open(paths[0]) as src:
-            lon, lat = src.lnglat()
-            return {"patch_id": patch_id, "lon": lon, "lat": lat}
-    except Exception as e:
-        return {"patch_id": patch_id, "lon": None, "lat": None, "error": str(e)}
-
-
-def generate_metadata_df(root) -> pd.DataFrame:
-    """Generate metadata DataFrame for CaFFe dataset with parallel processing.
-
-    Args:
-        ds: CaFFe dataset
-        num_workers: Number of parallel workers to use
-
-    Returns:
-        DataFrame with metadata including geolocation for each patch
-    """
-    # TODO add download and unzip of raw data to the root directory
-    # and the metadata CSV file from huggingface, both available on torchgeo huggingface
-    df = save_patch_coordinates_only(
-        raw_data_dir=os.path.join(root, "data_raw"),
-        patch_size=512,
-        overlap=0,
-        overlap_test=128,
-        overlap_val=128,
+    df["split"] = df["mask_path"].apply(
+        lambda x: "train" if "train" in x else "test" if "test" in x else "unknown"
     )
 
-    # remove the samples under the "test" split that are on the southern hemisphere
-    df = df[~((df["data_split"] == "test") & (df["latitude"] < 0))]
+    geo_tiffs_path = glob.glob(
+        os.path.join(root, "geotiffs", "**", "**", "*.tif"), recursive=True
+    )
+    geo_df = pd.DataFrame(geo_tiffs_path, columns=["image_path"])
 
-    df.rename(columns={"data_split": "split"}, inplace=True)
+    geo_df["image_basename"] = geo_df["image_path"].apply(os.path.basename)
+    geo_df["region"] = geo_df["image_basename"].str.split("_").str[0]
+    geo_df["date"] = geo_df["image_basename"].str.split("_").str[1]
+    geo_df["sensor"] = geo_df["image_basename"].str.split("_").str[2]
 
-    # The quality factor (with 1 being the best and 6 the worst)
+    merged_df = pd.merge(
+        df,
+        geo_df[["image_path", "region", "date", "sensor"]],
+        on=["region", "date", "sensor"],
+        how="inner",
+    )
+
+    print(f"Found {len(merged_df)} matching pairs out of {len(df)} masks")
+
+    result_df = merged_df[
+        ["mask_path", "image_path", "region", "date", "sensor", "split"]
+    ]
+
+    # Check for duplicates (same mask matched to multiple images)
+    mask_counts = merged_df["mask_path"].value_counts()
+
     def extract_quality_factor(filename):
         try:
             parts = os.path.basename(filename).split("__")[0].split("_")
@@ -405,9 +144,418 @@ def generate_metadata_df(root) -> pd.DataFrame:
         except (IndexError, ValueError):
             return None
 
-    df["quality_factor"] = df["filename"].apply(extract_quality_factor)
+    # The quality factor (with 1 being the best and 6 the worst)
+    result_df["quality_factor"] = result_df["mask_path"].apply(extract_quality_factor)
+    result_df = result_df[result_df["quality_factor"] == "1"]
 
-    return df
+    def extract_mask_px_dims(path):
+        mask = Image.open(path)
+        width, height = mask.size
+        return width, height
+
+    result_df["mask_width"], result_df["mask_height"] = zip(
+        *result_df["mask_path"].apply(extract_mask_px_dims)
+    )
+
+    def extract_img_px_dims(path):
+        with rasterio.open(path) as img:
+            width = img.width
+            height = img.height
+            lng, lat = img.lnglat()
+        return width, height, lng, lat
+
+    (
+        result_df["img_width"],
+        result_df["img_height"],
+        result_df["lon"],
+        result_df["lat"],
+    ) = zip(*result_df["image_path"].apply(extract_img_px_dims))
+
+    assert result_df["mask_width"].equals(result_df["img_width"]), (
+        "Image and mask widths do not match"
+    )
+    assert result_df["mask_height"].equals(result_df["img_height"]), (
+        "Image and mask heights do not match"
+    )
+
+    result_df["image_path"] = result_df["image_path"].str.replace(save_dir, "")
+    result_df["mask_path"] = result_df["mask_path"].str.replace(save_dir, "")
+
+    result_df = create_geospatial_train_val_split(result_df)
+
+    return result_df
+
+
+def process_caffe_sample(args):
+    """Process a single CaFFe sample by extracting 512x512 patches from the center."""
+    idx, row, root_dir, save_dir = args
+
+    try:
+        mask_path = os.path.join(root_dir, row["mask_path"])
+        image_path = os.path.join(root_dir, row["image_path"])
+
+        basename = f"{row['region']}_{row['date']}_{row['sensor']}"
+
+        image_dir = os.path.join(save_dir, "images")
+        mask_dir = os.path.join(save_dir, "masks")
+        os.makedirs(image_dir, exist_ok=True)
+        os.makedirs(mask_dir, exist_ok=True)
+
+        patch_size = 512
+        patch_metadata = []
+
+        with rasterio.open(image_path) as src:
+            image_data = src.read()
+            image_transform = src.transform
+            image_crs = src.crs
+            height, width = src.height, src.width
+
+            # Create transformer for coordinate conversion if necessary
+            transformer = None
+            if image_crs and image_crs.is_valid:
+                try:
+                    if image_crs.to_epsg() != 4326:  # If not already in WGS84
+                        transformer = pyproj.Transformer.from_crs(
+                            image_crs, 4326, always_xy=True
+                        )
+                except (ValueError, pyproj.exceptions.CRSError):
+                    try:
+                        # Try using WKT representation instead of EPSG
+                        transformer = pyproj.Transformer.from_crs(
+                            image_crs.wkt, 4326, always_xy=True
+                        )
+                    except Exception as e:
+                        print(
+                            f"Warning: Could not create transformer for {basename}: {str(e)}"
+                        )
+
+
+            px_class_values_zones: dict[int, int] = {
+                0: 0,      # 'N/A' -> 0
+                64: 1,     # 'rock' -> 1
+                127: 2,    # 'glacier' -> 2
+                254: 3,    # 'ocean/ice melange' -> 3
+            }
+        
+        
+            mask = np.array(Image.open(mask_path))
+            
+            remapped_mask = np.zeros_like(mask)
+            for old_value, new_value in px_class_values_zones.items():
+                remapped_mask[mask == old_value] = new_value
+            
+            # Ensure mask has the right shape for rasterio
+            if len(remapped_mask.shape) == 2:
+                remapped_mask = remapped_mask[np.newaxis, :, :]
+            else:
+                remapped_mask = np.transpose(remapped_mask, (2, 0, 1))
+
+            if len(mask.shape) == 2:
+                mask = mask[np.newaxis, :, :]
+            else:
+                mask = np.transpose(mask, (2, 0, 1))
+            rows = max(1, height // patch_size)
+            cols = max(1, width // patch_size)
+
+            border_y = (height - rows * patch_size) // 2
+            border_x = (width - cols * patch_size) // 2
+
+            border_y = max(0, border_y)
+            border_x = max(0, border_x)
+
+            for r in range(rows):
+                for c in range(cols):
+                    row_start = border_y + r * patch_size
+                    col_start = border_x + c * patch_size
+
+                    if row_start + patch_size > height:
+                        row_start = height - patch_size
+                    if col_start + patch_size > width:
+                        col_start = width - patch_size
+
+                    mask_patch = remapped_mask[
+                        :,
+                        row_start : row_start + patch_size,
+                        col_start : col_start + patch_size,
+                    ]
+                    
+                    img_patch = image_data[
+                        :,
+                        row_start : row_start + patch_size,
+                        col_start : col_start + patch_size,
+                    ]
+
+                    patch_transform = rasterio.transform.from_origin(
+                        image_transform.c + col_start * image_transform.a,
+                        image_transform.f + row_start * image_transform.e,
+                        image_transform.a,
+                        image_transform.e,
+                    )
+
+                    patch_id = f"{basename}_r{r}_c{c}"
+                    img_filename = f"{patch_id}.tif"
+                    mask_filename = f"{patch_id}_mask.tif"
+
+                    mask_profile = {
+                        "driver": "GTiff",
+                        "height": patch_size,
+                        "width": patch_size,
+                        "count": mask_patch.shape[0],
+                        "dtype": mask_patch.dtype,
+                        "tiled": True,
+                        "blockxsize": patch_size,
+                        "blockysize": patch_size,
+                        "interleave": "pixel",
+                        "compress": "zstd",
+                        "zstd_level": 13,
+                        "predictor": 2,
+                        "crs": image_crs,
+                        "transform": patch_transform,
+                    }
+
+                    mask_out_path = os.path.join(mask_dir, mask_filename)
+                    with rasterio.open(mask_out_path, "w", **mask_profile) as dst:
+                        dst.write(mask_patch)
+
+                    img_profile = {
+                        "driver": "GTiff",
+                        "height": patch_size,
+                        "width": patch_size,
+                        "count": img_patch.shape[0],
+                        "dtype": img_patch.dtype,
+                        "tiled": True,
+                        "blockxsize": patch_size,
+                        "blockysize": patch_size,
+                        "interleave": "pixel",
+                        "compress": "zstd",
+                        "zstd_level": 13,
+                        "predictor": 2,
+                        "crs": image_crs,
+                        "transform": patch_transform,
+                    }
+
+                    img_out_path = os.path.join(image_dir, img_filename)
+                    with rasterio.open(img_out_path, "w", **img_profile) as dst:
+                        dst.write(img_patch)
+
+                    # Calculate patch center coordinates in the original CRS
+                    bounds = rasterio.transform.array_bounds(
+                        patch_size, patch_size, patch_transform
+                    )
+                    west, south, east, north = bounds
+                    center_x_projected = (west + east) / 2
+                    center_y_projected = (north + south) / 2
+
+                    # Transform to geographic coordinates (WGS84 lat/lon)
+                    if transformer:
+                        center_lon, center_lat = transformer.transform(
+                            center_x_projected, center_y_projected
+                        )
+                    else:
+                        center_lon, center_lat = center_x_projected, center_y_projected
+
+                    valid_pixels = np.count_nonzero(mask_patch)
+                    total_pixels = mask_patch.size
+                    valid_ratio = float(valid_pixels) / total_pixels
+
+                    patch_metadata.append(
+                        {
+                            "original_image": image_path,
+                            "original_mask": mask_path,
+                            "image_path": os.path.relpath(img_out_path, save_dir),
+                            "mask_path": os.path.relpath(mask_out_path, save_dir),
+                            "patch_id": patch_id,
+                            "region": row["region"],
+                            "date": row["date"],
+                            "sensor": row["sensor"],
+                            "split": row["split"],
+                            "row_idx": r,
+                            "col_idx": c,
+                            "row_px": int(row_start),
+                            "col_px": int(col_start),
+                            "lon": center_lon,
+                            "lat": center_lat,
+                            "projected_x": center_x_projected,
+                            "projected_y": center_y_projected,
+                            "crs": str(image_crs),
+                            "valid_ratio": valid_ratio, 
+                        }
+                    )
+
+        return patch_metadata
+
+    except Exception as e:
+        print(f"Error processing sample {idx} (mask: {row['mask_path']}): {str(e)}")
+        import traceback
+
+        traceback.print_exc()
+        return []
+
+
+def create_caffe_patches(metadata_df, root_dir, save_dir, num_workers=None):
+    """Create 512x512 patches from CaFFe images and masks.
+
+    Args:
+        metadata_df: DataFrame with metadata including mask and image paths
+        root_dir: Root directory containing dataset
+        save_dir: Directory to save patches
+        num_workers: Ignored parameter (kept for API compatibility)
+
+    Returns:
+        DataFrame with metadata for all created patches
+    """
+    os.makedirs(save_dir, exist_ok=True)
+
+    all_patch_metadata = []
+
+    print(f"Processing {len(metadata_df)} image-mask pairs")
+
+    for idx, row in tqdm(
+        metadata_df.iterrows(), total=len(metadata_df), desc="Creating patches"
+    ):
+        result = process_caffe_sample((idx, row, root_dir, save_dir))
+        if result:
+            all_patch_metadata.extend(result)
+
+    patches_df = pd.DataFrame(all_patch_metadata)
+
+    print(f"Created {len(patches_df)} patches from {len(metadata_df)} image-mask pairs")
+
+    patches_df["image_path"] = patches_df["image_path"].str.replace(save_dir, "")
+    patches_df["mask_path"] = patches_df["mask_path"].str.replace(save_dir, "")
+    patches_df["original_image"] = patches_df["original_image"].str.replace(
+        root_dir, ""
+    )
+    patches_df["original_mask"] = patches_df["original_mask"].str.replace(root_dir, "")
+
+    return patches_df
+
+
+def create_tortilla(root_dir, df, save_dir, tortilla_name):
+    """Create a tortilla version of the dataset."""
+    tortilla_dir = os.path.join(save_dir, "tortilla")
+    os.makedirs(tortilla_dir, exist_ok=True)
+
+    for idx, row in tqdm(df.iterrows(), total=len(df), desc="Creating tortilla"):
+        modalities = ["image", "mask"]
+        modality_samples = []
+
+        for modality in modalities:
+            path = os.path.join(root_dir, row[modality + "_path"])
+            with rasterio.open(path) as src:
+                profile = src.profile
+
+            if 'PROJCS["unknown"' in str(profile["crs"]):
+                # Define standard Antarctic Polar Stereographic projection
+                antarctic_wkt = """PROJCS["Antarctic_Polar_Stereographic",
+                    GEOGCS["WGS 84",
+                        DATUM["WGS_1984",
+                            SPHEROID["WGS 84",6378137,298.257223563]],
+                        PRIMEM["Greenwich",0],
+                        UNIT["degree",0.0174532925199433]],
+                    PROJECTION["Polar_Stereographic"],
+                    PARAMETER["latitude_of_origin",-71],
+                    PARAMETER["central_meridian",0],
+                    PARAMETER["false_easting",0],
+                    PARAMETER["false_northing",0],
+                    UNIT["metre",1]]"""
+
+                stac_data = {
+                    "crs": antarctic_wkt,
+                    "geotransform": profile["transform"].to_gdal(),
+                    "raster_shape": (profile["height"], profile["width"]),
+                    "time_start": row["date"],
+                }
+            else:
+                crs_str = "EPSG:" + str(profile["crs"].to_epsg())
+
+                stac_data = {
+                    "crs": crs_str,
+                    "geotransform": profile["transform"].to_gdal(),
+                    "raster_shape": (profile["height"], profile["width"]),
+                    "time_start": row["date"],
+                }
+
+            sample = tacotoolbox.tortilla.datamodel.Sample(
+                id=modality,
+                path=path,
+                file_format="GTiff",
+                data_split=row["split"],
+                stac_data=stac_data,
+                source_mask_file=row["original_mask"],
+                source_img_file=row["original_image"],
+                region=row["region"],
+                sensor=row["sensor"],
+            )
+
+            modality_samples.append(sample)
+
+        taco_samples = tacotoolbox.tortilla.datamodel.Samples(samples=modality_samples)
+        samples_path = os.path.join(tortilla_dir, f"sample_{idx}.tortilla")
+        tacotoolbox.tortilla.create(taco_samples, samples_path, quiet=True)
+
+    # merge tortillas into a single dataset
+    all_tortilla_files = sorted(glob.glob(os.path.join(tortilla_dir, "*.tortilla")))
+
+    samples = []
+
+    for idx, tortilla_file in tqdm(
+        enumerate(all_tortilla_files),
+        total=len(all_tortilla_files),
+        desc="Building taco",
+    ):
+        sample_data = tacoreader.load(tortilla_file).iloc[0]
+
+        sample_tortilla = tacotoolbox.tortilla.datamodel.Sample(
+            id=os.path.basename(tortilla_file).split(".")[0],
+            path=tortilla_file,
+            file_format="TORTILLA",
+            stac_data={
+                "crs": sample_data["stac:crs"],
+                "geotransform": sample_data["stac:geotransform"],
+                "raster_shape": sample_data["stac:raster_shape"],
+                "time_start": sample_data["stac:time_start"],
+            },
+            data_split=sample_data["tortilla:data_split"],
+            source_mask_file=sample_data["source_mask_file"],
+            source_img_file=sample_data["source_img_file"],
+            region=sample_data["region"],
+            sensor=sample_data["sensor"],
+        )
+        samples.append(sample_tortilla)
+
+    # create final taco file
+    final_samples = tacotoolbox.tortilla.datamodel.Samples(samples=samples)
+    tacotoolbox.tortilla.create(
+        final_samples, os.path.join(save_dir, tortilla_name), quiet=True
+    )
+
+
+def create_geobench_version(
+    metadata_df: pd.DataFrame,
+    n_train_samples: int,
+    n_val_samples: int,
+    n_test_samples: int,
+) -> None:
+    """Create a GeoBench version of the dataset.
+
+    Args:
+        metadata_df: DataFrame with metadata including geolocation for each patch
+        n_train_samples: Number of final training samples, -1 means all
+        n_val_samples: Number of final validation samples, -1 means all
+        n_test_samples: Number of final test samples, -1 means all
+    """
+    random_state = 24
+
+    subset_df = create_subset_from_df(
+        metadata_df,
+        n_train_samples=n_train_samples,
+        n_val_samples=n_val_samples,
+        n_test_samples=n_test_samples,
+        random_state=random_state,
+    )
+
+    return subset_df
 
 
 def main():
@@ -427,32 +575,43 @@ def main():
 
     os.makedirs(args.save_dir, exist_ok=True)
 
-    if not os.path.exists(new_metadata_path):
-        metadata_df = generate_metadata_df(args.root)
-        metadata_df.to_parquet(new_metadata_path)
-    else:
+    if os.path.exists(new_metadata_path):
         metadata_df = pd.read_parquet(new_metadata_path)
+    else:
+        metadata_df = generate_metadata_df(args.root, args.save_dir)
+        metadata_df.to_parquet(new_metadata_path)
 
-    # plot_enhanced_hemisphere_locations(
-    #     metadata_df,
-    #     output_path=os.path.join(args.save_dir, "caffe_hemispheres.png"),
-    #     dataset_name="CaFFe",
-    #     buffer_degrees=1.0,
-    #     s=5,
-    #     alpha=0.7
-    # )
-    verify_df = verify_coordinates_in_metadata(
-        metadata_df, os.path.join(args.root), num_samples=1000
+    patches_path = os.path.join(args.save_dir, "caffe_patches.parquet")
+
+    # if os.path.exists(patches_path):
+    #     patches_df = pd.read_parquet(patches_path)
+    # else:
+    patches_df = create_caffe_patches(
+        metadata_df, args.root, args.save_dir, num_workers=16
     )
+    patches_df = patches_df[patches_df["valid_ratio"] > 0.9]
+    patches_df.to_parquet(patches_path)
 
-    import pdb
+    # show_samples_per_valid_ratio(patches_df,output_path=os.path.join(args.save_dir, "valid_ratio.png"),dataset_name="Caffe")
 
-    pdb.set_trace()
+    result_df_path = os.path.join(args.save_dir, "geobench_caffe.parquet")
+    # if os.path.exists(result_df_path):
+    #     result_df = pd.read_parquet(result_df_path)
+    # else:
+    result_df = create_geobench_version(patches_df, n_train_samples=4000, n_val_samples=1000, n_test_samples=2000)
+    result_df.to_parquet(result_df_path)
 
-    create_geobench_ds(
-        "/mnt/rg_climate_benchmark/data/datasets_segmentation/Caffe/caffe",
-        metadata_df,
-        args.save_dir,
+    # Create a tortilla version of the dataset
+    tortilla_name = "geobench_caffe.tortilla"
+    create_tortilla(args.save_dir, result_df, args.save_dir, tortilla_name)
+
+    create_unittest_subset(
+        data_dir=args.save_dir,
+        tortilla_pattern=tortilla_name,
+        test_dir_name="caffe",
+        n_train_samples=4,
+        n_val_samples=2,
+        n_test_samples=2,
     )
 
 
@@ -460,5 +619,5 @@ if __name__ == "__main__":
     # full pipeline todo
     # RAW DATA download automation to merge the metadata inof
     # Torchgeo patch data generation dataset version
-    # copy files from those
+    # copy files from those><>>>
     main()
