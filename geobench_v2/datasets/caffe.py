@@ -21,7 +21,7 @@ class GeoBenchCaFFe(GeoBenchBaseDataset):
 
     url = "https://hf.co/datasets/aialliance/caffe/resolve/main/{}"
     paths = ["geobench_caffe.tortilla"]
-    sha256str = ["baca1bbac5209e4c12d20ece2bf46b62b37ea049dcc636470b35088306119b79"]
+    sha256str = ["f9aec21a2a0da3365e853c1a370b3209dca668ab7a595ac1b3b6f13446fd8939"]
 
     dataset_band_config = DatasetBandRegistry.CAFFE
     # TODO update sensor type with wavelength and resolution
@@ -92,7 +92,7 @@ class GeoBenchCaFFe(GeoBenchBaseDataset):
 
         with rasterio.open(mask_path) as f:
             mask = f.read(1)
-    
+
         mask = torch.from_numpy(mask).long()
 
         image_dict = self.rearrange_bands(image, self.band_order)

@@ -80,9 +80,9 @@ class GeoBenchEverWatch(EverWatch, DataUtilsMixin):
             & (self.annot_df["ymin"] != self.annot_df["ymax"])
         ].reset_index(drop=True)
 
-        self.annot_df = self.annot_df[
-            self.annot_df["split"] == self.split
-        ].reset_index(drop=True)
+        self.annot_df = self.annot_df[self.annot_df["split"] == self.split].reset_index(
+            drop=True
+        )
 
         # group per image path to get all annotations for one sample
         self.annot_df["sample_index"] = pd.factorize(self.annot_df["image_path"])[0]

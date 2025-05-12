@@ -15,6 +15,7 @@ from torch import Tensor
 from torchgeo.datasets.utils import percentile_normalization
 
 from geobench_v2.datasets.caffe import GeoBenchCaFFe
+import tacoreader
 
 from .base import GeoBenchSegmentationDataModule
 
@@ -72,12 +73,13 @@ class GeoBenchCaFFeDataModule(GeoBenchSegmentationDataModule):
         Returns:
             pandas DataFrame with metadata.
         """
-        return pd.read_parquet(
-            os.path.join(self.kwargs["root"], "geobench_caffe.parquet")
+        self.data_df = tacoreader.load(
+            [os.path.join(self.kwargs["root"], f) for f in GeoBenchCaFFe.paths]
         )
+        return self.data_df
 
     def visualize_batch(
-        self, split: str = "train"
+        self, batch: dict[str, Tensor] | None = None, split: str = "train"
     ) -> tuple[plt.Figure, dict[str, Tensor]]:
         """Visualize a batch of data.
 
@@ -87,14 +89,16 @@ class GeoBenchCaFFeDataModule(GeoBenchSegmentationDataModule):
         Returns:
             The matplotlib figure and the batch of data
         """
-        if split == "train":
-            batch = next(iter(self.train_dataloader()))
-        elif split == "validation":
-            batch = next(iter(self.val_dataloader()))
-        else:
-            batch = next(iter(self.test_dataloader()))
+        if batch is None:
+            if split == "train":
+                batch = next(iter(self.train_dataloader()))
+            elif split == "validation":
+                batch = next(iter(self.val_dataloader()))
+            else:
+                batch = next(iter(self.test_dataloader()))
 
-        batch = self.data_normalizer.unnormalize(batch)
+        if hasattr(self.data_normalizer, "unnormalize"):
+            batch = self.data_normalizer.unnormalize(batch)
 
         images = batch["image"]
         masks = batch["mask"]

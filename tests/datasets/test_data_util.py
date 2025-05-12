@@ -1,7 +1,7 @@
 import pytest
 import torch
 
-from geobench_v2.datasets.data_util import ClipZScoreNormalizer, SatMAENormalizer
+from geobench_v2.datasets.normalization import ClipZScoreNormalizer, SatMAENormalizer
 
 
 class TestSatMAENormalizer:
