@@ -482,6 +482,8 @@ def create_tortilla(root_dir, df, save_dir, tortilla_name):
                 file_format="GTiff",
                 data_split=row["split"],
                 stac_data=stac_data,
+                lat=row["lat"],
+                lon=row["lon"],
                 source_mask_file=row["original_mask"],
                 source_img_file=row["original_image"],
                 region=row["region"],
@@ -505,7 +507,6 @@ def create_tortilla(root_dir, df, save_dir, tortilla_name):
         desc="Building taco",
     ):
         sample_data = tacoreader.load(tortilla_file).iloc[0]
-
         sample_tortilla = tacotoolbox.tortilla.datamodel.Sample(
             id=os.path.basename(tortilla_file).split(".")[0],
             path=tortilla_file,
@@ -520,6 +521,8 @@ def create_tortilla(root_dir, df, save_dir, tortilla_name):
             source_mask_file=sample_data["source_mask_file"],
             source_img_file=sample_data["source_img_file"],
             region=sample_data["region"],
+            lat=sample_data["lat"],
+            lon=sample_data["lon"],
             sensor=sample_data["sensor"],
         )
         samples.append(sample_tortilla)
@@ -583,23 +586,23 @@ def main():
 
     patches_path = os.path.join(args.save_dir, "caffe_patches.parquet")
 
-    # if os.path.exists(patches_path):
-    #     patches_df = pd.read_parquet(patches_path)
-    # else:
-    patches_df = create_caffe_patches(
-        metadata_df, args.root, args.save_dir, num_workers=16
-    )
-    patches_df = patches_df[patches_df["valid_ratio"] > 0.9]
-    patches_df.to_parquet(patches_path)
+    if os.path.exists(patches_path):
+        patches_df = pd.read_parquet(patches_path)
+    else:
+        patches_df = create_caffe_patches(
+            metadata_df, args.root, args.save_dir, num_workers=16
+        )
+        patches_df = patches_df[patches_df["valid_ratio"] > 0.9]
+        patches_df.to_parquet(patches_path)
 
     # show_samples_per_valid_ratio(patches_df,output_path=os.path.join(args.save_dir, "valid_ratio.png"),dataset_name="Caffe")
 
     result_df_path = os.path.join(args.save_dir, "geobench_caffe.parquet")
-    # if os.path.exists(result_df_path):
-    #     result_df = pd.read_parquet(result_df_path)
-    # else:
-    result_df = create_geobench_version(patches_df, n_train_samples=4000, n_val_samples=1000, n_test_samples=2000)
-    result_df.to_parquet(result_df_path)
+    if os.path.exists(result_df_path):
+        result_df = pd.read_parquet(result_df_path)
+    else:
+        result_df = create_geobench_version(patches_df, n_train_samples=4000, n_val_samples=1000, n_test_samples=2000)
+        result_df.to_parquet(result_df_path)
 
     # Create a tortilla version of the dataset
     tortilla_name = "geobench_caffe.tortilla"
@@ -616,8 +619,4 @@ def main():
 
 
 if __name__ == "__main__":
-    # full pipeline todo
-    # RAW DATA download automation to merge the metadata inof
-    # Torchgeo patch data generation dataset version
-    # copy files from those><>>>
     main()
