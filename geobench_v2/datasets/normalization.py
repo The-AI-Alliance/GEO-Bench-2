@@ -267,7 +267,6 @@ class ClipZScoreNormalizer(DataNormalizer):
         self.rescale_shifts = {}
         self.rescale_scales = {}
 
-        # For using normalized statistics when clipping is applied
         self.norm_means = {}
         self.norm_stds = {}
 
@@ -282,12 +281,11 @@ class ClipZScoreNormalizer(DataNormalizer):
         is_fill: Tensor,
     ) -> None:
         """Set clip min/max values and normalization parameters for this key."""
-        # Get clip values for each band
         clip_min, clip_max = self._get_clip_values(bands)
         self.clip_mins[key] = clip_min
         self.clip_maxs[key] = clip_max
 
-        # For "clip_rescale" mode, compute shift and scale factors
+        # for "clip_rescale" mode, compute shift and scale factors
         if self.processing_mode == "clip_rescale":
             # Calculate shifts for bands with negative min values
             shifts = torch.zeros_like(clip_min)
@@ -295,32 +293,28 @@ class ClipZScoreNormalizer(DataNormalizer):
             if neg_values.any():
                 shifts[neg_values] = -clip_min[neg_values]
 
-            # Calculate scales for rescaling to [0,1]
             scales = (clip_max + shifts) - (clip_min + shifts).clamp(min=0)
-            scales = scales.clamp(min=1e-6)  # Avoid division by zero
+            scales = scales.clamp(min=1e-6)
 
             self.rescale_shifts[key] = shifts
             self.rescale_scales[key] = scales
 
-        # Get normalized statistics for "clip_only" and "clip_rescale" modes
+        # second stage normalization values
         if self.processing_mode in ["clip_only", "clip_rescale"]:
             norm_means = []
             norm_stds = []
 
             for i, band in enumerate(bands):
                 if isinstance(band, (int, float)):
-                    # Fill values use neutral normalization
                     norm_means.append(0.0)
                     norm_stds.append(1.0)
                 else:
-                    # Try to get normalized stats from the stats dictionary
                     if "norm_mean" in self.stats and band in self.stats["norm_mean"]:
                         norm_means.append(self.stats["norm_mean"][band])
                         norm_stds.append(self.stats["norm_std"][band])
                     else:
-                        # Fallback to raw statistics if normalized not available
-                        norm_means.append(means[i].item())
-                        norm_stds.append(stds[i].item())
+                        norm_means.append(0)
+                        norm_stds.append(1)
 
             self.norm_means[key] = torch.tensor(norm_means)
             self.norm_stds[key] = torch.tensor(norm_stds)
@@ -328,18 +322,10 @@ class ClipZScoreNormalizer(DataNormalizer):
     def _get_clip_values(self, bands: Sequence[str | float]) -> tuple[Tensor, Tensor]:
         """Extract clip min/max tensors. Uses +/- infinity if clipping is not defined."""
         clip_mins, clip_maxs = [], []
-        # has_clip_min_stats = "clip_min" in self.stats
-        # has_clip_max_stats = "clip_max" in self.stats
         clip_min_val = self.stats.get("clip_min", float("-inf"))
         clip_max_val = self.stats.get("clip_max", float("inf"))
 
-        # import pdb
-        # pdb.set_trace()
         for band in bands:
-            # if isinstance(band, (int, float)):
-            #     clip_mins.append(float("-inf"))
-            #     clip_maxs.append(float("inf"))
-            # else:
             clip_mins.append(clip_min_val)
             clip_maxs.append(clip_max_val)
 
@@ -363,7 +349,6 @@ class ClipZScoreNormalizer(DataNormalizer):
             normalized = tensor.clone()
 
             if self.processing_mode == "none":
-                # Apply regular z-score normalization without clipping
                 mean = self.means[key]
                 std = self.stds[key]
                 is_fill = self.is_fill_value[key]
@@ -376,7 +361,6 @@ class ClipZScoreNormalizer(DataNormalizer):
                 normalized = torch.where(is_fill_expanded, normalized, z_score)
 
             elif self.processing_mode == "clip_only":
-                # First clip, then apply z-score using norm_mean/norm_std
                 clip_min = self.clip_mins[key]
                 clip_max = self.clip_maxs[key]
                 norm_mean = self.norm_means[key]
@@ -389,12 +373,10 @@ class ClipZScoreNormalizer(DataNormalizer):
                 std_reshaped, _ = self._reshape_and_expand(norm_std, tensor)
                 _, is_fill_expanded = self._reshape_and_expand(is_fill, tensor)
 
-                # Clip values
                 clipped = torch.clamp(
                     tensor, min=clip_min_reshaped, max=clip_max_reshaped
                 )
 
-                # Apply z-score normalization to clipped values
                 z_score = (clipped - mean_reshaped) / (std_reshaped + 1e-6)
                 normalized = torch.where(is_fill_expanded, normalized, z_score)
 
@@ -404,7 +386,6 @@ class ClipZScoreNormalizer(DataNormalizer):
                 clip_max = self.clip_maxs[key]
                 shifts = self.rescale_shifts[key]
                 scales = self.rescale_scales[key]
-                # these are wrong
                 norm_mean = self.norm_means[key]
                 norm_std = self.norm_stds[key]
                 is_fill = self.is_fill_value[key]
@@ -503,33 +484,6 @@ class ClipZScoreNormalizer(DataNormalizer):
                 unnormalized = torch.where(is_fill_expanded, unnormalized, original)
 
             result[key] = unnormalized
-
-        return result
-
-    def unnormalize(self, data: dict[str, Tensor]) -> dict[str, Tensor]:
-        """Unnormalize input tensors by reversing the z-score normalization."""
-        result = {}
-        for key, tensor in data.items():
-            if key not in self.means:
-                result[key] = tensor
-                continue
-
-            mean, std = self.means[key], self.stds[key]
-            is_fill = self.is_fill_value[key]
-
-            mean_r, _ = self._reshape_and_expand(mean, tensor)
-            std_r, _ = self._reshape_and_expand(std, tensor)
-            _, is_fill_e = self._reshape_and_expand(is_fill, tensor)
-
-            unnormalized_tensor = tensor.clone()
-
-            un_z_score_vals = tensor * (std_r + 1e-6) + mean_r
-
-            unnormalized_tensor = torch.where(
-                ~is_fill_e, un_z_score_vals, unnormalized_tensor
-            )
-
-            result[key] = unnormalized_tensor
 
         return result
 
