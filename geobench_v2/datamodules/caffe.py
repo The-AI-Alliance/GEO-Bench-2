@@ -9,13 +9,13 @@ from typing import Any
 
 import matplotlib.pyplot as plt
 import pandas as pd
+import tacoreader
 import torch
 import torch.nn as nn
 from torch import Tensor
 from torchgeo.datasets.utils import percentile_normalization
 
 from geobench_v2.datasets.caffe import GeoBenchCaFFe
-import tacoreader
 
 from .base import GeoBenchSegmentationDataModule
 

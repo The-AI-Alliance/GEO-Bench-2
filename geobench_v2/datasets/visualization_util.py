@@ -8,10 +8,8 @@ import json
 import matplotlib.pyplot as plt
 import numpy as np
 import seaborn as sns
-from torch import Tensor
-import torch.nn as nn
-from torch import Tensor
 from matplotlib.gridspec import GridSpec
+from torch import Tensor
 
 
 def plot_channel_histograms(stats_json_path: str) -> plt.Figure:
@@ -375,8 +373,7 @@ def visualize_segmentation_target_statistics(
 def compare_normalization_methods(
     batch, normalizer_modules, datamodule, figsize=(20, 8)
 ) -> tuple[plt.Figure, list[dict[str, Tensor]]]:
-    """
-    Create a visualization showing before/after distributions for multiple normalization methods.
+    """Create a visualization showing before/after distributions for multiple normalization methods.
 
     The visualization is organized with:
     - Rows: Different modalities (e.g., S1, S2)
@@ -434,10 +431,22 @@ def compare_normalization_methods(
                 band_indices.append(datamodule.band_order.index(band))
 
         all_data = {"raw": {}}
-        for i, norm_name in enumerate(
-            [norm.__class__.__name__ for norm in normalizer_modules]
-        ):
-            all_data[norm_name] = {}
+        for i, normalizer in enumerate(normalizer_modules):
+            # handle multiple normalizers of the same class
+            base_name = normalizer.__class__.__name__
+            norm_key = base_name
+            
+
+            suffix = 1
+            while norm_key in all_data:
+                norm_key = f"{base_name}_{suffix}"
+                suffix += 1
+                
+            all_data[norm_key] = {}
+
+            if i == 0:
+                normalizer_display_names = {}
+            normalizer_display_names[i] = norm_key
 
         for i, band_idx in enumerate(band_indices):
             if band_idx < batch[modality].shape[1]:
@@ -450,17 +459,11 @@ def compare_normalization_methods(
                 )
 
                 for j, norm_batch in enumerate(normalized_batches):
-                    norm_name = normalizer_modules[j].__class__.__name__
-                    all_data[norm_name][band_label] = (
-                        norm_batch[modality][:, band_idx].flatten().numpy()
-                    )
+                    norm_key = normalizer_display_names[j]
+                    all_data[norm_key][band_label] = norm_batch[modality][:, band_idx].flatten().numpy()
 
         for col_idx in range(n_normalizers + 1):
-            data_key = (
-                "raw"
-                if col_idx == 0
-                else normalizer_modules[col_idx - 1].__class__.__name__
-            )
+            data_key = "raw" if col_idx == 0 else normalizer_display_names[col_idx - 1]
 
             main_ax = fig.add_subplot(gs[row_idx * 2, col_idx])
 

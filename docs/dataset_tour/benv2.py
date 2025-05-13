@@ -10,12 +10,12 @@ import json
 import os
 from pathlib import Path
 
-import torch
 import matplotlib.pyplot as plt
+import torch
 
 from geobench_v2.datamodules import GeoBenchBENV2DataModule
 from geobench_v2.datasets import GeoBenchBENV2
-from geobench_v2.datasets.normalization import ZScoreNormalizer, SatMAENormalizer
+from geobench_v2.datasets.normalization import SatMAENormalizer, ZScoreNormalizer
 from geobench_v2.datasets.visualization_util import (
     compute_batch_histograms,
     plot_batch_histograms,

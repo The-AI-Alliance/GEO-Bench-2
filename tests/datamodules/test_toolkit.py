@@ -11,6 +11,7 @@ from geobench_v2.datamodules import (
     GeoBenchCaFFeDataModule,
     GeoBenchCloudSen12DataModule,
     GeoBenchDataModule,
+    GeoBenchDynamicEarthNetDataModule,
     GeoBenchFieldsOfTheWorldDataModule,
     GeoBenchFLAIR2DataModule,
     GeoBenchKuroSiwoDataModule,
@@ -22,7 +23,6 @@ from geobench_v2.datamodules import (
     GeoBenchSpaceNet7DataModule,
     GeoBenchSpaceNet8DataModule,
     GeoBenchTreeSatAIDataModule,
-    GeoBenchDynamicEarthNetDataModule,
 )
 
 ALL_DATAMODULES = [

@@ -4,40 +4,23 @@
 """Generate Benchmark version of EverWatch dataset."""
 
 import argparse
+import glob
+import json
+import multiprocessing
 import os
 
 import numpy as np
 import pandas as pd
-
-import json
-from tqdm import tqdm
-from PIL import ImageFile
-from PIL import Image
-import geopandas as gpd
-from shapely.geometry import shape
-
-import os
-import numpy as np
 import rasterio
-from rasterio.transform import from_origin
-from PIL import Image
+import tacoreader
+import tacotoolbox
+from PIL import Image, ImageFile
+from shapely.geometry import shape
 from tqdm import tqdm
-import multiprocessing
-from functools import partial
 
 from geobench_v2.generate_benchmark.object_detection_util import (
     convert_pngs_to_geotiffs,
 )
-
-from geobench_v2.generate_benchmark.utils import create_subset_from_df
-
-
-import os
-import json
-import glob
-import rasterio
-import tacoreader
-import tacotoolbox
 
 
 def create_subset(metadata_df: pd.DataFrame, save_dir: str) -> None:
@@ -345,7 +328,6 @@ def create_tortilla(annotations_df, image_dir, save_dir, tortilla_name):
         save_dir: Directory to save the tortilla files
         tortilla_name: Name of the final tortilla file
     """
-
     tortilla_dir = os.path.join(save_dir, "tortilla")
     os.makedirs(tortilla_dir, exist_ok=True)
 

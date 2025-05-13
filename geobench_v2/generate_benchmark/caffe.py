@@ -4,36 +4,25 @@
 """Generate GeoBench Version."""
 
 import argparse
-import os
-import multiprocessing as mp
-from functools import partial
-from pathlib import Path
-from typing import Dict, Tuple, List, Any
-
-import numpy as np
-import pandas as pd
-import rasterio
-from rasterio.transform import from_bounds
-import pyproj
-from PIL import Image
-from tqdm import tqdm
-import argparse
 import glob
+import multiprocessing as mp
 import os
 import pickle
 import re
-import shutil
+from functools import partial
 from pathlib import Path
 from typing import Any
 
 import numpy as np
 import pandas as pd
+import pyproj
 import rasterio
+import tacoreader
+import tacotoolbox
 from PIL import Image
+from rasterio.transform import from_bounds
 from sklearn.model_selection import train_test_split
 from tqdm import tqdm
-import tacotoolbox
-import tacoreader
 
 from geobench_v2.generate_benchmark.utils import (
     create_subset_from_df,
@@ -314,7 +303,7 @@ def read_png_file(file_path: str) -> np.ndarray:
 
 def calculate_patch_bounds(
     row: pd.Series, patch_size: int
-) -> Tuple[float, float, float, float]:
+) -> tuple[float, float, float, float]:
     """Calculate bounds for the patch based on metadata.
 
     Args:
@@ -367,7 +356,7 @@ def remap_mask_values(mask_data: np.ndarray) -> np.ndarray:
 
 def process_patch(
     row: pd.Series, input_base_dir: str, output_base_dir: str
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Process a single patch from PNG to GeoTIFF.
 
     Args:

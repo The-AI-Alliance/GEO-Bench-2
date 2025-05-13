@@ -16,7 +16,6 @@ from torchgeo.datasets import NonGeoDataset
 
 from .data_util import DataUtilsMixin
 from .normalization import DataNormalizer, ZScoreNormalizer
-
 from .sensor_util import DatasetBandRegistry
 
 

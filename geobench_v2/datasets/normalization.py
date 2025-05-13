@@ -3,15 +3,14 @@
 
 """Normalization Modules."""
 
+import json
 from abc import ABC, abstractmethod
 from collections.abc import Sequence
+from pathlib import Path
 
 import torch
 import torch.nn as nn
 from torch import Tensor
-
-from pathlib import Path
-import json
 
 
 def _load_stats_from_path_or_dict(stats_path: str):
@@ -20,7 +19,7 @@ def _load_stats_from_path_or_dict(stats_path: str):
     if not stats_path.exists():
         raise FileNotFoundError(f"Statistics file not found: {stats_path}")
 
-    with open(stats_path, "r") as f:
+    with open(stats_path) as f:
         stats_dict = json.load(f)
 
     processed_stats = {"means": {}, "stds": {}}
@@ -255,7 +254,6 @@ class ClipZScoreNormalizer(DataNormalizer):
         image_keys: Sequence[str] | None = None,
     ) -> None:
         """Initialize normalizer applying clip then z-score."""
-
         self.clip_mins = {}
         self.clip_maxs = {}
 
@@ -328,7 +326,6 @@ class ClipZScoreNormalizer(DataNormalizer):
         self, key: str, bands: Sequence[str | float]
     ) -> tuple[Tensor, Tensor]:
         """Extract clip min/max tensors with infinity as default."""
-        # Check for modality-specific clip values
         if "clip_min" in self.stats:
             clip_min = self.stats["clip_min"].get(key, float("-inf"))
         else:
@@ -429,10 +426,7 @@ class ClipZScoreNormalizer(DataNormalizer):
             unscaled_01 = tensor * (std_reshaped + 1e-6) + mean_reshaped
             unscaled_01 = torch.clamp(unscaled_01, min=0.0, max=1.0)
 
-            # Step 2: Reverse [0,1] rescaling
             unscaled = unscaled_01 * scales_reshaped
-
-            # Step 3: Reverse shift
             original = unscaled - shifts_reshaped
 
             unnormalized = torch.where(is_fill_expanded, unnormalized, original)
@@ -612,7 +606,6 @@ class RescaleNormalizer(DataNormalizer):
         self, key: str, bands: Sequence[str | float]
     ) -> tuple[Tensor, Tensor]:
         """Extract clip min/max tensors with infinity as default."""
-        # Check for modality-specific clip values
         if "clip_min" in self.stats:
             clip_min = self.stats["clip_min"].get(key, float("-inf"))
         else:
@@ -623,7 +616,6 @@ class RescaleNormalizer(DataNormalizer):
         else:
             clip_max = float("inf")
 
-        # Apply to each band (fill values use infinity)
         clip_mins = [
             clip_min if not isinstance(band, (int, float)) else float("-inf")
             for band in bands

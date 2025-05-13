@@ -16,8 +16,7 @@ from torch import Tensor
 from torchgeo.datasets import PASTIS
 
 from .data_util import DataUtilsMixin
-from .normalization import ZScoreNormalizer, DataNormalizer
-
+from .normalization import DataNormalizer, ZScoreNormalizer
 from .sensor_util import DatasetBandRegistry
 
 

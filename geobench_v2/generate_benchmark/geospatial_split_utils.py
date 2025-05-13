@@ -21,8 +21,6 @@ from skimage.transform import resize
 from sklearn.cluster import DBSCAN
 from tqdm import tqdm
 
-import matplotlib.pyplot as plt
-
 
 def dataframe_to_geodataframe(
     df: pd.DataFrame, lon_col: str = "lon", lat_col: str = "lat", crs: str = "EPSG:4326"
@@ -1904,7 +1902,6 @@ def show_samples_per_valid_ratio(
     df: pd.DataFrame, output_path: str = None, dataset_name: str = "Dataset"
 ):
     """Show the number of samples (rows) that would remain in dataframe after filtering by valid_ratio."""
-
     valid_ratios = np.arange(0, 1.0, 0.05)
 
     samples_per_valid_ratio = []

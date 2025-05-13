@@ -9,7 +9,6 @@ from typing import Any
 
 import numpy as np
 import torch
-import torch.nn as nn
 from lightning import LightningDataModule
 from torch import Tensor
 from tqdm.auto import tqdm
@@ -17,12 +16,8 @@ from tqdm.auto import tqdm
 
 # Using Caleb Robinson's implementation: https://gist.github.com/calebrob6/1ef1e64bd62b1274adf2c6f91e20d215
 class ImageStatistics(torch.nn.Module):
-    valid_normalization_modes = (
-        "none",
-        "clip_only",
-        "clip_rescale",
-        "satmae",
-    )
+    valid_normalization_modes = ("none", "clip_only", "clip_rescale", "satmae")
+
     def __init__(
         self,
         shape: tuple[int],
@@ -106,7 +101,9 @@ class ImageStatistics(torch.nn.Module):
                 normalized_x = None
 
             elif self.normalization_mode == "clip_only":
-                normalized_x = torch.clamp(x, min=self.clip_min_val, max=self.clip_max_val)
+                normalized_x = torch.clamp(
+                    x, min=self.clip_min_val, max=self.clip_max_val
+                )
 
             elif self.normalization_mode == "clip_rescale":
                 x_clipped = torch.clamp(x, min=self.clip_min_val, max=self.clip_max_val)
@@ -289,7 +286,7 @@ class ImageStatistics(torch.nn.Module):
             f"normalization_mode={self.normalization_mode})"
         )
 
-        if (hasattr(self, "norm_mean")):
+        if hasattr(self, "norm_mean"):
             base_repr += (
                 f"\nNormalized stats: norm_mean={self.norm_mean}, norm_var={self.norm_var}, "
                 f"norm_std={self.norm_std}, norm_count={self.norm_count})"
@@ -416,9 +413,7 @@ class DatasetStatistics(ABC):
                 else None,
             }
 
-            if (
-                hasattr(stats, "norm_mean")
-            ):
+            if hasattr(stats, "norm_mean"):
                 update_dict.update(
                     {
                         "norm_mean": stats.norm_mean.cpu().numpy(),
