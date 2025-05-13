@@ -78,6 +78,8 @@ class DataNormalizer(nn.Module, ABC):
         self.band_order = band_order
         self.image_keys = image_keys or ["image"]
 
+        self._validate_required_stats()
+
         self.means = {}
         self.stds = {}
         self.is_fill_value = {}
@@ -208,6 +210,61 @@ class DataNormalizer(nn.Module, ABC):
     def unnormalize(self, data: dict[str, Tensor]) -> dict[str, Tensor]:
         """Unnormalize input tensors."""
         pass
+
+    @abstractmethod
+    def _get_required_stats(self) -> dict[str, str]:
+        """Return a dictionary of required statistics and their descriptions.
+
+        This method should be implemented by subclasses to specify which statistics
+        they require in the stats dictionary to function properly.
+
+        Returns:
+            Dictionary mapping stat keys to descriptions of their purpose
+        """
+        return {
+            "means": "Mean values for each band",
+            "stds": "Standard deviation values for each band",
+        }
+
+    def _validate_required_stats(self) -> None:
+        """Validate that all required statistics are available in the stats dictionary.
+
+        Raises:
+            ValueError: If a required statistic is missing
+        """
+        required_stats = self._get_required_stats()
+
+        # Always check if means and stds are available for all bands
+        bands_to_check = set()
+        if isinstance(self.band_order, dict):
+            for bands in self.band_order.values():
+                for band in bands:
+                    if isinstance(band, str):
+                        bands_to_check.add(band)
+        else:
+            for band in self.band_order:
+                if isinstance(band, str):
+                    bands_to_check.add(band)
+
+        # Basic validation for means and stds
+        missing_means = [
+            band for band in bands_to_check if band not in self.stats.get("means", {})
+        ]
+        missing_stds = [
+            band for band in bands_to_check if band not in self.stats.get("stds", {})
+        ]
+
+        if missing_means:
+            raise ValueError(f"Missing mean values for bands: {missing_means}")
+        if missing_stds:
+            raise ValueError(f"Missing std values for bands: {missing_stds}")
+
+        # Check for other required statistics
+        for stat_key, description in required_stats.items():
+            if stat_key not in ["means", "stds"] and stat_key not in self.stats:
+                raise ValueError(
+                    f"Missing required statistic: {stat_key} ({description})"
+                )
 
     def __repr__(self) -> str:
         """Return string representation."""
@@ -435,6 +492,15 @@ class ClipZScoreNormalizer(DataNormalizer):
 
         return result
 
+    def _get_required_stats(self) -> dict[str, str]:
+        """Return required statistics for Clip-Z-Score normalization."""
+        return {
+            "means": "Mean values for each band",
+            "stds": "Standard deviation values for each band",
+            "clip_min": "Optional minimum clipping values by modality",
+            "clip_max": "Optional maximum clipping values by modality",
+        }
+
     def _format_channel_stats(self, key: str, channel_idx: int) -> str:
         """Format clip and statistics info for a specific channel."""
         mean = self.means[key][channel_idx].item()
@@ -528,6 +594,13 @@ class ZScoreNormalizer(DataNormalizer):
             result[key] = unnormalized
 
         return result
+
+    def _get_required_stats(self) -> dict[str, str]:
+        """Return required statistics for Z-Score normalization."""
+        return {
+            "means": "Mean values for each band",
+            "stds": "Standard deviation values for each band",
+        }
 
 
 class RescaleNormalizer(DataNormalizer):
@@ -694,6 +767,15 @@ class RescaleNormalizer(DataNormalizer):
             result[key] = unnormalized
 
         return result
+
+    def _get_required_stats(self) -> dict[str, str]:
+        """Return required statistics for Rescale normalization."""
+        return {
+            "means": "Mean values for each band",
+            "stds": "Standard deviation values for each band",
+            "clip_min": "Optional minimum clipping values by modality",
+            "clip_max": "Optional maximum clipping values by modality",
+        }
 
     def _format_channel_stats(self, key: str, channel_idx: int) -> str:
         """Format statistics for string representation."""
@@ -932,6 +1014,23 @@ class SatMAENormalizer(DataNormalizer):
 
         return torch.where(is_fill_mask, result, denormalized)
 
+    def _get_required_stats(self) -> dict[str, str]:
+        """Return required statistics for SatMAE normalization."""
+        required = {
+            "means": "Mean values for each band",
+            "stds": "Standard deviation values for each band",
+        }
+
+        if self.apply_second_stage:
+            required.update(
+                {
+                    "norm_mean": "Mean values for second-stage normalization",
+                    "norm_std": "Standard deviation values for second-stage normalization",
+                }
+            )
+
+        return required
+
     def _format_channel_stats(self, key: str, channel_idx: int) -> str:
         """Format statistics for string representation with normalization details."""
         mean = self.means[key][channel_idx].item()
@@ -1054,6 +1153,15 @@ class ClipOnlyNormalizer(DataNormalizer):
         """Passthrough since clipping cannot be undone."""
         # Clipping is a lossy operation that cannot be reversed
         return data.copy()
+
+    def _get_required_stats(self) -> dict[str, str]:
+        """Return required statistics for Clip-only normalization."""
+        return {
+            "means": "Mean values for each band",
+            "stds": "Standard deviation values for each band",
+            "clip_min": "Optional minimum clipping values by modality",
+            "clip_max": "Optional maximum clipping values by modality",
+        }
 
     def _format_channel_stats(self, key: str, channel_idx: int) -> str:
         """Format channel statistics for string representation."""

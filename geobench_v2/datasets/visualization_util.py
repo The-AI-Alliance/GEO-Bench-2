@@ -435,13 +435,12 @@ def compare_normalization_methods(
             # handle multiple normalizers of the same class
             base_name = normalizer.__class__.__name__
             norm_key = base_name
-            
 
             suffix = 1
             while norm_key in all_data:
                 norm_key = f"{base_name}_{suffix}"
                 suffix += 1
-                
+
             all_data[norm_key] = {}
 
             if i == 0:
@@ -460,7 +459,9 @@ def compare_normalization_methods(
 
                 for j, norm_batch in enumerate(normalized_batches):
                     norm_key = normalizer_display_names[j]
-                    all_data[norm_key][band_label] = norm_batch[modality][:, band_idx].flatten().numpy()
+                    all_data[norm_key][band_label] = (
+                        norm_batch[modality][:, band_idx].flatten().numpy()
+                    )
 
         for col_idx in range(n_normalizers + 1):
             data_key = "raw" if col_idx == 0 else normalizer_display_names[col_idx - 1]
