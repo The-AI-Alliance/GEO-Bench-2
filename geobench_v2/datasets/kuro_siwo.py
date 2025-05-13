@@ -78,6 +78,7 @@ class GeoBenchKuroSiwo(GeoBenchBaseDataset):
         data_normalizer: type[nn.Module] = ZScoreNormalizer,
         transforms: type[nn.Module] = None,
         return_stacked_image: bool = False,
+        time_step: Sequence[str] = ["pre_1","pre_2","post"],
         download: bool = False,
     ) -> None:
         """Initialize Kuro Siwo Dataset.
@@ -100,6 +101,13 @@ class GeoBenchKuroSiwo(GeoBenchBaseDataset):
             download=download,
         )
         self.return_stacked_image = return_stacked_image
+        if len(time_step) == 0:
+            raise ValueError(
+                    "time_step must include at least one item from  ['pre_1, , 'pre_2', 'post']"
+                )
+        for i in time_step:
+            assert i in ['pre_1', 'pre_2', 'post'], "time_step must include at least one item from  ['pre_1, , 'pre_2', 'post']"
+        self.time_step = time_step
 
     def __getitem__(self, index: int) -> dict[str, Tensor]:
         """Return an index within the dataset.
@@ -129,8 +137,9 @@ class GeoBenchKuroSiwo(GeoBenchBaseDataset):
         sample["invalid_data"] = invalid_data_tensor
         invalid_mask = invalid_data_tensor
 
-        def process_sar_image(image, nan_mask) -> Tensor:
+        def process_sar_image(image) -> Tensor:
             image = self.rearrange_bands({"sar": image}, self.band_order["sar"])
+            nan_mask = torch.isnan(image["image"])
             normalized = self.data_normalizer({"image_sar": image["image"]})
             normalized = torch.where(
                 nan_mask,
@@ -142,20 +151,20 @@ class GeoBenchKuroSiwo(GeoBenchBaseDataset):
         if "sar" in self.band_order:
             with rasterio.open(pre_event_1_path) as src:
                 pre_event_1_img = src.read()
-                pre_1_nan_mask = torch.from_numpy(np.isnan(pre_event_1_img))
                 pre_event_1_img = torch.from_numpy(pre_event_1_img)
             with rasterio.open(pre_event_2_path) as src:
                 pre_event_2_img = src.read()
-                pre_2_nan_mask = torch.from_numpy(np.isnan(pre_event_2_img))
                 pre_event_2_img = torch.from_numpy(pre_event_2_img)
             with rasterio.open(post_event_path) as src:
                 post_event_img = src.read()
-                post_nan_mask = torch.from_numpy(np.isnan(post_event_img))
                 post_event_img = torch.from_numpy(post_event_img)
 
-            sample["image_pre_1"] = process_sar_image(pre_event_1_img, pre_1_nan_mask)
-            sample["image_pre_2"] = process_sar_image(pre_event_2_img, pre_2_nan_mask)
-            sample["image_post"] = process_sar_image(post_event_img, post_nan_mask)
+            if "pre_1" in self.time_step:
+                sample["image_pre_1"] = process_sar_image(pre_event_1_img)
+            if "pre_2" in self.time_step:
+                sample["image_pre_2"] = process_sar_image(pre_event_2_img)
+            if "post" in self.time_step:
+                sample["image_post"] = process_sar_image(post_event_img)
 
         if "dem" in self.band_order:
             with rasterio.open(dem_path) as src:
@@ -193,6 +202,7 @@ class GeoBenchKuroSiwo(GeoBenchBaseDataset):
                 sample[key]
                 for modality in self.band_order
                 for key in modality_keys.get(modality, [])
+                if key in sample
             ]
             sample = {"image": torch.cat(stacked_images, dim=0), "mask": sample["mask"]}
 

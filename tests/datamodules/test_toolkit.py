@@ -25,7 +25,6 @@ from geobench_v2.datamodules import (
 )
 
 ALL_DATAMODULES = [
-    GeoBenchCaFFeDataModule,
     GeoBenchFieldsOfTheWorldDataModule,
     GeoBenchSpaceNet2DataModule,
     GeoBenchSpaceNet6DataModule,
@@ -41,6 +40,7 @@ ALL_DATAMODULES = [
     GeoBenchKuroSiwoDataModule,
     GeoBenchPASTISDataModule,
     # WIP
+    # GeoBenchCaFFeDataModule,
     # GeoBenchBRIGHTDataModule,
     # GeoBenchDynamicEarthNetDataModule,
     # GeoBenchWindTurbineDataModule,

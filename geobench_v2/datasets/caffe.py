@@ -46,14 +46,14 @@ class GeoBenchCaFFe(GeoBenchBaseDataset):
         metadata: Sequence[str] | None = None,
         download: bool = False,
     ):
-        """Initialize FLAIR 2 dataset.
+        """Initialize Caffe dataset.
 
         Args:
             root: Path to the dataset root directory
-            split: The dataset split, supports 'train', 'test'
-            band_order: The order of bands to return, defaults to ['g'], if one would
-                specify ['g', 'g', 'b', 1.0], the dataset would return images with 4 channels
-            data_normalizer: The data normalizer to apply to the data, defaults to :class:`data_util.ZScoreNormalizer`,
+            split: The dataset split, supports 'train', 'val', 'test'
+            band_order: The order of bands to return, defaults to ['gray'], if one would
+                specify ['gray', 'gray', 'gray], the dataset would return the gray band three times.
+            data_normalizer: The data normalizer to apply to the data, defaults to :class:`data_util.ClipZScoreNormalizer`,
                 which applies z-score normalization to each band.
             transforms:
 

@@ -17,6 +17,7 @@ from torchgeo.datasets import PASTIS
 
 from .data_util import DataUtilsMixin
 from .normalization import ZScoreNormalizer, DataNormalizer
+
 from .sensor_util import DatasetBandRegistry
 
 
