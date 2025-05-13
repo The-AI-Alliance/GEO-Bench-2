@@ -17,8 +17,12 @@ from tqdm.auto import tqdm
 
 # Using Caleb Robinson's implementation: https://gist.github.com/calebrob6/1ef1e64bd62b1274adf2c6f91e20d215
 class ImageStatistics(torch.nn.Module):
-    valid_normalization_modes = ("none", "clip_only", "simple_rescale", "satmae")
-
+    valid_normalization_modes = (
+        "none",
+        "clip_only",
+        "clip_rescale",
+        "satmae",
+    )
     def __init__(
         self,
         shape: tuple[int],
@@ -43,7 +47,7 @@ class ImageStatistics(torch.nn.Module):
             normalization_mode: Type of normalization to apply for the second stage stats
                 - "none": No normalization - just compute raw statistics on original data
                 - "clip_only": Apply min/max clipping before computing second stage statistics
-                - "simple_rescale": Clip to min/max then rescale to [0,1] range
+                - "clip_rescale": Clip to min/max then rescale to [0,1] range
                 - "satmae": Shift negatives, clip to mean±2std, scale to [0,1] range
         """
         super(ImageStatistics, self).__init__()
@@ -64,7 +68,7 @@ class ImageStatistics(torch.nn.Module):
 
         self.normalization_mode = normalization_mode
 
-        if normalization_mode in ["clip_only", "simple_rescale", "satmae"]:
+        if normalization_mode in ["clip_only", "clip_rescale", "satmae"]:
             self.register_buffer("norm_mean", torch.zeros(shape))
             self.register_buffer("norm_var", torch.ones(shape))
             self.register_buffer("norm_std", torch.ones(shape))
@@ -98,19 +102,15 @@ class ImageStatistics(torch.nn.Module):
         with torch.no_grad():
             self._update_raw_stats(x)
 
-            if self.clipping_enabled and self.normalization_mode != "none":
-                x_clipped = torch.clamp(x, min=self.clip_min_val, max=self.clip_max_val)
-            else:
-                x_clipped = x
-
             if self.normalization_mode == "none":
                 normalized_x = None
 
             elif self.normalization_mode == "clip_only":
-                normalized_x = x_clipped
+                normalized_x = torch.clamp(x, min=self.clip_min_val, max=self.clip_max_val)
 
-            elif self.normalization_mode == "simple_rescale":
-                normalized_x = self._apply_simple_rescale(x_clipped)
+            elif self.normalization_mode == "clip_rescale":
+                x_clipped = torch.clamp(x, min=self.clip_min_val, max=self.clip_max_val)
+                normalized_x = self._apply_clip_rescale(x_clipped)
 
             elif self.normalization_mode == "satmae":
                 if self.count > 0:
@@ -179,7 +179,7 @@ class ImageStatistics(torch.nn.Module):
                 self.pct_98[i] = torch.quantile(channel_data, 0.98)
 
     @torch.no_grad()
-    def _apply_simple_rescale(self, x: Tensor) -> Tensor:
+    def _apply_clip_rescale(self, x: Tensor) -> Tensor:
         """Simple rescaling to [0,1] by shifting to non-negative range and dividing by max value.
 
         This approach:
@@ -289,7 +289,7 @@ class ImageStatistics(torch.nn.Module):
             f"normalization_mode={self.normalization_mode})"
         )
 
-        if hasattr(self, "norm_mean"):
+        if (hasattr(self, "norm_mean")):
             base_repr += (
                 f"\nNormalized stats: norm_mean={self.norm_mean}, norm_var={self.norm_var}, "
                 f"norm_std={self.norm_std}, norm_count={self.norm_count})"
@@ -392,6 +392,7 @@ class DatasetStatistics(ABC):
         for key in self.running_stats:
             stats = self.running_stats[key]
             update_dict = {
+                "normalization_mode": self.normalization_mode,
                 "mean": stats.mean.cpu().numpy(),
                 "std": stats.std.cpu().numpy(),
                 "var": stats.var.cpu().numpy(),
@@ -415,7 +416,9 @@ class DatasetStatistics(ABC):
                 else None,
             }
 
-            if hasattr(stats, "norm_mean"):
+            if (
+                hasattr(stats, "norm_mean")
+            ):
                 update_dict.update(
                     {
                         "norm_mean": stats.norm_mean.cpu().numpy(),

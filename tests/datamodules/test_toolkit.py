@@ -22,9 +22,11 @@ from geobench_v2.datamodules import (
     GeoBenchSpaceNet7DataModule,
     GeoBenchSpaceNet8DataModule,
     GeoBenchTreeSatAIDataModule,
+    GeoBenchDynamicEarthNetDataModule
 )
 
 ALL_DATAMODULES = [
+    GeoBenchCaFFeDataModule,
     GeoBenchFieldsOfTheWorldDataModule,
     GeoBenchSpaceNet2DataModule,
     GeoBenchSpaceNet6DataModule,
@@ -39,10 +41,9 @@ ALL_DATAMODULES = [
     GeoBenchMMFloodDataModule,
     GeoBenchKuroSiwoDataModule,
     GeoBenchPASTISDataModule,
+    GeoBenchDynamicEarthNetDataModule,
     # WIP
-    # GeoBenchCaFFeDataModule,
     # GeoBenchBRIGHTDataModule,
-    # GeoBenchDynamicEarthNetDataModule,
     # GeoBenchWindTurbineDataModule,
     # GeoBenchEverWatchDataModule,
     # GeoBenchDOTAV2DataModule,

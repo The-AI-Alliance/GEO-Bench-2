@@ -181,7 +181,7 @@ def main():
         "--normalization_mode",
         type=str,
         default="none",
-        choices=["none", "clip_only", "simple_rescale", "satmae"],
+        choices=["none", "clip_only", "clip_rescale", "satmae"],
     )
     parser.add_argument(
         "--device",
