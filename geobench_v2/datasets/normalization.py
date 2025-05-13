@@ -232,36 +232,8 @@ class DataNormalizer(nn.Module, ABC):
         Raises:
             ValueError: If a required statistic is missing
         """
-        required_stats = self._get_required_stats()
-
-        # Always check if means and stds are available for all bands
-        bands_to_check = set()
-        if isinstance(self.band_order, dict):
-            for bands in self.band_order.values():
-                for band in bands:
-                    if isinstance(band, str):
-                        bands_to_check.add(band)
-        else:
-            for band in self.band_order:
-                if isinstance(band, str):
-                    bands_to_check.add(band)
-
-        # Basic validation for means and stds
-        missing_means = [
-            band for band in bands_to_check if band not in self.stats.get("means", {})
-        ]
-        missing_stds = [
-            band for band in bands_to_check if band not in self.stats.get("stds", {})
-        ]
-
-        if missing_means:
-            raise ValueError(f"Missing mean values for bands: {missing_means}")
-        if missing_stds:
-            raise ValueError(f"Missing std values for bands: {missing_stds}")
-
-        # Check for other required statistics
-        for stat_key, description in required_stats.items():
-            if stat_key not in ["means", "stds"] and stat_key not in self.stats:
+        for stat_key, description in self._get_required_stats().items():
+            if stat_key not in self.stats:
                 raise ValueError(
                     f"Missing required statistic: {stat_key} ({description})"
                 )
