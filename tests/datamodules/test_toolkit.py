@@ -22,7 +22,7 @@ from geobench_v2.datamodules import (
     GeoBenchSpaceNet7DataModule,
     GeoBenchSpaceNet8DataModule,
     GeoBenchTreeSatAIDataModule,
-    GeoBenchDynamicEarthNetDataModule
+    GeoBenchDynamicEarthNetDataModule,
 )
 
 ALL_DATAMODULES = [

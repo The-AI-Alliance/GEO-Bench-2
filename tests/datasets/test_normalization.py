@@ -190,31 +190,49 @@ class TestSatMAENormalizer:
         normalizer = SatMAENormalizer(
             stats, ["B1", "B2"], output_range="zero_one", apply_second_stage=True
         )
-        
+
         stats_with_norm = stats.copy()
         stats_with_norm["norm_mean"] = {"B1": 0.5, "B2": 0.5}
         stats_with_norm["norm_std"] = {"B1": 0.25, "B2": 0.25}
-        
+
         normalizer_with_stats = SatMAENormalizer(
-            stats_with_norm, ["B1", "B2"], output_range="zero_one", apply_second_stage=True
+            stats_with_norm,
+            ["B1", "B2"],
+            output_range="zero_one",
+            apply_second_stage=True,
         )
-        
-        input_tensor = torch.tensor([[[[[self.TEST_STATS["means"]["B1"]]]]], 
-                                    [[[[self.TEST_STATS["means"]["B2"]]]]]])
-        
+
+        input_tensor = torch.tensor(
+            [
+                [[[[self.TEST_STATS["means"]["B1"]]]]],
+                [[[[self.TEST_STATS["means"]["B2"]]]]],
+            ]
+        )
+
         result1 = normalizer({"image": input_tensor})
         result2 = normalizer_with_stats({"image": input_tensor})
-        
+
         assert abs(result1["image"][0, 0, 0, 0, 0].item() - 0.5) < 1e-5
         assert abs(result2["image"][0, 0, 0, 0, 0].item() - 0.0) < 1e-5
-        
+
         roundtrip1 = normalizer.unnormalize(result1)
         roundtrip2 = normalizer_with_stats.unnormalize(result2)
-        
-        assert abs(roundtrip1["image"][0, 0, 0, 0, 0].item() - self.TEST_STATS["means"]["B1"]) < 1e-5
-        assert abs(roundtrip2["image"][0, 0, 0, 0, 0].item() - self.TEST_STATS["means"]["B1"]) < 1e-5
 
-    
+        assert (
+            abs(
+                roundtrip1["image"][0, 0, 0, 0, 0].item()
+                - self.TEST_STATS["means"]["B1"]
+            )
+            < 1e-5
+        )
+        assert (
+            abs(
+                roundtrip2["image"][0, 0, 0, 0, 0].item()
+                - self.TEST_STATS["means"]["B1"]
+            )
+            < 1e-5
+        )
+
 
 class TestZScoreNormalizer:
     """
@@ -394,21 +412,30 @@ class TestZScoreNormalizer:
     @pytest.mark.parametrize("processing_mode", ["clip_only", "clip_rescale"])
     def test_processing_modes(self, stats, processing_mode):
         """Test all processing modes with the same input data."""
-        normalizer = ZScoreNormalizer(stats, self.BAND_ORDER, processing_mode=processing_mode)
-        
+        normalizer = ZScoreNormalizer(
+            stats, self.BAND_ORDER, processing_mode=processing_mode
+        )
+
         input_tensor = self.INPUT_VALS.unsqueeze(-1).unsqueeze(-1)
         test_tensor = input_tensor.permute(1, 0, 2, 3)
-        
+
         normalized_result = normalizer({"image": test_tensor})
-        
+
         if processing_mode == "clip_only":
             denorm = normalizer.unnormalize(normalized_result)["image"]
-            clipped = torch.tensor([self.TEST_VALUES_B1_CLIP, self.TEST_VALUES_B2_CLIP, 
-                                [self.FILL_VALUE] * 5, self.TEST_VALUES_B3_CLIP])
+            clipped = torch.tensor(
+                [
+                    self.TEST_VALUES_B1_CLIP,
+                    self.TEST_VALUES_B2_CLIP,
+                    [self.FILL_VALUE] * 5,
+                    self.TEST_VALUES_B3_CLIP,
+                ]
+            )
             clipped = clipped.unsqueeze(-1).unsqueeze(-1).permute(1, 0, 2, 3)
             assert torch.allclose(denorm, clipped, atol=1e-5)
         elif processing_mode == "clip_rescale":
             denorm = normalizer.unnormalize(normalized_result)["image"]
             for i in range(len(self.TEST_VALUES_B1_IN)):
-                assert abs(denorm[0, 0, 0, 0].item() - self.TEST_VALUES_B1_CLIP[0]) < 1e-5
-
+                assert (
+                    abs(denorm[0, 0, 0, 0].item() - self.TEST_VALUES_B1_CLIP[0]) < 1e-5
+                )

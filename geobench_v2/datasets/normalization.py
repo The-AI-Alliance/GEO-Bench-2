@@ -23,7 +23,7 @@ def _load_stats_from_path_or_dict(stats_path: str):
     with open(stats_path, "r") as f:
         stats_dict = json.load(f)
 
-    processed_stats = {"means": {}, "stds": {},}
+    processed_stats = {"means": {}, "stds": {}}
 
     for modality_key, modality_stats in stats_dict["input_stats"].items():
         for i, band_name in enumerate(modality_stats["band_names"]):
@@ -48,7 +48,7 @@ def _load_stats_from_path_or_dict(stats_path: str):
             processed_stats["clip_min"][modality_key] = modality_stats["clip_min_used"]
 
         if "clip_max_used" in modality_stats:
-            if "clip_max" not in processed_stats:  
+            if "clip_max" not in processed_stats:
                 processed_stats["clip_max"] = {}
             processed_stats["clip_max"][modality_key] = modality_stats["clip_max_used"]
 
@@ -233,7 +233,7 @@ class DataNormalizer(nn.Module, ABC):
         mean = self.means[key][channel_idx].item()
         std = self.stds[key][channel_idx].item()
         return f"    Channel {channel_idx}: mean={mean:.4f}, std={std:.4f}"
-    
+
 
 class ClipZScoreNormalizer(DataNormalizer):
     """Normalization module applying sequential optional clipping and z-score normalization.
@@ -324,23 +324,31 @@ class ClipZScoreNormalizer(DataNormalizer):
         self.norm_means[key] = torch.tensor(norm_means)
         self.norm_stds[key] = torch.tensor(norm_stds)
 
-    def _get_clip_values(self, key: str, bands: Sequence[str | float]) -> tuple[Tensor, Tensor]:
+    def _get_clip_values(
+        self, key: str, bands: Sequence[str | float]
+    ) -> tuple[Tensor, Tensor]:
         """Extract clip min/max tensors with infinity as default."""
         # Check for modality-specific clip values
         if "clip_min" in self.stats:
             clip_min = self.stats["clip_min"].get(key, float("-inf"))
         else:
             clip_min = float("-inf")
-        
+
         if "clip_max" in self.stats:
             clip_max = self.stats["clip_max"].get(key, float("inf"))
         else:
             clip_max = float("inf")
 
         # Apply to each band (fill values use infinity)
-        clip_mins = [clip_min if not isinstance(band, (int, float)) else float("-inf") for band in bands]
-        clip_maxs = [clip_max if not isinstance(band, (int, float)) else float("inf") for band in bands]
-                    
+        clip_mins = [
+            clip_min if not isinstance(band, (int, float)) else float("-inf")
+            for band in bands
+        ]
+        clip_maxs = [
+            clip_max if not isinstance(band, (int, float)) else float("inf")
+            for band in bands
+        ]
+
         return torch.tensor(clip_mins).float(), torch.tensor(clip_maxs).float()
 
     def forward(self, data: dict[str, Tensor]) -> dict[str, Tensor]:
@@ -375,9 +383,7 @@ class ClipZScoreNormalizer(DataNormalizer):
             std_reshaped, _ = self._reshape_and_expand(norm_std, tensor)
             _, is_fill_expanded = self._reshape_and_expand(is_fill, tensor)
 
-            clipped = torch.clamp(
-                tensor, min=clip_min_reshaped, max=clip_max_reshaped
-            )
+            clipped = torch.clamp(tensor, min=clip_min_reshaped, max=clip_max_reshaped)
 
             shifted = clipped + shifts_reshaped
 
@@ -439,7 +445,7 @@ class ClipZScoreNormalizer(DataNormalizer):
         """Format clip and statistics info for a specific channel."""
         mean = self.means[key][channel_idx].item()
         std = self.stds[key][channel_idx].item()
-        
+
         clip_min = self.clip_mins[key][channel_idx].item()
         clip_max = self.clip_maxs[key][channel_idx].item()
         shift = self.rescale_shifts[key][channel_idx].item()
@@ -460,11 +466,11 @@ class ClipZScoreNormalizer(DataNormalizer):
 
 class ZScoreNormalizer(DataNormalizer):
     """Normalization module applying standard z-score normalization.
-    
+
     This normalizer performs standard z-score normalization by subtracting the mean
     and dividing by the standard deviation for each band:
         normalized = (x - mean) / std
-        
+
     Fill value bands (numeric values in band_order) are preserved unchanged.
     """
 
@@ -475,7 +481,7 @@ class ZScoreNormalizer(DataNormalizer):
         image_keys: Sequence[str] | None = None,
     ) -> None:
         """Initialize z-score normalizer.
-        
+
         Args:
             stats: Statistics dictionary or path to JSON file
             band_order: Sequence or dict of band names/fill values
@@ -490,20 +496,20 @@ class ZScoreNormalizer(DataNormalizer):
             if key not in self.means:
                 result[key] = tensor
                 continue
-            
+
             is_fill = self.is_fill_value[key]
             _, is_fill_expanded = self._reshape_and_expand(is_fill, tensor)
             normalized = tensor.clone()
-            
+
             mean, std = self.means[key], self.stds[key]
             mean_r, _ = self._reshape_and_expand(mean, tensor)
             std_r, _ = self._reshape_and_expand(std, tensor)
-            
+
             z_score = (tensor - mean_r) / (std_r + 1e-6)
             normalized = torch.where(is_fill_expanded, normalized, z_score)
-            
+
             result[key] = normalized
-        
+
         return result
 
     def unnormalize(self, data: dict[str, Tensor]) -> dict[str, Tensor]:
@@ -513,32 +519,32 @@ class ZScoreNormalizer(DataNormalizer):
             if key not in self.means:
                 result[key] = tensor
                 continue
-            
+
             is_fill = self.is_fill_value[key]
             _, is_fill_expanded = self._reshape_and_expand(is_fill, tensor)
             unnormalized = tensor.clone()
-            
+
             mean, std = self.means[key], self.stds[key]
             mean_r, _ = self._reshape_and_expand(mean, tensor)
             std_r, _ = self._reshape_and_expand(std, tensor)
-            
+
             original = tensor * (std_r + 1e-6) + mean_r
             unnormalized = torch.where(is_fill_expanded, unnormalized, original)
-            
+
             result[key] = unnormalized
-        
+
         return result
 
 
 class RescaleNormalizer(DataNormalizer):
     """Normalization module applying clipping and rescaling.
-    
+
     This normalizer performs the following operations:
     1. Clip values to a predefined min/max range
     2. Shift clipped values to ensure non-negative range
     3. Rescale to [0,1] range by dividing by the range size
     4. Optionally adjust to different output ranges
-    
+
     Fill value bands (numeric values in band_order) are preserved unchanged.
     """
 
@@ -552,7 +558,7 @@ class RescaleNormalizer(DataNormalizer):
         output_range: str = "zero_one",
     ) -> None:
         """Initialize rescale normalizer with configurable output range.
-        
+
         Args:
             stats: Statistics dictionary or path to JSON file
             band_order: Sequence or dict of band names/fill values
@@ -568,7 +574,7 @@ class RescaleNormalizer(DataNormalizer):
         self.clip_maxs = {}
         self.shifts = {}
         self.scales = {}
-        
+
         if output_range == "zero_255":
             self.range_scale, self.range_shift = 255.0, 0.0
         elif output_range == "neg_one_one":
@@ -590,7 +596,7 @@ class RescaleNormalizer(DataNormalizer):
         clip_min, clip_max = self._get_clip_values(key, bands)
         self.clip_mins[key] = clip_min
         self.clip_maxs[key] = clip_max
-        
+
         shifts = torch.zeros_like(clip_min)
         neg_values = clip_min < 0
         if neg_values.any():
@@ -602,23 +608,31 @@ class RescaleNormalizer(DataNormalizer):
         self.shifts[key] = shifts
         self.scales[key] = scales
 
-    def _get_clip_values(self, key: str, bands: Sequence[str | float]) -> tuple[Tensor, Tensor]:
+    def _get_clip_values(
+        self, key: str, bands: Sequence[str | float]
+    ) -> tuple[Tensor, Tensor]:
         """Extract clip min/max tensors with infinity as default."""
         # Check for modality-specific clip values
         if "clip_min" in self.stats:
             clip_min = self.stats["clip_min"].get(key, float("-inf"))
         else:
             clip_min = float("-inf")
-        
+
         if "clip_max" in self.stats:
             clip_max = self.stats["clip_max"].get(key, float("inf"))
         else:
             clip_max = float("inf")
 
         # Apply to each band (fill values use infinity)
-        clip_mins = [clip_min if not isinstance(band, (int, float)) else float("-inf") for band in bands]
-        clip_maxs = [clip_max if not isinstance(band, (int, float)) else float("inf") for band in bands]
-                    
+        clip_mins = [
+            clip_min if not isinstance(band, (int, float)) else float("-inf")
+            for band in bands
+        ]
+        clip_maxs = [
+            clip_max if not isinstance(band, (int, float)) else float("inf")
+            for band in bands
+        ]
+
         return torch.tensor(clip_mins).float(), torch.tensor(clip_maxs).float()
 
     def forward(self, data: dict[str, Tensor]) -> dict[str, Tensor]:
@@ -628,33 +642,33 @@ class RescaleNormalizer(DataNormalizer):
             if key not in self.means:
                 result[key] = tensor
                 continue
-            
+
             is_fill = self.is_fill_value[key]
             _, is_fill_expanded = self._reshape_and_expand(is_fill, tensor)
             normalized = tensor.clone()
-            
+
             clip_min, clip_max = self.clip_mins[key], self.clip_maxs[key]
             shifts, scales = self.shifts[key], self.scales[key]
-            
+
             clip_min_r, _ = self._reshape_and_expand(clip_min, tensor)
             clip_max_r, _ = self._reshape_and_expand(clip_max, tensor)
             shifts_r, _ = self._reshape_and_expand(shifts, tensor)
             scales_r, _ = self._reshape_and_expand(scales, tensor)
-            
+
             clipped = torch.clamp(tensor, min=clip_min_r, max=clip_max_r)
-            
+
             shifted = clipped + shifts_r
-            
+
             rescaled = shifted / scales_r
-            rescaled = torch.clamp(rescaled, min=0.0, max=1.0)
-            
+            # rescaled = torch.clamp(rescaled, min=0.0, max=1.0)
+
             if self.output_range != "zero_one":
                 rescaled = rescaled * self.range_scale + self.range_shift
-            
+
             normalized = torch.where(is_fill_expanded, normalized, rescaled)
-            
+
             result[key] = normalized
-        
+
         return result
 
     def unnormalize(self, data: dict[str, Tensor]) -> dict[str, Tensor]:
@@ -664,51 +678,51 @@ class RescaleNormalizer(DataNormalizer):
             if key not in self.means:
                 result[key] = tensor
                 continue
-            
+
             is_fill = self.is_fill_value[key]
             _, is_fill_expanded = self._reshape_and_expand(is_fill, tensor)
             unnormalized = tensor.clone()
-            
+
             shifts, scales = self.shifts[key], self.scales[key]
-            
+
             shifts_r, _ = self._reshape_and_expand(shifts, tensor)
             scales_r, _ = self._reshape_and_expand(scales, tensor)
-            
+
             denormalized = tensor
-            
+
             if self.output_range != "zero_one":
                 denormalized = (denormalized - self.range_shift) / self.range_scale
-        
+
             denormalized = denormalized * scales_r
-            
+
             denormalized = denormalized - shifts_r
-            
+
             unnormalized = torch.where(is_fill_expanded, unnormalized, denormalized)
-            
+
             result[key] = unnormalized
-        
+
         return result
 
     def _format_channel_stats(self, key: str, channel_idx: int) -> str:
         """Format statistics for string representation."""
         mean = self.means[key][channel_idx].item()
         std = self.stds[key][channel_idx].item()
-        
+
         parts = [f"Channel {channel_idx}: mean={mean:.4f}, std={std:.4f}"]
-        
+
         if key in self.clip_mins:
             clip_min = self.clip_mins[key][channel_idx].item()
             clip_max = self.clip_maxs[key][channel_idx].item()
             if clip_min > float("-inf") or clip_max < float("inf"):
                 parts.append(f"clip=[{clip_min:.4f}, {clip_max:.4f}]")
-        
+
         if key in self.shifts:
             shift = self.shifts[key][channel_idx].item()
             scale = self.scales[key][channel_idx].item()
             if shift != 0:
                 parts.append(f"shift={shift:.4f}")
             parts.append(f"scale={scale:.4f}")
-        
+
         return " " + ", ".join(parts)
 
 
@@ -784,17 +798,19 @@ class SatMAENormalizer(DataNormalizer):
         raw_max_values = means + 2 * stds
 
         offsets = torch.zeros_like(raw_min_values)
-        
+
         shift_offsets_for_bands = []
         for i, band in enumerate(bands):
             if isinstance(band, (str, float)):
-                if isinstance(band, str) and band in self.stats.get("shift_offsets", {}):
+                if isinstance(band, str) and band in self.stats.get(
+                    "shift_offsets", {}
+                ):
                     shift_offsets_for_bands.append(self.stats["shift_offsets"][band])
                 else:
                     shift_offsets_for_bands.append(
                         -raw_min_values[i].item() if raw_min_values[i] < 0 else 0.0
                     )
-        
+
         if len(shift_offsets_for_bands) == len(bands):
             offsets = torch.tensor(shift_offsets_for_bands)
         else:
@@ -809,12 +825,16 @@ class SatMAENormalizer(DataNormalizer):
         self.max_values[key] = raw_max_values + offsets
 
         if self.apply_second_stage:
-            self.norm_means[key], self.norm_stds[key] = self._get_normalized_stats(bands)
+            self.norm_means[key], self.norm_stds[key] = self._get_normalized_stats(
+                bands
+            )
 
-    def _get_normalized_stats(self, bands: Sequence[str | float]) -> tuple[Tensor, Tensor]:
+    def _get_normalized_stats(
+        self, bands: Sequence[str | float]
+    ) -> tuple[Tensor, Tensor]:
         """Extract normalized mean and std values for bands."""
         norm_means, norm_stds = [], []
-        
+
         for band in bands:
             if isinstance(band, (int, float)):
                 norm_means.append(0.0)
@@ -822,7 +842,7 @@ class SatMAENormalizer(DataNormalizer):
             else:
                 norm_means.append(self.stats.get("norm_mean", {}).get(band, 0.0))
                 norm_stds.append(self.stats.get("norm_std", {}).get(band, 1.0))
-                
+
         return torch.tensor(norm_means), torch.tensor(norm_stds)
 
     def forward(self, data: dict[str, Tensor]) -> dict[str, Tensor]:
@@ -832,18 +852,14 @@ class SatMAENormalizer(DataNormalizer):
             if key not in self.min_values:
                 result[key] = tensor
                 continue
-                
-            normalized = self._normalize_first_stage(
-                tensor, key
-            )
-            
+
+            normalized = self._normalize_first_stage(tensor, key)
+
             if self.apply_second_stage and key in self.norm_means:
-                normalized = self._normalize_second_stage(
-                    normalized, key
-                )
-                
+                normalized = self._normalize_second_stage(normalized, key)
+
             result[key] = normalized
-            
+
         return result
 
     def _normalize_first_stage(self, tensor: Tensor, key: str) -> Tensor:
@@ -852,18 +868,18 @@ class SatMAENormalizer(DataNormalizer):
         max_val, _ = self._reshape_and_expand(self.max_values[key], tensor)
         offsets, _ = self._reshape_and_expand(self.offsets[key], tensor)
         _, is_fill_mask = self._reshape_and_expand(self.is_fill_value[key], tensor)
-        
+
         result = tensor.clone()
-        
+
         shifted = tensor + offsets
-        
+
         normalized = (shifted - min_val) / (max_val - min_val + 1e-6)
         normalized = torch.clamp(normalized, 0, 1)
-        
+
         if not (self.apply_second_stage and self.output_range == "zero_one"):
             if self.output_range != "zero_one":
                 normalized = normalized * self.scale_factor + self.shift_factor
-        
+
         return torch.where(is_fill_mask, result, normalized)
 
     def _normalize_second_stage(self, tensor: Tensor, key: str) -> Tensor:
@@ -871,9 +887,9 @@ class SatMAENormalizer(DataNormalizer):
         mean, _ = self._reshape_and_expand(self.norm_means[key], tensor)
         std, _ = self._reshape_and_expand(self.norm_stds[key], tensor)
         _, is_fill_mask = self._reshape_and_expand(self.is_fill_value[key], tensor)
-        
+
         normalized = (tensor - mean) / (std + 1e-6)
-        
+
         return torch.where(is_fill_mask, tensor.clone(), normalized)
 
     def unnormalize(self, data: dict[str, Tensor]) -> dict[str, Tensor]:
@@ -883,22 +899,22 @@ class SatMAENormalizer(DataNormalizer):
             if key not in self.min_values:
                 result[key] = tensor
                 continue
-                
+
             if self.apply_second_stage and key in self.norm_means:
                 tensor = self._denormalize_second_stage(tensor, key)
-                
+
             result[key] = self._denormalize_first_stage(tensor, key)
-            
+
         return result
 
     def _denormalize_second_stage(self, tensor: Tensor, key: str) -> Tensor:
         """Undo ImageNet-style normalization."""
         mean, _ = self._reshape_and_expand(self.norm_means[key], tensor)
-        std, _ = self._reshape_and_expand(self.norm_stds[key], tensor) 
+        std, _ = self._reshape_and_expand(self.norm_stds[key], tensor)
         _, is_fill_mask = self._reshape_and_expand(self.is_fill_value[key], tensor)
-        
+
         denormalized = tensor * (std + 1e-6) + mean
-        
+
         return torch.where(is_fill_mask, tensor.clone(), denormalized)
 
     def _denormalize_first_stage(self, tensor: Tensor, key: str) -> Tensor:
@@ -907,38 +923,160 @@ class SatMAENormalizer(DataNormalizer):
         max_val, _ = self._reshape_and_expand(self.max_values[key], tensor)
         offsets, _ = self._reshape_and_expand(self.offsets[key], tensor)
         _, is_fill_mask = self._reshape_and_expand(self.is_fill_value[key], tensor)
-        
+
         result = tensor.clone()
-        
+
         temp = tensor
         if not self.apply_second_stage and self.output_range != "zero_one":
-            temp = (temp - self.shift_factor) / self.scale_factor if self.shift_factor != 0 else temp / self.scale_factor
-        
+            temp = (
+                (temp - self.shift_factor) / self.scale_factor
+                if self.shift_factor != 0
+                else temp / self.scale_factor
+            )
+
         denormalized = temp * (max_val - min_val) + min_val
-        
+
         denormalized = denormalized - offsets
-        
+
         return torch.where(is_fill_mask, result, denormalized)
 
     def _format_channel_stats(self, key: str, channel_idx: int) -> str:
         """Format statistics for string representation with normalization details."""
         mean = self.means[key][channel_idx].item()
         std = self.stds[key][channel_idx].item()
-        
+
         stats = [f"Channel {channel_idx}: mean={mean:.4f}, std={std:.4f}"]
-        
+
         if key in self.min_values:
             min_val = self.min_values[key][channel_idx].item()
             max_val = self.max_values[key][channel_idx].item()
             stats.append(f"range=[{min_val:.4f}, {max_val:.4f}]")
-            
+
             offset = self.offsets[key][channel_idx].item()
             if offset > 0:
                 stats.append(f"offset={offset:.4f}")
-        
+
         if self.apply_second_stage and key in self.norm_means:
             norm_mean = self.norm_means[key][channel_idx].item()
             norm_std = self.norm_stds[key][channel_idx].item()
             stats.append(f"norm_mean={norm_mean:.4f}, norm_std={norm_std:.4f}")
-        
+
         return "  " + ", ".join(stats)
+
+
+class ClipOnlyNormalizer(DataNormalizer):
+    """Normalization module that only applies clipping to input data.
+
+    This normalizer performs minimal preprocessing by simply clipping values to a
+    predefined min/max range for each band. Unlike other normalizers, it doesn't
+    rescale or transform the data further.
+
+    Fill value bands (numeric values in band_order) are preserved unchanged.
+    """
+
+    def __init__(
+        self,
+        stats: dict[str, dict[str, float]] | str,
+        band_order: list[str | float] | dict[str, list[str | float]],
+        image_keys: Sequence[str] | None = None,
+    ) -> None:
+        """Initialize clip-only normalizer.
+
+        Args:
+            stats: Statistics dictionary or path to JSON file containing clip_min/clip_max values
+            band_order: Sequence or dict of band names/fill values
+            image_keys: Keys to normalize in data dict
+        """
+        self.clip_mins = {}
+        self.clip_maxs = {}
+        super().__init__(stats, band_order, image_keys)
+
+    def _set_additional_stats_for_key(
+        self,
+        key: str,
+        bands: Sequence[str | float],
+        means: Tensor,
+        stds: Tensor,
+        is_fill: Tensor,
+    ) -> None:
+        """Set clip min/max values for this key."""
+        clip_min, clip_max = self._get_clip_values(key, bands)
+        self.clip_mins[key] = clip_min
+        self.clip_maxs[key] = clip_max
+
+    def _get_clip_values(
+        self, key: str, bands: Sequence[str | float]
+    ) -> tuple[Tensor, Tensor]:
+        """Extract clip min/max tensors with infinity as default."""
+        # Check for modality-specific clip values
+        if "clip_min" in self.stats:
+            clip_min = self.stats["clip_min"].get(key, float("-inf"))
+        else:
+            clip_min = float("-inf")
+
+        if "clip_max" in self.stats:
+            clip_max = self.stats["clip_max"].get(key, float("inf"))
+        else:
+            clip_max = float("inf")
+
+        # Apply to each band (fill values use infinity)
+        clip_mins = [
+            clip_min if not isinstance(band, (int, float)) else float("-inf")
+            for band in bands
+        ]
+        clip_maxs = [
+            clip_max if not isinstance(band, (int, float)) else float("inf")
+            for band in bands
+        ]
+
+        return torch.tensor(clip_mins).float(), torch.tensor(clip_maxs).float()
+
+    def forward(self, data: dict[str, Tensor]) -> dict[str, Tensor]:
+        """Apply clipping to input tensors."""
+        result = {}
+        for key, tensor in data.items():
+            if key not in self.means:
+                result[key] = tensor
+                continue
+
+            is_fill = self.is_fill_value[key]
+            _, is_fill_expanded = self._reshape_and_expand(is_fill, tensor)
+            normalized = tensor.clone()
+
+            # Only proceed with clipping if we have clip values for this key
+            if key in self.clip_mins:
+                clip_min, clip_max = self.clip_mins[key], self.clip_maxs[key]
+
+                clip_min_r, _ = self._reshape_and_expand(clip_min, tensor)
+                clip_max_r, _ = self._reshape_and_expand(clip_max, tensor)
+
+                # Apply clipping
+                clipped = torch.clamp(tensor, min=clip_min_r, max=clip_max_r)
+                normalized = torch.where(is_fill_expanded, normalized, clipped)
+
+            result[key] = normalized
+
+        return result
+
+    def unnormalize(self, data: dict[str, Tensor]) -> dict[str, Tensor]:
+        """Passthrough since clipping cannot be undone."""
+        # Clipping is a lossy operation that cannot be reversed
+        return data.copy()
+
+    def _format_channel_stats(self, key: str, channel_idx: int) -> str:
+        """Format channel statistics for string representation."""
+        mean = self.means[key][channel_idx].item()
+        std = self.stds[key][channel_idx].item()
+
+        parts = [f"Channel {channel_idx}: mean={mean:.4f}, std={std:.4f}"]
+
+        if key in self.clip_mins:
+            clip_min = self.clip_mins[key][channel_idx].item()
+            clip_max = self.clip_maxs[key][channel_idx].item()
+
+            if clip_min > float("-inf"):
+                parts.append(f"clip_min={clip_min:.4f}")
+            if clip_max < float("inf"):
+                parts.append(f"clip_max={clip_max:.4f}")
+
+        return "    " + ", ".join(parts)

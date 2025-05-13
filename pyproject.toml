@@ -14,12 +14,12 @@ requires-python = ">=3.10"
 license = {file = "LICENSE"}
 authors = [
     {name = "Alexandre Lacoste", email = "alexandre.lacoste@servicenow.com"},
-    {name = "Nils Lehmann", email = "n.lehmann@tum.de"}
+    {name = "Nils Lehmann", email = "n.lehmann@tum.de"},
     {name = "Naomi Simumba", email = "naomi.simumba1@ibm.com"}
 ]
 maintainers = [
     {name = "Alexandre Lacoste", email = "alexandre.lacoste@servicenow.com"},
-    {name = "Nils Lehmann", email = "n.lehmann@tum.de"}
+    {name = "Nils Lehmann", email = "n.lehmann@tum.de"},
     {name = "Naomi Simumba", email = "naomi.simumba1@ibm.com"}
 ]
 keywords = ["earth_observation", "benchmark"]

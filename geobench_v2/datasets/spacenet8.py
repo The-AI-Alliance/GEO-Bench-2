@@ -96,13 +96,15 @@ class GeoBenchSpaceNet8(GeoBenchBaseDataset):
             download=download,
         )
         self.return_stacked_image = return_stacked_image
-        
+
         if len(time_step) == 0:
             raise ValueError(
-                    "time_step must include at least one item from  ['pre, 'post']"
-                )
+                "time_step must include at least one item from  ['pre, 'post']"
+            )
         for i in time_step:
-            assert i in ["pre", "post"], "time_step must include at least one item from  ['pre, 'post']"
+            assert i in ["pre", "post"], (
+                "time_step must include at least one item from  ['pre, 'post']"
+            )
         self.time_step = time_step
 
     def __getitem__(self, index: int) -> dict[str, Tensor]:
