@@ -14,7 +14,7 @@ from shapely import wkt
 from torch import Tensor
 
 from .base import GeoBenchBaseDataset
-from .normalization import ClipZScoreNormalizer
+from .normalization import ZScoreNormalizer
 from .sensor_util import DatasetBandRegistry
 
 
@@ -61,7 +61,7 @@ class GeoBenchFieldsOfTheWorld(GeoBenchBaseDataset):
         root: Path,
         split: str,
         band_order: Sequence[str | float] = dataset_band_config.default_order,
-        data_normalizer: type[nn.Module] = ClipZScoreNormalizer,
+        data_normalizer: type[nn.Module] = ZScoreNormalizer,
         label_type: Literal["instance_seg", "semantic_seg"] = "semantic_seg",
         transforms: nn.Module | None = None,
         metadata: Sequence[str] | None = None,
@@ -77,7 +77,7 @@ class GeoBenchFieldsOfTheWorld(GeoBenchBaseDataset):
                 specify ['red', 'green', 'blue', 'nir', 'nir'], the dataset would return images with 5 channels
                 in that order. This is useful for models that expect a certain band order, or
                 test the impact of band order on model performance.
-            data_normalizer: The data normalizer to apply to the data, defaults to :class:`data_util.ClipZScoreNormalizer`,
+            data_normalizer: The data normalizer to apply to the data, defaults to :class:`data_util.ZScoreNormalizer`,
                 which applies z-score normalization to each band.
             transforms:
             return_stacked_image: if true, returns a single image tensor with all modalities stacked in band_order

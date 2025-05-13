@@ -15,7 +15,7 @@ import matplotlib.pyplot as plt
 
 from geobench_v2.datamodules import GeoBenchBENV2DataModule
 from geobench_v2.datasets import GeoBenchBENV2
-from geobench_v2.datasets.normalization import ClipZScoreNormalizer, SatMAENormalizer
+from geobench_v2.datasets.normalization import ZScoreNormalizer, SatMAENormalizer
 from geobench_v2.datasets.visualization_util import (
     compute_batch_histograms,
     plot_batch_histograms,
@@ -63,7 +63,7 @@ def main():
 
     # Create normalizers for different normalization strategies
     clip_z_normalizer = create_normalizer_from_stats(
-        direct_stats_path, ClipZScoreNormalizer, band_order
+        direct_stats_path, ZScoreNormalizer, band_order
     )
     satmae_normalizer = create_normalizer_from_stats(
         satmae_stats_path, SatMAENormalizer, band_order

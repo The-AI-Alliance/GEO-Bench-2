@@ -100,7 +100,7 @@ class GeoBenchFLOGA(NonGeoDataset, DataUtilsMixin):
 
         self.band_order = self.resolve_band_order(band_order)
 
-        self.normalizer = ClipZScoreNormalizer(
+        self.normalizer = ZScoreNormalizer(
             self.normalization_stats, self.band_order
         )
 

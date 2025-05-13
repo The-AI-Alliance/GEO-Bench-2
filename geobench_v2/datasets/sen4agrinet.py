@@ -17,7 +17,7 @@ from torch import Tensor
 from torchgeo.datasets import NonGeoDataset
 
 from .data_util import DataUtilsMixin
-from .normalization import ClipZScoreNormalizer
+from .normalization import ZScoreNormalizer
 from .sensor_util import DatasetBandRegistry
 
 
@@ -118,7 +118,7 @@ class GeoBenchSen4AgriNet(NonGeoDataset, DataUtilsMixin):
         root: Path,
         split: Literal["train", "validation", "test"] = "train",
         band_order: dict[str, Sequence[float | str]] = band_default_order,
-        data_normalizer: type[nn.Module] = ClipZScoreNormalizer,
+        data_normalizer: type[nn.Module] = ZScoreNormalizer,
         num_time_steps: int = 1,
         transforms: nn.Module | None = None,
     ) -> None:
@@ -135,7 +135,7 @@ class GeoBenchSen4AgriNet(NonGeoDataset, DataUtilsMixin):
                 if set to 10, the latest 10 time steps will be returned. If a time series has fewer time steps than
                 specified, it will be padded with zeros. A value of 1 will return a [C, H, W] tensor, while a value
                 of 10 will return a [T, C, H, W] tensor.
-            data_normalizer: The data normalizer to apply to the data, defaults to :class:`data_util.ClipZScoreNormalizer`,
+            data_normalizer: The data normalizer to apply to the data, defaults to :class:`data_util.ZScoreNormalizer`,
                 which applies z-score normalization to each band.
             transforms:
 

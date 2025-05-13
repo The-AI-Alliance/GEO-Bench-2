@@ -15,7 +15,7 @@ from torch import Tensor
 from torchgeo.datasets import NonGeoDataset
 
 from .data_util import DataUtilsMixin
-from .normalization import DataNormalizer, ClipZScoreNormalizer
+from .normalization import DataNormalizer, ZScoreNormalizer
 from .sensor_util import DatasetBandRegistry
 
 
@@ -44,7 +44,7 @@ class GeoBenchWindTurbine(NonGeoDataset, DataUtilsMixin):
         root: Path,
         split: str,
         band_order: list[str] = band_default_order,
-        data_normalizer: type[nn.Module] = ClipZScoreNormalizer,
+        data_normalizer: type[nn.Module] = ZScoreNormalizer,
         transforms: nn.Module | None = None,
     ) -> None:
         """Initialize WindTurbine dataset.
@@ -56,7 +56,7 @@ class GeoBenchWindTurbine(NonGeoDataset, DataUtilsMixin):
                 specify ['red', 'green', 'blue', 'blue'], the dataset would return images with 4 channels
                 in that order. This is useful for models that expect a certain band order, or
                 test the impact of band order on model performance.
-            data_normalizer: The data normalizer to apply to the data, defaults to :class:`data_util.ClipZScoreNormalizer`,
+            data_normalizer: The data normalizer to apply to the data, defaults to :class:`data_util.ZScoreNormalizer`,
                 which applies z-score normalization to each band.
             transforms: image transformations to apply to the data, defaults to None
         """

@@ -13,7 +13,7 @@ import torch.nn as nn
 from torch import Tensor
 
 from .base import GeoBenchBaseDataset
-from .normalization import ClipZScoreNormalizer
+from .normalization import ZScoreNormalizer
 from .sensor_util import DatasetBandRegistry
 
 
@@ -75,7 +75,7 @@ class GeoBenchKuroSiwo(GeoBenchBaseDataset):
         root: str,
         split: Literal["train", "val", "test"],
         band_order: dict[str, Sequence[str]] = band_default_order,
-        data_normalizer: type[nn.Module] = ClipZScoreNormalizer,
+        data_normalizer: type[nn.Module] = ZScoreNormalizer,
         transforms: type[nn.Module] = None,
         return_stacked_image: bool = False,
         download: bool = False,

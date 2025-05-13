@@ -14,7 +14,7 @@ from rasterio.errors import NotGeoreferencedWarning
 from torch import Tensor
 
 from .base import GeoBenchBaseDataset
-from .normalization import ClipZScoreNormalizer
+from .normalization import ZScoreNormalizer
 from .sensor_util import DatasetBandRegistry
 
 
@@ -111,7 +111,7 @@ class GeoBenchMADOS(GeoBenchBaseDataset):
         root: Path,
         split: str,
         band_order: Sequence[str] = ["B04", "B03", "B02", "B08"],
-        data_normalizer: type[nn.Module] = ClipZScoreNormalizer,
+        data_normalizer: type[nn.Module] = ZScoreNormalizer,
         transforms: nn.Module | None = None,
         download: bool = False,
     ) -> None:
@@ -124,7 +124,7 @@ class GeoBenchMADOS(GeoBenchBaseDataset):
                 specify ['red', 'green', 'blue', 'nir', 'nir'], the dataset would return images with 5 channels
                 in that order. This is useful for models that expect a certain band order, or
                 test the impact of band order on model performance.
-            data_normalizer: The data normalizer to apply to the data, defaults to :class:`data_util.ClipZScoreNormalizer`,
+            data_normalizer: The data normalizer to apply to the data, defaults to :class:`data_util.ZScoreNormalizer`,
                 which applies z-score normalization to each band.
             transforms:
         """

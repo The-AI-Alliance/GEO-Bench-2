@@ -372,142 +372,124 @@ def visualize_segmentation_target_statistics(
     return fig
 
 
-def visualize_effect_of_normalization(
-    batch, normalizer_module, datamodule
-) -> tuple[plt.Figure, dict[str, Tensor]]:
-    """
-    Create a visualization showing before/after distributions side by side for each modality.
 
+def compare_normalization_methods(
+    batch, normalizer_modules, datamodule, figsize=(20, 8)
+) -> tuple[plt.Figure, list[dict[str, Tensor]]]:
+    """
+    Create a visualization showing before/after distributions for multiple normalization methods.
+    
+    The visualization is organized with:
+    - Rows: Different modalities (e.g., S1, S2)
+    - Columns: Raw data and different normalization methods
+    
     Args:
         batch: Dictionary containing the batch data
-        normalizer_module: The normalizer to apply
-        datamodule: datamodule to extract band information
-
+        normalizer_modules: List of normalizer modules to compare
+        datamodule: Datamodule to extract band information
+        figsize: Base figure size (width, height), will be adjusted based on number of normalizers
+        
     Returns:
-        matplotlib figure with the visualizations, and normalized batch
+        matplotlib figure with the visualizations, and list of normalized batches
     """
-    normalized_batch = normalizer_module(batch.copy())
-
+    n_normalizers = len(normalizer_modules)
+    
+    normalized_batches = [normalizer(batch.copy()) for normalizer in normalizer_modules]
+    
     modalities = [key for key in batch.keys() if key.startswith("image_")]
-
-    n_rows = len(modalities)
-
-    fig = plt.figure(figsize=(16, 8 * n_rows))
-    gs = GridSpec(n_rows * 2, 2, height_ratios=[4, 1] * n_rows, figure=fig)
-
+    n_modalities = len(modalities)
+    
+    adjusted_width = figsize[0] * (n_normalizers + 1) / 3
+    adjusted_height = figsize[1] * n_modalities
+    fig = plt.figure(figsize=(adjusted_width, adjusted_height))
+    
+    gs = GridSpec(n_modalities * 2, n_normalizers + 1, 
+                 height_ratios=[4, 1] * n_modalities, 
+                 width_ratios=[1] * (n_normalizers + 1),
+                 figure=fig)
+    
+    column_titles = ["Raw Data"] + [f"{norm.__class__.__name__}" for norm in normalizer_modules]
+    
     for row_idx, modality in enumerate(modalities):
         modality_prefix = modality.replace("image_", "")
-
+        
         band_names = []
         plot_title = f"{modality_prefix.upper()} Modality"
-
+        
         if modality_prefix in datamodule.dataset_band_config.modalities:
             config = datamodule.dataset_band_config.modalities[modality_prefix]
             if config.plot_bands:
                 band_names = config.plot_bands
                 plot_title = f"{modality_prefix.upper()}"
-
+        
         band_indices = []
         for band in band_names:
             if isinstance(datamodule.band_order, dict):
                 band_indices.append(datamodule.band_order[modality_prefix].index(band))
             else:
                 band_indices.append(datamodule.band_order.index(band))
-
-        plot_idx_raw = row_idx * 2
-        plot_idx_norm = row_idx * 2
-        stats_idx_raw = plot_idx_raw + 1
-        stats_idx_norm = plot_idx_norm + 1
-
-        ax_raw = fig.add_subplot(gs[plot_idx_raw, 0])
-        ax_norm = fig.add_subplot(gs[plot_idx_norm, 1])
-        stats_ax_raw = fig.add_subplot(gs[stats_idx_raw, 0])
-        stats_ax_norm = fig.add_subplot(gs[stats_idx_norm, 1])
-
-        raw_data = {}
-        normalized_data = {}
-
+        
+        all_data = {"raw": {}}
+        for i, norm_name in enumerate([norm.__class__.__name__ for norm in normalizer_modules]):
+            all_data[norm_name] = {}
+        
         for i, band_idx in enumerate(band_indices):
             if band_idx < batch[modality].shape[1]:
-                band_label = (
-                    band_names[i] if i < len(band_names) else f"Band {band_idx}"
-                )
-                raw_data[band_label] = batch[modality][:, band_idx].flatten().numpy()
-                normalized_data[band_label] = (
-                    normalized_batch[modality][:, band_idx].flatten().numpy()
-                )
-
-        bins = 100
-        for band in raw_data.keys():
-            hist, bin_edges = np.histogram(raw_data[band], bins=bins)
-            bin_centers = (bin_edges[:-1] + bin_edges[1:]) / 2
-            ax_raw.plot(bin_centers, hist, label=band, linewidth=2.5)
-
-        ax_raw.set_title(f"Raw {plot_title} Data", fontsize=14)
-        ax_raw.set_xlabel("Pixel Value")
-        ax_raw.set_ylabel("Frequency")
-        ax_raw.legend(loc="upper right")
-
-        for band in normalized_data.keys():
-            hist, bin_edges = np.histogram(normalized_data[band], bins=bins)
-            bin_centers = (bin_edges[:-1] + bin_edges[1:]) / 2
-            ax_norm.plot(bin_centers, hist, label=band, linewidth=2.5)
-
-        norm_title = f"Normalized {plot_title} Data"
-
-        ax_norm.set_title(norm_title, fontsize=14)
-        ax_norm.set_xlabel("Normalized Value")
-        ax_norm.set_ylabel("Frequency")
-        ax_norm.legend(loc="upper right")
-
-        stats_ax_raw.axis("off")
-        stats_ax_norm.axis("off")
-
-        raw_stats_text = f"Statistics for Raw {plot_title} Data:\n"
-        for band in raw_data.keys():
-            mean_val = np.mean(raw_data[band])
-            std_val = np.std(raw_data[band])
-            min_val = np.min(raw_data[band])
-            max_val = np.max(raw_data[band])
-            raw_stats_text += f"{band}: Mean={mean_val:.3f}, Std={std_val:.3f}, Range=[{min_val:.3f}, {max_val:.3f}]\n"
-
-        stats_ax_raw.text(
-            0.5,
-            0.5,
-            raw_stats_text,
-            ha="center",
-            va="center",
-            fontsize=10,
-            bbox=dict(boxstyle="round", facecolor="white", alpha=0.7),
-        )
-
-        norm_stats_text = f"Statistics for Normalized {plot_title} Data:\n"
-        for band in normalized_data.keys():
-            mean_val = np.mean(normalized_data[band])
-            std_val = np.std(normalized_data[band])
-            min_val = np.min(normalized_data[band])
-            max_val = np.max(normalized_data[band])
-            norm_stats_text += f"{band}: Mean={mean_val:.3f}, Std={std_val:.3f}, Range=[{min_val:.3f}, {max_val:.3f}]\n"
-
-        stats_ax_norm.text(
-            0.5,
-            0.5,
-            norm_stats_text,
-            ha="center",
-            va="center",
-            fontsize=10,
-            bbox=dict(boxstyle="round", facecolor="white", alpha=0.7),
-        )
-
-        for ax in [ax_raw, ax_norm]:
-            ax.grid(True, alpha=0.3)
-            ax.spines["top"].set_visible(False)
-            ax.spines["right"].set_visible(False)
-
+                band_label = band_names[i] if i < len(band_names) else f"Band {band_idx}"
+                
+                all_data["raw"][band_label] = batch[modality][:, band_idx].flatten().numpy()
+            
+                for j, norm_batch in enumerate(normalized_batches):
+                    norm_name = normalizer_modules[j].__class__.__name__
+                    all_data[norm_name][band_label] = norm_batch[modality][:, band_idx].flatten().numpy()
+        
+        for col_idx in range(n_normalizers + 1):
+            data_key = "raw" if col_idx == 0 else normalizer_modules[col_idx-1].__class__.__name__
+            
+            main_ax = fig.add_subplot(gs[row_idx * 2, col_idx])
+            
+            stats_ax = fig.add_subplot(gs[row_idx * 2 + 1, col_idx])
+            stats_ax.axis("off")
+            
+            bins = 100
+            for band in all_data[data_key].keys():
+                hist, bin_edges = np.histogram(all_data[data_key][band], bins=bins)
+                bin_centers = (bin_edges[:-1] + bin_edges[1:]) / 2
+                main_ax.plot(bin_centers, hist, label=band, linewidth=2.5)
+            
+            if row_idx == 0:
+                main_ax.set_title(column_titles[col_idx], fontsize=16, pad=20)
+            
+            main_ax.set_title(f"{plot_title}", fontsize=14, pad=5)
+            main_ax.set_xlabel("Value")
+            main_ax.set_ylabel("Frequency")
+            main_ax.legend(loc="upper right")
+            
+            main_ax.grid(True, alpha=0.3)
+            main_ax.spines["top"].set_visible(False)
+            main_ax.spines["right"].set_visible(False)
+            
+            stats_text = f"Statistics for {plot_title} ({data_key}):\n"
+            for band in all_data[data_key].keys():
+                data = all_data[data_key][band]
+                mean_val = np.mean(data)
+                std_val = np.std(data)
+                min_val = np.min(data)
+                max_val = np.max(data)
+                stats_text += f"{band}: Mean={mean_val:.3f}, Std={std_val:.3f}, Range=[{min_val:.3f}, {max_val:.3f}]\n"
+            
+            stats_ax.text(
+                0.5, 0.5, stats_text,
+                ha="center", va="center", fontsize=10,
+                bbox=dict(boxstyle="round", facecolor="white", alpha=0.7)
+            )
+    
+    normalizer_names = ", ".join([norm.__class__.__name__ for norm in normalizer_modules])
     plt.suptitle(
-        f"{normalizer_module.__class__.__name__} Effect by Modality: Before and After",
-        fontsize=16,
-        y=0.98,
+        f"Comparison of Normalization Methods: {normalizer_names}",
+        fontsize=18, y=0.995
     )
     plt.tight_layout()
-    return fig, normalized_batch
+    fig.subplots_adjust(top=0.95 if n_modalities == 1 else 0.97)
+    
+    return fig, normalized_batches

@@ -12,7 +12,7 @@ from shapely import wkt
 from torch import Tensor
 
 from .base import GeoBenchBaseDataset
-from .normalization import ClipZScoreNormalizer
+from .normalization import ZScoreNormalizer
 from .sensor_util import DatasetBandRegistry
 
 
@@ -41,7 +41,7 @@ class GeoBenchCaFFe(GeoBenchBaseDataset):
         root,
         split="train",
         band_order: Sequence[float | str] = band_default_order,
-        data_normalizer: type[nn.Module] = ClipZScoreNormalizer,
+        data_normalizer: type[nn.Module] = ZScoreNormalizer,
         transforms: nn.Module | None = None,
         metadata: Sequence[str] | None = None,
         download: bool = False,
@@ -53,7 +53,7 @@ class GeoBenchCaFFe(GeoBenchBaseDataset):
             split: The dataset split, supports 'train', 'test'
             band_order: The order of bands to return, defaults to ['g'], if one would
                 specify ['g', 'g', 'b', 1.0], the dataset would return images with 4 channels
-            data_normalizer: The data normalizer to apply to the data, defaults to :class:`data_util.ClipZScoreNormalizer`,
+            data_normalizer: The data normalizer to apply to the data, defaults to :class:`data_util.ZScoreNormalizer`,
                 which applies z-score normalization to each band.
             transforms:
 

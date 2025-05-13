@@ -49,7 +49,7 @@ class GeoBenchBaseDataset(NonGeoDataset, DataUtilsMixin):
             split: The dataset split, supports 'train', 'val', 'test'
             band_order:
             data_normalizer: Normalization strategy. Can be:
-                             - A class type inheriting from DataNormalizer (e.g., ClipZScoreNormalizer)
+                             - A class type inheriting from DataNormalizer (e.g., ZScoreNormalizer)
                                or a basic callable class (e.g., nn.Identity - default).
                                It will be initialized appropriately (using stats/band_order if needed).
                              - An initialized callable instance (e.g., a custom nn.Module or nn.Identity()).
