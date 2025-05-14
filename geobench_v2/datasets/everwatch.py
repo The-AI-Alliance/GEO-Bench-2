@@ -5,34 +5,39 @@
 
 import os
 from pathlib import Path
+from typing import Sequence
+import numpy as np
 
 import pandas as pd
+import warnings
+import torch
 import torch.nn as nn
 from torch import Tensor
+import rasterio
 from torchgeo.datasets import EverWatch
+from rasterio.errors import NotGeoreferencedWarning
 
+from .base import GeoBenchBaseDataset
 from .data_util import DataUtilsMixin
 from .normalization import DataNormalizer, ZScoreNormalizer
 from .sensor_util import DatasetBandRegistry
 
+import io
+import re
 
-class GeoBenchEverWatch(EverWatch, DataUtilsMixin):
-    """ "GeoBenchEverWatch dataset with enhanced functionality.
+import geopandas as gpd
 
-    Allows:
-    - Variable Band Selection
-    - Return band wavelengths
-    """
 
-    dataset_band_config = DatasetBandRegistry.EVERWATCH
-    band_default_order = ("red", "green", "blue")
+class GeoBenchEverWatch(GeoBenchBaseDataset):
+    """Implementation of EverWatch dataset."""
 
-    normalization_stats = {
-        "means": {"red": 0.0, "green": 0.0, "blue": 0.0},
-        "stds": {"red": 255.0, "green": 255.0, "blue": 255.0},
-    }
+    url = "https://hf.co/datasets/aialliance/everwatch/resolve/main/{}"
 
-    classes = classes = (
+    paths = ["geobench_everwatch.tortilla"]
+
+    sha256str = ["bd9cb1d7f565aef7a66ad3c4e3b71ebe69fcc00ab7c18e78ab03193f8bb50a89"]
+
+    classes = (
         "White Ibis",
         "Great Egret",
         "Great Blue Heron",
@@ -45,6 +50,15 @@ class GeoBenchEverWatch(EverWatch, DataUtilsMixin):
 
     num_classes = len(classes)
 
+    dataset_band_config = DatasetBandRegistry.EVERWATCH
+
+    band_default_order = ("red", "green", "blue")
+
+    normalization_stats = {
+        "means": {"red": 0.0, "green": 0.0, "blue": 0.0},
+        "stds": {"red": 255.0, "green": 255.0, "blue": 255.0},
+    }
+
     def __init__(
         self,
         root: Path,
@@ -52,6 +66,8 @@ class GeoBenchEverWatch(EverWatch, DataUtilsMixin):
         band_order: list[str] = band_default_order,
         data_normalizer: type[nn.Module] = ZScoreNormalizer,
         transforms: nn.Module | None = None,
+        metadata: Sequence[str] | None = None,
+        download: bool = False,
     ) -> None:
         """Initialize EverWatch dataset.
 
@@ -66,50 +82,19 @@ class GeoBenchEverWatch(EverWatch, DataUtilsMixin):
                 which applies z-score normalization to each band.
             transforms:
         """
-        self.root = root
-        self.split = split
-
-        self.transforms = transforms
-
-        self.band_order = self.resolve_band_order(band_order)
-
-        self.annot_df = pd.read_csv(os.path.join(self.root, "resized_annotations.csv"))
-
-        self.annot_df = self.annot_df[
-            (self.annot_df["xmin"] != self.annot_df["xmax"])
-            & (self.annot_df["ymin"] != self.annot_df["ymax"])
-        ].reset_index(drop=True)
-
-        self.annot_df = self.annot_df[self.annot_df["split"] == self.split].reset_index(
-            drop=True
+        super().__init__(
+            root=root,
+            split=split,
+            band_order=band_order,
+            data_normalizer=data_normalizer,
+            transforms=transforms,
+            metadata=metadata,
+            download=download,
         )
-
-        # group per image path to get all annotations for one sample
-        self.annot_df["sample_index"] = pd.factorize(self.annot_df["image_path"])[0]
-        self.annot_df = self.annot_df.set_index(["sample_index", self.annot_df.index])
 
         self.class2idx: dict[str, int] = {c: i for i, c in enumerate(self.classes)}
 
-        if isinstance(data_normalizer, type):
-            print(f"Initializing normalizer from class: {data_normalizer.__name__}")
-            if issubclass(data_normalizer, DataNormalizer):
-                self.data_normalizer = data_normalizer(
-                    self.normalization_stats, self.band_order
-                )
-            else:
-                self.data_normalizer = data_normalizer()
-
-        elif callable(data_normalizer):
-            print(
-                f"Using provided pre-initialized normalizer instance: {data_normalizer.__class__.__name__}"
-            )
-            self.data_normalizer = data_normalizer
-        else:
-            raise TypeError(
-                f"data_normalizer must be a DataNormalizer subclass type or a callable instance. Got {type(data_normalizer)}"
-            )
-
-    def __getitem__(self, index: int) -> dict[str, Tensor]:
+    def __getitem__(self, idx: int) -> dict[str, Tensor]:
         """Return an index within the dataset.
 
         Args:
@@ -120,19 +105,35 @@ class GeoBenchEverWatch(EverWatch, DataUtilsMixin):
         """
         sample: dict[str, Tensor] = {}
 
-        sample_df = self.annot_df.loc[index]
+        sample_row = self.data_df.read(idx)
 
-        img_path = os.path.join(self.root, "images", sample_df["image_path"].iloc[0])
+        image_path = sample_row.read(0)
+        annot_path = sample_row.read(1)
 
-        image = self._load_image(img_path).float()
+        pattern = r"(\d+)_(\d+),(.+)"
+        match = re.search(pattern, annot_path)
+        offset = int(match.group(1))
+        size = int(match.group(2))
+        file_name = match.group(3)
+
+        with open(file_name, "rb") as f:
+            f.seek(offset)
+            data = f.read(size)
+        byte_stream = io.BytesIO(data)
+        annot_df = gpd.read_parquet(byte_stream)
+
+        boxes, labels = self._load_target(annot_df)
+
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore", category=NotGeoreferencedWarning)
+            with rasterio.open(image_path) as src:
+                image = torch.from_numpy(src.read()).float()
 
         image_dict = self.rearrange_bands(image, self.band_order)
 
         image_dict = self.data_normalizer(image_dict)
 
         sample.update(image_dict)
-
-        boxes, labels = self._load_target(sample_df)
 
         sample["bbox_xyxy"] = boxes
         sample["label"] = labels
@@ -141,3 +142,149 @@ class GeoBenchEverWatch(EverWatch, DataUtilsMixin):
             sample = self.transforms(sample)
 
         return sample
+
+
+    def _load_target(self, annot_df: gpd.GeoDataFrame) -> tuple[Tensor, Tensor]:
+        """Load targets from athe GeoParquet dataframe.
+
+        Args:
+            annot_df: df subset with annotations for specific image
+
+        Returns:
+            bounding boxes and labels
+        """
+        boxes = torch.from_numpy(
+            annot_df[['xmin', 'ymin', 'xmax', 'ymax']].values
+        ).float()
+        labels = torch.Tensor(
+            [self.class2idx[label] for label in annot_df['label'].tolist()]
+        ).long()
+        return boxes, labels
+
+
+
+# class GeoBenchEverWatchOld(EverWatch, DataUtilsMixin):
+#     """ "GeoBenchEverWatch dataset with enhanced functionality.
+
+#     Allows:
+#     - Variable Band Selection
+#     - Return band wavelengths
+#     """
+
+#     dataset_band_config = DatasetBandRegistry.EVERWATCH
+#     band_default_order = ("red", "green", "blue")
+
+#     normalization_stats = {
+#         "means": {"red": 0.0, "green": 0.0, "blue": 0.0},
+#         "stds": {"red": 255.0, "green": 255.0, "blue": 255.0},
+#     }
+
+#     classes = classes = (
+#         "White Ibis",
+#         "Great Egret",
+#         "Great Blue Heron",
+#         "Snowy Egret",
+#         "Wood Stork",
+#         "Roseate Spoonbill",
+#         "Anhinga",
+#         "Unknown White",
+#     )
+
+#     num_classes = len(classes)
+
+#     def __init__(
+#         self,
+#         root: Path,
+#         split: str,
+#         band_order: list[str] = band_default_order,
+#         data_normalizer: type[nn.Module] = ZScoreNormalizer,
+#         transforms: nn.Module | None = None,
+#     ) -> None:
+#         """Initialize EverWatch dataset.
+
+#         Args:
+#             root: Path to the dataset root directory
+#             split: The dataset split, supports 'train', 'validation', 'test'
+#             band_order: The order of bands to return, defaults to ['red', 'green', 'blue'], if one would
+#                 specify ['red', 'green', 'blue', 'blue'], the dataset would return images with 4 channels
+#                 in that order. This is useful for models that expect a certain band order, or
+#                 test the impact of band order on model performance.
+#             data_normalizer: The data normalizer to apply to the data, defaults to :class:`data_util.ZScoreNormalizer`,
+#                 which applies z-score normalization to each band.
+#             transforms:
+#         """
+#         self.root = root
+#         self.split = split
+
+#         self.transforms = transforms
+
+#         self.band_order = self.resolve_band_order(band_order)
+
+#         self.annot_df = pd.read_csv(os.path.join(self.root, "resized_annotations.csv"))
+
+#         self.annot_df = self.annot_df[
+#             (self.annot_df["xmin"] != self.annot_df["xmax"])
+#             & (self.annot_df["ymin"] != self.annot_df["ymax"])
+#         ].reset_index(drop=True)
+
+#         self.annot_df = self.annot_df[self.annot_df["split"] == self.split].reset_index(
+#             drop=True
+#         )
+
+#         # group per image path to get all annotations for one sample
+#         self.annot_df["sample_index"] = pd.factorize(self.annot_df["image_path"])[0]
+#         self.annot_df = self.annot_df.set_index(["sample_index", self.annot_df.index])
+
+        
+
+#         if isinstance(data_normalizer, type):
+#             print(f"Initializing normalizer from class: {data_normalizer.__name__}")
+#             if issubclass(data_normalizer, DataNormalizer):
+#                 self.data_normalizer = data_normalizer(
+#                     self.normalization_stats, self.band_order
+#                 )
+#             else:
+#                 self.data_normalizer = data_normalizer()
+
+#         elif callable(data_normalizer):
+#             print(
+#                 f"Using provided pre-initialized normalizer instance: {data_normalizer.__class__.__name__}"
+#             )
+#             self.data_normalizer = data_normalizer
+#         else:
+#             raise TypeError(
+#                 f"data_normalizer must be a DataNormalizer subclass type or a callable instance. Got {type(data_normalizer)}"
+#             )
+
+#     def __getitem__(self, index: int) -> dict[str, Tensor]:
+#         """Return an index within the dataset.
+
+#         Args:
+#             index: index to return
+
+#         Returns:
+#             data and label at that index
+#         """
+#         sample: dict[str, Tensor] = {}
+
+#         sample_df = self.annot_df.loc[index]
+
+#         img_path = os.path.join(self.root, "images", sample_df["image_path"].iloc[0])
+
+#         image = self._load_image(img_path).float()
+
+#         image_dict = self.rearrange_bands(image, self.band_order)
+
+#         image_dict = self.data_normalizer(image_dict)
+
+#         sample.update(image_dict)
+
+#         boxes, labels = self._load_target(sample_df)
+
+#         sample["bbox_xyxy"] = boxes
+#         sample["label"] = labels
+
+#         if self.transforms is not None:
+#             sample = self.transforms(sample)
+
+#         return sample
