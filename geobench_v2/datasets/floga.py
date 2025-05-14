@@ -13,7 +13,7 @@ import torch
 from torch import Tensor
 from torchgeo.datasets import NonGeoDataset
 
-from .data_util import ClipZScoreNormalizer, DataUtilsMixin
+from .data_util import DataUtilsMixin
 from .sensor_util import DatasetBandRegistry
 
 
@@ -100,9 +100,7 @@ class GeoBenchFLOGA(NonGeoDataset, DataUtilsMixin):
 
         self.band_order = self.resolve_band_order(band_order)
 
-        self.normalizer = ClipZScoreNormalizer(
-            self.normalization_stats, self.band_order
-        )
+        self.normalizer = ZScoreNormalizer(self.normalization_stats, self.band_order)
 
         # TODO update
         self.metadata_df = pd.read_parquet(

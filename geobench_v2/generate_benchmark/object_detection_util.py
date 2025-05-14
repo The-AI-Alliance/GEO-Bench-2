@@ -1,16 +1,15 @@
-import concurrent.futures
+import multiprocessing
 import os
 import random
 import shutil
 
 import numpy as np
 import pandas as pd
+import rasterio
 from PIL import Image, ImageDraw
+from rasterio.transform import from_origin
 from tqdm import tqdm
 from tqdm.auto import tqdm
-import rasterio
-from rasterio.transform import from_origin
-import multiprocessing
 
 
 def process_single_image(args):
@@ -84,7 +83,7 @@ def process_single_image(args):
                     dst.update_tags(lat=lat, lon=lon)
 
             return {"img_name": img_name, "success": True, "geotiff_path": geotiff_name}
-    except Exception as e:
+    except Exception:
         return {"img_name": img_name, "success": False}
 
 
