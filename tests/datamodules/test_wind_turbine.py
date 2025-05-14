@@ -12,7 +12,7 @@ from geobench_v2.datamodules import GeoBenchWindTurbineDataModule
 @pytest.fixture
 def data_root():
     """Path to test data directory."""
-    return "/mnt/rg_climate_benchmark/data/geobenchV2/wind_turbine"
+    return "/mnt/rg_climate_benchmark/data/final_geobenchV2/wind_turbine"
 
 
 @pytest.fixture

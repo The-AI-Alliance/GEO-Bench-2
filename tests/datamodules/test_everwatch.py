@@ -28,8 +28,8 @@ def datamodule(data_root, band_order):
     """Initialize EverWatch datamodule with test configuration."""
     dm = GeoBenchEverWatchDataModule(
         img_size=512,
-        batch_size=32,
-        eval_batch_size=64,
+        batch_size=4,
+        eval_batch_size=2,
         num_workers=0,
         pin_memory=False,
         band_order=band_order,
