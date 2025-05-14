@@ -15,7 +15,7 @@ from shapely import wkt
 from torch import Tensor
 
 from .base import GeoBenchBaseDataset
-from .data_util import ClipZScoreNormalizer
+from .normalization import ZScoreNormalizer
 from .sensor_util import DatasetBandRegistry
 
 
@@ -99,7 +99,7 @@ class GeoBenchSpaceNet2(GeoBenchBaseDataset):
         root: Path,
         split: str,
         band_order: list[str] = band_default_order,
-        data_normalizer: type[nn.Module] = ClipZScoreNormalizer,
+        data_normalizer: type[nn.Module] = ZScoreNormalizer,
         label_type: Literal["instance_seg", "semantic_seg"] = "semantic_seg",
         transforms: nn.Module = None,
         metadata: Sequence[str] | None = None,

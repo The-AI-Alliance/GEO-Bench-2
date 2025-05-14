@@ -1902,8 +1902,6 @@ def show_samples_per_valid_ratio(
     df: pd.DataFrame, output_path: str = None, dataset_name: str = "Dataset"
 ):
     """Show the number of samples (rows) that would remain in dataframe after filtering by valid_ratio."""
-    import matplotlib.pyplot as plt
-
     valid_ratios = np.arange(0, 1.0, 0.05)
 
     samples_per_valid_ratio = []

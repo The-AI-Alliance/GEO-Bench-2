@@ -12,7 +12,8 @@ import torch.nn as nn
 from torch import Tensor
 from torchgeo.datasets import DOTA
 
-from .data_util import ClipZScoreNormalizer, DataUtilsMixin, DataNormalizer
+from .data_util import DataUtilsMixin
+from .normalization import ZScoreNormalizer
 from .sensor_util import DatasetBandRegistry
 
 
@@ -60,7 +61,7 @@ class GeoBenchDOTAV2(DOTA, DataUtilsMixin):
         root: Path,
         split: str,
         band_order: list[str] = band_default_order,
-        data_normalizer: type[nn.Module] = ClipZScoreNormalizer,
+        data_normalizer: type[nn.Module] = ZScoreNormalizer,
         bbox_orientation: Literal["horizontal", "oriented"] = "oriented",
         transforms: nn.Module | None = None,
     ) -> None:
@@ -73,7 +74,7 @@ class GeoBenchDOTAV2(DOTA, DataUtilsMixin):
                 specify ['red', 'green', 'blue', 'blue'], the dataset would return images with 4 channels
                 in that order. This is useful for models that expect a certain band order, or
                 test the impact of band order on model performance.
-            data_normalizer: The data normalizer to apply to the data, defaults to :class:`data_util.ClipZScoreNormalizer`,
+            data_normalizer: The data normalizer to apply to the data, defaults to :class:`data_util.ZScoreNormalizer`,
                 which applies z-score normalization to each band.
             transforms:
         """

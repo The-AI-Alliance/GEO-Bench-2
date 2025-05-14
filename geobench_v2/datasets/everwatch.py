@@ -11,7 +11,8 @@ import torch.nn as nn
 from torch import Tensor
 from torchgeo.datasets import EverWatch
 
-from .data_util import ClipZScoreNormalizer, DataUtilsMixin, DataNormalizer
+from .data_util import DataUtilsMixin
+from .normalization import DataNormalizer, ZScoreNormalizer
 from .sensor_util import DatasetBandRegistry
 
 
@@ -49,19 +50,19 @@ class GeoBenchEverWatch(EverWatch, DataUtilsMixin):
         root: Path,
         split: str,
         band_order: list[str] = band_default_order,
-        data_normalizer: type[nn.Module] = ClipZScoreNormalizer,
+        data_normalizer: type[nn.Module] = ZScoreNormalizer,
         transforms: nn.Module | None = None,
     ) -> None:
         """Initialize EverWatch dataset.
 
         Args:
             root: Path to the dataset root directory
-            split: The dataset split, supports 'train', 'val', 'test'
+            split: The dataset split, supports 'train', 'validation', 'test'
             band_order: The order of bands to return, defaults to ['red', 'green', 'blue'], if one would
                 specify ['red', 'green', 'blue', 'blue'], the dataset would return images with 4 channels
                 in that order. This is useful for models that expect a certain band order, or
                 test the impact of band order on model performance.
-            data_normalizer: The data normalizer to apply to the data, defaults to :class:`data_util.ClipZScoreNormalizer`,
+            data_normalizer: The data normalizer to apply to the data, defaults to :class:`data_util.ZScoreNormalizer`,
                 which applies z-score normalization to each band.
             transforms:
         """
@@ -74,11 +75,14 @@ class GeoBenchEverWatch(EverWatch, DataUtilsMixin):
 
         self.annot_df = pd.read_csv(os.path.join(self.root, "resized_annotations.csv"))
 
-        # remove all entries where xmin == xmax or ymin == ymax
         self.annot_df = self.annot_df[
             (self.annot_df["xmin"] != self.annot_df["xmax"])
             & (self.annot_df["ymin"] != self.annot_df["ymax"])
         ].reset_index(drop=True)
+
+        self.annot_df = self.annot_df[self.annot_df["split"] == self.split].reset_index(
+            drop=True
+        )
 
         # group per image path to get all annotations for one sample
         self.annot_df["sample_index"] = pd.factorize(self.annot_df["image_path"])[0]

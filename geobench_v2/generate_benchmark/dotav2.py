@@ -12,10 +12,9 @@ from PIL import Image
 from tqdm import tqdm
 
 from geobench_v2.generate_benchmark.object_detection_util import (
-    visualize_processing_results,
     convert_pngs_to_geotiffs,
+    visualize_processing_results,
 )
-from geobench_v2.generate_benchmark.utils import create_subset_from_df
 
 Image.MAX_IMAGE_PIXELS = None
 

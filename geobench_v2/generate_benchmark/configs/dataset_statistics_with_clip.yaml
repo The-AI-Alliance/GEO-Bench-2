@@ -341,22 +341,22 @@ datamodules:
   #       image_dem: 2000
   #       image_hydro: 1
 
-  # - name: benv2
-  #   stats_computer:
-  #     _target_: geobench_v2.generate_benchmark.utils_dataset_statistics.ClassificationStatistics
-  #     datamodule:
-  #       _target_: geobench_v2.datamodules.GeoBenchBENV2DataModule
-  #       batch_size: 64
-  #       num_workers: 4
-  #       root: "/mnt/rg_climate_benchmark/data/final_geobenchV2/benv2"
-  #     input_keys: ["image_s2", "image_s1"]
-  #     target_key: "label"
-  #     range_vals:
-  #       image_s2: [0, 1]
-  #       image_s1: [0, 1]
-  #     clip_min_vals:
-  #       image_s1: 0
-  #       image_s2: 0
-  #     clip_max_vals:
-  #       image_s1: 3000
-  #       image_s2: 30000
+  - name: benv2
+    stats_computer:
+      _target_: geobench_v2.generate_benchmark.utils_dataset_statistics.ClassificationStatistics
+      datamodule:
+        _target_: geobench_v2.datamodules.GeoBenchBENV2DataModule
+        batch_size: 64
+        num_workers: 4
+        root: "/mnt/rg_climate_benchmark/data/final_geobenchV2/benv2"
+      input_keys: ["image_s2", "image_s1"]
+      target_key: "label"
+      range_vals:
+        image_s2: [0, 1]
+        image_s1: [0, 1]
+      clip_min_vals:
+        image_s1: -50
+        image_s2: 0
+      clip_max_vals:
+        image_s1: 100
+        image_s2: 3000
