@@ -49,6 +49,8 @@ class GeoBenchCloudSen12(GeoBenchBaseDataset):
 
     dataset_band_config = DatasetBandRegistry.CLOUDSEN12
 
+    band_default_order = DatasetBandRegistry.CLOUDSEN12.default_order
+
     normalization_stats = {
         "means": {
             "B01": 0.0,
@@ -149,7 +151,7 @@ class GeoBenchCloudSen12(GeoBenchBaseDataset):
         image = self.data_normalizer(image_dict)
 
         sample.update(image_dict)
-        sample["mask"] = mask
+        sample["mask"] = mask.squeeze(0)
 
         point = wkt.loads(l2a_row.iloc[0]["stac:centroid"])
         lon, lat = point.x, point.y

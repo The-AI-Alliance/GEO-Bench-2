@@ -392,7 +392,7 @@ def compare_normalization_methods(
 
     normalized_batches = [normalizer(batch.copy()) for normalizer in normalizer_modules]
 
-    modalities = [key for key in batch.keys() if key.startswith("image_")]
+    modalities = [key for key in batch.keys() if key.startswith("image")]
     n_modalities = len(modalities)
 
     adjusted_width = figsize[0] * (n_normalizers + 1) / 3

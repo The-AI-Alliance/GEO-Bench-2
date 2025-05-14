@@ -11,7 +11,9 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import torch.nn as nn
 from torch import Tensor
-
+import tacoreader
+import torch
+from torchgeo.datasets.utils import percentile_normalization
 from geobench_v2.datasets import GeoBenchCloudSen12
 
 from .base import GeoBenchSegmentationDataModule
@@ -73,12 +75,13 @@ class GeoBenchCloudSen12DataModule(GeoBenchSegmentationDataModule):
         Returns:
             pandas DataFrame with metadata.
         """
-        return pd.read_parquet(
-            os.path.join(self.kwargs["root"], "geobench_cloudsen12.parquet")
+        self.data_df = tacoreader.load(
+            [os.path.join(self.kwargs["root"], f) for f in GeoBenchCloudSen12.paths]
         )
+        return self.data_df
 
     def visualize_batch(
-        self, split: str = "train"
+        self, batch: dict[str, Tensor] | None = None, split: str = "train"
     ) -> tuple[plt.Figure, dict[str, Tensor]]:
         """Visualize a batch of data.
 
@@ -88,7 +91,90 @@ class GeoBenchCloudSen12DataModule(GeoBenchSegmentationDataModule):
         Returns:
             The matplotlib figure and the batch of data
         """
-        pass
+        if batch is None:
+            if split == "train":
+                batch = next(iter(self.train_dataloader()))
+            elif split == "validation":
+                batch = next(iter(self.val_dataloader()))
+            else:
+                batch = next(iter(self.test_dataloader()))
+
+        if hasattr(self.data_normalizer, "unnormalize"):
+            batch = self.data_normalizer.unnormalize(batch)
+
+        images = batch["image"]
+        masks = batch["mask"]
+
+        n_samples = min(8, images.shape[0])
+        indices = torch.randperm(images.shape[0])[:n_samples]
+
+        images = images[indices]
+        masks = masks[indices]
+
+        plot_bands = self.dataset_band_config.plot_bands
+        plot_index = self.band_order.index(plot_bands[0])
+        images = images[:, plot_index, :, :]
+
+        # Create figure with 3 columns: image, mask, and legend
+        fig, axes = plt.subplots(
+            n_samples,
+            3,
+            figsize=(12, 3 * n_samples),
+            gridspec_kw={"width_ratios": [1, 1, 0.5]},
+        )
+
+        if n_samples == 1:
+            axes = axes.reshape(1, -1)
+
+        unique_classes = torch.unique(masks).cpu().numpy()
+        unique_classes = [
+            int(cls) for cls in unique_classes if cls < len(self.class_names)
+        ]
+
+        cmap = plt.cm.tab20
+
+        for i in range(n_samples):
+            ax = axes[i, 0]
+            img = images[i].cpu().numpy()
+            img = percentile_normalization(img, lower=2, upper=98)
+            ax.imshow(img, cmap="gray")
+            ax.set_title("SAR Image" if i == 0 else "")
+            ax.axis("off")
+
+            ax = axes[i, 1]
+            mask_img = masks[i].cpu().numpy()
+            im = ax.imshow(mask_img, cmap="tab20", vmin=0, vmax=19)
+            ax.set_title("Mask" if i == 0 else "")
+            ax.axis("off")
+
+            ax = axes[i, 2]
+            ax.axis("off")
+
+            if i == 0:
+                legend_elements = []
+                for cls in unique_classes:
+                    if cls < len(self.class_names):
+                        color = cmap(cls / 20.0 if cls < 20 else 0)
+                        legend_elements.append(
+                            plt.Rectangle(
+                                (0, 0),
+                                1,
+                                1,
+                                color=color,
+                                label=f"{cls}: {self.class_names[cls]}",
+                            )
+                        )
+
+                ax.legend(
+                    handles=legend_elements,
+                    loc="center",
+                    frameon=True,
+                    fontsize="small",
+                    title="Classes",
+                )
+
+        plt.tight_layout()
+        return fig, batch
 
     def visualize_geolocation_distribution(self) -> None:
         """Visualize the geolocation distribution of the dataset."""

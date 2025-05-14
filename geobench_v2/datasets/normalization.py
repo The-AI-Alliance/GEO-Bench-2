@@ -29,17 +29,18 @@ def _load_stats_from_path_or_dict(stats_path: str):
             processed_stats["means"][band_name] = modality_stats["mean"][i]
             processed_stats["stds"][band_name] = modality_stats["std"][i]
 
-            for stat_key in [
-                "norm_mean",
-                "norm_std",
-                "pct_02",
-                "pct_98",
-                "shift_offsets",
-            ]:
+            for stat_key in ["norm_mean", "norm_std", "shift_offsets"]:
                 if stat_key in modality_stats:
                     if stat_key not in processed_stats:
                         processed_stats[stat_key] = {}
-                    processed_stats[stat_key][band_name] = modality_stats[stat_key][i]
+                    try:
+                        processed_stats[stat_key][band_name] = modality_stats[stat_key][
+                            i
+                        ]
+                    except:
+                        import pdb
+
+                        pdb.set_trace()
 
         if "clip_min_used" in modality_stats:
             if "clip_min" not in processed_stats:
@@ -214,9 +215,6 @@ class DataNormalizer(nn.Module, ABC):
     @abstractmethod
     def _get_required_stats(self) -> dict[str, str]:
         """Return a dictionary of required statistics and their descriptions.
-
-        This method should be implemented by subclasses to specify which statistics
-        they require in the stats dictionary to function properly.
 
         Returns:
             Dictionary mapping stat keys to descriptions of their purpose
