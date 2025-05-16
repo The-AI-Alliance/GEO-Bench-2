@@ -103,9 +103,10 @@ class GeoBenchSpaceNet6(GeoBenchBaseDataset):
                 test the impact of band order on model performance.
             data_normalizer: The data normalizer to apply to the data, defaults to :class:`data_util.ZScoreNormalizer`,
                 which applies z-score normalization to each band.
-            transforms:
+            transforms: image transformations to apply to the data, defaults to None
             metadata: metadata names to be returned as part of the sample in the
             return_stacked_image: if true, returns a single image tensor with all modalities stacked in band_order
+            download: Whether to download the dataset 
         """
         super().__init__(
             root=root,

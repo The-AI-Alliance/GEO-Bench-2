@@ -414,12 +414,12 @@ def convert_annotations_to_geoparquet(annotations_df, save_dir, num_workers):
     return final_df
 
 
-def create_tortilla(annotations_df, root_dir, save_dir, tortilla_name):
+def create_tortilla(annotations_df: pd.DataFrame, root_dir: str, save_dir: str, tortilla_name: str):
     """Create a tortilla version of an object detection dataset.
 
     Args:
         annotations_df: DataFrame with annotations including image_path, label, bbox coordinates
-        image_dir: Directory containing the GeoTIFF images
+        root_dir: Directory containing the GeoTIFF images
         save_dir: Directory to save the tortilla files
         tortilla_name: Name of the final tortilla file
     """

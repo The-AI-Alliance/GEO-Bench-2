@@ -37,10 +37,13 @@ class GeoBenchBioMasstersDataModule(GeoBenchSegmentationDataModule):
 
         Args:
             img_size: Image size, original size is 256
+            band_order: The order of bands to return in the sample
             batch_size: Batch size
             eval_batch_size: Evaluation batch size
             num_workers: Number of workers
             collate_fn: Collate function
+            train_augmentations: Augmentations to apply during training
+            eval_augmentations: Augmentations to apply during evaluation
             pin_memory: Pin memory
             **kwargs: Additional keyword arguments
         """

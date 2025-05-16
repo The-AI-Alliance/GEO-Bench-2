@@ -42,10 +42,13 @@ class GeoBenchBENV2DataModule(GeoBenchClassificationDataModule):
 
         Args:
             img_size: Image size
+            band_order: The order of bands to return in the sample
             batch_size: Batch size
             eval_batch_size: Evaluation batch size
             num_workers: Number of workers
             collate_fn: Collate function
+            train_augmentations: Augmentations to apply during training
+            eval_augmentations: Augmentations to apply during evaluation
             pin_memory: Pin memory
             **kwargs: Additional keyword arguments
         """
@@ -202,4 +205,15 @@ class GeoBenchBENV2DataModule(GeoBenchClassificationDataModule):
         alpha: float = 0.5,
         s: float = 0.5,
     ) -> None:
+        """Visualize the geospatial distribution of the dataset.
+        
+        Args:
+            output_path: Path to save the visualization
+            split_column: Column name for the split
+            buffer_degrees: Buffer size in degrees
+            sample_fraction: Fraction of samples to visualize
+            scale: Scale of the map
+            alpha: Alpha value for the points
+            s: Size of the points
+        """
         return super().visualize_geospatial_distribution(split_column=split_column)

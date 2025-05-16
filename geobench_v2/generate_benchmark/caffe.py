@@ -30,7 +30,12 @@ from geobench_v2.generate_benchmark.utils import (
 )
 
 
-def load_metadata(metadata_path):
+def load_metadata(metadata_path: str):
+    """Load metadata from CSV file.
+    
+    Args:
+        metadata_path: Path to the metadata CSV file
+    """
     try:
         metadata_df = pd.read_csv(metadata_path, delimiter=";", encoding="latin-1")
         metadata_df.columns = metadata_df.columns.str.strip()
@@ -71,6 +76,20 @@ def calculate_patch_coordinates(
     bbox_top,
     coord_system,
 ):
+    """Calculate the coordinates of the patch center in the image.
+
+    Args:
+        img_width: Width of the image
+        img_height: Height of the image
+        patch_x: X coordinate of the patch
+        patch_y: Y coordinate of the patch
+        patch_size: Size of the patch
+        bbox_left: Left bounding box coordinate
+        bbox_bottom: Bottom bounding box coordinate
+        bbox_right: Right bounding box coordinate
+        bbox_top: Top bounding box coordinate
+        coord_system: Coordinate system
+    """
     patch_center_x = patch_x + patch_size / 2
     patch_center_y = patch_y + patch_size / 2
 
@@ -106,8 +125,17 @@ def process_files_for_coordinates(
     metadata_df,
     patch_metadata,
 ):
-    parent_dir = os.path.dirname(os.getcwd())
+    """Process files to extract patch coordinates and metadata.
 
+    Args:
+        files: List of files to process
+        modality_dir: Directory containing the files
+        data_split_dir: Directory for the data split (train/val/test)
+        patch_size: Size of the patches
+        overlap: Overlap between patches
+        metadata_df: DataFrame containing metadata
+        patch_metadata: Dictionary to store patch metadata
+    """
     for file in files:
         file_basename = os.path.basename(file)
         img_name = os.path.splitext(file_basename)[0]
@@ -216,6 +244,15 @@ def process_files_for_coordinates(
 def save_patch_coordinates_only(
     raw_data_dir, patch_size, overlap, overlap_test, overlap_val
 ):
+    """Save the patch coordinates for the images in the dataset.
+    
+    Args:
+        raw_data_dir: Directory containing the raw data
+        patch_size: Size of the patches
+        overlap: Overlap between patches
+        overlap_test: Overlap for test set
+        overlap_val: Overlap for validation set
+    """
     patch_metadata = {}
 
     metadata_df = load_metadata(os.path.join(raw_data_dir, "meta_data.csv"))
@@ -511,12 +548,11 @@ def process_patches_parallel(
     return results_df
 
 
-def generate_metadata_df(root) -> pd.DataFrame:
+def generate_metadata_df(root: str) -> pd.DataFrame:
     """Generate metadata DataFrame for CaFFe dataset with parallel processing.
 
     Args:
-        ds: CaFFe dataset
-        num_workers: Number of parallel workers to use
+        root: Root directory for CaFFe dataset
 
     Returns:
         DataFrame with metadata including geolocation for each patch

@@ -154,12 +154,13 @@ class GeoBenchTreeSatAI(GeoBenchBaseDataset):
                 test the impact of band order on model performance.
             data_normalizer: The data normalizer to apply to the data, defaults to :class:`data_util.ZScoreNormalizer`,
                 which applies z-score normalization to each band.
-            transforms:
+            transforms: image transformations to apply to the data, defaults to None
             metadata: metadata names to be returned as part of the sample in the
                 __getitem__ method. If None, no metadata is returned.
             include_ts: whether or not to return the time series in data loading
             num_time_steps: number of last time steps to return in the ts data
             return_stacked_image: if true, returns a single image tensor with all modalities stacked in band_order
+            download: Whether to download the dataset 
         """
         super().__init__(
             root=root,
@@ -271,7 +272,7 @@ class GeoBenchTreeSatAI(GeoBenchBaseDataset):
     def _format_label(
         self, class_labels: list[str], dist_labels: list[float]
     ) -> Tensor:
-        """Format label list to Tensor
+        """Format label list to Tensor.
 
         Args:
             class_labels: list of label class names

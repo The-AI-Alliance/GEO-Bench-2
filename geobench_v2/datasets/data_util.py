@@ -49,7 +49,7 @@ class DataUtilsMixin(ABC):
                 mod_config = self.dataset_band_config.modalities[modality]
 
                 for band_spec in bands:
-                    if isinstance(band_spec, (int, float)):
+                    if isinstance(band_spec, (int | float)):
                         resolved_bands.append(band_spec)
                         continue
 
@@ -68,7 +68,7 @@ class DataUtilsMixin(ABC):
             # Handle sequence input
             resolved_bands = []
             for band_spec in band_order:
-                if isinstance(band_spec, (int, float)):
+                if isinstance(band_spec, (int | float)):
                     resolved_bands.append(band_spec)
                     continue
                 # First check if it's already a canonical name
@@ -144,7 +144,7 @@ class DataUtilsMixin(ABC):
         source_lookup = {band: idx for idx, band in enumerate(source_order)}
 
         for band_spec in target_order:
-            if isinstance(band_spec, (int, float)):
+            if isinstance(band_spec, (int | float)):
                 # Handle fill values
                 shape = list(data.shape)
                 if len(shape) == 4:  # timeseries of [T, C, H, W]
@@ -180,7 +180,7 @@ class DataUtilsMixin(ABC):
         output_channels = []
 
         for band_spec in resolved_order:
-            if isinstance(band_spec, (int, float)):
+            if isinstance(band_spec, (int | float)):
                 shape = list(next(iter(data.values())).shape)
                 if len(shape) == 4:  # timeseries of [T, C, H, W]
                     shape[1] = 1
@@ -236,7 +236,7 @@ class DataUtilsMixin(ABC):
 
             channels = []
             for band in resolved:
-                if isinstance(band, (int, float)):
+                if isinstance(band, (int | float)):
                     shape = list(source_data.shape)
                     if len(shape) == 4:  # timeseries of [T, C, H, W]
                         shape[1] = 1

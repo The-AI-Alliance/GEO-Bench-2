@@ -48,7 +48,7 @@ def parse_qfabric_annotation(json_path: str, sample_idx: int) -> pd.DataFrame:
 
     images_data = []
     for img_idx, img_info in enumerate(annotation_data.get("images", [])):
-        img_name = img_info.get("name", "")
+        
         img_width = img_info.get("width", 0)
         img_height = img_info.get("height", 0)
         img_file = img_info.get("file_name", "")
@@ -109,7 +109,7 @@ def generate_metadata_df(root_dir: str) -> pd.DataFrame:
 
     n_train = int(len(unique_sample_idx) * 0.7)
     n_val = int(len(unique_sample_idx) * 0.1)
-    n_test = len(unique_sample_idx) - n_train - n_val
+    
     train_sample_idx = unique_sample_idx[:n_train]
     val_sample_idx = unique_sample_idx[n_train : n_train + n_val]
     test_sample_idx = unique_sample_idx[n_train + n_val :]
@@ -177,7 +177,13 @@ def create_patch_windows(height, width, patch_size=1024, overlap=0):
 
 def transform_polygon_to_patch_absolute(poly, patch_window, image_shape):
     """Transform polygon coordinates from absolute image coordinates to patch coordinates.
+
     Uses absolute pixel coordinates instead of relative coordinates.
+
+    Args:
+        poly: Shapely polygon to transform
+        patch_window: Rasterio window representing the patch
+        image_shape: Shape of the image (height, width)
     """
 
     def transform_point(x, y):
@@ -694,7 +700,7 @@ def create_full_masks(sample_idx, row, root_dir, output_dir):
         status_mask = np.zeros((height, width), dtype=np.uint8)
 
         if img_idx in change_status_polys and change_status_polys[img_idx]:
-            features = []
+            # features = []
             # for poly, val in change_status_polys[img_idx]:
             #     if poly.is_valid and not poly.is_empty:
             #         features.append((poly, int(val)))
@@ -1366,7 +1372,6 @@ def visualize_qfabric_patching(
     with rasterio.open(original_image_paths[0]) as src:
         height = src.height
         width = src.width
-        transform = src.transform
 
     # Determine patch size from one of the patch files
     patch_size = None
@@ -1605,7 +1610,7 @@ def visualize_qfabric_patching(
             ]
         )
 
-        im = axes[2, t_idx].imshow(mask_mosaic, cmap=status_cmap, vmin=0, vmax=9)
+        axes[2, t_idx].imshow(mask_mosaic, cmap=status_cmap, vmin=0, vmax=9)
         axes[2, t_idx].set_title(
             f"Status Masks - Time {time_indices[t_idx]}", fontsize=14
         )
@@ -1652,7 +1657,7 @@ def visualize_qfabric_patching(
         ["brown", "red", "green", "blue", "yellow", "cyan", "magenta"]
     )
 
-    im = axes[2, 2].imshow(change_mosaic, cmap=change_cmap, vmin=0, vmax=6)
+    axes[2, 2].imshow(change_mosaic, cmap=change_cmap, vmin=0, vmax=6)
     axes[2, 2].set_title("Change Type Masks", fontsize=14)
 
     # Add grid lines
@@ -1894,14 +1899,7 @@ def main():
         n_val_samples=1,
         n_test_samples=1,
     )
-    tort_paths = glob.glob(
-        os.path.join(
-            "/mnt/rg_climate_benchmark/data/geobenchV2/q_fabric_full", "*.part.tortilla"
-        ),
-        recursive=True,
-    )
 
-    taco = tacoreader.load(tort_paths)
 
 
 if __name__ == "__main__":

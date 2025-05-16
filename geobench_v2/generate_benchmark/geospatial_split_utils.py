@@ -7,12 +7,15 @@ import os
 import re
 
 import geopandas as gpd
+import matplotlib.colors as mcolors
 import matplotlib.gridspec as gridspec
+import matplotlib.patches as mpatches
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import rasterio
 from matplotlib.colors import ListedColormap
+from matplotlib.lines import Line2D
 from matplotlib.patches import Rectangle
 from rasterio.enums import Compression
 from rasterio.features import rasterize
@@ -252,7 +255,6 @@ def checkerboard_split(
 
         test_value = 0
         val_value = 1
-        train_value = 2
 
         block_splits = {}
         for block_id in range(len(block_assignments)):
@@ -921,9 +923,7 @@ def visualize_checkerboard_pattern(
     ]  # No data (red), Train (blue), Val (orange), Test (green)
     cmap = ListedColormap(colors)
 
-    im = ax.imshow(grid_numerical, cmap=cmap, interpolation="nearest")
-
-    from matplotlib.lines import Line2D
+    ax.imshow(grid_numerical, cmap=cmap, interpolation="nearest")
 
     legend_elements = [
         Line2D(
@@ -1129,13 +1129,11 @@ def split_geospatial_tiles_into_patches(
         mask_filename = os.path.basename(mask_path)
 
         with rasterio.open(img_path) as img_src:
-            img_meta = img_src.meta.copy()
             src_height = img_src.height
             src_width = img_src.width
             src_crs = img_src.crs
             src_transform = img_src.transform
             src_nodata = img_src.nodata
-            primary_shape = (src_height, src_width)
 
             effective_height = src_height - buffer_top - buffer_bottom
             effective_width = src_width - buffer_left - buffer_right
@@ -1233,7 +1231,6 @@ def split_geospatial_tiles_into_patches(
                 1, (effective_width - patch_size[1] + stride[1]) // stride[1]
             )
 
-            total_patches = patches_per_dim_h * patches_per_dim_w
             patches_created = 0
 
             modality_patches = {modality: [] for modality in modalities}
@@ -1509,8 +1506,8 @@ def split_geospatial_tiles_into_patches(
         print(f"Patch metadata saved to {metadata_path}")
 
         if "positive_ratio" in patches_df.columns:
-            pos_patches = patches_df[patches_df["is_positive"] == True]
-            neg_patches = patches_df[patches_df["is_positive"] == False]
+            pos_patches = patches_df[patches_df["is_positive"]]
+            neg_patches = patches_df[~patches_df["is_positive"]]
             pos_pct = (
                 len(pos_patches) / len(patches_df) * 100 if len(patches_df) > 0 else 0
             )
@@ -1621,7 +1618,7 @@ def visualize_current_patches(
                 1,
             )
         ax_orig = fig.add_subplot(gs[row_idx, 0])
-        img = ax_orig.imshow(orig_data, cmap=cmap)
+        ax_orig.imshow(orig_data, cmap=cmap)
 
         if modality == "mask":
             if isinstance(orig_data, np.ndarray):
@@ -1975,7 +1972,6 @@ def create_geospatial_temporal_split(
     print(f"Found {len(unique_areas)} unique geographic areas")
 
     n_geo_exclusive_areas = int(len(unique_areas) * geo_exclusive_ratio)
-    n_temporal_areas = len(unique_areas) - n_geo_exclusive_areas
 
     geo_train_areas = int(
         n_geo_exclusive_areas * (train_ratio / (train_ratio + val_ratio + test_ratio))
@@ -1983,7 +1979,6 @@ def create_geospatial_temporal_split(
     geo_val_areas = int(
         n_geo_exclusive_areas * (val_ratio / (train_ratio + val_ratio + test_ratio))
     )
-    geo_test_areas = n_geo_exclusive_areas - geo_train_areas - geo_val_areas
 
     geo_exclusive_areas = unique_areas[:n_geo_exclusive_areas]
     temporal_areas = unique_areas[n_geo_exclusive_areas:]
@@ -2159,13 +2154,17 @@ def create_geospatial_temporal_split(
 def create_bright_patches(
     metadata_df: pd.DataFrame, root_dir: str, output_dir: str, visualize=True
 ) -> pd.DataFrame:
-    import os
+    """Create patches from the original images and save them to the output directory.
+    
+    Args:
+        metadata_df: DataFrame containing metadata for the images
+        root_dir: Directory containing the original images
+        output_dir: Directory to save the patches
+        visualize: Whether to create visualizations of the patches (default: True)
 
-    import pandas as pd
-    import rasterio
-    from rasterio.windows import Window
-    from tqdm import tqdm
-
+    Returns:
+        DataFrame containing metadata for the created patches
+    """
     modalities = ["pre-event", "post-event", "target"]
     for modality in modalities:
         os.makedirs(os.path.join(output_dir, modality), exist_ok=True)
@@ -2190,7 +2189,6 @@ def create_bright_patches(
 
         with rasterio.open(pre_event_path) as src:
             orig_transform = src.transform
-            orig_crs = src.crs
             orig_profile = src.profile.copy()
 
         if visualize:
@@ -2316,15 +2314,16 @@ def create_bright_patches(
 def visualize_bright_patches(
     pre_data, post_data, target_data, patches_info, output_path=None, figsize=(22, 12)
 ):
-    import os
-
-    import matplotlib.colors as mcolors
-    import matplotlib.gridspec as gridspec
-    import matplotlib.patches as mpatches
-    import matplotlib.pyplot as plt
-    import numpy as np
-    from matplotlib.patches import Rectangle
-
+    """Visualize the original images and their patches with one modality per row.
+    
+    Args:
+        pre_data: Pre-event image data
+        post_data: Post-event image data
+        target_data: Target image data (building damage mask)
+        patches_info: List of tuples containing patch data and indices
+        output_path: Path to save the visualization (optional)
+        figsize: Size of the figure (default: (22, 12))
+    """
     if output_path:
         os.makedirs(os.path.dirname(output_path), exist_ok=True)
 
@@ -2471,7 +2470,6 @@ def visualize_bright_patches(
             if class_id < len(damage_colors):
                 class_counts[class_id] = np.sum(target_patch_display == class_id)
 
-        total_pixels = target_patch_display.size
         damage_buildings = sum(class_counts.get(i, 0) for i in [2, 3])
         intact_buildings = class_counts.get(1, 0)
         all_buildings = damage_buildings + intact_buildings

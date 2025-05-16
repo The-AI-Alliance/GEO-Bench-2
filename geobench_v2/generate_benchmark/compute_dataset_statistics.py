@@ -91,6 +91,7 @@ class NumpyEncoder(json.JSONEncoder):
     """Custom JSON encoder for NumPy types and sets."""
 
     def default(self, obj):
+        """Convert NumPy types and sets to native Python types."""
         if isinstance(obj, np.ndarray):
             return obj.tolist()
         if isinstance(obj, np.integer):
@@ -99,7 +100,7 @@ class NumpyEncoder(json.JSONEncoder):
             return float(obj)
         if isinstance(obj, set):
             return list(obj)
-        return super(NumpyEncoder, self).default(obj)
+        return super().default(obj)
 
 
 def process_dataset(
@@ -111,6 +112,7 @@ def process_dataset(
         dataset_config: Configuration for the dataset from YAML
         save_dir: Directory to save results
         device: Device to use for computation
+        normalization_mode: Normalization mode to use
     """
     dataset_name = dataset_config.get("name", "unknown_dataset")
     print(f"\nProcessing dataset: {dataset_name}")
