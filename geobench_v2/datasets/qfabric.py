@@ -91,9 +91,12 @@ class GeoBenchQFabric(GeoBenchBaseDataset):
                 test the impact of band order on model performance.
             data_normalizer: The data normalizer to apply to the data, defaults to :class:`data_util.ZScoreNormalizer`,
                 which applies z-score normalization to each band.
-            transforms:
+            transforms: The transforms to apply to the data, defaults to None
             time_steps: QFabric contains 5 time steps, this allows to select which time steps to use. Specified time steps
                 will be returned in that order
+            metadata: metadata names to be returned as part of the sample in the
+                __getitem__ method. If None, no metadata is returned.
+            download: Whether to download the dataset 
 
         Raises:
             AssertionError: If time steps are not in the range [0, 4], or invalid

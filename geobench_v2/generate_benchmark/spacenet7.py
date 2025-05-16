@@ -71,7 +71,7 @@ def process_spacenet7_row(args):
 
         with rasterio.open(img_path) as img_src:
             image = img_src.read()
-            img_meta = img_src.meta.copy()
+        
             src_height, src_width = img_src.height, img_src.width
             src_crs = img_src.crs
             src_transform = img_src.transform
@@ -314,8 +314,8 @@ def split_spacenet7_into_patches(
     print(f"Created {len(patches_df)} patches from {len(metadata_df)} source images")
     print(f"Patch metadata saved to {metadata_path}")
 
-    pos_patches = patches_df[patches_df["is_positive"] == True]
-    neg_patches = patches_df[patches_df["is_positive"] == False]
+    pos_patches = patches_df[patches_df["is_positive"]]
+    neg_patches = patches_df[~patches_df["is_positive"]]
     pos_pct = len(pos_patches) / len(patches_df) * 100 if len(patches_df) > 0 else 0
     neg_pct = len(neg_patches) / len(patches_df) * 100 if len(patches_df) > 0 else 0
     print(f"Positive patches: {len(pos_patches)} ({pos_pct:.1f}%)")
@@ -526,7 +526,7 @@ def create_geographic_splits_spacenet7(
 
     target_test = int(total_samples * test_ratio)
     target_val = int(total_samples * val_ratio)
-    target_train = total_samples - target_test - target_val
+    
     np.random.seed(random_state)
     aoi_counts = aoi_counts.sample(frac=1, random_state=random_state)
 
@@ -711,12 +711,16 @@ def create_tortilla(root_dir, df, save_dir, tortilla_name):
 
 
 def visualize_sample(row, root, output_path):
-    """Visualize a sample from the dataset."""
+    """Visualize a sample from the dataset.
+    
+    Args:
+        row: DataFrame row with metadata
+        root: Root directory of the dataset
+        output_path: Path to save the visualization
+    """
     image_path = row["image_path"]
     image_masked_path = row["image_masked_path"]
     labels_path = row["labels_path"]
-    labels_match_path = row["labels_match_path"]
-    labels_match_pix_path = row["labels_match_pix_path"]
 
     with rasterio.open(os.path.join(root, image_path)) as src:
         image = src.read()
@@ -731,9 +735,6 @@ def visualize_sample(row, root, output_path):
 
     if labels.crs != src_crs:
         labels = labels.to_crs(src_crs)
-
-    labels_match = gpd.read_file(os.path.join(root, labels_match_path))
-    labels_match_pix = gpd.read_file(os.path.join(root, labels_match_pix_path))
 
     label_shapes = [(geom, 1) for geom in labels.geometry]
 

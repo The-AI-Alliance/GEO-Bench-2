@@ -77,6 +77,7 @@ class GeoBenchBRIGHT(GeoBenchBaseDataset):
             transforms: The transforms to apply to the data, defaults to None
             metadata: metadata names to be returned as part of the sample in the
                 __getitem__ method. If None, no metadata is returned.
+            download: Whether to download the dataset
         """
         super().__init__(
             root=root,

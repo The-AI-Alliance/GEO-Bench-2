@@ -28,6 +28,7 @@ def generate_metadata_df(save_dir: str, root: str) -> pd.DataFrame:
 
     Args:
         save_dir: Directory to save the metadata file
+        root: Root directory for FLAIR2 dataset
 
     Returns:
         Metadata DataFrame for flair2
@@ -156,7 +157,7 @@ def generate_metadata_df(save_dir: str, root: str) -> pd.DataFrame:
     metadata_df["img_path_exists"] = metadata_df.apply(
         lambda x: os.path.exists(os.path.join(root, x["aerial_path"])), axis=1
     )
-    metadata_df = metadata_df[metadata_df["img_path_exists"] == True].reset_index(
+    metadata_df = metadata_df[metadata_df["img_path_exists"]].reset_index(
         drop=True
     )
 
@@ -264,7 +265,6 @@ def process_flair2_sample(args):
         with rasterio.open(aerial_in_path) as src:
             data = src.read()
             aerial_profile = src.profile.copy()
-            src_nodata = src.nodata
 
             aerial_optimized_profile = {
                 "driver": "GTiff",

@@ -129,12 +129,12 @@ class GeoBenchBioMassters(GeoBenchBaseDataset):
                 test the impact of band order on model performance.
             data_normalizer: The data normalizer to apply to the data, defaults to :class:`data_util.ZScoreNormalizer`,
                 which applies z-score normalization to each band.
-            transforms:
+            transforms: The transforms to apply to the data, defaults to None.
             metadata: metadata names to be returned under specified keys as part of the sample in the
                 __getitem__ method. If None, no metadata is returned.
             num_time_steps: Number of last time steps to include in the dataset, maximum is 12, for S2
                 missing time steps are filled with zeros.
-            **kwargs: Additional keyword arguments passed to ``torchgeo.datasets.BioMassters``
+            download: Whether to download the dataset
 
         Raises:
             AssertionError: If the number of time steps is greater than 12

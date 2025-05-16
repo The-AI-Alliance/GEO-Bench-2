@@ -80,11 +80,14 @@ def create_bright_dataset_splits(
     return df
 
 
-def generate_metadata_df(root_dir) -> pd.DataFrame:
+def generate_metadata_df(root_dir: str) -> pd.DataFrame:
     """Generate metadata DataFrame for SpaceNet8 dataset.
 
     Args:
-        ds: SpaceNet8 dataset.
+        root_dir: Root directory of the SpaceNet8 dataset
+
+    Returns:
+        DataFrame with metadata for each sample
     """
     target_paths = glob.glob(
         os.path.join(root_dir, "**", "target", "*.tif"), recursive=True
@@ -134,13 +137,9 @@ def generate_metadata_df(root_dir) -> pd.DataFrame:
 
     # read split text files
     train_split_path = os.path.join(root_dir, "train_setlevel.txt")
-    val_split_path = os.path.join(root_dir, "holdout_setlevel.txt")
 
     with open(train_split_path) as f:
         train_ids = f.read().splitlines()
-
-    with open(val_split_path) as f:
-        val_ids = f.read().splitlines()
 
     # assign split based on event_ids
     full_df["split"] = full_df["event_id"].apply(

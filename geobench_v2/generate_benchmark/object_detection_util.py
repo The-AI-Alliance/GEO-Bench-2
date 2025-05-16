@@ -1,3 +1,8 @@
+# Copyright (c) 2025 GeoBenchV2. All rights reserved.
+# Licensed under the Apache License 2.0.
+
+"""Utility functions for processing and visualizing object detection data."""
+
 import multiprocessing
 import os
 import random
@@ -9,7 +14,6 @@ import rasterio
 from PIL import Image, ImageDraw
 from rasterio.transform import from_origin
 from tqdm import tqdm
-from tqdm.auto import tqdm
 
 
 def process_single_image(args):
@@ -84,13 +88,14 @@ def process_single_image(args):
         return {"img_name": img_name, "success": True, "geotiff_path": geotiff_name}
 
 
-def convert_pngs_to_geotiffs(metadata_df, source_dir, target_dir, num_workers=8):
+def convert_pngs_to_geotiffs(metadata_df: pd.DataFrame, source_dir: str, target_dir: str, num_workers=8):
     """Convert PNG images to GeoTIFF format in parallel, optionally adding geospatial information.
 
     Args:
         metadata_df: DataFrame with annotation data including colony_name, lon, lat if available
         source_dir: Directory containing the resized PNG images
         target_dir: Directory where GeoTIFF files will be saved
+        num_workers: Number of parallel workers for processing
 
     Returns:
         Updated DataFrame with paths to GeoTIFF files

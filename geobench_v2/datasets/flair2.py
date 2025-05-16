@@ -85,7 +85,10 @@ class GeoBenchFLAIR2(GeoBenchBaseDataset):
                 specify ['r', 'g', 'b', 'nir'], the dataset would return images with 4 channels
             data_normalizer: The data normalizer to apply to the data, defaults to :class:`data_util.ZScoreNormalizer`,
                 which applies z-score normalization to each band.
-            transforms:
+            transforms: The transforms to apply to the data, defaults to None
+            metadata: metadata names to be returned as part of the sample in the
+                __getitem__ method. If None, no metadata is returned.
+            download: Whether to download the dataset 
 
         Raises:
             AssertionError: If split is not in the splits

@@ -722,6 +722,7 @@ class GeoBenchObjectDetectionDataModule(GeoBenchDataModule):
         Args:
             dataset_class: Dataset class to use in the DataModule
             img_size: Desired image input size for the model
+            band_order: band order of the image sample to be returned
             batch_size: Batch size during training
             eval_batch_size: Batch size during evaluation, can usually be larger than batch_size,
                 to speed up evaluation.

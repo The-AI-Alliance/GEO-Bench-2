@@ -159,7 +159,6 @@ def process_spacenet2_sample(args):
     idx, row, src_root, output_root, copy_originals = args
     label_path = os.path.join(src_root, row["label_path"])
     pan_path = os.path.join(src_root, row["pan_path"])
-    split = row["split"]
 
     # Extract image ID for naming
     img_id = (

@@ -73,7 +73,9 @@ class GeoBenchEverWatch(GeoBenchBaseDataset):
                 test the impact of band order on model performance.
             data_normalizer: The data normalizer to apply to the data, defaults to :class:`data_util.ZScoreNormalizer`,
                 which applies z-score normalization to each band.
-            transforms:
+            transforms: The transforms to apply to the data, defaults to None.
+            metadata: The metadata to return, defaults to None. If None, no metadata is returned.
+            download: Whether to download the dataset 
         """
         super().__init__(
             root=root,
@@ -91,7 +93,7 @@ class GeoBenchEverWatch(GeoBenchBaseDataset):
         """Return an index within the dataset.
 
         Args:
-            index: index to return
+            idx: index to return
 
         Returns:
             data and label at that index

@@ -41,6 +41,7 @@ class GeoBenchQFabricDataModule(GeoBenchSegmentationDataModule):
 
         Args:
             img_size: Image size, in geobench version patches of 512
+            band_order: The order of bands to return in the sample
             batch_size: Batch size during training
             eval_batch_size: Evaluation batch size
             num_workers: Number of workers
@@ -163,7 +164,7 @@ class GeoBenchQFabricDataModule(GeoBenchSegmentationDataModule):
             for t in range(T):
                 ax = axes[i * 2 + 1, t]
                 status_mask = change_status_masks[i, t].cpu().numpy()
-                im = ax.imshow(
+                ax.imshow(
                     status_mask, cmap=cmap_status, vmin=0, vmax=n_status_classes - 1
                 )
 
@@ -173,7 +174,7 @@ class GeoBenchQFabricDataModule(GeoBenchSegmentationDataModule):
 
             ax = axes[i * 2 + 1, T]
             type_mask = change_type_mask[i].cpu().numpy()
-            im = ax.imshow(
+            ax.imshow(
                 type_mask, cmap=cmap_change, vmin=0, vmax=n_change_classes - 1
             )
 

@@ -101,8 +101,17 @@ def resize_and_save_dataset(df, root_dir, save_dir, target_size=512):
 
 
 def create_region_based_splits(
-    df, train_ratio=0.7, val_ratio=0.1, test_ratio=0.2, random_seed=42
+    df: pd.DataFrame, train_ratio: float=0.7, val_ratio: float =0.1, test_ratio: float=0.2, random_seed: int=42
 ):
+    """Create train/validation/test splits based on region names.
+    
+    Args:
+        df: DataFrame with image and annotation paths (one row per sample)
+        train_ratio: Proportion of data to use for training
+        val_ratio: Proportion of data to use for validation
+        test_ratio: Proportion of data to use for testing
+        random_seed: Random seed for reproducibility
+    """
     np.random.seed(random_seed)
 
     regions = df["region_name"].unique()
@@ -162,7 +171,6 @@ def convert_annotations_to_geoparquet(metadata_df, save_dir):
         desc="Converting annotations to GeoParquet",
     ):
         try:
-            image_path = os.path.join(save_dir, row["image_path"])
             label_path = os.path.join(save_dir, row["label_path"])
             geotiff_path = row.get("geotiff_path", "")
             filename = row["filename"]
@@ -328,7 +336,7 @@ def create_tortilla(annotations_df, root_dir, save_dir, tortilla_name):
 
     Args:
         annotations_df: DataFrame with annotations including image_path, label, bbox coordinates
-        image_dir: Directory containing the GeoTIFF images
+        root_dir: Directory containing the GeoTIFF images
         save_dir: Directory to save the tortilla files
         tortilla_name: Name of the final tortilla file
     """

@@ -91,11 +91,11 @@ def process_row(args: tuple) -> dict[str, Any]:
         }
 
 
-def generate_metadata_df(root_dir, num_workers: int = 8) -> pd.DataFrame:
+def generate_metadata_df(root_dir: str, num_workers: int = 8) -> pd.DataFrame:
     """Generate metadata DataFrame for BigEarthNet dataset with parallel processing.
 
     Args:
-        ds: BigEarthNet dataset
+        root_dir: root directory of the BigEarthNet dataset
         num_workers: Number of parallel workers to use
 
     Returns:

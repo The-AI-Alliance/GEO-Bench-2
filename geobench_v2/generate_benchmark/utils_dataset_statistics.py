@@ -16,6 +16,8 @@ from tqdm.auto import tqdm
 
 # Using Caleb Robinson's implementation: https://gist.github.com/calebrob6/1ef1e64bd62b1274adf2c6f91e20d215
 class ImageStatistics(torch.nn.Module):
+    """Compute image statistics for a batch of images."""
+    
     valid_normalization_modes = ("none", "clip_only", "clip_rescale", "satmae")
 
     def __init__(
@@ -45,7 +47,7 @@ class ImageStatistics(torch.nn.Module):
                 - "clip_rescale": Clip to min/max then rescale to [0,1] range
                 - "satmae": Shift negatives, clip to mean±2std, scale to [0,1] range
         """
-        super(ImageStatistics, self).__init__()
+        super().__init__()
 
         assert normalization_mode in self.valid_normalization_modes, (
             f"Invalid normalization mode '{normalization_mode}'. "
@@ -550,11 +552,15 @@ class ClassificationStatistics(DatasetStatistics):
         """Initialize classification statistics computer.
 
         Args:
-            datamodule
-            num_classes: Number of classes
+            datamodule: lightning datamodule
+            bins: Number of bins for histogram
+            range_vals: Range for histogram
+            clip_min_vals: Minimum values for clipping per input_key
+            clip_max_vals: Maximum values for clipping per input_key
+            normalization_mode: Type of normalization to apply for the second stage stats
             input_keys: Keys for input data in batch dict, can compute statistics for multi-modal inputs
             target_key: Key for target data in batch dict, assume only single target
-            multilabel: Whether the classification is multilabel
+            multi_label: Whether the classification is multilabel
             device: Device for computation
             save_dir: Directory to save statistics
             **kwargs: Additional task-specific arguments
@@ -681,7 +687,12 @@ class SegmentationStatistics(DatasetStatistics):
         """Initialize segmentation statistics computer.
 
         Args:
-            datamodule:
+            datamodule: lightning datamodule
+            bins: Number of bins for histogram
+            range_vals: Range for histogram
+            clip_min_vals: Minimum values for clipping per input_key
+            clip_max_vals: Maximum values for clipping per input_key
+            normalization_mode: Type of normalization to apply for the second stage stats
             input_keys: Keys for input data in batch dict
             target_key: Key for target data in batch dict (typically 'mask')
             device: Device for computation
@@ -806,11 +817,14 @@ class PxRegressionStatistics(DatasetStatistics):
         """Initialize pixel regression statistics computer.
 
         Args:
-            datamodule
-            input_keys: Keys for input data in batch dict
-            target_key: Key for target data in batch dict
+            datamodule: lightning datamodule
             bins: Number of bins for histogram
             range_vals: Range for histogram
+            clip_min_vals: Minimum values for clipping per input_key
+            clip_max_vals: Maximum values for clipping per input_key
+            normalization_mode: Type of normalization to apply for the second stage stats
+            input_keys: Keys for input data in batch dict
+            target_key: Key for target data in batch dict
             target_range_vals: Range for target histogram
             device: Device for computation
             save_dir: Directory to save statistics
@@ -892,11 +906,14 @@ class ObjectDetectionStatistics(DatasetStatistics):
         """Initialize object detection statistics computer.
 
         Args:
-            datamodule
-            input_keys: Keys for input data in batch dict
-            target_key: Key for target data in batch dict
+            datamodule: lightning datamodule
             bins: Number of bins for histogram
             range_vals: Range for histogram
+            clip_min_vals: Minimum values for clipping per input_key
+            clip_max_vals: Maximum values for clipping per input_key
+            normalization_mode: Type of normalization to apply for the second stage stats
+            input_keys: Keys for input data in batch dict
+            target_key: Key for target data in batch dict
             device: Device for computation
             save_dir: Directory to save statistics
             **kwargs: Additional task-specific arguments

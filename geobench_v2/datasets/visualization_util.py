@@ -223,7 +223,7 @@ def plot_batch_histograms(
 
 
 def visualize_segmentation_target_statistics(
-    stats_json_path: str, dataset_name: str = None, figsize: tuple[int, int] = (26, 10)
+    stats_json_path: str, dataset_name: str, figsize: tuple[int, int] = (26, 10)
 ) -> plt.Figure:
     """Visualizes target statistics from earth observation datasets with three informative subplots.
 
@@ -242,7 +242,6 @@ def visualize_segmentation_target_statistics(
 
     pixel_distribution = target_stats.get("pixel_distribution", [])
     class_presence_ratio = target_stats.get("class_presence_ratio", [])
-    pixel_counts = target_stats.get("pixel_counts", [])
     num_classes = target_stats.get("num_classes", len(pixel_distribution))
     total_images = target_stats.get("total_images", 0)
 
@@ -252,9 +251,6 @@ def visualize_segmentation_target_statistics(
 
     has_cooccurrence = "class_cooccurrence_ratio" in target_stats
     cooccurrence_ratio = target_stats.get("class_cooccurrence_ratio", None)
-
-    if dataset_name is None:
-        dataset_name = os.path.basename(stats_json_path).split("_stats")[0]
 
     fig = plt.figure(figsize=figsize)
     gs = fig.add_gridspec(1, 3, width_ratios=[1, 1, 1.2])

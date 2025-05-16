@@ -55,7 +55,9 @@ class GeoBenchCaFFe(GeoBenchBaseDataset):
                 specify ['gray', 'gray', 'gray], the dataset would return the gray band three times.
             data_normalizer: The data normalizer to apply to the data, defaults to :class:`data_util.ClipZScoreNormalizer`,
                 which applies z-score normalization to each band.
-            transforms:
+            transforms: The transforms to apply to the data, defaults to None.
+            metadata: The metadata to return, defaults to None.
+            download: Whether to download the dataset, defaults to False.
 
         Raises:
             AssertionError: If split is not in the splits

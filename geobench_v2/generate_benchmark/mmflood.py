@@ -42,7 +42,7 @@ def generate_metadata_df(root) -> pd.DataFrame:
     df["hydro_path_exist"] = df["hydro_path"].apply(
         lambda x: True if os.path.exists(x) else False
     )
-    df = df[df["hydro_path_exist"] == True].reset_index(drop=True)
+    df = df[df["hydro_path_exist"]].reset_index(drop=True)
     df.drop(columns=["hydro_path_exist"], inplace=True)
 
     for idx, row in tqdm(df.iterrows(), total=len(df), desc="Generating metadata"):
@@ -350,7 +350,6 @@ def create_mmflood_patches(
 
         with rasterio.open(mask_path) as src:
             height, width = src.height, src.width
-            mask_profile = src.profile.copy()
             mask_transform = src.transform
 
         # Skip tiles smaller than patch size
@@ -517,9 +516,6 @@ def main():
         )
         patch_metadata_df.to_parquet(path)
 
-    subset_df = create_geobench_version(
-        patch_metadata_df, n_train_samples=4000, n_val_samples=-1, n_test_samples=-1
-    )
 
     tortilla_name = "geobench_mmflood.tortilla"
     create_tortilla(

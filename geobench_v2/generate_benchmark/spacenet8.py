@@ -16,7 +16,6 @@ import tacoreader
 import tacotoolbox
 from rasterio.features import rasterize
 from rasterio.windows import Window
-from torchgeo.datasets import SpaceNet8
 from tqdm import tqdm
 
 from geobench_v2.generate_benchmark.geospatial_split_utils import (
@@ -84,14 +83,12 @@ def process_spacenet8_tile(args):
         tile_basename = os.path.basename(pre_img_path).split(".")[0]
 
         with rasterio.open(pre_img_path) as src:
-            pre_profile = src.profile.copy()
             height, width = src.height, src.width
             transform = src.transform
             crs = src.crs
             pre_data = src.read()
 
         with rasterio.open(post_img_path) as src:
-            post_profile = src.profile.copy()
             post_data = src.read()
 
         # Load the label/mask as a GeoDataFrame
@@ -433,7 +430,7 @@ def generate_metadata_df(root_dir) -> pd.DataFrame:
     """Generate metadata DataFrame for SpaceNet8 dataset.
 
     Args:
-        ds: SpaceNet8 dataset.
+        root_dir: Root directory of the dataset
     """
     paths = [
         os.path.join(root_dir, "Germany_Training_Public_label_image_mapping.csv"),
@@ -648,8 +645,6 @@ def main():
     args = parser.parse_args()
 
     metadata_path = os.path.join(args.save_dir, "geobench_metadata.parquet")
-
-    orig_dataset = SpaceNet8(root=args.root, download=False)
 
     if not os.path.exists(args.save_dir):
         os.makedirs(args.save_dir)

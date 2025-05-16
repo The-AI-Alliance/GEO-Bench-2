@@ -42,10 +42,13 @@ class GeoBenchTreeSatAIDataModule(GeoBenchClassificationDataModule):
 
         Args:
             img_size: Image size originally 304
+            band_order: The order of bands to return in the sample
             batch_size: Batch size
             eval_batch_size: Evaluation batch size
             num_workers: Number of workers
             collate_fn: Collate function
+            train_augmentations: Training augmentations
+            eval_augmentations: Evaluation augmentations
             pin_memory: Pin memory
             **kwargs: Additional keyword arguments
         """

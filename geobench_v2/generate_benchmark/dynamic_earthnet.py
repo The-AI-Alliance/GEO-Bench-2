@@ -936,7 +936,7 @@ def visualize_dynamic_earthnet_patches(
 
         print(unique_values)
 
-        label_img = axes[3].imshow(label_data, cmap=label_cmap, vmin=0, vmax=6)
+        axes[3].imshow(label_data, cmap=label_cmap, vmin=0, vmax=6)
         axes[3].set_title("Land Cover Label")
         axes[3].axis("off")
         if len(unique_values) > 0:

@@ -35,7 +35,7 @@ class GeoBenchBaseDataset(NonGeoDataset, DataUtilsMixin):
         self,
         root: str,
         split: Literal["train", "validation", "test"],
-        band_order: list[str],
+        band_order: Sequence[str] | dict[str, Sequence[str]] = None,
         data_normalizer: type[DataNormalizer]
         | Callable[[dict[str, Tensor]], dict[str, Tensor]] = nn.Identity,
         transforms: nn.Module = None,
@@ -47,17 +47,17 @@ class GeoBenchBaseDataset(NonGeoDataset, DataUtilsMixin):
         Args:
             root: Root directory where the dataset can be found
             split: The dataset split, supports 'train', 'val', 'test'
-            band_order:
+            band_order: List of bands to return
             data_normalizer: Normalization strategy. Can be:
                              - A class type inheriting from DataNormalizer (e.g., ZScoreNormalizer)
                                or a basic callable class (e.g., nn.Identity - default).
                                It will be initialized appropriately (using stats/band_order if needed).
                              - An initialized callable instance (e.g., a custom nn.Module or nn.Identity()).
                                It will be used directly.
-            transform: A composition of transformations to apply to the data
+            transforms: A composition of transformations to apply to the data
             metadata: metadata names to be returned as part of the sample in the
                 __getitem__ method. If None, no metadata is returned.
-            download: If True, download the dataset if it is not already present.
+            download: If True, download the dataset .
         """
         super().__init__()
         self.root = root

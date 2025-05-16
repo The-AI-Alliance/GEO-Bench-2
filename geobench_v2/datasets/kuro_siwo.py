@@ -90,6 +90,8 @@ class GeoBenchKuroSiwo(GeoBenchBaseDataset):
             data_normalizer: Data normalizer
             transforms: Data transforms
             return_stacked_image: if true, returns a single image tensor with all modalities stacked in band_order
+            time_step: Time step for dataset
+            download: whether to download the dataset, if not already present
         """
         super().__init__(
             root=root,
