@@ -23,28 +23,6 @@ class GeoBenchDynamicEarthNet(GeoBenchBaseDataset):
 
     url = "https://hf.co/datasets/aialliance/dynamic_earthnet/resolve/main/{}"
 
-    # paths = [
-    #     "FullDynamicEarthNet.0000.part.tortilla",
-    #     "FullDynamicEarthNet.0001.part.tortilla",
-    #     "FullDynamicEarthNet.0002.part.tortilla",
-    #     "FullDynamicEarthNet.0003.part.tortilla",
-    #     "FullDynamicEarthNet.0004.part.tortilla",
-    #     "FullDynamicEarthNet.0005.part.tortilla",
-    #     "FullDynamicEarthNet.0006.part.tortilla",
-    #     "FullDynamicEarthNet.0007.part.tortilla",
-    #     "FullDynamicEarthNet.0008.part.tortilla",
-    #     "FullDynamicEarthNet.0009.part.tortilla",
-    #     "FullDynamicEarthNet.0010.part.tortilla",
-    #     "FullDynamicEarthNet.0011.part.tortilla",
-    #     "FullDynamicEarthNet.0012.part.tortilla",
-    #     "FullDynamicEarthNet.0013.part.tortilla",
-    #     "FullDynamicEarthNet.0014.part.tortilla",
-    #     "FullDynamicEarthNet.0015.part.tortilla",
-    #     "FullDynamicEarthNet.0016.part.tortilla",
-    #     "FullDynamicEarthNet.0017.part.tortilla",
-    #     "FullDynamicEarthNet.0018.part.tortilla",
-    # ]
-
     paths = [
         "geobench_dynamic_earthnet.0000.part.tortilla",
         "geobench_dynamic_earthnet.0001.part.tortilla",
@@ -188,7 +166,6 @@ class GeoBenchDynamicEarthNet(GeoBenchBaseDataset):
 
         if self.temporal_setting == "single":
             indices = [0]
-
         elif self.temporal_setting == "daily":
             indices = sample_row[sample_row["modality"] == "planet"].index
         elif self.temporal_setting == "weekly":
