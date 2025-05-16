@@ -63,6 +63,8 @@ class GeoBenchWindTurbineDataModule(GeoBenchObjectDetectionDataModule):
 
         Args:
             img_size: Image size
+            band_order: The order of bands to return, defaults to ['red', 'green', 'blue'], if one would
+                specify ['red', 'green', 'blue', 'blue'], the dataset would return images with 4 channels
             batch_size: Batch size during
             eval_batch_size: Evaluation batch size
             num_workers: Number of workers

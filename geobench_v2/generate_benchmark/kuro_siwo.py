@@ -104,6 +104,7 @@ test_acts = [321, 561, 445, 562, 411, 1111002, 277, 1111007, 205, 1111013]
 
 
 def create_split_mapper():
+    """Create a mapping of event IDs to data splits."""
     split_mapper = {}
     for act in train_acts:
         split_mapper[act] = "train"
@@ -114,7 +115,12 @@ def create_split_mapper():
     return split_mapper
 
 
-def extract_grid_data(path):
+def extract_grid_data(path: str):
+    """Extract grid data from the Kuro Siwo dataset.
+    
+    Args:
+        path: Path to the gzipped pickle file containing grid data.
+    """
     extracted = []
     with gzip.open(path, "rb") as f:
         data = pkl.load(f)
@@ -531,7 +537,15 @@ def generate_metadata_df(root_dir: str) -> pd.DataFrame:
     return df
 
 
-def create_tortilla(df, root, save_dir, tortilla_name):
+def create_tortilla(df: pd.DataFrame, root: str, save_dir: str, tortilla_name: str):
+    """Create a Tortilla file from the Kuro Siwo dataset.
+    
+    Args:
+        df: DataFrame with metadata including geolocation for each patch
+        root: Root directory for Kuro Siwo dataset
+        save_dir: Directory to save the Tortilla file
+        tortilla_name: Name of the Tortilla file to be created
+    """
     tortilla_dir = os.path.join(save_dir, "tortilla")
     os.makedirs(tortilla_dir, exist_ok=True)
 

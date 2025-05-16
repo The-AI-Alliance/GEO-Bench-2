@@ -13,12 +13,12 @@ from torch import Tensor
 from torchgeo.datasets import DOTA
 
 from .data_util import DataUtilsMixin
-from .normalization import ZScoreNormalizer
+from .normalization import DataNormalizer, ZScoreNormalizer
 from .sensor_util import DatasetBandRegistry
 
 
 class GeoBenchDOTAV2(DOTA, DataUtilsMixin):
-    """ "GeoBenchDOTAV2 dataset with enhanced functionality.
+    """GeoBenchDOTAV2 dataset with enhanced functionality.
 
     Allows:
     - Variable Band Selection
@@ -76,7 +76,8 @@ class GeoBenchDOTAV2(DOTA, DataUtilsMixin):
                 test the impact of band order on model performance.
             data_normalizer: The data normalizer to apply to the data, defaults to :class:`data_util.ZScoreNormalizer`,
                 which applies z-score normalization to each band.
-            transforms:
+            bbox_orientation: The orientation of the bounding boxes, defaults to 'oriented'.
+            transforms: The transforms to apply to the data, defaults to None.
         """
         self.root = root
         self.split = split

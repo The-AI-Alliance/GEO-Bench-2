@@ -61,6 +61,7 @@ class GeoBenchDOTAV2DataModule(GeoBenchObjectDetectionDataModule):
 
         Args:
             img_size: Image size
+            band_order: The order of bands to return in the sample
             batch_size: Batch size during
             eval_batch_size: Evaluation batch size
             num_workers: Number of workers

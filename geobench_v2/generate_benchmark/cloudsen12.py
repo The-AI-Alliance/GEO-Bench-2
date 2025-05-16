@@ -76,10 +76,6 @@ def create_subset(root: str, save_dir: str) -> None:
             nworkers=4,
         )
 
-        test_taco = tacoreader.load(
-            os.path.join(save_dir, f"geobench_cloudsen12-{key}.taco")
-        )
-
         meta_dfs.append(metadata_df)
 
     full_metadata = pd.concat(meta_dfs)

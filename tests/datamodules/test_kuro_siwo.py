@@ -130,9 +130,9 @@ class TestKuroSiwoDataModule:
         train_batch = next(iter(datamodule.train_dataloader()))
 
         # Check constants in sar bands if present
-        if any(isinstance(band, (int, float)) for band in datamodule.band_order["sar"]):
+        if any(isinstance(band, (int | float)) for band in datamodule.band_order["sar"]):
             for i, band in enumerate(datamodule.band_order["sar"]):
-                if isinstance(band, (int, float)):
+                if isinstance(band, (int | float)):
                     assert torch.isclose(
                         train_batch["image_sar_pre_1"][:, i], torch.tensor(band)
                     ).all(), f"Constant value mismatch for image_pre_1 channel {i}"
@@ -146,9 +146,9 @@ class TestKuroSiwoDataModule:
                     ).all(), f"Constant value mismatch for image_post channel {i}"
 
         # Check constants in dem bands if present
-        if any(isinstance(band, (int, float)) for band in datamodule.band_order["dem"]):
+        if any(isinstance(band, (int | float)) for band in datamodule.band_order["dem"]):
             for i, band in enumerate(datamodule.band_order["dem"]):
-                if isinstance(band, (int, float)):
+                if isinstance(band, (int | float)):
                     assert torch.isclose(
                         train_batch["image_dem"][:, i], torch.tensor(band)
                     ).all(), f"Constant value mismatch for image_dem channel {i}"

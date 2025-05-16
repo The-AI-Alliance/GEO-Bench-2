@@ -106,7 +106,7 @@ class TestDynamicEarthNetDataModule:
         # check that constant values are correct
         for modality, band_names in datamodule.band_order.items():
             for i, band in enumerate(band_names):
-                if isinstance(band, (int, float)):
+                if isinstance(band, (int | float)):
                     key = f"image_{modality}"
                     if modality == "s2":
                         assert torch.isclose(

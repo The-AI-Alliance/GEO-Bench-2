@@ -139,6 +139,7 @@ class GeoBenchDynamicEarthNet(GeoBenchBaseDataset):
             metadata: metadata names to be returned as part of the sample in the
                 __getitem__ method. If None, no metadata is returned.
             temporal_setting: The temporal setting to use, either 'single', 'daily' or 'weekly'
+            download: Whether to download the dataset 
         """
         super().__init__(
             root=root,

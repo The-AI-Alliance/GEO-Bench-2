@@ -69,7 +69,6 @@ def collect_overview_df(exp_dir: str, select_criteria: str) -> pd.DataFrame:
                     best_val_idx = metrics_df[metric_name[select_criteria]].idxmax()
 
                 best_val_row = metrics_df.loc[best_val_idx]
-                best_epoch = best_val_row["epoch"]
 
                 # CSV logger tracks train metrics in the row after validation results
                 if best_val_idx + 1 < len(metrics_df):
@@ -148,7 +147,7 @@ def find_best_model(results_df, best_metric):
 
     Args:
         results_df (pd.DataFrame): DataFrame containing experiment results.
-        metric: metric name basd on which to select the best experiment
+        best_metric: metric name basd on which to select the best experiment
 
     Returns:
         pd.Series: The row corresponding to the best model.

@@ -40,6 +40,7 @@ class GeoBenchDynamicEarthNetDataModule(GeoBenchSegmentationDataModule):
 
         Args:
             img_size: Image size
+            band_order: The order of bands to return in the sample
             batch_size: Batch size during training
             eval_batch_size: Evaluation batch size
             num_workers: Number of workers

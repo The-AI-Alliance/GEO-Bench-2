@@ -21,8 +21,9 @@ from tqdm import tqdm
 from geobench_v2.generate_benchmark.utils import create_subset_from_df
 
 
-def consolidate_bio_meta_df(df):
-    """Consolidate BioMassters dataset by chip_id to create one row per chip
+def consolidate_bio_meta_df(df: pd.DataFrame) -> pd.DataFrame:
+    """Consolidate BioMassters dataset by chip_id to create one row per chip.
+
     with columns for S1 and S2 paths and months.
 
     Args:
@@ -87,9 +88,8 @@ def generate_metadata_df(root: str) -> pd.DataFrame:
 
     # create random train/val split from train entries
     train_df = consolidated_df[consolidated_df["split"] == "train"]
-    test_df = consolidated_df[consolidated_df["split"] == "test"]
 
-    train_indices, val_indices = train_test_split(
+    _, val_indices = train_test_split(
         train_df.index, test_size=0.2, random_state=42
     )
     consolidated_df.loc[val_indices, "split"] = "validation"
@@ -218,8 +218,8 @@ def process_biomassters_sample(args):
 
                 optimized_profile = {
                     "driver": "GTiff",
-                    "height": data.shape[1],
-                    "width": data.shape[2],
+                    "height": height,
+                    "width": width,
                     "count": data.shape[0],
                     "dtype": data.dtype,
                     "tiled": True,

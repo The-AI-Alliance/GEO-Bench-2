@@ -34,6 +34,7 @@ def plot_sample_locations(
         sample_fraction: Fraction of samples to plot for better performance (0.0-1.0)
         alpha: Transparency of plotted points
         s: Size of plotted points
+        dataset_name: Name of the dataset for the title
     """
     if sample_fraction < 1.0:
         sample_size = int(len(metadata_df) * sample_fraction)
@@ -321,6 +322,7 @@ def create_subset_from_df(
         n_val_samples: Number of validation samples to include in the subset
         n_test_samples: Number of test samples to include in the subset
         random_state: Random seed for reproducibility
+        split_column: Column name that indicates the dataset split
 
     Returns:
         A DataFrame containing the selected subset of samples
@@ -372,6 +374,7 @@ def create_unittest_subset(
         n_train_samples: Number of training samples to include in the subset
         n_val_samples: Number of validation samples to include in the subset
         n_test_samples: Number of test samples to include in the subset
+        random_state: Random seed for reproducibility
     """
     taco_glob = sorted(glob(os.path.join(data_dir, tortilla_pattern)))
     taco_ben = tacoreader.load(taco_glob)

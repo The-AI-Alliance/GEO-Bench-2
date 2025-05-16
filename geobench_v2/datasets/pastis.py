@@ -128,7 +128,7 @@ class GeoBenchPASTIS(PASTIS, DataUtilsMixin):
                 of 10 will return a [T, C, H, W] tensor.
             data_normalizer: The data normalizer to apply to the data, defaults to :class:`data_util.ZScoreNormalizer`,
                 which applies z-score normalization to each band.
-            transforms:
+            transforms: The transforms to apply to the data, defaults to None
             metadata: metadata names to be returned under specified keys as part of the sample in the
                 __getitem__ method. If None, no metadata is returned.
             label_type: The type of label to return, either 'instance_seg' or 'semantic_seg'
@@ -291,12 +291,13 @@ class GeoBenchPASTIS(PASTIS, DataUtilsMixin):
         return tensor
 
     def _load_instance_targets(
-        self, sem_path: str, instance_path
+        self, sem_path: str, instance_path: str
     ) -> tuple[Tensor, Tensor, Tensor]:
         """Load the instance segmentation targets for a single sample.
 
         Args:
             path: path to the label
+            instance_path: path to the instance segmentation mask
 
         Returns:
             the instance segmentation mask, box, and label for each instance
@@ -365,7 +366,7 @@ class GeoBenchPASTIS(PASTIS, DataUtilsMixin):
         # Check that all bands are from the same modality
         modalities = []
         for band in resolved:
-            if isinstance(band, (int, float)):
+            if isinstance(band, (int | float)):
                 continue  # Skip fill values
 
             modality = self.dataset_band_config.band_to_modality.get(band)
