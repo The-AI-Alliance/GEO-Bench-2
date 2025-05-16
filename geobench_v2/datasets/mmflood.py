@@ -131,7 +131,7 @@ class GeoBenchMMFlood(GeoBenchBaseDataset):
 
         img_dict = self.rearrange_bands(img_dict, self.band_order)
         if "image_s1" in img_dict:
-            nan_mask = torch.isnan(img_dict["image"])[0]
+            nan_mask = torch.isnan(img_dict["image_s1"])[0]
         image_dict = self.data_normalizer(img_dict)
 
         # across all items in the image_dict replace nan_mask with 0 again
