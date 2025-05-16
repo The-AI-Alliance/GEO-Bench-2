@@ -134,7 +134,6 @@ def convert_pngs_to_geotiffs(metadata_df, source_dir, target_dir, num_workers=8)
         ):
             results.append(result)
 
-
     for result in results:
         metadata_df.loc[
             metadata_df["image_path"] == result["img_name"], "geotiff_path"
