@@ -613,8 +613,11 @@ class DatasetBandRegistry:
 
     # CLOUDSEN12 has cloudsen12-l1c Sentinel2 data is actually just a single ModalityConfig
     CLOUDSEN12 = ModalityConfig(
-        bands={**SensorBandRegistry.SENTINEL2.bands},
-        # band_to_modality={**SensorBandRegistry.SENTINEL2.band_to_modality},
+        bands={
+            k: v
+            for k, v in SensorBandRegistry.SENTINEL2.bands.items()
+            if k not in ["B10"]
+        },
         default_order=[
             "B01",
             "B02",
@@ -629,6 +632,8 @@ class DatasetBandRegistry:
             "B11",
             "B12",
         ],
+        plot_bands=["B04", "B03", "B02"],
+        native_resolution=10,
     )
 
     FLOGA = MultiModalConfig(

@@ -49,6 +49,8 @@ class GeoBenchCloudSen12(GeoBenchBaseDataset):
 
     dataset_band_config = DatasetBandRegistry.CLOUDSEN12
 
+    band_default_order = DatasetBandRegistry.CLOUDSEN12.default_order
+
     normalization_stats = {
         "means": {
             "B01": 2030.244384765625,

@@ -4,39 +4,52 @@
 """EverWatch Tests."""
 
 import os
+from collections.abc import Sequence
+from pathlib import Path
 
 import matplotlib.pyplot as plt
 import pytest
+from pytest import MonkeyPatch
 
 from geobench_v2.datamodules import GeoBenchEverWatchDataModule
+from geobench_v2.datasets import GeoBenchEverWatch
+
+
+@pytest.fixture(params=[["red", "green", "blue", 0, "green"]])
+def band_order(request):
+    """Parameterized band configuration with different configurations."""
+    return request.param
 
 
 @pytest.fixture
-def data_root():
-    """Path to test data directory."""
-    return "/mnt/rg_climate_benchmark/data/final_geobenchV2/everwatch"
-
-
-@pytest.fixture
-def band_order():
-    """Test band configuration with RGB and fill value."""
-    return ["red", "green", "blue", 0, "green"]
-
-
-@pytest.fixture
-def datamodule(data_root, band_order):
-    """Initialize EverWatch datamodule with test configuration."""
+def datamodule(
+    monkeypatch: MonkeyPatch,
+    tmp_path: Path,
+    band_order: dict[str, Sequence[str | float]],
+):
+    """Initialize FLAIR2 datamodule with test configuration."""
+    monkeypatch.setattr(GeoBenchEverWatch, "paths", ["everwatch.tortilla"])
+    monkeypatch.setattr(
+        GeoBenchEverWatch, "url", os.path.join("tests", "data", "everwatch", "{}")
+    )
+    monkeypatch.setattr(
+        GeoBenchEverWatch,
+        "sha256str",
+        ["24f32265b005b047caa5046e70e2c5a1b8e76b0234a30b5736545a342449749b"],
+    )
     dm = GeoBenchEverWatchDataModule(
-        img_size=512,
-        batch_size=4,
-        eval_batch_size=2,
+        img_size=256,
+        batch_size=2,
+        eval_batch_size=1,
         num_workers=0,
         pin_memory=False,
         band_order=band_order,
-        root=data_root,
+        root=tmp_path,
+        download=True,
     )
     dm.setup("fit")
     dm.setup("test")
+
     return dm
 
 

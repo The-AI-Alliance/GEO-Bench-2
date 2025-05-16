@@ -8,30 +8,24 @@ import glob
 import json
 import multiprocessing
 import os
+import warnings
+from functools import partial
 
+import geopandas as gpd
 import numpy as np
 import pandas as pd
 import rasterio
 import tacoreader
 import tacotoolbox
 from PIL import Image, ImageFile
-from shapely.geometry import shape
-from tqdm import tqdm
-import warnings
 from rasterio.errors import NotGeoreferencedWarning
-
-import geopandas as gpd
-from shapely.geometry import box
-import multiprocessing
-from functools import partial
+from shapely.geometry import box, shape
+from tqdm import tqdm
 
 from geobench_v2.generate_benchmark.object_detection_util import (
     convert_pngs_to_geotiffs,
 )
-
 from geobench_v2.generate_benchmark.utils import create_unittest_subset
-
-
 
 
 def generate_metadata_df(root: str) -> pd.DataFrame:
@@ -311,9 +305,7 @@ def process_everwatch_dataset(
     print(
         f"Created {len(resized_df)} annotations across {len(resized_df['image_path'].unique())} images"
     )
-    resized_df["image_path"] = resized_df["image_path"].str.replace(
-        "images/", ""
-    )
+    resized_df["image_path"] = resized_df["image_path"].str.replace("images/", "")
     return resized_df
 
 
@@ -332,40 +324,35 @@ def process_image_annotations(image_path, group_df, geoparquet_dir, annotations_
     try:
         base_name = os.path.splitext(os.path.basename(image_path))[0]
         output_file = os.path.join(geoparquet_dir, f"{base_name}_annotations.gpq")
-        
+
         df_copy = group_df.copy()
-        
+
         geometries = [
-            box(row.xmin, row.ymin, row.xmax, row.ymax) 
-            for _, row in df_copy.iterrows()
+            box(row.xmin, row.ymin, row.xmax, row.ymax) for _, row in df_copy.iterrows()
         ]
-        
+
         gdf = gpd.GeoDataFrame(
             df_copy[["geotiff_path", "label", "xmin", "ymin", "xmax", "ymax", "split"]],
             geometry=geometries,
-            crs="EPSG:4326"
+            crs="EPSG:4326",
         )
-        
+
         if "class_id" not in gdf.columns:
             unique_labels = annotations_df["label"].unique()
             label_to_id = {label: i for i, label in enumerate(unique_labels)}
             gdf["class_id"] = gdf["label"].map(label_to_id)
-        
+
         gdf.to_parquet(output_file)
-        
+
         return {
             "geotiff_path": image_path,
             "annotation_path": output_file,
             "num_annotations": len(gdf),
-            "status": "success"
+            "status": "success",
         }
-        
+
     except Exception as e:
-        return {
-            "geotiff_path": image_path,
-            "status": "error",
-            "error": str(e)
-        }
+        return {"geotiff_path": image_path, "status": "error", "error": str(e)}
 
 
 def convert_annotations_to_geoparquet(annotations_df, save_dir, num_workers):
@@ -381,44 +368,49 @@ def convert_annotations_to_geoparquet(annotations_df, save_dir, num_workers):
     """
     geoparquet_dir = os.path.join(save_dir, "annotations_geoparquet")
     os.makedirs(geoparquet_dir, exist_ok=True)
-    
-    
+
     grouped = annotations_df.groupby("geotiff_path")
-    
+
     print(f"Converting annotations to GeoParquet for {len(grouped)} images...")
-    
+
     results = []
     with multiprocessing.Pool(processes=num_workers) as pool:
         process_func = partial(
             process_image_annotations,
             geoparquet_dir=geoparquet_dir,
-            annotations_df=annotations_df
+            annotations_df=annotations_df,
         )
         tasks = [(image_path, group_df) for image_path, group_df in grouped]
-        
+
         for result in tqdm(
             pool.starmap(process_func, tasks),
             total=len(tasks),
-            desc="Creating GeoParquet files"
+            desc="Creating GeoParquet files",
         ):
             results.append(result)
-    
+
     results_df = pd.DataFrame(results)
-    
+
     success_count = len(results_df[results_df["status"] == "success"])
     error_count = len(results_df[results_df["status"] == "error"])
-    
+
     print(f"Successfully converted {success_count} annotation files")
     if error_count > 0:
         print(f"Failed to convert {error_count} files")
         for _, row in results_df[results_df["status"] == "error"].iterrows():
             print(f"  - {row['geotiff_path']}: {row['error']}")
 
-
-    final_df = pd.merge(results_df[["geotiff_path", "annotation_path", "num_annotations"]], annotations_df[["geotiff_path", "colony_name", "lat", "lon", "split"]].drop_duplicates("geotiff_path"), on="geotiff_path", how="left")
+    final_df = pd.merge(
+        results_df[["geotiff_path", "annotation_path", "num_annotations"]],
+        annotations_df[
+            ["geotiff_path", "colony_name", "lat", "lon", "split"]
+        ].drop_duplicates("geotiff_path"),
+        on="geotiff_path",
+        how="left",
+    )
 
     final_df["annotation_path"] = final_df["annotation_path"].str.replace(save_dir, "")
-    
+
     return final_df
 
 
@@ -436,8 +428,9 @@ def create_tortilla(annotations_df, root_dir, save_dir, tortilla_name):
 
     annotations_df["split"] = annotations_df["split"].str.replace("val", "validation")
 
-    for idx, row in tqdm(annotations_df.iterrows(), total=len(annotations_df), desc="Creating tortillas"):
-
+    for idx, row in tqdm(
+        annotations_df.iterrows(), total=len(annotations_df), desc="Creating tortillas"
+    ):
         geotiff_path = os.path.join(root_dir, "tif_images", row["geotiff_path"])
 
         annotation_path = os.path.join(root_dir, row["annotation_path"])
@@ -447,8 +440,14 @@ def create_tortilla(annotations_df, root_dir, save_dir, tortilla_name):
             with rasterio.open(geotiff_path) as src:
                 profile = src.profile
                 height, width = profile["height"], profile["width"]
-                crs = "EPSG:" + str(profile["crs"].to_epsg()) if profile["crs"] else "EPSG:4326"
-                transform = profile["transform"].to_gdal() if profile["transform"] else None
+                crs = (
+                    "EPSG:" + str(profile["crs"].to_epsg())
+                    if profile["crs"]
+                    else "EPSG:4326"
+                )
+                transform = (
+                    profile["transform"].to_gdal() if profile["transform"] else None
+                )
 
         split = row["split"]
         lon = row["lon"] if not pd.isna(row["lon"]) else None
@@ -556,8 +555,6 @@ def main():
             final_df, args.save_dir, num_workers=16
         )
         final_df.to_parquet(final_path)
-
-    
 
     tortilla_name = "geobench_everwatch.tortilla"
     # create_tortilla(final_df, args.save_dir, args.save_dir, tortilla_name=tortilla_name)
