@@ -29,7 +29,11 @@ class GeoBenchDynamicEarthNet(GeoBenchBaseDataset):
         "geobench_dynamic_earthnet.0002.part.tortilla",
     ]
 
-    sha256str = ["", "", ""]
+    sha256str = [
+        "11204f926bfd89feeaa4c045a79a640137a21f7c038f71665583e7a35d6ab73f", 
+        "b3444cab2ac66b2cb225bb1fc4c71c298b6e31a1a1c5eaea72df7d820bb640b7", 
+        "3e11fdb9726c4448c07ca6b33f94dfb2c07deb3caed4721c47fae46018b3a011"
+    ]
 
     dataset_band_config = DatasetBandRegistry.DYNAMICEARTHNET
 

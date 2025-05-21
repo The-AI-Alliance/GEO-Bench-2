@@ -31,21 +31,17 @@ class GeoBenchSpaceNet2(GeoBenchBaseDataset):
 
     url = "https://hf.co/datasets/aialliance/spacenet2/resolve/main/{}"
 
-    # paths = [
-    #     "SpaceNet2.0000.part.tortilla",
-    #     "SpaceNet2.0001.part.tortilla",
-    #     "SpaceNet2.0002.part.tortilla",
-    #     "SpaceNet2.0003.part.tortilla",
-    #     "SpaceNet2.0004.part.tortilla",
-    # ]
-
     paths = [
         "geobench_spacenet2.0000.part.tortilla",
         "geobench_spacenet2.0001.part.tortilla",
         "geobench_spacenet2.0002.part.tortilla",
     ]
 
-    sha256str = ["", "", ""]
+    sha256str = [
+        "97e47bca68e482bed0fe44d5e1d799cbbef7828374a1a7e5cf9687385047183a",
+        "66bfd89e7d80ceaef88a439034ab771e61ee396b8a3e785817e876c9c0a35163", 
+        "bcfcaedef82d7b49bc9bf23cb34fcf50e83d25fdb14e50332bfeabeb793b3e03"
+    ]
 
     dataset_band_config = DatasetBandRegistry.SPACENET2
 
