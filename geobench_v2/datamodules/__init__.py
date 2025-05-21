@@ -21,6 +21,7 @@ from .flair2 import GeoBenchFLAIR2DataModule
 from .fotw import GeoBenchFieldsOfTheWorldDataModule
 from .kuro_siwo import GeoBenchKuroSiwoDataModule
 from .mmflood import GeoBenchMMFloodDataModule
+from .m4sar import GeoBenchM4SARDataModule
 from .pastis import GeoBenchPASTISDataModule
 from .qfabric import GeoBenchQFabricDataModule
 from .spacenet2 import GeoBenchSpaceNet2DataModule
@@ -50,9 +51,9 @@ __all__ = (
     "GeoBenchKuroSiwoDataModule",
     "GeoBenchTreeSatAIDataModule",
     "GeoBenchBioMasstersDataModule",
-    "GeoBenchMADOSDataModule",
     "GeoBenchDynamicEarthNetDataModule",
     "GeoBenchMMFloodDataModule",
+    "GeoBenchM4SARDataModule",
     "GeoBenchBRIGHTDataModule",
     "GeoBenchQFabricDataModule",
     "GeoBenchWindTurbineDataModule",

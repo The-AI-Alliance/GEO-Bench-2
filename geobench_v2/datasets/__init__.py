@@ -12,15 +12,12 @@ from .dotav2 import GeoBenchDOTAV2
 from .dynamic_earthnet import GeoBenchDynamicEarthNet
 from .everwatch import GeoBenchEverWatch
 from .flair2 import GeoBenchFLAIR2
-from .floga import GeoBenchFLOGA
 from .fotw import GeoBenchFieldsOfTheWorld
 from .kuro_siwo import GeoBenchKuroSiwo
-from .mados import GeoBenchMADOS
 from .mmflood import GeoBenchMMFlood
+from .m4sar import GeoBenchM4SAR
 from .pastis import GeoBenchPASTIS
 from .qfabric import GeoBenchQFabric
-from .resisc45 import GeoBenchRESISC45
-from .sen4agrinet import GeoBenchSen4AgriNet
 from .spacenet2 import GeoBenchSpaceNet2
 from .spacenet6 import GeoBenchSpaceNet6
 from .spacenet7 import GeoBenchSpaceNet7
@@ -32,7 +29,6 @@ __all__ = (
     "GeoBenchCaFFe",
     "GeoBenchFieldsOfTheWorld",
     "GeoBenchPASTIS",
-    "GeoBenchRESISC45",
     "GeoBenchSpaceNet2",
     "GeoBenchSpaceNet6",
     "GeoBenchSpaceNet7",
@@ -42,13 +38,11 @@ __all__ = (
     "GeoBenchDOTAV2",
     "GeoBenchFLAIR2",
     "GeoBenchCloudSen12",
-    "GeoBenchFLOGA",
     "GeoBenchKuroSiwo",
     "GeoBenchTreeSatAI",
     "GeoBenchBioMassters",
-    "GeoBenchMADOS",
+    "GeoBenchM4SAR",
     "GeoBenchDynamicEarthNet",
-    "GeoBenchSen4AgriNet",
     "GeoBenchMMFlood",
     "GeoBenchBRIGHT",
     "GeoBenchWindTurbine",
