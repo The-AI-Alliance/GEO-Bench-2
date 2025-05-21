@@ -6,8 +6,8 @@
 import io
 import re
 import warnings
-from typing import Literal
 from pathlib import Path
+from typing import Literal
 
 import geopandas as gpd
 import rasterio

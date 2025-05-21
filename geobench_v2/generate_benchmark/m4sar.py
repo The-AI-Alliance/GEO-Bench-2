@@ -5,29 +5,24 @@
 
 import argparse
 import glob
-import json
-import multiprocessing
 import os
 import warnings
-from functools import partial
 
 import geopandas as gpd
-import numpy as np
 import pandas as pd
 import rasterio
 import tacoreader
 import tacotoolbox
-from PIL import Image, ImageFile
 from rasterio.errors import NotGeoreferencedWarning
-from shapely.geometry import box, shape
+from shapely.geometry import box
 from tqdm import tqdm
 
 from geobench_v2.generate_benchmark.object_detection_util import (
     convert_pngs_to_geotiffs,
 )
 from geobench_v2.generate_benchmark.utils import (
-    create_unittest_subset,
     create_subset_from_df,
+    create_unittest_subset,
 )
 
 

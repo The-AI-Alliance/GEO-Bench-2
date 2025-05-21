@@ -14,8 +14,8 @@ from .everwatch import GeoBenchEverWatch
 from .flair2 import GeoBenchFLAIR2
 from .fotw import GeoBenchFieldsOfTheWorld
 from .kuro_siwo import GeoBenchKuroSiwo
-from .mmflood import GeoBenchMMFlood
 from .m4sar import GeoBenchM4SAR
+from .mmflood import GeoBenchMMFlood
 from .pastis import GeoBenchPASTIS
 from .qfabric import GeoBenchQFabric
 from .spacenet2 import GeoBenchSpaceNet2

@@ -20,8 +20,8 @@ from .everwatch import GeoBenchEverWatchDataModule
 from .flair2 import GeoBenchFLAIR2DataModule
 from .fotw import GeoBenchFieldsOfTheWorldDataModule
 from .kuro_siwo import GeoBenchKuroSiwoDataModule
-from .mmflood import GeoBenchMMFloodDataModule
 from .m4sar import GeoBenchM4SARDataModule
+from .mmflood import GeoBenchMMFloodDataModule
 from .pastis import GeoBenchPASTISDataModule
 from .qfabric import GeoBenchQFabricDataModule
 from .spacenet2 import GeoBenchSpaceNet2DataModule
