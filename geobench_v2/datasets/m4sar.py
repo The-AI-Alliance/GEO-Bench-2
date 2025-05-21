@@ -121,7 +121,7 @@ class GeoBenchM4SAR(GeoBenchBaseDataset):
         if "sar" in self.band_order:
             with warnings.catch_warnings():
                 warnings.filterwarnings("ignore", category=NotGeoreferencedWarning)
-                with rasterio.open(optical_path) as src:
+                with rasterio.open(sar_path) as src:
                     image = torch.from_numpy(src.read()).float()
                 image_sample["sar"] = image
 
