@@ -91,7 +91,7 @@ class IdentityTransform(nn.Module):
         return x
 
 
-class GeoBenchNZCattleObjectDetectionDataModule(NonGeoDataModule):
+class GeoBenchNZCattleDataModule(NonGeoDataModule):
 
     def __init__(
         self,
@@ -110,7 +110,7 @@ class GeoBenchNZCattleObjectDetectionDataModule(NonGeoDataModule):
         *args,
         **kwargs):
 
-        super().__init__(GeoBenchNZCattleObjectDetectionDataModule,
+        super().__init__(GeoBenchNZCattleDataModule,
                          data_root = data_root,
                          split = split,
                          bands = bands,

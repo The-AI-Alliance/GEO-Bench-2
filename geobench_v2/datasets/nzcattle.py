@@ -120,7 +120,7 @@ class ConvertCocoAnnotations:
 
 
 
-class GeoBenchNZCattleObjectDetection(NonGeoDataset):
+class GeoBenchNZCattle(NonGeoDataset):
     """ "GeoBenchNZCattleObjectDetection dataset. Object detection version of the segmentation nz-cattle dataset in GEO-Bench v1."""
     
     all_band_names = ("BLUE", "GREEN", "RED")
