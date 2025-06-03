@@ -494,31 +494,6 @@ class GeoBenchSegmentationDataModule(GeoBenchDataModule):
                 keepdim=True,
             )
         elif self.train_augmentations == "multi_temporal_default":
-            comment = """
-            def multi_temporal_data_augmentation(batch):
-                for key in batch:
-                    if (("image" in key) and (len(batch[key].shape) ==5)):
-                        B, C, T, H, W = batch[key].shape
-                if "mask" in batch:
-                    if len(batch["mask"].shape) == 3:
-                        mask = batch["mask"].view(torch.int64)
-                        batch["mask"] = einops.repeat(mask, 'b h w -> b C T h w', C=C, T=T)
-
-                aug = K.AugmentationSequential(
-                    K.VideoSequential(
-                        K.RandomHorizontalFlip(p=0.5),
-                        K.RandomVerticalFlip(p=0.5),
-                        data_format="BCTHW",
-                    ),
-                    data_keys=None,
-                    keepdim=True,
-                )
-                batch = aug(batch)
-
-                if "mask" in batch:
-                    batch["mask"] = batch["mask"][:,0,0,:,: ]
-                return batch
-            """
             class MultiTemporalDataAugmentation(nn.Module):
                 def __init__(self) -> None:
                     super().__init__()
@@ -663,7 +638,7 @@ class GeoBenchObjectDetectionDataModule(GeoBenchDataModule):
             self.train_augmentations = K.AugmentationSequential(
                 K.RandomHorizontalFlip(p=0.5),
                 K.RandomVerticalFlip(p=0.5),
-                data_keys=["image", "bbox_xyxy", "label"],
+                data_keys=None,#["image", "bbox_xyxy", "label"],
                 keepdim=True,
             )
         elif self.train_augmentations == "multi_temporal_default":
@@ -673,7 +648,7 @@ class GeoBenchObjectDetectionDataModule(GeoBenchDataModule):
                     K.RandomVerticalFlip(p=0.5),
                     data_format="BCTHW",
                 ),
-                data_keys=["image", "bbox_xyxy", "label"],
+                data_keys=None,#["image", "bbox_xyxy", "label"],
                 keepdim=True,
             )
         elif self.train_augmentations is None:
