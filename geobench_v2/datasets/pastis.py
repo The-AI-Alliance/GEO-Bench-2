@@ -15,7 +15,8 @@ import pandas as pd
 import torch.nn as nn
 
 from .sensor_util import DatasetBandRegistry
-from .data_util import DataUtilsMixin, MultiModalNormalizer
+from .data_util import DataUtilsMixin, MultiModalNormalizer, DataNormalizer
+#import einops
 
 
 class GeoBenchPASTIS(PASTIS, DataUtilsMixin):
@@ -56,40 +57,40 @@ class GeoBenchPASTIS(PASTIS, DataUtilsMixin):
 
     normalization_stats = {
         "means": {
-            "B02": 0.0,
-            "B03": 0.0,
-            "B04": 0.0,
-            "B05": 0.0,
-            "B06": 0.0,
-            "B07": 0.0,
-            "B08": 0.0,
-            "B8A": 0.0,
-            "B11": 0.0,
-            "B12": 0.0,
-            "VV_asc": 0.0,
-            "VH_asc": 0.0,
-            "VV/VH_asc": 0.0,
-            "VV_desc": 0.0,
-            "VH_desc": 0.0,
-            "VV/VH_desc": 0.0,
+            "B02": 1369.9984130859375,
+            "B03": 1583.14794921875,
+            "B04": 1627.649658203125,
+            "B05": 1930.8377685546875,
+            "B06": 2921.8388671875,
+            "B07": 3284.9306640625,
+            "B08": 3421.798828125,
+            "B8A": 3544.233642578125,
+            "B11": 2564.71435546875,
+            "B12": 1708.5986328125,
+            "VV_asc": -10.283859252929688,
+            "VH_asc": -16.86566734313965,
+            "VV/VH_asc": 6.581782817840576,
+            "VV_desc": -10.348858833312988,
+            "VH_desc": -16.90220069885254,
+            "VV/VH_desc": 6.553304672241211
         },
         "stds": {
-            "B02": 3000.0,
-            "B03": 3000.0,
-            "B04": 3000.0,
-            "B05": 3000.0,
-            "B06": 3000.0,
-            "B07": 3000.0,
-            "B08": 3000.0,
-            "B8A": 3000.0,
-            "B11": 3000.0,
-            "B12": 3000.0,
-            "VV_asc": 1.0,
-            "VH_asc": 1.0,
-            "VV/VH_asc": 1.0,
-            "VV_desc": 1.0,
-            "VH_desc": 1.0,
-            "VV/VH_desc": 1.0,
+            "B02": 2247.75537109375,
+            "B03": 2179.169921875,
+            "B04": 2255.17626953125,
+            "B05": 2142.72216796875,
+            "B06": 1928.7330322265625,
+            "B07": 1900.8660888671875,
+            "B08": 1890.31640625,
+            "B8A": 1873.0811767578125,
+            "B11": 1409.2015380859375,
+            "B12": 1189.0947265625,
+            "VV_asc": 3.0927364826202393,
+            "VH_asc": 3.026491403579712,
+            "VV/VH_asc": 3.3431670665740967,
+            "VV_desc": 3.216468334197998,
+            "VH_desc": 3.0307400226593018,
+            "VV/VH_desc": 3.3312063217163086,
         },
     }
 
@@ -198,10 +199,10 @@ class GeoBenchPASTIS(PASTIS, DataUtilsMixin):
         sample: dict[str, Tensor] = {}
         sample_row = self.data_df.iloc[index]
         data = {
-            "s2": self._load_image(os.path.join(self.root, sample_row["s2_path"])),
-            "s1_asc": self._load_image(os.path.join(self.root, sample_row["s1a_path"])),
+            "s2": self._load_image(os.path.join(self.root, sample_row["s2_path"])),#T, C, H, W
+            "s1_asc": self._load_image(os.path.join(self.root, sample_row["s1a_path"])),#T, C, H, W
             "s1_desc": self._load_image(
-                os.path.join(self.root, sample_row["s1d_path"])
+                os.path.join(self.root, sample_row["s1d_path"])#T, C, H, W
             ),
         }
 
@@ -232,10 +233,14 @@ class GeoBenchPASTIS(PASTIS, DataUtilsMixin):
         if self.transforms:
             sample = self.transforms(sample)
 
+        for key in sample:
+            if "image" in key and len(sample[key].shape) == 4:
+                sample[key] = sample[key].permute(1, 0, 2, 3) #C, T, H, W
+
         if self.return_stacked_image:
             sample = {
                 "image": torch.cat(
-                    [sample[f"image_{key}"] for key in self.band_order.keys()], 0
+                    [sample[f"image_{key}"] for key in self.band_order.keys()], 0 
                 ),
                 "mask": sample["mask"],
             }

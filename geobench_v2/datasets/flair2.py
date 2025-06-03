@@ -58,8 +58,8 @@ class GeoBenchFLAIR2(GeoBenchBaseDataset):
     dataset_band_config = DatasetBandRegistry.FLAIR2
 
     normalization_stats = {
-        "means": {"r": 0.0, "g": 0.0, "b": 0.0, "nir": 0.0, "elevation": 0.0},
-        "stds": {"r": 255.0, "g": 255.0, "b": 255.0, "nir": 255.0, "elevation": 255.0},
+        "means": {"r": 110.30502319335938, "g": 114.79083251953125, "b": 105.6126937866211, "nir": 104.3409194946289, "elevation": 17.69650650024414},
+        "stds": {"r": 50.71001052856445, "g": 44.31645584106445, "b": 43.294822692871094, "nir": 39.049617767333984, "elevation": 29.94267463684082},
     }
 
     band_default_order = ("r", "g", "b", "nir", "elevation")

@@ -16,6 +16,7 @@ from matplotlib import pyplot as plt
 from torch import Tensor
 from torch.utils.data import DataLoader, Dataset
 from torch.utils.data import random_split
+import einops
 
 
 # TODO come up with an expected metadata file scheme
@@ -65,12 +66,12 @@ class GeoBenchDataModule(LightningDataModule, ABC):
         """
         super().__init__()
         if isinstance(train_augmentations, str):
-            assert train_augmentations == "default", (
-                "Please provide one of the follow for eval_augmentations: Callable or None or 'default'"
+            assert train_augmentations in ("default", "multi_temporal_default"), (
+                "Please provide one of the follow for eval_augmentations: Callable or None or 'default' or 'multi_temporal_default'"
             )
         if isinstance(eval_augmentations, str):
-            assert eval_augmentations == "default", (
-                "Please provide one of the follow for eval_augmentations: Callable or None or 'default'"
+            assert eval_augmentations  in ("default", "multi_temporal_default"), (
+                "Please provide one of the follow for eval_augmentations: Callable or None or 'default' or 'multi_temporal_default'"
             )
 
         self.dataset_class = dataset_class
@@ -252,13 +253,15 @@ class GeoBenchDataModule(LightningDataModule, ABC):
 
             aug = self._valid_attribute(f"{split}_augmentations")
 
+
+            #print(f"\n\n\nAUGMENTING")
+            #for key in batch:
+            #    print(f"BEFORE {key}: {batch[key].dtype} {batch[key].shape}")
+
             batch = aug(batch)
 
-            #if "mask" in batch:
-            #    shape = batch["mask"].shape
-            #    if (len(shape) == 4):
-            #        batch["mask"] = batch["mask"][:,0,:,:]
-
+            #for key in batch:
+            #    print(f"AFTER {key}: {batch[key].dtype} {batch[key].shape}")
         return batch
 
     def _valid_attribute(self, args) -> Any:
@@ -358,11 +361,23 @@ class GeoBenchClassificationDataModule(GeoBenchDataModule):
                 data_keys=None,
                 keepdim=True,
             )
+        elif self.train_augmentations == "multi_temporal_default":
+            self.train_augmentations = K.AugmentationSequential(
+                K.VideoSequential(
+                    K.RandomHorizontalFlip(p=0.5),
+                    K.RandomVerticalFlip(p=0.5),
+                    data_format="BCTHW",
+                ),
+                data_keys=None,
+                keepdim=True,
+            )
         elif self.train_augmentations is None:
             self.train_augmentations = nn.Identity()
 
-        if (self.eval_augmentations == "default") or (self.eval_augmentations is None):
+        if (self.eval_augmentations in ["default", "multi_temporal_default"]) or (
+            self.eval_augmentations is None):
             self.eval_augmentations = nn.Identity()
+        
 
     def setup_image_size_transforms(self) -> tuple[nn.Module, nn.Module, nn.Module]:
         """Setup image resizing transforms for train, val, test.
@@ -478,10 +493,65 @@ class GeoBenchSegmentationDataModule(GeoBenchDataModule):
                 data_keys=None,
                 keepdim=True,
             )
+        elif self.train_augmentations == "multi_temporal_default":
+            comment = """
+            def multi_temporal_data_augmentation(batch):
+                for key in batch:
+                    if (("image" in key) and (len(batch[key].shape) ==5)):
+                        B, C, T, H, W = batch[key].shape
+                if "mask" in batch:
+                    if len(batch["mask"].shape) == 3:
+                        mask = batch["mask"].view(torch.int64)
+                        batch["mask"] = einops.repeat(mask, 'b h w -> b C T h w', C=C, T=T)
+
+                aug = K.AugmentationSequential(
+                    K.VideoSequential(
+                        K.RandomHorizontalFlip(p=0.5),
+                        K.RandomVerticalFlip(p=0.5),
+                        data_format="BCTHW",
+                    ),
+                    data_keys=None,
+                    keepdim=True,
+                )
+                batch = aug(batch)
+
+                if "mask" in batch:
+                    batch["mask"] = batch["mask"][:,0,0,:,: ]
+                return batch
+            """
+            class MultiTemporalDataAugmentation(nn.Module):
+                def __init__(self) -> None:
+                    super().__init__()
+                    self.transforms = K.AugmentationSequential(
+                                    K.VideoSequential(
+                                        K.RandomHorizontalFlip(p=0.5),
+                                        K.RandomVerticalFlip(p=0.5),
+                                        data_format="BCTHW",
+                                    ),
+                                    data_keys=None,
+                                    keepdim=True,
+                                )
+
+                @torch.no_grad()  # disable gradients for efficiency
+                def forward(self, batch) -> dict:
+                    if len(batch["mask"].shape) != 3:
+                        raise ValueError("Mask does not contain the expected dimensions")
+                    for key in batch:
+                        if (("image" in key) and (len(batch[key].shape) ==5)):
+                            B, C, T, H, W = batch[key].shape
+                            batch["mask"] = einops.repeat(batch["mask"], 'b h w -> b C T h w', C=C, T=T)
+                            break
+                    if len(batch["mask"].shape) != 5:
+                        raise ValueError("Mask does not contain the expected dimensions")
+                    batch_out = self.transforms(batch)  # for image, mask == BxCXTxHxW
+                    batch_out["mask"] = batch_out["mask"][:,0,0,:,: ]
+                    return batch_out
+            self.train_augmentations = MultiTemporalDataAugmentation()
         elif self.train_augmentations is None:
             self.train_augmentations = nn.Identity()
 
-        if (self.eval_augmentations == "default") or (self.eval_augmentations is None):
+        if (self.eval_augmentations in ["default", "multi_temporal_default"]) or (
+            self.eval_augmentations is None):
             self.eval_augmentations = nn.Identity()
 
     def setup_image_size_transforms(self) -> tuple[nn.Module, nn.Module, nn.Module]:
@@ -596,10 +666,21 @@ class GeoBenchObjectDetectionDataModule(GeoBenchDataModule):
                 data_keys=["image", "bbox_xyxy", "label"],
                 keepdim=True,
             )
+        elif self.train_augmentations == "multi_temporal_default":
+            self.train_augmentations = K.AugmentationSequential(
+                K.VideoSequential(
+                    K.RandomHorizontalFlip(p=0.5),
+                    K.RandomVerticalFlip(p=0.5),
+                    data_format="BCTHW",
+                ),
+                data_keys=["image", "bbox_xyxy", "label"],
+                keepdim=True,
+            )
         elif self.train_augmentations is None:
             self.train_augmentations = nn.Identity()
 
-        if (self.eval_augmentations == "default") or (self.eval_augmentations is None):
+        if (self.eval_augmentations in ["default", "multi_temporal_default"]) or (
+            self.eval_augmentations is None):
             self.eval_augmentations = nn.Identity()
 
     def setup_image_size_transforms(self) -> tuple[nn.Module, nn.Module, nn.Module]:

@@ -42,6 +42,8 @@ class GeoBenchBRIGHT(GeoBenchBaseDataset):
         "stds": {"r": 255.0, "g": 255.0, "b": 255.0, "sar": 255.0},
     }
 
+
+    #mean=[123.675, 116.28, 103.53], std=[58.395, 57.12, 57.375]
     band_default_order = {"aerial": ("red", "green", "blue"), "sar": ("sar",)}
 
     classes = ("background", "no damage", "minor damage", "major damage", "destroyed")

@@ -45,8 +45,8 @@ class GeoBenchMMFlood(GeoBenchBaseDataset):
     band_default_order = {"s1": ("vv", "vh"), "dem": ("dem",), "hydro": ("hydro",)}
 
     normalization_stats = {
-        "means": {"vv": 0.0, "vh": 0.0, "dem": 0.0, "hydro": 0.0},
-        "stds": {"vv": 1.0, "vh": 1.0, "hydro": 1.0, "dem": 100.0},
+        "means": {"vv": 0.19102874398231506, "vh": 0.03612856939435005, "dem": 131.25657653808594, "hydro": 0.018626466393470764},
+        "stds": {"vv": 2.25282621383667, "vh": 0.16889090836048126, "dem": 213.15255737304688, "hydro": 0.13520178198814392},
     }
 
     classes = ("no-data", "no-flood", "flood")

@@ -41,8 +41,8 @@ class GeoBenchSpaceNet8(GeoBenchBaseDataset):
     dataset_band_config = DatasetBandRegistry.SPACENET8
 
     normalization_stats = {
-        "means": {"r": 0.0, "g": 0.0, "b": 0.0},
-        "stds": {"r": 255.0, "g": 255.0, "b": 255.0},
+        "means": {"r": 65.36776733398438, "g": 84.85777282714844, "b": 57.087120056152344},
+        "stds": {"r": 44.107696533203125, "g": 37.45336151123047, "b": 35.882049560546875},
     }
 
     band_default_order = ("red", "green", "blue")
@@ -103,6 +103,7 @@ class GeoBenchSpaceNet8(GeoBenchBaseDataset):
                 )
         for i in time_step:
             assert i in ["pre", "post"], "time_step must include at least one item from  ['pre, 'post']"
+        self.time_step = time_step
 
     def __getitem__(self, index: int) -> dict[str, Tensor]:
         """Return an index within the dataset.
@@ -139,15 +140,24 @@ class GeoBenchSpaceNet8(GeoBenchBaseDataset):
         image_post = self.rearrange_bands(image_post, self.band_order)
         image_post = self.data_normalizer(image_post)
 
-        sample["image_pre"] = image_pre["image"]
-        sample["image_post"] = image_post["image"]
+        if "pre" in self.time_step:
+            sample["image_pre"] = image_pre["image"]
+        if "post" in self.time_step:
+            sample["image_post"] = image_post["image"]
 
         if self.return_stacked_image:
-            sample = {
-                "image": torch.cat(
-                    [img for key, img in sample.items() if key.startswith("image_")], 0
-                )
-            }
+            if len(self.time_step) > 1:
+                sample = { #[C, T, H, W] == [C, 2, H, W]
+                    "image": torch.stack(
+                        [img for key, img in sample.items() if key.startswith("image_")], dim=1
+                    )
+                }
+            else:
+                sample = {  #[C, H, W]
+                    "image": torch.cat(
+                        [img for key, img in sample.items() if key.startswith("image_")], 0
+                    )
+                }
 
         sample["mask"] = mask
 

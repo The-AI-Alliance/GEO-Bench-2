@@ -63,37 +63,37 @@ class GeoBenchBioMassters(GeoBenchBaseDataset):
 
     normalization_stats = {
         "means": {
-            "VV_asc": 0.0,
-            "VH_asc": 0.0,
-            "VV_desc": 0.0,
-            "VH_desc": 0.0,
-            "B02": 0.0,
-            "B03": 0.0,
-            "B04": 0.0,
-            "B05": 0.0,
-            "B06": 0.0,
-            "B07": 0.0,
-            "B08": 0.0,
-            "B8A": 0.0,
-            "B11": 0.0,
-            "B12": 0.0,
+            "VH_desc": -16.17842674255371,
+            "VH_asc": -16.246776580810547,
+            "VV_asc": -10.21057415008545,
+            "VH_desc": -10.160239219665527,
+            "B04": 1976.1279296875,
+            "B05": 2247.41552734375,
+            "B8A": 2724.071044921875,
+            "B02": 2058.060546875,
+            "B12": 614.978759765625,
+            "B08": 2813.352294921875,
+            "B03": 1962.2747802734375,
+            "B07": 2676.554931640625,
+            "B06": 2639.328857421875,
+            "B11": 814.9059448242188,
             "AGB": 0.0,  # 2 percentile
         },
         "stds": {
-            "VV_asc": 1.0,
-            "VH_asc": 1.0,
-            "VV_desc": 1.0,
-            "VH_desc": 1.0,
-            "B02": 3000.0,
-            "B03": 3000.0,
-            "B04": 3000.0,
-            "B05": 3000.0,
-            "B06": 3000.0,
-            "B07": 3000.0,
-            "B08": 3000.0,
-            "B8A": 3000.0,
-            "B11": 3000.0,
-            "B12": 3000.0,
+            "VH_desc": 7.192081451416016,
+            "VH_asc": 7.049084186553955,
+            "VV_asc": 4.686783313751221,
+            "VV_desc": 4.753581523895264,
+            "B04": 2660.7744140625,
+            "B05": 2692.405517578125,
+            "B8A": 2371.029296875,
+            "B02": 2772.856201171875,
+            "B12": 843.781494140625,
+            "B08": 2548.47265625,
+            "B03": 2582.9853515625,
+            "B07": 2445.801025390625,
+            "B06": 2556.077392578125,
+            "B11": 993.0784912109375,
             "AGB": 289.89,  # 98 percentile
         },
     }
@@ -118,6 +118,7 @@ class GeoBenchBioMassters(GeoBenchBaseDataset):
         metadata: Sequence[str] | None = None,
         num_time_steps: int = 1,
         download: bool = False,
+        return_stacked_image: bool = False,
     ) -> None:
         """Initialize BioMassters dataset.
 
@@ -153,6 +154,8 @@ class GeoBenchBioMassters(GeoBenchBaseDataset):
             "Number of time steps must be less than or equal to 12"
         )
         self.num_time_steps = num_time_steps
+
+        self.return_stacked_image = return_stacked_image
 
         # data does not have georeferencing information, yet is a Gtiff, that the tacoreader can only read with rasterio
         import warnings
@@ -245,6 +248,7 @@ class GeoBenchBioMassters(GeoBenchBaseDataset):
                         c=img_dict["image_s1"].shape[1],
                     )
                 ] = 0.0
+                img_dict["image_s1"] = img_dict["image_s1"].permute(1, 0, 2, 3) #C, T, H, W
 
         if "s2" in self.band_order and spatial_mask is not None:
             if img_dict["image_s2"].dim() == 3:  # [C, H, W]
@@ -258,6 +262,7 @@ class GeoBenchBioMassters(GeoBenchBaseDataset):
                         c=img_dict["image_s2"].shape[1],
                     )
                 ] = 0.0
+                img_dict["image_s2"] = img_dict["image_s2"].permute(1, 0, 2, 3) #C, T, H, W
 
         sample.update(img_dict)
 
@@ -273,6 +278,14 @@ class GeoBenchBioMassters(GeoBenchBaseDataset):
         ) / self.normalization_stats["stds"]["AGB"]
 
         sample["mask"] = agb
+
+        if self.return_stacked_image:
+            sample = {
+                "image": torch.cat(
+                    [sample[f"image_{key}"] for key in self.band_order.keys()], 0
+                ),
+                "mask": sample["mask"],
+            }
 
         if self.transforms is not None:
             sample = self.transforms(sample)
