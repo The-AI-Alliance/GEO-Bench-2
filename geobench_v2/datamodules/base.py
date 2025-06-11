@@ -388,15 +388,7 @@ class GeoBenchDataModule(LightningDataModule, ABC):
 
             aug = self._valid_attribute(f"{split}_augmentations")
 
-
-            #print(f"\n\n\nAUGMENTING")
-            #for key in batch:
-            #    print(f"BEFORE {key}: {batch[key].dtype} {batch[key].shape}")
-
             batch = aug(batch)
-
-            #for key in batch:
-            #    print(f"AFTER {key}: {batch[key].dtype} {batch[key].shape}")
         return batch
 
     def _valid_attribute(self, args) -> Any:
