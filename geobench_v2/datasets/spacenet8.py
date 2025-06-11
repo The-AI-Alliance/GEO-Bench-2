@@ -4,7 +4,13 @@
 """SpaceNet8 dataset."""
 
 from collections.abc import Sequence
+from collections.abc import Sequence
 from pathlib import Path
+
+import numpy as np
+import rasterio
+import torch
+import torch.nn as nn
 
 import numpy as np
 import rasterio
@@ -12,7 +18,10 @@ import torch
 import torch.nn as nn
 from shapely import wkt
 from torch import Tensor
+from torch import Tensor
 
+from .base import GeoBenchBaseDataset
+from .normalization import ZScoreNormalizer
 from .base import GeoBenchBaseDataset
 from .normalization import ZScoreNormalizer
 from .sensor_util import DatasetBandRegistry

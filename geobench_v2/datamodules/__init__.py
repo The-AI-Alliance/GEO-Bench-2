@@ -3,12 +3,6 @@
 
 """GeoBench DataModules."""
 
-from .base import (
-    GeoBenchClassificationDataModule,
-    GeoBenchDataModule,
-    GeoBenchObjectDetectionDataModule,
-    GeoBenchSegmentationDataModule,
-)
 from .benv2 import GeoBenchBENV2DataModule
 from .biomassters import GeoBenchBioMasstersDataModule
 from .bright import GeoBenchBRIGHTDataModule
