@@ -17,6 +17,7 @@ from torch import Tensor
 from torch.utils.data import DataLoader, Dataset
 from torch.utils.data import random_split
 import einops
+from .utils import MultiTemporalSegmentationAugmentation
 
 
 # TODO come up with an expected metadata file scheme
@@ -425,6 +426,10 @@ class GeoBenchClassificationDataModule(GeoBenchDataModule):
         pass
 
 
+
+
+
+
 class GeoBenchSegmentationDataModule(GeoBenchDataModule):
     """GeoBench Segmentation DataModule.
 
@@ -494,34 +499,16 @@ class GeoBenchSegmentationDataModule(GeoBenchDataModule):
                 keepdim=True,
             )
         elif self.train_augmentations == "multi_temporal_default":
-            class MultiTemporalDataAugmentation(nn.Module):
-                def __init__(self) -> None:
-                    super().__init__()
-                    self.transforms = K.AugmentationSequential(
-                                    K.VideoSequential(
-                                        K.RandomHorizontalFlip(p=0.5),
-                                        K.RandomVerticalFlip(p=0.5),
-                                        data_format="BCTHW",
-                                    ),
-                                    data_keys=None,
-                                    keepdim=True,
-                                )
-
-                @torch.no_grad()  # disable gradients for efficiency
-                def forward(self, batch) -> dict:
-                    if len(batch["mask"].shape) != 3:
-                        raise ValueError("Mask does not contain the expected dimensions")
-                    for key in batch:
-                        if (("image" in key) and (len(batch[key].shape) ==5)):
-                            B, C, T, H, W = batch[key].shape
-                            batch["mask"] = einops.repeat(batch["mask"], 'b h w -> b C T h w', C=C, T=T)
-                            break
-                    if len(batch["mask"].shape) != 5:
-                        raise ValueError("Mask does not contain the expected dimensions")
-                    batch_out = self.transforms(batch)  # for image, mask == BxCXTxHxW
-                    batch_out["mask"] = batch_out["mask"][:,0,0,:,: ]
-                    return batch_out
-            self.train_augmentations = MultiTemporalDataAugmentation()
+            transforms = K.AugmentationSequential(
+                        K.VideoSequential(
+                            K.RandomHorizontalFlip(p=0.5),
+                            K.RandomVerticalFlip(p=0.5),
+                            data_format="BCTHW",
+                        ),
+                        data_keys=None,
+                        keepdim=True,
+                    )
+            self.train_augmentations = MultiTemporalSegmentationAugmentation(transforms=transforms)
         elif self.train_augmentations is None:
             self.train_augmentations = nn.Identity()
 

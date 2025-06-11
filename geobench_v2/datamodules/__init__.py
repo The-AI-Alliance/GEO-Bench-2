@@ -35,6 +35,8 @@ from .base import (
     GeoBenchDataModule,
 )
 
+from .utils import MultiTemporalSegmentationAugmentation
+
 __all__ = (
     "GeoBenchCaFFeDataModule",
     "GeoBenchFieldsOfTheWorldDataModule",
@@ -63,4 +65,5 @@ __all__ = (
     "GeoBenchBRIGHTDataModule",
     "GeoBenchQFabricDataModule",
     "GeoBenchWindTurbineDataModule",
+    "MultiTemporalSegmentationAugmentation"
 )

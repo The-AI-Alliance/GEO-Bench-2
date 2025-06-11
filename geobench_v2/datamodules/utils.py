@@ -6,6 +6,26 @@
 import torch.nn as nn
 import torch
 import kornia.augmentation as K
+import einops
+
+class MultiTemporalSegmentationAugmentation(nn.Module):
+    def __init__(self, transforms) -> None:
+        super().__init__()
+        self.transforms = transforms
+    @torch.no_grad()  # disable gradients for efficiency
+    def forward(self, batch) -> dict:
+        if len(batch["mask"].shape) != 3:
+            raise ValueError("Mask does not contain the expected dimensions")
+        for key in batch:
+            if (("image" in key) and (len(batch[key].shape) ==5)):
+                B, C, T, H, W = batch[key].shape
+                batch["mask"] = einops.repeat(batch["mask"], 'b h w -> b C T h w', C=C, T=T)
+                break
+        if len(batch["mask"].shape) != 5:
+            raise ValueError("Mask does not contain the expected dimensions")
+        batch_out = self.transforms(batch)  # for image, mask == BxCXTxHxW
+        batch_out["mask"] = batch_out["mask"][:,0,0,:,: ]
+        return batch_out
 
 
 class TimeSeriesResize(nn.Module):
