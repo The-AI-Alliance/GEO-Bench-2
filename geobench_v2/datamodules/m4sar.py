@@ -198,21 +198,21 @@ class GeoBenchM4SARDataModule(GeoBenchObjectDetectionDataModule):
             for j, (mod, modality_img) in enumerate(modalities.items()):
                 plot_img = modality_img[i]
 
-                if mod == "sar":
-                    vv = plot_img[..., 0]
-                    vh = plot_img[..., 1]
+                # if mod == "sar":
+                #     vv = plot_img[..., 0]
+                #     vh = plot_img[..., 1]
 
-                    vv = percentile_normalization(vv, lower=2, upper=98)
-                    vh = percentile_normalization(vh, lower=2, upper=98)
+                #     vv = percentile_normalization(vv, lower=2, upper=98)
+                #     vh = percentile_normalization(vh, lower=2, upper=98)
 
-                    ratio = np.divide(vv, vh, out=np.zeros_like(vv), where=vh != 0)
+                #     ratio = np.divide(vv, vh, out=np.zeros_like(vv), where=vh != 0)
 
-                    vv = np.clip(vv / 0.3, a_min=0, a_max=1)
-                    vh = np.clip(vh / 0.05, a_min=0, a_max=1)
-                    ratio = np.clip(ratio / 25, a_min=0, a_max=1)
-                    img = np.stack((vv, vh, ratio), axis=2)
-                else:
-                    img = percentile_normalization(plot_img, lower=2, upper=98)
+                #     vv = np.clip(vv / 0.3, a_min=0, a_max=1)
+                #     vh = np.clip(vh / 0.05, a_min=0, a_max=1)
+                #     ratio = np.clip(ratio / 25, a_min=0, a_max=1)
+                #     img = np.stack((vv, vh, ratio), axis=2)
+                # else:
+                img = percentile_normalization(plot_img, lower=2, upper=98)
                 ax = axes[i, j]
                 ax.imshow(img)
                 ax.set_title(f"{mod} image" if i == 0 else "", fontsize=20)

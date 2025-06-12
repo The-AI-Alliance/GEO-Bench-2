@@ -1077,19 +1077,17 @@ class DatasetBandRegistry:
             "optical": SensorBandRegistry.RGB,
             "sar": ModalityConfig(
                 bands={
-                    "vv": BandConfig("vv", ["VV"], wavelength=0.056),
                     "vh": BandConfig("vh", ["VH"], wavelength=0.056),
                 },
-                default_order=["vv", "vh"],
-                plot_bands=["vv", "vh"],
+                default_order=["vh"],
+                plot_bands=["vh"],
             ),
         },
-        default_order=["red", "green", "blue", "vv", "vh"],
+        default_order=["red", "green", "blue", "vh"],
         band_to_modality={
             "red": "optical",
             "green": "optical",
             "blue": "optical",
-            "vv": "sar",
             "vh": "sar",
         },
     )

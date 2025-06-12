@@ -28,17 +28,17 @@ class GeoBenchM4SAR(GeoBenchBaseDataset):
 
     paths = ["geobench_m4sar.tortilla"]
 
-    sha256str = ["18add3d5da5018f6c012ec5eee6ba800eb6d6e1f3e198d30b17f41342557b1c1"]
+    sha256str = ["ed4f88952d1dd55cff64aeaf33d37e894666fe505699eb03b483fb951c25159c"]
 
     # https://github.com/wchao0601/M4-SAR/blob/cac3a3633a976c281419e1d1cc83c27df5222ddc/vis-predict-label.py#L6
     classes = ("bridge", "harbor", "oil_tank", "playground", "airport", "wind_turbine")
     num_classes = len(classes)
 
     dataset_band_config = DatasetBandRegistry.M4SAR
-    band_default_order = {"optical": ("red", "green", "blue"), "sar": ("VV", "VH")}
+    band_default_order = {"optical": ("red", "green", "blue"), "sar": ("VH",)}
     normalization_stats = {
-        "means": {"red": 0.0, "green": 0.0, "blue": 0.0, "vv": 0.0, "vh": 0.0},
-        "stds": {"red": 255.0, "green": 255.0, "blue": 255.0, "vv": 1.0, "vh": 1.0},
+        "means": {"red": 0.0, "green": 0.0, "blue": 0.0, "vh": 0.0},
+        "stds": {"red": 255.0, "green": 255.0, "blue": 255.0, "vh": 1.0},
     }
 
     def __init__(
@@ -122,7 +122,8 @@ class GeoBenchM4SAR(GeoBenchBaseDataset):
             with warnings.catch_warnings():
                 warnings.filterwarnings("ignore", category=NotGeoreferencedWarning)
                 with rasterio.open(sar_path) as src:
-                    image = torch.from_numpy(src.read()).float()
+                    # 3 channels repeated for SAR, so just pick the first one
+                    image = torch.from_numpy(src.read()).float()[0:1, :, :]
                 image_sample["sar"] = image
 
         image_dict = self.rearrange_bands(image_sample, self.band_order)

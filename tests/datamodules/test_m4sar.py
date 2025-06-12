@@ -13,7 +13,7 @@ from geobench_v2.datamodules import GeoBenchM4SARDataModule
 from geobench_v2.datasets import GeoBenchM4SAR
 
 
-@pytest.fixture(params=[{"optical": ("red", "green", 0, "blue"), "sar": ("VV", "VH")}])
+@pytest.fixture(params=[{"optical": ("red", "green", 0, "blue"), "sar": ("VH",)}])
 def band_order(request):
     """Parameterized band configuration with different configurations."""
     return request.param
