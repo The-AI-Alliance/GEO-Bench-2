@@ -40,6 +40,7 @@ def generate_metadata_df(root_dir: str) -> pd.DataFrame:
     optical_image_paths = glob.glob(
         os.path.join(root_dir, "M4-SAR", "optical", "images", "*", "*.jpg")
     )
+
     # /mnt/rg_climate_benchmark/data/datasets_object_detection/m4_sar/M4-SAR/M4-SAR/optical/images/test/39115.jpg
 
     df = pd.DataFrame({"optical_path": optical_image_paths})
@@ -56,12 +57,25 @@ def generate_metadata_df(root_dir: str) -> pd.DataFrame:
     df["split"] = df["optical_path"].apply(lambda x: x.split("/")[-2])
     df["split"] = df["split"].replace("val", "validation")
 
-    df["optical_path"] = df["optical_path"].str.replace(root_dir, "")
-    df["sar_path"] = df["sar_path"].str.replace(root_dir, "")
-    df["optical_label_path"] = df["optical_label_path"].str.replace(root_dir, "")
-    df["sar_label_path"] = df["sar_label_path"].str.replace(root_dir, "")
+    df["optical_path"] = df["optical_path"].str.replace(root_dir, "").str.lstrip("/")
+    df["sar_path"] = df["sar_path"].str.replace(root_dir, "").str.lstrip("/")
+    df["optical_label_path"] = df["optical_label_path"].str.replace(root_dir, "").str.lstrip("/")
+    df["sar_label_path"] = df["sar_label_path"].str.replace(root_dir, "").str.lstrip("/")
 
     df["label_path"] = df["optical_label_path"]
+
+    # For optical images:
+    # Files named 1.jpg to 56087.jpg have a resolution of 10 meters.
+    # Files named 56088.jpg to 112174.jpg have a resolution of 60 meters.
+    # only pick the high-resolution images
+    df["filename"] = df["optical_path"].apply(lambda x: os.path.basename(x).replace(".jpg", ""))
+    df["file_number"] = df["filename"].astype(int)
+    
+    # Filter for high-resolution images (1.jpg to 56087.jpg)
+    df = df[df["file_number"] <= 56087].copy()
+    
+    # Drop temporary columns
+    df = df.drop(columns=["filename", "file_number"])
 
     return df
 
@@ -288,6 +302,7 @@ def main():
     path = os.path.join(args.root, "geobench_metadata_df.parquet")
     metadata_df.to_parquet(path)
 
+
     # create a subset
     subset_df = create_subset_from_df(
         metadata_df,
@@ -299,18 +314,18 @@ def main():
 
     final_path = os.path.join(args.save_dir, "geobench_m4sar.parquet")
     tif_image_dir = os.path.join(args.save_dir, "tif_images")
-    if os.path.exists(final_path):
-        final_df = pd.read_parquet(final_path)
-    else:
-        final_df = convert_pngs_to_geotiffs(
-            subset_df,
-            args.root,
-            target_dir=tif_image_dir,
-            image_columns=["optical_path", "sar_path"],
-            num_workers=16,
-        )
-        final_df = convert_annotations_to_geoparquet(final_df, args.root, args.save_dir)
-        final_df.to_parquet(final_path)
+    # if os.path.exists(final_path):
+    #     final_df = pd.read_parquet(final_path)
+    # else:
+    final_df = convert_pngs_to_geotiffs(
+        subset_df,
+        args.root,
+        target_dir=tif_image_dir,
+        image_columns=["optical_path", "sar_path"],
+        num_workers=16,
+    )
+    final_df = convert_annotations_to_geoparquet(final_df, args.root, args.save_dir)
+    final_df.to_parquet(final_path)
 
     tortilla_name = "geobench_m4sar.tortilla"
     create_tortilla(final_df, args.save_dir, args.save_dir, tortilla_name=tortilla_name)

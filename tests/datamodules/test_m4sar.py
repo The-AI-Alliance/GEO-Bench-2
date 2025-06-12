@@ -33,7 +33,7 @@ def datamodule(
     monkeypatch.setattr(
         GeoBenchM4SAR,
         "sha256str",
-        ["0617c9fe1de89a216a08ef41d42bed1e6a31dd214711eb38c0e357c0ff8bd60e"],
+        ["9751e3e93628a90e27b7b99b97671afb9c168ad90b685f8f3c933f365bac273e"],
     )
     dm = GeoBenchM4SARDataModule(
         img_size=512,

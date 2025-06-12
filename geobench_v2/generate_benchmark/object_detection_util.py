@@ -30,6 +30,7 @@ def process_single_image(args):
     png_path = os.path.join(source_dir, img_name)
 
     if not os.path.exists(png_path):
+        print(f"Warning: PNG file not found for {img_name} at {png_path}")
         return {"img_name": img_name, "success": False}
 
     base_name = os.path.splitext(img_name)[0]
@@ -88,13 +89,20 @@ def process_single_image(args):
         return {"img_name": img_name, "success": True, "geotiff_path": geotiff_name}
 
 
-def convert_pngs_to_geotiffs(metadata_df: pd.DataFrame, source_dir: str, target_dir: str, num_workers=8):
-    """Convert PNG images to GeoTIFF format in parallel, optionally adding geospatial information.
+def convert_pngs_to_geotiffs(
+    metadata_df: pd.DataFrame, 
+    source_dir: str, 
+    target_dir: str, 
+    image_columns=["image_path"], 
+    num_workers=8
+):
+    """Convert PNG images from multiple modalities to GeoTIFF format in parallel.
 
     Args:
         metadata_df: DataFrame with annotation data including colony_name, lon, lat if available
         source_dir: Directory containing the resized PNG images
         target_dir: Directory where GeoTIFF files will be saved
+        image_columns: List of column names containing image paths to convert (e.g., ["optical_path", "sar_path"])
         num_workers: Number of parallel workers for processing
 
     Returns:
@@ -102,47 +110,67 @@ def convert_pngs_to_geotiffs(metadata_df: pd.DataFrame, source_dir: str, target_
     """
     source_dir = os.path.join(source_dir)
     os.makedirs(target_dir, exist_ok=True)
-
-    unique_images = metadata_df["image_path"].unique()
-
-    coords_mapping = {}
+    
+    # Validate that all requested image columns exist in the DataFrame
+    missing_columns = [col for col in image_columns if col not in metadata_df.columns]
+    if missing_columns:
+        raise ValueError(f"Image columns not found in metadata: {missing_columns}")
+    
+    metadata_df = metadata_df.copy()
+    
+    for col in image_columns:
+        geotiff_col = f"{col.replace('_path', '')}_geotiff_path"
+        if geotiff_col not in metadata_df.columns:
+            metadata_df[geotiff_col] = None
+    
     if "lat" not in metadata_df.columns or "lon" not in metadata_df.columns:
         print("No coordinates found in metadata. Skipping geospatial information.")
         metadata_df["lon"] = None
         metadata_df["lat"] = None
-    image_coords = (
-        metadata_df.groupby("image_path")[["lon", "lat"]].first().reset_index()
-    )
-    coords_mapping = {
-        row["image_path"]: (row["lon"], row["lat"])
-        for _, row in image_coords.iterrows()
-        if not pd.isna(row["lon"]) and not pd.isna(row["lat"])
-    }
 
-    print(
-        f"Found coordinates for {len(coords_mapping)} out of {len(unique_images)} images"
-    )
+    # Process each image column separately to organize by modality
+    for col in image_columns:
+        print(f"Processing {col} images...")
+        
 
-    # Create task arguments for parallel processing
-    tasks = [
-        (img_name, source_dir, target_dir, coords_mapping) for img_name in unique_images
-    ]
+        modality_name = col.replace('_path', '')
+        modality_target_dir = os.path.join(target_dir, modality_name)
+        os.makedirs(modality_target_dir, exist_ok=True)
+        
 
-    metadata_df = metadata_df.copy()
-
-    results = []
-    with multiprocessing.Pool(processes=num_workers) as pool:
-        for result in tqdm(
-            pool.imap_unordered(process_single_image, tasks),
-            total=len(unique_images),
-            desc="Converting to GeoTIFF",
-        ):
-            results.append(result)
-
-    for result in results:
-        metadata_df.loc[
-            metadata_df["image_path"] == result["img_name"], "geotiff_path"
-        ] = result["geotiff_path"]
+        unique_images = metadata_df[col].dropna().unique()
+        
+        
+        image_coords = metadata_df.groupby(col)[["lon", "lat"]].first().reset_index()
+        coords_mapping = {
+            row[col]: (row["lon"], row["lat"])
+            for _, row in image_coords.iterrows()
+            if not pd.isna(row["lon"]) and not pd.isna(row["lat"])
+        }
+        
+        print(f"Found coordinates for {len(coords_mapping)} out of {len(unique_images)} {col} images")
+        
+        tasks = [
+            (img_name, source_dir, modality_target_dir, coords_mapping) 
+            for img_name in unique_images
+        ]
+        
+        results = []
+        with multiprocessing.Pool(processes=num_workers) as pool:
+            for result in tqdm(
+                pool.imap_unordered(process_single_image, tasks),
+                total=len(unique_images),
+                desc=f"Converting {col} to GeoTIFF",
+            ):
+                results.append(result)
+        
+        geotiff_col = f"{modality_name}_geotiff_path"
+        for result in results:
+                
+            img_name = result["img_name"]
+            rel_geotiff_path = os.path.join(modality_name, result["geotiff_path"])
+            
+            metadata_df.loc[metadata_df[col] == img_name, geotiff_col] = rel_geotiff_path
 
     return metadata_df
 
