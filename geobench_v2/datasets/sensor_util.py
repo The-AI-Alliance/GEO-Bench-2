@@ -1072,6 +1072,26 @@ class DatasetBandRegistry:
 
     WINDTURBINE = SensorBandRegistry.RGB
 
+    M4SAR = MultiModalConfig(
+        modalities={
+            "optical": SensorBandRegistry.RGB,
+            "sar": ModalityConfig(
+                bands={
+                    "vh": BandConfig("vh", ["VH"], wavelength=0.056),
+                },
+                default_order=["vh"],
+                plot_bands=["vh"],
+            ),
+        },
+        default_order=["red", "green", "blue", "vh"],
+        band_to_modality={
+            "red": "optical",
+            "green": "optical",
+            "blue": "optical",
+            "vh": "sar",
+        },
+    )
+
     @classmethod
     def get_dataset_config(cls, dataset_name: str) -> ModalityConfig | MultiModalConfig:
         """Get configuration for a specific dataset."""

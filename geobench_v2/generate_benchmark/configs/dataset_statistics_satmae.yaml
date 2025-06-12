@@ -123,110 +123,125 @@ datamodules:
   #     range_vals:
   #       image: [0, 255]
 
-  - name: dynamic_earthnet
+  # - name: dynamic_earthnet
+  #   stats_computer:
+  #     _target_: geobench_v2.generate_benchmark.utils_dataset_statistics.SegmentationStatistics
+  #     datamodule:
+  #       _target_: geobench_v2.datamodules.GeoBenchDynamicEarthNetDataModule
+  #       batch_size: 16
+  #       num_workers: 4
+  #       root: "/mnt/rg_climate_benchmark/data/final_geobenchV2/dynamic_earthnet"
+  #       temporal_setting: "single"
+  #     input_keys: ["image_planet","image_s2"]
+  #     target_key: "mask"
+  #     range_vals:
+  #       image_planet: [0, 3000]
+  #       image_s2: [0, 3000]
+
+  # - name: treesatai
+  #   stats_computer:
+  #     _target_: geobench_v2.generate_benchmark.utils_dataset_statistics.ClassificationStatistics
+  #     datamodule:
+  #       _target_: geobench_v2.datamodules.GeoBenchTreeSatAIDataModule
+  #       batch_size: 64
+  #       num_workers: 8
+  #       root: "/mnt/rg_climate_benchmark/data/final_geobenchV2/treesatai"
+  #     input_keys: ["image_aerial", "image_s2", "image_s1"]
+  #     target_key: "label"
+  #     multi_label: True
+  #     range_vals:
+  #       image_aerial: [0, 255]
+  #       image_s2: [0, 3000]
+  #       image_s1: [0, 1]
+
+  # - name: kuro_siwo
+  #   stats_computer:
+  #     _target_: geobench_v2.generate_benchmark.utils_dataset_statistics.SegmentationStatistics
+  #     datamodule:
+  #       _target_: geobench_v2.datamodules.GeoBenchKuroSiwoDataModule
+  #       batch_size: 16
+  #       num_workers: 4
+  #       root: "/mnt/rg_climate_benchmark/data/final_geobenchV2/kuro_siwo"
+  #     input_keys: ["image_pre_1", "image_pre_2", "image_dem", "image_post"]
+  #     target_key: "mask"
+  #     range_vals:
+  #       image_pre_1: [0, 0.5]
+  #       image_pre_2: [0, 0.5]
+  #       image_dem: [0, 150]
+  #       image_post: [0, 0.5]
+
+  # - name: pastis
+  #   stats_computer:
+  #     _target_: geobench_v2.generate_benchmark.utils_dataset_statistics.SegmentationStatistics
+  #     datamodule:
+  #       _target_: geobench_v2.datamodules.GeoBenchPASTISDataModule
+  #       batch_size: 16
+  #       num_workers: 4
+  #       num_time_steps: 10
+  #       root: "/mnt/rg_climate_benchmark/data/final_geobenchV2/pastis"
+  #     input_keys: ["image_s2", "image_s1_asc", "image_s1_desc"]
+  #     target_key: "mask"
+  #     range_vals:
+  #       image_s2: [0, 3000]
+  #       image_s1_asc: [0, 1]
+  #       image_s1_desc: [0, 1]
+
+  # - name: fotw
+  #   stats_computer:
+  #     _target_: geobench_v2.generate_benchmark.utils_dataset_statistics.SegmentationStatistics
+  #     datamodule:
+  #       _target_: geobench_v2.datamodules.GeoBenchFieldsOfTheWorldDataModule
+  #       batch_size: 16
+  #       num_workers: 4
+  #       root: "/mnt/rg_climate_benchmark/data/final_geobenchV2/fotw"
+  #     input_keys: ["image_a", "image_b"]
+  #     target_key: "mask"
+  #     range_vals:
+  #       image_a: [0, 6000]
+  #       image_b: [0, 6000]
+
+  # - name: mmflood
+  #   stats_computer:
+  #     _target_: geobench_v2.generate_benchmark.utils_dataset_statistics.SegmentationStatistics
+  #     datamodule:
+  #       _target_: geobench_v2.datamodules.GeoBenchMMFloodDataModule
+  #       batch_size: 16
+  #       num_workers: 4
+  #       root: "/mnt/rg_climate_benchmark/data/final_geobenchV2/mmflood"
+  #     input_keys: ["image_s1", "image_dem", "image_hydro"]
+  #     target_key: "mask"
+  #     range_vals:
+  #       image_s1: [0, 10]
+  #       image_dem: [-1000, 2000]
+  #       image_hydro: [0, 1]
+
+  # - name: benv2
+  #   stats_computer:
+  #     _target_: geobench_v2.generate_benchmark.utils_dataset_statistics.ClassificationStatistics
+  #     multi_label: True
+  #     datamodule:
+  #       _target_: geobench_v2.datamodules.GeoBenchBENV2DataModule
+  #       batch_size: 64
+  #       num_workers: 16
+  #       root: "/mnt/rg_climate_benchmark/data/final_geobenchV2/benv2"
+  #     input_keys: ["image_s2", "image_s1"]
+  #     target_key: "label"
+  #     range_vals:
+  #       image_s2: [0, 10000]
+  #       image_s1: [-50, 50]
+
+  - name: m4sar
     stats_computer:
-      _target_: geobench_v2.generate_benchmark.utils_dataset_statistics.SegmentationStatistics
+      _target_: geobench_v2.generate_benchmark.utils_dataset_statistics.ObjectDetectionStatistics
       datamodule:
-        _target_: geobench_v2.datamodules.GeoBenchDynamicEarthNetDataModule
+        _target_: geobench_v2.datamodules.GeoBenchM4SARDataModule
         batch_size: 16
         num_workers: 4
-        root: "/mnt/rg_climate_benchmark/data/final_geobenchV2/dynamic_earthnet"
-        temporal_setting: "single"
-      input_keys: ["image_planet","image_s2"]
-      target_key: "mask"
-      range_vals:
-        image_planet: [0, 3000]
-        image_s2: [0, 3000]
-
-  - name: treesatai
-    stats_computer:
-      _target_: geobench_v2.generate_benchmark.utils_dataset_statistics.ClassificationStatistics
-      datamodule:
-        _target_: geobench_v2.datamodules.GeoBenchTreeSatAIDataModule
-        batch_size: 64
-        num_workers: 8
-        root: "/mnt/rg_climate_benchmark/data/final_geobenchV2/treesatai"
-      input_keys: ["image_aerial", "image_s2", "image_s1"]
+        root: "/mnt/rg_climate_benchmark/data/final_geobenchV2/m4sar"
+        bbox_orientation: "horizontal"
+      input_keys: ["image_optical", "image_sar"]
       target_key: "label"
-      multi_label: True
       range_vals:
-        image_aerial: [0, 255]
-        image_s2: [0, 3000]
-        image_s1: [0, 1]
-
-  - name: kuro_siwo
-    stats_computer:
-      _target_: geobench_v2.generate_benchmark.utils_dataset_statistics.SegmentationStatistics
-      datamodule:
-        _target_: geobench_v2.datamodules.GeoBenchKuroSiwoDataModule
-        batch_size: 16
-        num_workers: 4
-        root: "/mnt/rg_climate_benchmark/data/final_geobenchV2/kuro_siwo"
-      input_keys: ["image_pre_1", "image_pre_2", "image_dem", "image_post"]
-      target_key: "mask"
-      range_vals:
-        image_pre_1: [0, 0.5]
-        image_pre_2: [0, 0.5]
-        image_dem: [0, 150]
-        image_post: [0, 0.5]
-
-  - name: pastis
-    stats_computer:
-      _target_: geobench_v2.generate_benchmark.utils_dataset_statistics.SegmentationStatistics
-      datamodule:
-        _target_: geobench_v2.datamodules.GeoBenchPASTISDataModule
-        batch_size: 16
-        num_workers: 4
-        num_time_steps: 10
-        root: "/mnt/rg_climate_benchmark/data/final_geobenchV2/pastis"
-      input_keys: ["image_s2", "image_s1_asc", "image_s1_desc"]
-      target_key: "mask"
-      range_vals:
-        image_s2: [0, 3000]
-        image_s1_asc: [0, 1]
-        image_s1_desc: [0, 1]
-
-  - name: fotw
-    stats_computer:
-      _target_: geobench_v2.generate_benchmark.utils_dataset_statistics.SegmentationStatistics
-      datamodule:
-        _target_: geobench_v2.datamodules.GeoBenchFieldsOfTheWorldDataModule
-        batch_size: 16
-        num_workers: 4
-        root: "/mnt/rg_climate_benchmark/data/final_geobenchV2/fotw"
-      input_keys: ["image_a", "image_b"]
-      target_key: "mask"
-      range_vals:
-        image_a: [0, 6000]
-        image_b: [0, 6000]
-
-  - name: mmflood
-    stats_computer:
-      _target_: geobench_v2.generate_benchmark.utils_dataset_statistics.SegmentationStatistics
-      datamodule:
-        _target_: geobench_v2.datamodules.GeoBenchMMFloodDataModule
-        batch_size: 16
-        num_workers: 4
-        root: "/mnt/rg_climate_benchmark/data/final_geobenchV2/mmflood"
-      input_keys: ["image_s1", "image_dem", "image_hydro"]
-      target_key: "mask"
-      range_vals:
-        image_s1: [0, 10]
-        image_dem: [-1000, 2000]
-        image_hydro: [0, 1]
-
-  - name: benv2
-    stats_computer:
-      _target_: geobench_v2.generate_benchmark.utils_dataset_statistics.ClassificationStatistics
-      multi_label: True
-      datamodule:
-        _target_: geobench_v2.datamodules.GeoBenchBENV2DataModule
-        batch_size: 64
-        num_workers: 16
-        root: "/mnt/rg_climate_benchmark/data/final_geobenchV2/benv2"
-      input_keys: ["image_s2", "image_s1"]
-      target_key: "label"
-      range_vals:
-        image_s2: [0, 10000]
-        image_s1: [-50, 50]
+        image_optical: [0, 255]
+        image_sar: [0, 255]
 

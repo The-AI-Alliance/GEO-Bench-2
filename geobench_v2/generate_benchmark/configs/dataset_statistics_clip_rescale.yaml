@@ -303,52 +303,66 @@ datamodules:
   #       image_aerial: 255
   #       image_elevation: 255
 
-  - name: mmflood
+  # - name: mmflood
+  #   stats_computer:
+  #     _target_: geobench_v2.generate_benchmark.utils_dataset_statistics.SegmentationStatistics
+  #     datamodule:
+  #       _target_: geobench_v2.datamodules.GeoBenchMMFloodDataModule
+  #       batch_size: 16
+  #       num_workers: 4
+  #       root: "/mnt/rg_climate_benchmark/data/final_geobenchV2/mmflood"
+  #     input_keys: ["image_s1", "image_dem", "image_hydro"]
+  #     target_key: "mask"
+  #     range_vals:
+  #       image_s1: [0, 1]
+  #       image_dem: [-1, 1]
+  #       image_hydro: [0, 1]
+  #     clip_min_vals:
+  #       image_s1: 10
+  #       image_dem: -1
+  #       image_hydro: 0
+  #     clip_max_vals:
+  #       image_s1: 10
+  #       image_dem: 2000
+  #       image_hydro: 1
+
+  # - name: benv2
+  #   stats_computer:
+  #     _target_: geobench_v2.generate_benchmark.utils_dataset_statistics.ClassificationStatistics
+  #     datamodule:
+  #       _target_: geobench_v2.datamodules.GeoBenchBENV2DataModule
+  #       batch_size: 64
+  #       num_workers: 4
+  #       root: "/mnt/rg_climate_benchmark/data/final_geobenchV2/benv2"
+  #     input_keys: ["image_s2", "image_s1"]
+  #     target_key: "label"
+  #     range_vals:
+  #       image_s2: [0, 1]
+  #       image_s1: [0, 1]
+  #     clip_min_vals:
+  #       image_s1: -50
+  #       image_s2: 0
+  #     clip_max_vals:
+  #       image_s1: 100
+  #       image_s2: 3000
+
+  - name: m4sar
     stats_computer:
-      _target_: geobench_v2.generate_benchmark.utils_dataset_statistics.SegmentationStatistics
+      _target_: geobench_v2.generate_benchmark.utils_dataset_statistics.ObjectDetectionStatistics
       datamodule:
-        _target_: geobench_v2.datamodules.GeoBenchMMFloodDataModule
+        _target_: geobench_v2.datamodules.GeoBenchM4SARDataModule
         batch_size: 16
         num_workers: 4
-        root: "/mnt/rg_climate_benchmark/data/final_geobenchV2/mmflood"
-      input_keys: ["image_s1", "image_dem", "image_hydro"]
-      target_key: "mask"
-      range_vals:
-        image_s1: [0, 1]
-        image_dem: [-1, 1]
-        image_hydro: [0, 1]
-      clip_min_vals:
-        image_s1: 10
-        image_dem: -1
-        image_hydro: 0
-      clip_max_vals:
-        image_s1: 10
-        image_dem: 2000
-        image_hydro: 1
-
-  - name: benv2
-    stats_computer:
-      _target_: geobench_v2.generate_benchmark.utils_dataset_statistics.Ccreate_unittest_subset(
-        data_dir=args.save_dir,
-        tortilla_pattern=tortilla_name,
-        test_dir_name="flair2",
-        n_train_samples=2,
-        n_val_samples=1,
-        n_test_samples=1,
-    )lassificationStatistics
-      datamodule:
-        _target_: geobench_v2.datamodules.GeoBenchBENV2DataModule
-        batch_size: 64
-        num_workers: 4
-        root: "/mnt/rg_climate_benchmark/data/final_geobenchV2/benv2"
-      input_keys: ["image_s2", "image_s1"]
+        root: "/mnt/rg_climate_benchmark/data/final_geobenchV2/m4sar"
+        bbox_orientation: "horizontal"
+      input_keys: ["image_optical", "image_sar"]
       target_key: "label"
       range_vals:
-        image_s2: [0, 1]
-        image_s1: [0, 1]
+        image_optical: [0, 1]
+        image_sar: [0, 1]
       clip_min_vals:
-        image_s1: -50
-        image_s2: 0
+        image_optical: 0
+        image_sar: 0
       clip_max_vals:
-        image_s1: 100
-        image_s2: 3000
+        image_optical: 255
+        image_sar: 255
