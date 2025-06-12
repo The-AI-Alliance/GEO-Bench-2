@@ -10,6 +10,7 @@ from typing import Any
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+import tacoreader
 import torch
 import torch.nn as nn
 from einops import rearrange
@@ -19,8 +20,6 @@ from torchgeo.datasets.utils import percentile_normalization
 from geobench_v2.datasets import GeoBenchM4SAR
 
 from .base import GeoBenchObjectDetectionDataModule
-
-import tacoreader
 
 
 def m4sar_collate_fn(batch: Sequence[dict[str, Any]]) -> dict[str, Any]:
