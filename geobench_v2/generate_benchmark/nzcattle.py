@@ -47,7 +47,7 @@ def create_tortilla(annotations_df, image_dir, save_dir, tortilla_name):
         save_dir: Directory to save the tortilla files
         tortilla_name: Name of the final tortilla file
     """
-    # pdb.set_trace()
+    
     tortilla_dir = os.path.join(save_dir, "tortilla")
     os.makedirs(tortilla_dir, exist_ok=True)
 
@@ -170,6 +170,5 @@ if __name__ == '__main__':
     tortilla_name = "geobench_nzcattle.tortilla"
 
     create_tortilla(annotations_df, args.root, args.save_dir, tortilla_name=tortilla_name)
-
 
 

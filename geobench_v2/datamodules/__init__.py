@@ -33,7 +33,7 @@ from .spacenet7 import GeoBenchSpaceNet7DataModule
 from .spacenet8 import GeoBenchSpaceNet8DataModule
 from .treesatai import GeoBenchTreeSatAIDataModule
 from .wind_turbine import GeoBenchWindTurbineDataModule
-from .nzcattle import GeoBenchNZCattleObjectDetectionDataModule
+from .nzcattle import GeoBenchNZCattleDataModule
 
 __all__ = (
     "GeoBenchCaFFeDataModule",
@@ -63,5 +63,5 @@ __all__ = (
     "GeoBenchBRIGHTDataModule",
     "GeoBenchQFabricDataModule",
     "GeoBenchWindTurbineDataModule",
-    "GeoBenchNZCattleObjectDetectionDataModule"
+    "GeoBenchNZCattleDataModule"
 )
