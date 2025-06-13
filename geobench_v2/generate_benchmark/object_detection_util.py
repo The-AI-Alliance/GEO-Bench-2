@@ -1,16 +1,19 @@
-import concurrent.futures
+# Copyright (c) 2025 GeoBenchV2. All rights reserved.
+# Licensed under the Apache License 2.0.
+
+"""Utility functions for processing and visualizing object detection data."""
+
+import multiprocessing
 import os
 import random
 import shutil
 
 import numpy as np
 import pandas as pd
-from PIL import Image, ImageDraw
-from tqdm import tqdm
-from tqdm.auto import tqdm
 import rasterio
+from PIL import Image, ImageDraw
 from rasterio.transform import from_origin
-import multiprocessing
+from tqdm import tqdm
 
 
 def process_single_image(args):
@@ -35,76 +38,78 @@ def process_single_image(args):
 
     os.makedirs(os.path.dirname(geotiff_path), exist_ok=True)
 
-    try:
-        with Image.open(png_path) as img:
-            img_array = np.array(img)
+    with Image.open(png_path) as img:
+        img_array = np.array(img)
 
-            if len(img_array.shape) == 3 and img_array.shape[2] == 3:
-                count = 3  # RGB
-                img_array = img_array.transpose(2, 0, 1)
-            elif len(img_array.shape) == 3 and img_array.shape[2] == 4:
-                count = 4  # RGBA
-                img_array = img_array.transpose(2, 0, 1)
-            else:
-                count = 1  # Grayscale
-                img_array = img_array[np.newaxis, :, :]
+        if len(img_array.shape) == 3 and img_array.shape[2] == 3:
+            count = 3  # RGB
+            img_array = img_array.transpose(2, 0, 1)
+        elif len(img_array.shape) == 3 and img_array.shape[2] == 4:
+            count = 4  # RGBA
+            img_array = img_array.transpose(2, 0, 1)
+        else:
+            count = 1  # Grayscale
+            img_array = img_array[np.newaxis, :, :]
 
-            transform = None
-            crs = None
+        transform = None
+        crs = None
+
+        if img_name in coords_mapping:
+            lon, lat = coords_mapping[img_name]
+            pixel_size = 1.0
+            transform = from_origin(lon, lat, pixel_size, pixel_size)
+            crs = "EPSG:4326"
+
+        height = img_array.shape[1]
+        width = img_array.shape[2]
+        profile = {
+            "driver": "GTiff",
+            "height": height,
+            "width": width,
+            "count": count,
+            "dtype": img_array.dtype,
+            "interleave": "pixel",
+            "blockxsize": width,
+            "blockysize": height,
+            "compress": "zstd",
+            "zstd_level": 13,
+            "predictor": 2,
+        }
+
+        if transform is not None and crs is not None:
+            profile.update({"transform": transform, "crs": crs})
+
+        with rasterio.open(geotiff_path, "w", **profile) as dst:
+            dst.write(img_array)
 
             if img_name in coords_mapping:
-                lon, lat = coords_mapping[img_name]
-                pixel_size = 1.0
-                transform = from_origin(lon, lat, pixel_size, pixel_size)
-                crs = "EPSG:4326"
+                dst.update_tags(lat=lat, lon=lon)
 
-            height = img_array.shape[1]
-            width = img_array.shape[2]
-            profile = {
-                "driver": "GTiff",
-                "height": height,
-                "width": width,
-                "count": count,
-                "dtype": img_array.dtype,
-                "interleave": "pixel",
-                "blockxsize": width,
-                "blockysize": height,
-                "compress": "zstd",
-                "zstd_level": 13,
-                "predictor": 2,
-            }
-
-            if transform is not None and crs is not None:
-                profile.update({"transform": transform, "crs": crs})
-
-            with rasterio.open(geotiff_path, "w", **profile) as dst:
-                dst.write(img_array)
-
-                if img_name in coords_mapping:
-                    dst.update_tags(lat=lat, lon=lon)
-
-            return {"img_name": img_name, "success": True, "geotiff_path": geotiff_name}
-    except Exception as e:
-        return {"img_name": img_name, "success": False}
+        return {"img_name": img_name, "success": True, "geotiff_path": geotiff_name}
 
 
-def convert_pngs_to_geotiffs(metadata_df, source_dir, target_dir, num_workers=8):
+def convert_pngs_to_geotiffs(metadata_df: pd.DataFrame, source_dir: str, target_dir: str, num_workers=8):
     """Convert PNG images to GeoTIFF format in parallel, optionally adding geospatial information.
 
     Args:
         metadata_df: DataFrame with annotation data including colony_name, lon, lat if available
         source_dir: Directory containing the resized PNG images
         target_dir: Directory where GeoTIFF files will be saved
+        num_workers: Number of parallel workers for processing
 
     Returns:
         Updated DataFrame with paths to GeoTIFF files
     """
-    source_dir = os.path.join(source_dir, "images")
+    source_dir = os.path.join(source_dir)
     os.makedirs(target_dir, exist_ok=True)
 
     unique_images = metadata_df["image_path"].unique()
 
     coords_mapping = {}
+    if "lat" not in metadata_df.columns or "lon" not in metadata_df.columns:
+        print("No coordinates found in metadata. Skipping geospatial information.")
+        metadata_df["lon"] = None
+        metadata_df["lat"] = None
     image_coords = (
         metadata_df.groupby("image_path")[["lon", "lat"]].first().reset_index()
     )
@@ -134,17 +139,10 @@ def convert_pngs_to_geotiffs(metadata_df, source_dir, target_dir, num_workers=8)
         ):
             results.append(result)
 
-    success_count = sum(1 for r in results if r["success"])
-
     for result in results:
-        if result["success"]:
-            metadata_df.loc[
-                metadata_df["image_path"] == result["img_name"], "geotiff_path"
-            ] = result["geotiff_path"]
-
-    print(
-        f"Successfully converted {success_count} out of {len(unique_images)} images to GeoTIFF format"
-    )
+        metadata_df.loc[
+            metadata_df["image_path"] == result["img_name"], "geotiff_path"
+        ] = result["geotiff_path"]
 
     return metadata_df
 

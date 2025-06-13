@@ -11,6 +11,7 @@ from geobench_v2.datamodules import (
     GeoBenchCaFFeDataModule,
     GeoBenchCloudSen12DataModule,
     GeoBenchDataModule,
+    GeoBenchDynamicEarthNetDataModule,
     GeoBenchFieldsOfTheWorldDataModule,
     GeoBenchFLAIR2DataModule,
     GeoBenchKuroSiwoDataModule,
@@ -25,6 +26,7 @@ from geobench_v2.datamodules import (
 )
 
 ALL_DATAMODULES = [
+    GeoBenchCaFFeDataModule,
     GeoBenchFieldsOfTheWorldDataModule,
     GeoBenchSpaceNet2DataModule,
     GeoBenchSpaceNet6DataModule,
@@ -39,10 +41,9 @@ ALL_DATAMODULES = [
     GeoBenchMMFloodDataModule,
     GeoBenchKuroSiwoDataModule,
     GeoBenchPASTISDataModule,
+    GeoBenchDynamicEarthNetDataModule,
     # WIP
-    # GeoBenchCaFFeDataModule,
     # GeoBenchBRIGHTDataModule,
-    # GeoBenchDynamicEarthNetDataModule,
     # GeoBenchWindTurbineDataModule,
     # GeoBenchEverWatchDataModule,
     # GeoBenchDOTAV2DataModule,
@@ -53,7 +54,7 @@ ALL_DATAMODULES = [
 ]
 
 dataset_path_mapping = {
-    # "GeoBenchCaFFeDataModule": "caffe",
+    "GeoBenchCaFFeDataModule": "caffe",
     "GeoBenchFieldsOfTheWorldDataModule": "fotw",
     "GeoBenchPASTISDataModule": "pastis",
     "GeoBenchSpaceNet2DataModule": "spacenet2",

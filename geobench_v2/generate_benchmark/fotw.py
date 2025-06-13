@@ -8,7 +8,6 @@ import concurrent
 import glob
 import json
 import os
-import shutil
 
 import cartopy.crs as ccrs
 import cartopy.feature as cfeature
@@ -48,59 +47,6 @@ CC_BY_COUNTRIES = (
     "spain",
     "vietnam",
 )
-
-
-def copy_subset_files(ds, subset: pd.DataFrame, save_dir: str) -> None:
-    """Copy files from the original dataset (ds.root) to the new directory (save_dir)
-    following the same directory structure and naming convention.
-
-    For each sample (identified by its country and aoi_id) the following files are
-    copied:
-      - Sentinel-2 images in two windows:
-          {ds.root}/{country}/s2_images/window_a/{aoi_id}.tif
-          {ds.root}/{country}/s2_images/window_b/{aoi_id}.tif
-      - Label masks in three categories:
-          {ds.root}/{country}/label_masks/instance/{aoi_id}.tif
-          {ds.root}/{country}/label_masks/semantic_2class/{aoi_id}.tif
-          {ds.root}/{country}/label_masks/semantic_3class/{aoi_id}.tif
-
-    Args:
-        ds: The original dataset object. It is expected to have an attribute `root`
-            that points to the base directory of the dataset.
-        subset: A pandas DataFrame with at least the columns "country" and "aoi_id".
-        save_dir: Destination directory in which the subset should be created.
-    """
-    for _, row in tqdm(
-        subset.iterrows(), total=len(subset), desc="Copying sample files"
-    ):
-        country = row["country"]
-        aoi_id = row["aoi_id"]
-
-        # Copy Sentinel-2 images: window_a and window_b
-        for window in ["window_a", "window_b"]:
-            src_path = os.path.join(
-                ds.root, country, "s2_images", window, f"{aoi_id}.tif"
-            )
-            if not os.path.exists(src_path):
-                continue
-            dst_path = os.path.join(
-                save_dir, country, "s2_images", window, f"{aoi_id}.tif"
-            )
-            os.makedirs(os.path.dirname(dst_path), exist_ok=True)
-            shutil.copy2(src_path, dst_path)
-
-        # Copy label masks: instance, semantic_2class, semantic_3class
-        for subdir in ["instance", "semantic_2class", "semantic_3class"]:
-            src_path = os.path.join(
-                ds.root, country, "label_masks", subdir, f"{aoi_id}.tif"
-            )
-            if not os.path.exists(src_path):
-                continue
-            dst_path = os.path.join(
-                save_dir, country, "label_masks", subdir, f"{aoi_id}.tif"
-            )
-            os.makedirs(os.path.dirname(dst_path), exist_ok=True)
-            shutil.copy2(src_path, dst_path)
 
 
 def generate_metadata_df(ds: FieldsOfTheWorld) -> pd.DataFrame:
@@ -349,9 +295,6 @@ def plot_country_distribution(
                 return
 
             countries.sort(key=lambda x: x["importance"], reverse=True)
-
-            positions = []
-            rows = (len(countries) + grid_width - 1) // grid_width
 
             for i, country in enumerate(countries):
                 row = i // grid_width

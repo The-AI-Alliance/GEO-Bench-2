@@ -140,12 +140,12 @@ def create_tortilla(root_dir, df, save_dir, tortilla_name) -> None:
                 path=path,
                 file_format="NUMPY",
                 data_split=row["split"],
-                stac_data={
-                    "crs": "EPSG:" + str(profile["crs"].to_epsg()),
-                    "geotransform": profile["transform"].to_gdal(),
-                    "raster_shape": (profile["height"], profile["width"]),
-                    "time_start": row[f"dates-{modality}"][0],
-                },
+                # stac_data={
+                #     "crs": "EPSG:" + str(profile["crs"].to_epsg()),
+                #     "geotransform": profile["transform"].to_gdal(),
+                #     "raster_shape": (profile["height"], profile["width"]),
+                #     "time_start": row[f"dates-{modality}"][0],
+                # },
                 dates=row[f"dates-{modality}"],
                 tile=row["tile"],
                 lon=row["lon"],

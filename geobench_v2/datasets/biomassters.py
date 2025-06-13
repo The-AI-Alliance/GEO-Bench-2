@@ -13,7 +13,7 @@ import torch.nn as nn
 from torch import Tensor
 
 from .base import GeoBenchBaseDataset
-from .data_util import ClipZScoreNormalizer
+from .normalization import ZScoreNormalizer
 from .sensor_util import DatasetBandRegistry
 
 
@@ -108,10 +108,10 @@ class GeoBenchBioMassters(GeoBenchBaseDataset):
         root: Path,
         split: str,
         band_order: dict[str, Sequence[str]] = {
-            "s1": ["VV_asc", "VH_asx"],
+            "s1": ["VV_asc", "VH_asc"],
             "s2": ["B04", "B03", "B02", "B08"],
         },
-        data_normalizer: type[nn.Module] = ClipZScoreNormalizer,
+        data_normalizer: type[nn.Module] = ZScoreNormalizer,
         transforms: nn.Module | None = None,
         metadata: Sequence[str] | None = None,
         num_time_steps: int = 1,
@@ -126,14 +126,14 @@ class GeoBenchBioMassters(GeoBenchBaseDataset):
                 specify ['red', 'green', 'blue', 'nir', 'nir'], the dataset would return images with 5 channels
                 in that order. This is useful for models that expect a certain band order, or
                 test the impact of band order on model performance.
-            data_normalizer: The data normalizer to apply to the data, defaults to :class:`data_util.ClipZScoreNormalizer`,
+            data_normalizer: The data normalizer to apply to the data, defaults to :class:`data_util.ZScoreNormalizer`,
                 which applies z-score normalization to each band.
-            transforms:
+            transforms: The transforms to apply to the data, defaults to None.
             metadata: metadata names to be returned under specified keys as part of the sample in the
                 __getitem__ method. If None, no metadata is returned.
             num_time_steps: Number of last time steps to include in the dataset, maximum is 12, for S2
                 missing time steps are filled with zeros.
-            **kwargs: Additional keyword arguments passed to ``torchgeo.datasets.BioMassters``
+            download: Whether to download the dataset
 
         Raises:
             AssertionError: If the number of time steps is greater than 12
@@ -205,9 +205,9 @@ class GeoBenchBioMassters(GeoBenchBaseDataset):
             img_dict["s1"] = s1_data
 
         if "s2" in self.band_order:
-            sample_s1_row = sample_row[sample_row["modality"] == "S2"]
+            sample_s2_row = sample_row[sample_row["modality"] == "S2"]
             s2_data = []
-            for i in sample_s1_row.index[: self.num_time_steps]:
+            for i in sample_s2_row.index[: self.num_time_steps]:
                 s2_step = sample_row.read(i)
                 with rasterio.open(s2_step) as src:
                     img = src.read()

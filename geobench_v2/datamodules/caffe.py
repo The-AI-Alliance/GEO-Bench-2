@@ -9,6 +9,7 @@ from typing import Any
 
 import matplotlib.pyplot as plt
 import pandas as pd
+import tacoreader
 import torch
 import torch.nn as nn
 from torch import Tensor
@@ -39,6 +40,7 @@ class GeoBenchCaFFeDataModule(GeoBenchSegmentationDataModule):
 
         Args:
             img_size: Image size
+            band_order: The order of bands to return in the sample
             batch_size: Batch size during
             eval_batch_size: Evaluation batch size
             num_workers: Number of workers
@@ -72,29 +74,33 @@ class GeoBenchCaFFeDataModule(GeoBenchSegmentationDataModule):
         Returns:
             pandas DataFrame with metadata.
         """
-        return pd.read_parquet(
-            os.path.join(self.kwargs["root"], "geobench_caffe.parquet")
+        self.data_df = tacoreader.load(
+            [os.path.join(self.kwargs["root"], f) for f in GeoBenchCaFFe.paths]
         )
+        return self.data_df
 
     def visualize_batch(
-        self, split: str = "train"
+        self, batch: dict[str, Tensor] | None = None, split: str = "train"
     ) -> tuple[plt.Figure, dict[str, Tensor]]:
         """Visualize a batch of data.
 
         Args:
+            batch: Batch of data to visualize
             split: One of 'train', 'val', 'test'
 
         Returns:
             The matplotlib figure and the batch of data
         """
-        if split == "train":
-            batch = next(iter(self.train_dataloader()))
-        elif split == "validation":
-            batch = next(iter(self.val_dataloader()))
-        else:
-            batch = next(iter(self.test_dataloader()))
+        if batch is None:
+            if split == "train":
+                batch = next(iter(self.train_dataloader()))
+            elif split == "validation":
+                batch = next(iter(self.val_dataloader()))
+            else:
+                batch = next(iter(self.test_dataloader()))
 
-        batch = self.data_normalizer.unnormalize(batch)
+        if hasattr(self.data_normalizer, "unnormalize"):
+            batch = self.data_normalizer.unnormalize(batch)
 
         images = batch["image"]
         masks = batch["mask"]
@@ -137,7 +143,7 @@ class GeoBenchCaFFeDataModule(GeoBenchSegmentationDataModule):
 
             ax = axes[i, 1]
             mask_img = masks[i].cpu().numpy()
-            im = ax.imshow(mask_img, cmap="tab20", vmin=0, vmax=19)
+            ax.imshow(mask_img, cmap="tab20", vmin=0, vmax=19)
             ax.set_title("Mask" if i == 0 else "")
             ax.axis("off")
 

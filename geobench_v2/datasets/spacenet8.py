@@ -14,7 +14,7 @@ from shapely import wkt
 from torch import Tensor
 
 from .base import GeoBenchBaseDataset
-from .data_util import ClipZScoreNormalizer
+from .normalization import ZScoreNormalizer
 from .sensor_util import DatasetBandRegistry
 
 
@@ -63,10 +63,11 @@ class GeoBenchSpaceNet8(GeoBenchBaseDataset):
         root: Path,
         split: str,
         band_order: list[str] = band_default_order,
-        data_normalizer: type[nn.Module] = ClipZScoreNormalizer,
+        data_normalizer: type[nn.Module] = ZScoreNormalizer,
         transforms: nn.Module = None,
         metadata: Sequence[str] | None = None,
         return_stacked_image: bool = False,
+        time_step: Sequence[str] = ["pre", "post"],
         download: bool = False,
     ) -> None:
         """Initialize SpaceNet8 dataset.
@@ -78,11 +79,13 @@ class GeoBenchSpaceNet8(GeoBenchBaseDataset):
                 specify ['red', 'green', 'blue', 'blue', 'blue'], the dataset would return images with 5 channels
                 in that order. This is useful for models that expect a certain band order, or
                 test the impact of band order on model performance.
-            data_normalizer: The data normalizer to apply to the data, defaults to :class:`data_util.ClipZScoreNormalizer`,
+            data_normalizer: The data normalizer to apply to the data, defaults to :class:`data_util.ZScoreNormalizer`,
             transforms: The transforms to apply to the data, defaults to None
             metadata: metadata names to be returned as part of the sample in the
                 __getitem__ method. If None, no metadata is returned.
+            time_step: list of image time steps to include from the list ["pre", "post"]
             return_stacked_image: if true, returns a single image tensor with all modalities stacked in band_order
+            download: Whether to download the dataset 
         """
         super().__init__(
             root=root,
@@ -94,6 +97,16 @@ class GeoBenchSpaceNet8(GeoBenchBaseDataset):
             download=download,
         )
         self.return_stacked_image = return_stacked_image
+
+        if len(time_step) == 0:
+            raise ValueError(
+                "time_step must include at least one item from  ['pre, 'post']"
+            )
+        for i in time_step:
+            assert i in ["pre", "post"], (
+                "time_step must include at least one item from  ['pre, 'post']"
+            )
+        self.time_step = time_step
 
     def __getitem__(self, index: int) -> dict[str, Tensor]:
         """Return an index within the dataset.
@@ -130,8 +143,10 @@ class GeoBenchSpaceNet8(GeoBenchBaseDataset):
         image_post = self.rearrange_bands(image_post, self.band_order)
         image_post = self.data_normalizer(image_post)
 
-        sample["image_pre"] = image_pre["image"]
-        sample["image_post"] = image_post["image"]
+        if "pre" in self.time_step:
+            sample["image_pre"] = image_pre["image"]
+        if "post" in self.time_step:
+            sample["image_post"] = image_post["image"]
 
         if self.return_stacked_image:
             sample = {

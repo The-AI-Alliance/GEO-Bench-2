@@ -9,6 +9,7 @@ from typing import Any
 
 import matplotlib.pyplot as plt
 import pandas as pd
+import tacoreader
 import torch
 import torch.nn as nn
 from einops import rearrange
@@ -41,6 +42,7 @@ class GeoBenchSpaceNet2DataModule(GeoBenchSegmentationDataModule):
 
         Args:
             img_size: Image size, created patches are of size 512
+            band_order: The order of bands to return in the sample
             batch_size: Batch size during training
             eval_batch_size: Evaluation batch size
             num_workers: Number of workers
@@ -68,6 +70,17 @@ class GeoBenchSpaceNet2DataModule(GeoBenchSegmentationDataModule):
             **kwargs,
         )
 
+    def load_metadata(self) -> pd.DataFrame:
+        """Load metadata file.
+
+        Returns:
+            pandas DataFrame with metadata.
+        """
+        self.data_df = tacoreader.load(
+            [os.path.join(self.kwargs["root"], f) for f in GeoBenchSpaceNet2.paths]
+        )
+        return self.data_df
+
     def visualize_batch(
         self, split: str = "train"
     ) -> tuple[plt.Figure, dict[str, Tensor]]:
@@ -89,7 +102,8 @@ class GeoBenchSpaceNet2DataModule(GeoBenchSegmentationDataModule):
         else:
             batch = next(iter(self.test_dataloader()))
 
-        batch = self.data_normalizer.unnormalize(batch)
+        if hasattr(self.data_normalizer, "unnormalize"):
+            batch = self.data_normalizer.unnormalize(batch)
 
         batch_size = batch["mask"].shape[0]
         n_samples = min(8, batch_size)
@@ -150,7 +164,7 @@ class GeoBenchSpaceNet2DataModule(GeoBenchSegmentationDataModule):
 
             ax = axes[i, -1]
             mask_img = masks[i].cpu().numpy()
-            im = ax.imshow(mask_img, cmap=flood_cmap, vmin=0, vmax=2)
+            ax.imshow(mask_img, cmap=flood_cmap, vmin=0, vmax=2)
             ax.set_title("Building Mask" if i == 0 else "", fontsize=20)
             ax.axis("off")
 
@@ -187,12 +201,3 @@ class GeoBenchSpaceNet2DataModule(GeoBenchSegmentationDataModule):
         """Visualize the geolocation distribution of the dataset."""
         pass
 
-    def load_metadata(self) -> pd.DataFrame:
-        """Load metadata file.
-
-        Returns:
-            pandas DataFrame with metadata.
-        """
-        return pd.read_parquet(
-            os.path.join(self.kwargs["root"], "geobench_spacenet2.parquet")
-        )

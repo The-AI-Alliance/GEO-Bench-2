@@ -76,7 +76,6 @@ def process_spacenet6_tile(args):
         tile_basename = os.path.basename(ps_rgbnir_path).split(".")[0]
 
         with rasterio.open(ps_rgbnir_path) as src:
-            ps_profile = src.profile.copy()
             height, width = src.height, src.width
             transform = src.transform
             crs = src.crs
@@ -84,9 +83,7 @@ def process_spacenet6_tile(args):
             ps_nodata = src.nodata
 
         with rasterio.open(sar_intensity_path) as src:
-            sar_profile = src.profile.copy()
             sar_data = src.read()
-            sar_nodata = src.nodata
 
         gdf = gpd.read_file(mask_path)
         building_polygons = []
@@ -378,8 +375,8 @@ def split_spacenet6_into_patches(
     print(f"Created {len(patches_df)} patches from {len(metadata_df)} source tiles")
     print(f"Patch metadata saved to {metadata_path}")
 
-    pos_patches = patches_df[patches_df["is_positive"] == True]
-    neg_patches = patches_df[patches_df["is_positive"] == False]
+    pos_patches = patches_df[patches_df["is_positive"]]
+    neg_patches = patches_df[~patches_df["is_positive"]]
     pos_pct = len(pos_patches) / len(patches_df) * 100 if len(patches_df) > 0 else 0
     neg_pct = len(neg_patches) / len(patches_df) * 100 if len(patches_df) > 0 else 0
     print(f"Patches with buildings: {len(pos_patches)} ({pos_pct:.1f}%)")

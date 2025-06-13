@@ -1,26 +1,41 @@
 # Copyright (c) 2025 GeoBenchV2. All rights reserved.
 # Licensed under the Apache License 2.0.
 
-"""Generate Benchmark version of Caffe dataset."""
+"""Generate GeoBench Version."""
 
 import argparse
 import glob
+import multiprocessing as mp
 import os
 import pickle
 import re
-import shutil
+from functools import partial
 from pathlib import Path
 from typing import Any
 
 import numpy as np
 import pandas as pd
+import pyproj
 import rasterio
+import tacoreader
+import tacotoolbox
 from PIL import Image
+from rasterio.transform import from_bounds
 from sklearn.model_selection import train_test_split
 from tqdm import tqdm
 
+from geobench_v2.generate_benchmark.utils import (
+    create_subset_from_df,
+    create_unittest_subset,
+)
 
-def load_metadata(metadata_path):
+
+def load_metadata(metadata_path: str):
+    """Load metadata from CSV file.
+    
+    Args:
+        metadata_path: Path to the metadata CSV file
+    """
     try:
         metadata_df = pd.read_csv(metadata_path, delimiter=";", encoding="latin-1")
         metadata_df.columns = metadata_df.columns.str.strip()
@@ -61,6 +76,20 @@ def calculate_patch_coordinates(
     bbox_top,
     coord_system,
 ):
+    """Calculate the coordinates of the patch center in the image.
+
+    Args:
+        img_width: Width of the image
+        img_height: Height of the image
+        patch_x: X coordinate of the patch
+        patch_y: Y coordinate of the patch
+        patch_size: Size of the patch
+        bbox_left: Left bounding box coordinate
+        bbox_bottom: Bottom bounding box coordinate
+        bbox_right: Right bounding box coordinate
+        bbox_top: Top bounding box coordinate
+        coord_system: Coordinate system
+    """
     patch_center_x = patch_x + patch_size / 2
     patch_center_y = patch_y + patch_size / 2
 
@@ -96,8 +125,17 @@ def process_files_for_coordinates(
     metadata_df,
     patch_metadata,
 ):
-    parent_dir = os.path.dirname(os.getcwd())
+    """Process files to extract patch coordinates and metadata.
 
+    Args:
+        files: List of files to process
+        modality_dir: Directory containing the files
+        data_split_dir: Directory for the data split (train/val/test)
+        patch_size: Size of the patches
+        overlap: Overlap between patches
+        metadata_df: DataFrame containing metadata
+        patch_metadata: Dictionary to store patch metadata
+    """
     for file in files:
         file_basename = os.path.basename(file)
         img_name = os.path.splitext(file_basename)[0]
@@ -118,7 +156,6 @@ def process_files_for_coordinates(
         coord_system = img_metadata["Coordinate system"]
 
         try:
-            # image = cv2.imread(file.__str__(), cv2.IMREAD_GRAYSCALE)
             image = Image.open(file.__str__())
             if image is not None:
                 orig_height, orig_width = image.shape
@@ -207,6 +244,15 @@ def process_files_for_coordinates(
 def save_patch_coordinates_only(
     raw_data_dir, patch_size, overlap, overlap_test, overlap_val
 ):
+    """Save the patch coordinates for the images in the dataset.
+    
+    Args:
+        raw_data_dir: Directory containing the raw data
+        patch_size: Size of the patches
+        overlap: Overlap between patches
+        overlap_test: Overlap for test set
+        overlap_val: Overlap for validation set
+    """
     patch_metadata = {}
 
     metadata_df = load_metadata(os.path.join(raw_data_dir, "meta_data.csv"))
@@ -214,7 +260,7 @@ def save_patch_coordinates_only(
         print("ERROR: Failed to load metadata from meta_data.csv")
         return
 
-    for modality_dir in ["sar_imagess"]:
+    for modality_dir in ["sar_images"]:
         for data_split_dir in ["test", "train"]:
             raw_dir_path = os.path.join(raw_data_dir, modality_dir, data_split_dir)
             if not os.path.exists(raw_dir_path):
@@ -274,108 +320,239 @@ def save_patch_coordinates_only(
     return patches_df
 
 
-def create_geobench_ds(orig_dir: str, metadata_df: pd.DataFrame, save_dir: str) -> None:
-    """Create a subset of CaFFe dataset.
+def read_png_file(file_path: str) -> np.ndarray:
+    """Read PNG file and return as numpy array.
 
     Args:
-        orig_dir: Original directory of the CaFFe dataset, patches
-        metadata_df: Metadata DataFrame.
-        save_dir: Directory to save the subset.
-    """
-    # root directoy of caffe, then subdirectory for sar_imagess and one for "zones"
-    # then subdirectories for train, val, test
-
-    # create a subset of the caffe dataset
-    # create a new directory structure with the same structure as the caffe dataset
-    # but with a subset of the images, based on the ones contained in metadata_df filenames column
-
-    os.makedirs(save_dir, exist_ok=True)
-    os.makedirs(os.path.join(save_dir, "caffe"), exist_ok=True)
-    new_sar_dir = os.path.join(save_dir, "caffe", "sar_images")
-    os.makedirs(new_sar_dir, exist_ok=True)
-    new_zones_dir = os.path.join(save_dir, "caffe", "zones")
-    os.makedirs(new_zones_dir, exist_ok=True)
-
-    for split in metadata_df["split"].unique():
-        os.makedirs(os.path.join(save_dir, "caffe", "sar_images", split), exist_ok=True)
-        os.makedirs(os.path.join(save_dir, "caffe", "zones", split), exist_ok=True)
-
-        orig_img_dir = os.path.join(orig_dir, "sar_images", split)
-        orig_zone_dir = os.path.join(orig_dir, "zones", split)
-
-        for idx, row in tqdm(
-            metadata_df[metadata_df["split"] == split].iterrows(),
-            total=len(metadata_df[metadata_df["split"] == split]),
-            desc=f"Processing {split} split",
-        ):
-            # copy the image and zone files to the new directory
-            img_path = os.path.join(orig_img_dir, row["filename"])
-            zone_path = os.path.join(
-                orig_zone_dir, row["filename"].replace("__", "_zones__")
-            )
-
-            assert os.path.exists(img_path), f"Image file not found: {img_path}"
-            assert os.path.exists(zone_path), f"Zone file not found: {zone_path}"
-
-            img_save_path = os.path.join(new_sar_dir, split, os.path.basename(img_path))
-            zone_save_path = os.path.join(
-                new_zones_dir, split, os.path.basename(zone_path)
-            )
-
-            # use shutil
-            shutil.copy(img_path, img_save_path)
-            shutil.copy(zone_path, zone_save_path)
-
-    # save the metadata_df to the save_dir
-    metadata_df.to_parquet(
-        os.path.join(save_dir, "caffe", "geobench_caffe_metadata.parquet")
-    )
-
-    # create a zip file of the save_dir, that preserves the directory structure when unzipping
-    shutil.make_archive(save_dir, "zip", save_dir)
-
-
-def process_row(args: tuple) -> dict[str, Any]:
-    """Process a single row from the metadata DataFrame.
-
-    Args:
-        args: Tuple containing (row, root, dir_file_names)
+        file_path: Path to PNG file
 
     Returns:
-        Dictionary with patch_id, lon, and lat
+        Numpy array of image data
     """
-    row, root, dir_file_names = args
-    patch_id = row["patch_id"]
-    patch_dir = "_".join(patch_id.split("_")[0:-2])
+    with Image.open(file_path) as img:
+        array = np.array(img)
 
-    # Find the first TIF file in the patch directory
-    path_pattern = os.path.join(
-        root, dir_file_names["s2"], patch_dir, patch_id, "*.tif"
+        if len(array.shape) == 2:
+            return array[np.newaxis, :, :]
+        else:
+            return np.transpose(array, (2, 0, 1))
+
+
+def calculate_patch_bounds(
+    row: pd.Series, patch_size: int
+) -> tuple[float, float, float, float]:
+    """Calculate bounds for the patch based on metadata.
+
+    Args:
+        row: Row from metadata DataFrame
+        patch_size: Size of patch in pixels
+
+    Returns:
+        Tuple of (west, south, east, north) bounds
+    """
+    center_x = row["center_x"]
+    center_y = row["center_y"]
+
+    pixel_size = row["resolution_m"]
+
+    half_width = (patch_size / 2) * pixel_size
+    half_height = (patch_size / 2) * pixel_size
+
+    west = center_x - half_width
+    east = center_x + half_width
+    south = center_y - half_height
+    north = center_y + half_height
+
+    return west, south, east, north
+
+
+def remap_mask_values(mask_data: np.ndarray) -> np.ndarray:
+    """Remap mask values to sequential class indices.
+
+    Args:
+        mask_data: Original mask data
+
+    Returns:
+        Remapped mask data
+    """
+    # Define class mapping
+    px_class_values_zones = {
+        0: 0,  # 'N/A' -> 0
+        64: 1,  # 'rock' -> 1
+        127: 2,  # 'glacier' -> 2
+        254: 3,  # 'ocean/ice melange' -> 3
+    }
+
+    remapped_mask = np.zeros_like(mask_data)
+
+    for orig_val, new_val in px_class_values_zones.items():
+        remapped_mask[mask_data == orig_val] = new_val
+
+    return remapped_mask
+
+
+def process_patch(
+    row: pd.Series, input_base_dir: str, output_base_dir: str
+) -> dict[str, Any]:
+    """Process a single patch from PNG to GeoTIFF.
+
+    Args:
+        row: Row from metadata DataFrame
+        input_base_dir: Base directory for input PNG files
+        output_base_dir: Base directory for output GeoTIFF files
+        patch_size: Size of patch in pixels
+
+    Returns:
+        Dictionary with processing results and metadata
+    """
+    img_filename = row["filename"]
+    mask_filename = img_filename.replace("__", "_zones__")
+
+    data_split = row["split"]
+    img_input_path = os.path.join(
+        input_base_dir, "sar_images", data_split, img_filename
     )
-    paths = glob.glob(path_pattern)
+    mask_input_path = os.path.join(input_base_dir, "zones", data_split, mask_filename)
 
-    if not paths:
-        return {
-            "patch_id": patch_id,
-            "lon": None,
-            "lat": None,
-            "error": "No TIF files found",
-        }
+    img_output_dir = os.path.join(output_base_dir, "sar_images", data_split)
+    mask_output_dir = os.path.join(output_base_dir, "zones", data_split)
 
-    try:
-        with rasterio.open(paths[0]) as src:
-            lon, lat = src.lnglat()
-            return {"patch_id": patch_id, "lon": lon, "lat": lat}
-    except Exception as e:
-        return {"patch_id": patch_id, "lon": None, "lat": None, "error": str(e)}
+    os.makedirs(img_output_dir, exist_ok=True)
+    os.makedirs(mask_output_dir, exist_ok=True)
+
+    img_basename = os.path.splitext(img_filename)[0]
+    mask_basename = os.path.splitext(mask_filename)[0]
+
+    img_output_path = os.path.join(img_output_dir, f"{img_basename}.tif")
+    mask_output_path = os.path.join(mask_output_dir, f"{mask_basename}.tif")
+
+    img_data = read_png_file(img_input_path)
+    patch_size = img_data.shape[1]
+    mask_data = read_png_file(mask_input_path)
+
+    mask_data = remap_mask_values(mask_data)
+
+    west, south, east, north = calculate_patch_bounds(row, patch_size)
+    transform = from_bounds(west, south, east, north, patch_size, patch_size)
+
+    crs = row["coordinate_system"]
+
+    img_profile = {
+        "driver": "GTiff",
+        "height": patch_size,
+        "width": patch_size,
+        "count": img_data.shape[0],
+        "dtype": img_data.dtype,
+        "tiled": True,
+        "blockxsize": patch_size,
+        "blockysize": patch_size,
+        "interleave": "pixel",
+        "compress": "zstd",
+        "zstd_level": 13,
+        "predictor": 2,
+        "crs": crs,
+        "transform": transform,
+    }
+
+    mask_profile = img_profile.copy()
+    mask_profile["count"] = mask_data.shape[0]
+    mask_profile["dtype"] = mask_data.dtype
+
+    with rasterio.open(img_output_path, "w", **img_profile) as dst:
+        dst.write(img_data)
+
+    with rasterio.open(mask_output_path, "w", **mask_profile) as dst:
+        dst.write(mask_data)
+
+    valid_pixels = np.count_nonzero(mask_data != 0)
+    total_pixels = mask_data.size
+    valid_ratio = float(valid_pixels) / total_pixels
+
+    lon, lat = row["longitude"], row["latitude"]
+    if (
+        crs != "EPSG:4326"
+        and not pd.isna(row["center_x"])
+        and not pd.isna(row["center_y"])
+    ):
+        if pd.isna(lon) or pd.isna(lat):
+            transformer = pyproj.Transformer.from_crs(crs, "EPSG:4326", always_xy=True)
+            lon, lat = transformer.transform(row["center_x"], row["center_y"])
+
+    return {
+        "id": img_basename,
+        "status": "success",
+        "img_output_path": img_output_path,
+        "mask_output_path": mask_output_path,
+        "longitude": lon,
+        "latitude": lat,
+        "valid_ratio": valid_ratio,
+        "sensor": row["sensor"],
+        "glacier_name": row["glacier_name"],
+        "split": row["split"],
+        "date": row["timestamp"],
+    }
 
 
-def generate_metadata_df(root) -> pd.DataFrame:
+def process_patches_parallel(
+    metadata_df: pd.DataFrame,
+    input_base_dir: str,
+    output_base_dir: str,
+    patch_size: int = 512,
+    num_workers: int = None,
+) -> pd.DataFrame:
+    """Process patches in parallel.
+
+    Args:
+        metadata_df: DataFrame with metadata
+        input_base_dir: Base directory for input PNG files
+        output_base_dir: Base directory for output GeoTIFF files
+        patch_size: Size of patch in pixels
+        num_workers: Number of workers for parallel processing
+
+    Returns:
+        DataFrame with processing results
+    """
+    os.makedirs(output_base_dir, exist_ok=True)
+
+    process_func = partial(
+        process_patch, input_base_dir=input_base_dir, output_base_dir=output_base_dir
+    )
+
+    print(f"Processing {len(metadata_df)} patches with {num_workers} workers")
+
+    results = []
+    with mp.Pool(num_workers) as pool:
+        for result in tqdm(
+            pool.imap(process_func, metadata_df.to_dict("records")),
+            total=len(metadata_df),
+            desc="Converting PNG to GeoTIFF",
+        ):
+            results.append(result)
+
+    results_df = pd.DataFrame(results)
+
+    print(f"Processed {len(results_df)} patches:")
+
+    results_df["img_output_path"] = results_df["img_output_path"].replace(
+        output_base_dir, ""
+    )
+    results_df["mask_output_path"] = results_df["mask_output_path"].replace(
+        output_base_dir, ""
+    )
+
+    results_df.drop(columns=["status"], inplace=True)
+
+    # rename val to validation in split column
+    results_df["split"] = results_df["split"].replace({"val": "validation"})
+
+    return results_df
+
+
+def generate_metadata_df(root: str) -> pd.DataFrame:
     """Generate metadata DataFrame for CaFFe dataset with parallel processing.
 
     Args:
-        ds: CaFFe dataset
-        num_workers: Number of parallel workers to use
+        root: Root directory for CaFFe dataset
 
     Returns:
         DataFrame with metadata including geolocation for each patch
@@ -407,7 +584,124 @@ def generate_metadata_df(root) -> pd.DataFrame:
 
     df["quality_factor"] = df["filename"].apply(extract_quality_factor)
 
+    # check if the file names exist
+    img_root = os.path.join(root, "caffe_processed", "sar_images")
+
+    def check_exist(row):
+        img_path = os.path.join(img_root, row["split"], row["filename"])
+        if not os.path.exists(img_path):
+            return False
+        return True
+
+    df["file_exists"] = df.apply(check_exist, axis=1)
+
+    df = df[df["file_exists"]]
+
     return df
+
+
+def create_tortilla(root_dir, df, save_dir, tortilla_name):
+    """Create a tortilla version of the dataset."""
+    tortilla_dir = os.path.join(save_dir, "tortilla")
+    os.makedirs(tortilla_dir, exist_ok=True)
+
+    for idx, row in tqdm(df.iterrows(), total=len(df), desc="Creating tortilla"):
+        modalities = ["img", "mask"]
+        modality_samples = []
+
+        for modality in modalities:
+            path = os.path.join(root_dir, row[modality + "_output_path"])
+            with rasterio.open(path) as src:
+                profile = src.profile
+
+            crs_str = "EPSG:" + str(profile["crs"].to_epsg())
+
+            stac_data = {
+                "crs": crs_str,
+                "geotransform": profile["transform"].to_gdal(),
+                "raster_shape": (profile["height"], profile["width"]),
+                "time_start": row["date"],
+            }
+
+            sample = tacotoolbox.tortilla.datamodel.Sample(
+                id=modality,
+                path=path,
+                file_format="GTiff",
+                data_split=row["split"],
+                stac_data=stac_data,
+                lat=row["latitude"],
+                lon=row["longitude"],
+                sensor=row["sensor"],
+                glacier_name=row["glacier_name"],
+            )
+
+            modality_samples.append(sample)
+
+        taco_samples = tacotoolbox.tortilla.datamodel.Samples(samples=modality_samples)
+        samples_path = os.path.join(tortilla_dir, f"sample_{idx}.tortilla")
+        tacotoolbox.tortilla.create(taco_samples, samples_path, quiet=True)
+
+    # merge tortillas into a single dataset
+    all_tortilla_files = sorted(glob.glob(os.path.join(tortilla_dir, "*.tortilla")))
+
+    samples = []
+
+    for idx, tortilla_file in tqdm(
+        enumerate(all_tortilla_files),
+        total=len(all_tortilla_files),
+        desc="Building taco",
+    ):
+        sample_data = tacoreader.load(tortilla_file).iloc[0]
+        sample_tortilla = tacotoolbox.tortilla.datamodel.Sample(
+            id=os.path.basename(tortilla_file).split(".")[0],
+            path=tortilla_file,
+            file_format="TORTILLA",
+            stac_data={
+                "crs": sample_data["stac:crs"],
+                "geotransform": sample_data["stac:geotransform"],
+                "raster_shape": sample_data["stac:raster_shape"],
+                "time_start": sample_data["stac:time_start"],
+            },
+            data_split=sample_data["tortilla:data_split"],
+            lat=sample_data["lat"],
+            lon=sample_data["lon"],
+            glacier_name=sample_data["glacier_name"],
+            sensor=sample_data["sensor"],
+        )
+        samples.append(sample_tortilla)
+
+    # create final taco file
+    final_samples = tacotoolbox.tortilla.datamodel.Samples(samples=samples)
+    tacotoolbox.tortilla.create(
+        final_samples, os.path.join(save_dir, tortilla_name), quiet=True
+    )
+
+
+def create_geobench_version(
+    metadata_df: pd.DataFrame,
+    n_train_samples: int,
+    n_val_samples: int,
+    n_test_samples: int,
+) -> None:
+    """Create a GeoBench version of the dataset.
+
+    Args:
+        metadata_df: DataFrame with metadata including geolocation for each patch
+        n_train_samples: Number of final training samples, -1 means all
+        n_val_samples: Number of final validation samples, -1 means all
+        n_test_samples: Number of final test samples, -1 means all
+    """
+    random_state = 24
+
+    subset_df = create_subset_from_df(
+        metadata_df,
+        n_train_samples=n_train_samples,
+        n_val_samples=n_val_samples,
+        n_test_samples=n_test_samples,
+        random_state=random_state,
+    )
+
+    return subset_df
 
 
 def main():
@@ -427,38 +721,40 @@ def main():
 
     os.makedirs(args.save_dir, exist_ok=True)
 
-    if not os.path.exists(new_metadata_path):
+    if os.path.exists(new_metadata_path):
+        metadata_df = pd.read_parquet(new_metadata_path)
+    else:
         metadata_df = generate_metadata_df(args.root)
         metadata_df.to_parquet(new_metadata_path)
+
+    patches_path = os.path.join(args.save_dir, "geobench_caffe.parquet")
+
+    if os.path.exists(patches_path):
+        patches_df = pd.read_parquet(patches_path)
     else:
-        metadata_df = pd.read_parquet(new_metadata_path)
+        patches_df = process_patches_parallel(
+            metadata_df,
+            os.path.join(args.root, "caffe_processed"),
+            args.save_dir,
+            num_workers=8,
+        )
+        patches_df = create_geobench_version(
+            patches_df, n_train_samples=4000, n_val_samples=1000, n_test_samples=2000
+        )
+        patches_df.to_parquet(patches_path)
 
-    # plot_enhanced_hemisphere_locations(
-    #     metadata_df,
-    #     output_path=os.path.join(args.save_dir, "caffe_hemispheres.png"),
-    #     dataset_name="CaFFe",
-    #     buffer_degrees=1.0,
-    #     s=5,
-    #     alpha=0.7
-    # )
-    verify_df = verify_coordinates_in_metadata(
-        metadata_df, os.path.join(args.root), num_samples=1000
-    )
+    tortilla_name = "geobench_caffe.tortilla"
+    create_tortilla(args.save_dir, patches_df, args.save_dir, tortilla_name)
 
-    import pdb
-
-    pdb.set_trace()
-
-    create_geobench_ds(
-        "/mnt/rg_climate_benchmark/data/datasets_segmentation/Caffe/caffe",
-        metadata_df,
-        args.save_dir,
+    create_unittest_subset(
+        data_dir=args.save_dir,
+        tortilla_pattern=tortilla_name,
+        test_dir_name="caffe",
+        n_train_samples=4,
+        n_val_samples=2,
+        n_test_samples=2,
     )
 
 
 if __name__ == "__main__":
-    # full pipeline todo
-    # RAW DATA download automation to merge the metadata inof
-    # Torchgeo patch data generation dataset version
-    # copy files from those
     main()

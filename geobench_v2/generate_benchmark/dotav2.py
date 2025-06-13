@@ -4,6 +4,7 @@
 """Generate Benchmark version of DOTAV2 dataset."""
 
 import argparse
+import concurrent
 import os
 
 import numpy as np
@@ -12,10 +13,9 @@ from PIL import Image
 from tqdm import tqdm
 
 from geobench_v2.generate_benchmark.object_detection_util import (
-    visualize_processing_results,
     convert_pngs_to_geotiffs,
 )
-from geobench_v2.generate_benchmark.utils import create_subset_from_df
+from geobench_v2.generate_benchmark.utils import create_subset_df
 
 Image.MAX_IMAGE_PIXELS = None
 
@@ -479,8 +479,6 @@ def process_dotav2_dataset(df, input_dir, output_dir, target_size=512, num_worke
     df.loc[df["split"] == "val", "split"] = "test"
 
     total_samples = len(df)
-    train_samples = int(0.7 * total_samples)
-    val_samples = int(0.1 * total_samples)
 
     df["original_image_base"] = df["image_path"].apply(
         lambda x: os.path.basename(x).split(".")[0]
@@ -494,7 +492,6 @@ def process_dotav2_dataset(df, input_dir, output_dir, target_size=512, num_worke
     np.random.shuffle(train_source_images)
 
     source_counts = df[df["split"] == "train"].groupby("original_image_base").size()
-    total_train_samples = source_counts.sum()
 
     target_val_samples = int(total_samples * target_val_ratio)
 
@@ -663,11 +660,8 @@ def main():
             n_test_samples=2000,
             random_state=42,
         )
-        converted_df.to_parquet(converted_path)
+        subset_df.to_parquet(converted_path)
 
-    vis_dir = visualize_processing_results(
-        processed_df, args.root, args.save_dir, num_samples=25
-    )
 
 
 if __name__ == "__main__":

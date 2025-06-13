@@ -14,7 +14,7 @@ from shapely import wkt
 from torch import Tensor
 
 from .base import GeoBenchBaseDataset
-from .data_util import ClipZScoreNormalizer
+from .normalization import ZScoreNormalizer
 from .sensor_util import DatasetBandRegistry
 
 
@@ -23,35 +23,17 @@ class GeoBenchDynamicEarthNet(GeoBenchBaseDataset):
 
     url = "https://hf.co/datasets/aialliance/dynamic_earthnet/resolve/main/{}"
 
-    # paths = [
-    #     "FullDynamicEarthNet.0000.part.tortilla",
-    #     "FullDynamicEarthNet.0001.part.tortilla",
-    #     "FullDynamicEarthNet.0002.part.tortilla",
-    #     "FullDynamicEarthNet.0003.part.tortilla",
-    #     "FullDynamicEarthNet.0004.part.tortilla",
-    #     "FullDynamicEarthNet.0005.part.tortilla",
-    #     "FullDynamicEarthNet.0006.part.tortilla",
-    #     "FullDynamicEarthNet.0007.part.tortilla",
-    #     "FullDynamicEarthNet.0008.part.tortilla",
-    #     "FullDynamicEarthNet.0009.part.tortilla",
-    #     "FullDynamicEarthNet.0010.part.tortilla",
-    #     "FullDynamicEarthNet.0011.part.tortilla",
-    #     "FullDynamicEarthNet.0012.part.tortilla",
-    #     "FullDynamicEarthNet.0013.part.tortilla",
-    #     "FullDynamicEarthNet.0014.part.tortilla",
-    #     "FullDynamicEarthNet.0015.part.tortilla",
-    #     "FullDynamicEarthNet.0016.part.tortilla",
-    #     "FullDynamicEarthNet.0017.part.tortilla",
-    #     "FullDynamicEarthNet.0018.part.tortilla",
-    # ]
-
     paths = [
         "geobench_dynamic_earthnet.0000.part.tortilla",
         "geobench_dynamic_earthnet.0001.part.tortilla",
         "geobench_dynamic_earthnet.0002.part.tortilla",
     ]
 
-    sha256str = ["", "", ""]
+    sha256str = [
+        "11204f926bfd89feeaa4c045a79a640137a21f7c038f71665583e7a35d6ab73f", 
+        "b3444cab2ac66b2cb225bb1fc4c71c298b6e31a1a1c5eaea72df7d820bb640b7", 
+        "3e11fdb9726c4448c07ca6b33f94dfb2c07deb3caed4721c47fae46018b3a011"
+    ]
 
     dataset_band_config = DatasetBandRegistry.DYNAMICEARTHNET
 
@@ -144,7 +126,7 @@ class GeoBenchDynamicEarthNet(GeoBenchBaseDataset):
         band_order: dict[str, Sequence[float | str]] = {
             "plane": ["r", "g", "b", "nir"]
         },
-        data_normalizer: type[nn.Module] = ClipZScoreNormalizer,
+        data_normalizer: type[nn.Module] = ZScoreNormalizer,
         transforms: nn.Module | None = None,
         metadata: Sequence[str] | None = None,
         temporal_setting: Literal["single", "daily", "weekly"] = "single",
@@ -161,6 +143,7 @@ class GeoBenchDynamicEarthNet(GeoBenchBaseDataset):
             metadata: metadata names to be returned as part of the sample in the
                 __getitem__ method. If None, no metadata is returned.
             temporal_setting: The temporal setting to use, either 'single', 'daily' or 'weekly'
+            download: Whether to download the dataset 
         """
         super().__init__(
             root=root,
@@ -188,7 +171,6 @@ class GeoBenchDynamicEarthNet(GeoBenchBaseDataset):
 
         if self.temporal_setting == "single":
             indices = [0]
-
         elif self.temporal_setting == "daily":
             indices = sample_row[sample_row["modality"] == "planet"].index
         elif self.temporal_setting == "weekly":

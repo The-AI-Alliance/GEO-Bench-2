@@ -77,8 +77,6 @@ def generate_metadata_df(root: str) -> pd.DataFrame:
     )
     df = df.merge(ts_path_df, on="IMG_ID", how="left")
 
-    aerial_path = df["aerial_path"].iloc[0]
-
     def extract_lat_lng(aerial_path):
         with rasterio.open(os.path.join(root, aerial_path)) as src:
             lng, lat = src.lnglat()

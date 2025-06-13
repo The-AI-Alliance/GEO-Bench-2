@@ -44,6 +44,7 @@ class GeoBenchSpaceNet7DataModule(GeoBenchSegmentationDataModule):
 
         Args:
             img_size: Image size, created patches are of size 512
+            band_order: The order of bands to return in the sample
             batch_size: Batch size during training
             eval_batch_size: Evaluation batch size
             num_workers: Number of workers
@@ -123,8 +124,6 @@ class GeoBenchSpaceNet7DataModule(GeoBenchSegmentationDataModule):
         ]
         images = images[:, rgb_indices, :, :]
 
-        if n_samples == 1:
-            axes = axes.reshape(1, -1)
 
         unique_classes = torch.unique(masks).cpu().numpy()
         unique_classes = [
@@ -157,7 +156,7 @@ class GeoBenchSpaceNet7DataModule(GeoBenchSegmentationDataModule):
 
             ax = axes[i, 1]
             mask_img = masks[i].cpu().numpy()
-            im = ax.imshow(mask_img, cmap=build_cmap, vmin=0, vmax=2)
+            ax.imshow(mask_img, cmap=build_cmap, vmin=0, vmax=2)
             ax.set_title("Building Mask" if i == 0 else "")
             ax.axis("off")
 

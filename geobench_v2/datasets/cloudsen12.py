@@ -14,7 +14,7 @@ from shapely import wkt
 from torch import Tensor
 
 from .base import GeoBenchBaseDataset
-from .data_util import ClipZScoreNormalizer
+from .normalization import ZScoreNormalizer
 from .sensor_util import DatasetBandRegistry
 
 
@@ -48,6 +48,8 @@ class GeoBenchCloudSen12(GeoBenchBaseDataset):
     splits = ("train", "val", "test")
 
     dataset_band_config = DatasetBandRegistry.CLOUDSEN12
+
+    band_default_order = DatasetBandRegistry.CLOUDSEN12.default_order
 
     normalization_stats = {
         "means": {
@@ -87,7 +89,7 @@ class GeoBenchCloudSen12(GeoBenchBaseDataset):
         root,
         split: Literal["train", "validation", "test"] = "train",
         band_order: Sequence[float | str] = ["B04", "B03", "B02"],
-        data_normalizer: type[nn.Module] = ClipZScoreNormalizer,
+        data_normalizer: type[nn.Module] = ZScoreNormalizer,
         transforms: nn.Module | None = None,
         metadata: Sequence[str] | None = None,
         download: bool = False,
@@ -99,11 +101,12 @@ class GeoBenchCloudSen12(GeoBenchBaseDataset):
             split: The dataset split, supports 'train', 'test'
             band_order: The order of bands to return, defaults to ['r', 'g', 'b'], if one would
                 specify ['r', 'g', 'b', 'nir'], the dataset would return images with 4 channels
-            data_normalizer: The data normalizer to apply to the data, defaults to :class:`data_util.ClipZScoreNormalizer`,
+            data_normalizer: The data normalizer to apply to the data, defaults to :class:`data_util.ZScoreNormalizer`,
                 which applies z-score normalization to each band.
             transforms: Image resize transform on sample level
             metadata: metadata names to be returned under specified keys as part of the sample in the
                 __getitem__ method. If None, no metadata is returned.
+            download: Whether to download the dataset 
 
         Raises:
             AssertionError: If split is not in the splits
@@ -149,7 +152,7 @@ class GeoBenchCloudSen12(GeoBenchBaseDataset):
         image = self.data_normalizer(image_dict)
 
         sample.update(image_dict)
-        sample["mask"] = mask
+        sample["mask"] = mask.squeeze(0)
 
         point = wkt.loads(l2a_row.iloc[0]["stac:centroid"])
         lon, lat = point.x, point.y

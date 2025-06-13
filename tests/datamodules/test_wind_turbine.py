@@ -2,39 +2,52 @@
 # Licensed under the Apache License 2.0.
 
 import os
+from collections.abc import Sequence
+from pathlib import Path
 
 import matplotlib.pyplot as plt
 import pytest
+from pytest import MonkeyPatch
 
 from geobench_v2.datamodules import GeoBenchWindTurbineDataModule
+from geobench_v2.datasets import GeoBenchWindTurbine
+
+
+@pytest.fixture(params=[["red", "green", 0, "blue"]])
+def band_order(request):
+    """Parameterized band configuration with different configurations."""
+    return request.param
 
 
 @pytest.fixture
-def data_root():
-    """Path to test data directory."""
-    return "/mnt/rg_climate_benchmark/data/geobenchV2/wind_turbine"
-
-
-@pytest.fixture
-def band_order():
-    """Test band configuration with RGB and fill value."""
-    return ["red", "green", 0, "blue"]
-
-
-@pytest.fixture
-def datamodule(data_root, band_order):
+def datamodule(
+    monkeypatch: MonkeyPatch,
+    tmp_path: Path,
+    band_order: dict[str, Sequence[str | float]],
+):
     """Initialize WindTurbine datamodule with test configuration."""
+    monkeypatch.setattr(GeoBenchWindTurbine, "paths", ["wind_turbine.tortilla"])
+    monkeypatch.setattr(
+        GeoBenchWindTurbine, "url", os.path.join("tests", "data", "wind_turbine", "{}")
+    )
+    monkeypatch.setattr(
+        GeoBenchWindTurbine,
+        "sha256str",
+        ["5e92fe98d665dcb08efaa8cb749b72c6890ff9b7a63987b675a7fc0795085a37"],
+    )
     dm = GeoBenchWindTurbineDataModule(
-        img_size=512,
-        batch_size=8,
-        eval_batch_size=4,
+        img_size=256,
+        batch_size=2,
+        eval_batch_size=1,
         num_workers=0,
         pin_memory=False,
         band_order=band_order,
-        root=data_root,
+        root=tmp_path,
+        download=True,
     )
     dm.setup("fit")
     dm.setup("test")
+
     return dm
 
 
@@ -63,4 +76,4 @@ class TestWindTurbineDataModule:
         assert isinstance(fig, plt.Figure)
         assert isinstance(batch, dict)
 
-        fig.savefig(os.path.join("tests", "data", "windturbine", "test_batch.png"))
+        fig.savefig(os.path.join("tests", "data", "wind_turbine", "test_batch.png"))

@@ -13,7 +13,7 @@ from shapely import wkt
 from torch import Tensor
 
 from .base import GeoBenchBaseDataset
-from .data_util import ClipZScoreNormalizer
+from .normalization import ZScoreNormalizer
 from .sensor_util import DatasetBandRegistry
 
 
@@ -58,7 +58,7 @@ class GeoBenchMMFlood(GeoBenchBaseDataset):
         root: Path,
         split: str,
         band_order: dict[str, Sequence[str]] = band_default_order,
-        data_normalizer: type[nn.Module] = ClipZScoreNormalizer,
+        data_normalizer: type[nn.Module] = ZScoreNormalizer,
         transforms: nn.Module | None = None,
         metadata: Sequence[str] | None = None,
         return_stacked_image: bool = False,
@@ -73,12 +73,13 @@ class GeoBenchMMFlood(GeoBenchBaseDataset):
                 specify ['red', 'green', 'blue', 'nir', 'nir'], the dataset would return images with 5 channels
                 in that order. This is useful for models that expect a certain band order, or
                 test the impact of band order on model performance.
-            data_normalizer: The data normalizer to apply to the data, defaults to :class:`data_util.ClipZScoreNormalizer`,
+            data_normalizer: The data normalizer to apply to the data, defaults to :class:`data_util.ZScoreNormalizer`,
                 which applies z-score normalization to each band.
-            transforms:
+            transforms: The transforms to apply to the data, defaults to None.
             metadata: metadata names to be returned as part of the sample in the
                 __getitem__ method. If None, no metadata is returned.
             return_stacked_image: If True, return the stacked modalities across channel dimension instead of the individual modalities.
+            download: Whether to download the dataset 
         """
         super().__init__(
             root=root,
@@ -131,14 +132,13 @@ class GeoBenchMMFlood(GeoBenchBaseDataset):
 
         img_dict = self.rearrange_bands(img_dict, self.band_order)
         if "image_s1" in img_dict:
-            nan_mask = img_dict["image_s1"].isnan()[0]
-
+            nan_mask = torch.isnan(img_dict["image_s1"])[0]
         image_dict = self.data_normalizer(img_dict)
 
         # across all items in the image_dict replace nan_mask with 0 again
         if "image_s1" in image_dict:
-            for key in img_dict.keys():
-                img_dict[key][..., nan_mask] = 0.0
+            for key in image_dict.keys():
+                image_dict[key][..., nan_mask] = 0.0
 
         sample.update(image_dict)
 

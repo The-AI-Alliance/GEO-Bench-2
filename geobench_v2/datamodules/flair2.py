@@ -42,6 +42,7 @@ class GeoBenchFLAIR2DataModule(GeoBenchSegmentationDataModule):
 
         Args:
             img_size: Image size
+            band_order: The order of bands to return in the sample
             batch_size: Batch size during training
             eval_batch_size: Evaluation batch size
             num_workers: Number of workers
@@ -161,7 +162,7 @@ class GeoBenchFLAIR2DataModule(GeoBenchSegmentationDataModule):
 
             ax = axes[i, -1]
             mask_img = masks[i].cpu().numpy()
-            im = ax.imshow(mask_img, cmap=cmap, vmin=0, vmax=19)
+            ax.imshow(mask_img, cmap=cmap, vmin=0, vmax=19)
             ax.set_title("Mask" if i == 0 else "")
             ax.axis("off")
 

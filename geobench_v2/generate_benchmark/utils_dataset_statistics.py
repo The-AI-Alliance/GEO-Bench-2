@@ -9,26 +9,17 @@ from typing import Any
 
 import numpy as np
 import torch
-import torch.nn as nn
 from lightning import LightningDataModule
 from torch import Tensor
 from tqdm.auto import tqdm
 
 
-class NoNormalization(nn.Module):
-    """No normalization applied to the input batch, used to replace
-    the datamodule or dataset normalization scheme to compute original stas
-    """
-
-    def __init__(self, stats, band_order):
-        super().__init__()
-
-    def forward(self, batch: dict[str, Tensor]) -> Tensor:
-        return batch
-
-
 # Using Caleb Robinson's implementation: https://gist.github.com/calebrob6/1ef1e64bd62b1274adf2c6f91e20d215
-class ImageSatistics(torch.nn.Module):
+class ImageStatistics(torch.nn.Module):
+    """Compute image statistics for a batch of images."""
+    
+    valid_normalization_modes = ("none", "clip_only", "clip_rescale", "satmae")
+
     def __init__(
         self,
         shape: tuple[int],
@@ -38,52 +29,52 @@ class ImageSatistics(torch.nn.Module):
         compute_quantiles: bool = False,
         clip_min_val: Tensor | None = None,
         clip_max_val: Tensor | None = None,
+        normalization_mode: str = "none",
     ):
-        """Initializes the ImageSatistics method.
-
-        A PyTorch module that can be put on the GPU and calculate the multidimensional
-        mean and variance of inputs online in a numerically stable way. This is useful
-        for calculating the channel-wise mean and variance of a big dataset because you
-        don't have to load the entire dataset into memory.
-
-        Uses the "Parallel algorithm" from: https://en.wikipedia.org/wiki/Algorithms_for_calculating_variance#Parallel_algorithm
-        Similar implementation here: https://github.com/openai/baselines/blob/master/baselines/common/running_mean_std.py#L5
-
-        Access the mean, variance, and standard deviation of the inputs with the
-        `mean`, `var`, and `std` attributes.
-
-        Example:
-        ```
-        rs = ImageSatistics((12,), [0, 2, 3])
-        for inputs, _ in dataloader:
-            rs(inputs)
-        rs.mean)
-        print(rs.var)
-        print(rs.std)
-        ```
+        """Initializes the ImageStatistics method with support for multiple normalization schemes.
 
         Args:
-            shape: The shape of resulting mean and variance. For example, if you
-                are calculating the mean and variance over the 0th, 2nd, and 3rd
-                dimensions of inputs of size (64, 12, 256, 256), this should be 12.
-            dims: The dimensions of your input to calculate the mean and variance
-                over. In the above example, this should be [0, 2, 3].
+            shape: The shape of resulting mean and variance.
+            dims: The dimensions to calculate stats over.
             bins: Number of bins for histogram
             range_vals: Range for histogram
             compute_quantiles: Whether to compute 2nd and 98th percentiles
-            clip_min_vals: Minimum values for clipping
+            clip_min_val: Minimum values for clipping
             clip_max_val: Maximum values for clipping
+            normalization_mode: Type of normalization to apply for the second stage stats
+                - "none": No normalization - just compute raw statistics on original data
+                - "clip_only": Apply min/max clipping before computing second stage statistics
+                - "clip_rescale": Clip to min/max then rescale to [0,1] range
+                - "satmae": Shift negatives, clip to mean±2std, scale to [0,1] range
         """
-        super(ImageSatistics, self).__init__()
+        super().__init__()
+
+        assert normalization_mode in self.valid_normalization_modes, (
+            f"Invalid normalization mode '{normalization_mode}'. "
+            f"Valid options are: {self.valid_normalization_modes}"
+        )
+
         self.register_buffer("mean", torch.zeros(shape))
         self.register_buffer("min", torch.full(shape, float("inf")))
         self.register_buffer("max", torch.full(shape, float("-inf")))
         self.register_buffer("var", torch.ones(shape))
         self.register_buffer("std", torch.ones(shape))
         self.register_buffer("count", torch.zeros(1))
+
+        self.register_buffer("shift_offsets", torch.zeros(shape))
+
+        self.normalization_mode = normalization_mode
+
+        if normalization_mode in ["clip_only", "clip_rescale", "satmae"]:
+            self.register_buffer("norm_mean", torch.zeros(shape))
+            self.register_buffer("norm_var", torch.ones(shape))
+            self.register_buffer("norm_std", torch.ones(shape))
+            self.register_buffer("norm_count", torch.zeros(1))
+
         if compute_quantiles:
             self.register_buffer("pct_02", torch.zeros(shape))
             self.register_buffer("pct_98", torch.zeros(shape))
+
         self.dims = dims
         self.compute_quantiles = compute_quantiles
         self.bins = bins
@@ -95,92 +86,215 @@ class ImageSatistics(torch.nn.Module):
             self.register_buffer("clip_max_val", torch.tensor(clip_max_val))
             self.clipping_enabled = True
         else:
-            # Still register as None buffers to avoid attribute errors if accessed
             self.register_buffer("clip_min_val", None)
             self.register_buffer("clip_max_val", None)
             self.clipping_enabled = False
 
+    @torch.no_grad()
     def update(self, x: Tensor) -> None:
-        """Update the mean and variance with a new batch of inputs.
+        """Update the statistics with a new batch of inputs.
 
-        Args:
-            x: tensor over which to compute statistics
+        Computes both raw statistics and normalized statistics if enabled.
         """
         with torch.no_grad():
-            # first optional clipping:
-            if self.clipping_enabled:
-                x = torch.clamp(x, min=self.clip_min_val, max=self.clip_max_val)
+            self._update_raw_stats(x)
 
-            batch_mean = torch.mean(x, dim=self.dims)
-            batch_var = torch.var(x, dim=self.dims)
-            batch_count = torch.tensor(x.shape[self.dims[0]], dtype=torch.float)
+            if self.normalization_mode == "none":
+                normalized_x = None
 
-            n_ab = self.count + batch_count
-            m_a = self.mean * self.count
-            m_b = batch_mean * batch_count
-            M2_a = self.var * self.count
-            M2_b = batch_var * batch_count
+            elif self.normalization_mode == "clip_only":
+                normalized_x = torch.clamp(
+                    x, min=self.clip_min_val, max=self.clip_max_val
+                )
 
-            delta = batch_mean - self.mean
+            elif self.normalization_mode == "clip_rescale":
+                x_clipped = torch.clamp(x, min=self.clip_min_val, max=self.clip_max_val)
+                normalized_x = self._apply_clip_rescale(x_clipped)
 
-            self.mean = (m_a + m_b) / (n_ab)
-            self.var = (M2_a + M2_b + delta**2 * self.count * batch_count / (n_ab)) / (
-                n_ab
+            elif self.normalization_mode == "satmae":
+                if self.count > 0:
+                    normalized_x = self._apply_satmae_normalization(x)
+                else:
+                    normalized_x = None
+
+            if normalized_x is not None and self.normalization_mode != "none":
+                self._update_normalized_stats(normalized_x)
+
+    @torch.no_grad()
+    def _update_raw_stats(self, x: Tensor) -> None:
+        """Update the raw statistics (before normalization)."""
+        batch_mean = torch.mean(x, dim=self.dims)
+        batch_var = torch.var(x, dim=self.dims)
+        batch_count = torch.tensor(x.shape[self.dims[0]], dtype=torch.float)
+
+        n_ab = self.count + batch_count
+        m_a = self.mean * self.count
+        m_b = batch_mean * batch_count
+        M2_a = self.var * self.count
+        M2_b = batch_var * batch_count
+
+        delta = batch_mean - self.mean
+
+        self.mean = (m_a + m_b) / (n_ab)
+        self.var = (M2_a + M2_b + delta**2 * self.count * batch_count / (n_ab)) / (n_ab)
+        self.count += batch_count
+        self.std = torch.sqrt(self.var + 1e-8)
+
+        min_vals = x
+        max_vals = x
+        for dim in sorted(self.dims, reverse=True):
+            min_vals = min_vals.min(dim=dim, keepdim=True)[0]
+            max_vals = max_vals.max(dim=dim, keepdim=True)[0]
+
+        min_vals = min_vals.squeeze()
+        max_vals = max_vals.squeeze()
+
+        self.min = torch.min(self.min, min_vals)
+        self.max = torch.max(self.max, max_vals)
+
+        if self.normalization_mode == "satmae":
+            negative_channels = self.min < 0
+            if negative_channels.any():
+                self.shift_offsets[negative_channels] = -self.min[negative_channels]
+
+        all_dims = set(range(x.ndim))
+        dims_set = set(self.dims)
+        channel_dims = list(all_dims - dims_set)
+        if len(channel_dims) != 1:
+            raise ValueError("Could not determine unique channel dimension from dims.")
+
+        channel_dim = channel_dims[0]
+        channels = self.hist.shape[0]
+
+        for i in range(channels):
+            channel_data = x.select(dim=channel_dim, index=i).flatten()
+            hist_channel = torch.histc(
+                channel_data, bins=self.bins, min=self.range_min, max=self.range_max
             )
-            self.count += batch_count
-            self.std = torch.sqrt(self.var + 1e-8)
+            self.hist[i] += hist_channel
 
-            min_vals = x
-            max_vals = x
-            for dim in sorted(self.dims, reverse=True):
-                min_vals = min_vals.min(dim=dim, keepdim=True)[0]
-                max_vals = max_vals.max(dim=dim, keepdim=True)[0]
+            if self.compute_quantiles:
+                self.pct_02[i] = torch.quantile(channel_data, 0.02)
+                self.pct_98[i] = torch.quantile(channel_data, 0.98)
 
-            min_vals = min_vals.squeeze()
-            max_vals = max_vals.squeeze()
+    @torch.no_grad()
+    def _apply_clip_rescale(self, x: Tensor) -> Tensor:
+        """Simple rescaling to [0,1] by shifting to non-negative range and dividing by max value.
 
-            self.min = torch.min(self.min, min_vals)
-            self.max = torch.max(self.max, max_vals)
+        This approach:
+        1. Shifts all values to be non-negative (if min_val < 0)
+        2. Divides by the max value to normalize to [0,1] range
 
-            # compute channel histograms
-            # Determine the channel dimension as the unique dimension not in dims.
-            all_dims = set(range(x.ndim))
-            dims_set = set(self.dims)
-            channel_dims = list(all_dims - dims_set)
-            if len(channel_dims) != 1:
-                raise ValueError(
-                    "Could not determine unique channel dimension from dims."
-                )
-            channel_dim = channel_dims[0]
-            channels = self.hist.shape[0]
+        This is more direct than full min/max normalization when we just want a simple positive rescaling.
+        """
+        all_dims = set(range(x.ndim))
+        dims_set = set(self.dims)
+        channel_dim = list(all_dims - dims_set)[0]
 
-            # Loop over channels to compute histogram for each.
-            for i in range(channels):
-                channel_data = x.select(dim=channel_dim, index=i).flatten()
-                # Compute the histogram of the channel's data.
-                hist_channel = torch.histc(
-                    channel_data, bins=self.bins, min=self.range_min, max=self.range_max
-                )
-                self.hist[i] += hist_channel
-                if self.compute_quantiles:
-                    self.pct_02[i] = torch.quantile(channel_data, 0.02)
-                    self.pct_98[i] = torch.quantile(channel_data, 0.98)
+        broadcast_shape = [1] * x.ndim
+        broadcast_shape[channel_dim] = (
+            self.clip_min_val.shape[0] if self.clip_min_val.ndim > 0 else 1
+        )
+
+        min_val = self.clip_min_val.view(broadcast_shape)
+        max_val = self.clip_max_val.view(broadcast_shape)
+
+        shifted_x = x.clone()
+        negative_ranges = min_val < 0
+
+        if negative_ranges.any():
+            shift_values = torch.zeros_like(min_val)
+            shift_values[negative_ranges] = -min_val[negative_ranges]
+
+            shifted_x = x + shift_values
+
+            shifted_max = max_val + shift_values
+        else:
+            shifted_max = max_val
+
+        normalized = shifted_x / shifted_max
+
+        normalized = torch.clamp(normalized, min=0.0, max=1.0)
+
+        return normalized
+
+    @torch.no_grad()
+    def _apply_satmae_normalization(self, x: Tensor) -> Tensor:
+        """Apply SatMAE-style normalization: shift negatives, min/max norm by mean±2std, clip to [0,1].
+
+        The normalization procedure:
+        1. Shift negative values to make all values non-negative
+        2. Calculate the new clamping range based on the offset-adjusted mean and std
+        3. Clamp values to the adjusted range mean±2std
+        4. Rescale to [0,1]
+        """
+        all_dims = set(range(x.ndim))
+        dims_set = set(self.dims)
+        channel_dim = list(all_dims - dims_set)[0]
+
+        broadcast_shape = [1] * x.ndim
+        broadcast_shape[channel_dim] = self.mean.shape[0]
+
+        shift_offsets = self.shift_offsets.view(broadcast_shape)
+        mean = self.mean.view(broadcast_shape)
+        std = self.std.view(broadcast_shape)
+
+        normalized = x + shift_offsets
+
+        adjusted_mean = mean + shift_offsets
+
+        channel_min = adjusted_mean - 2 * std
+        channel_max = adjusted_mean + 2 * std
+
+        normalized = (normalized - channel_min) / (channel_max - channel_min)
+        normalized = torch.clamp(normalized, min=0.0, max=1.0)
+
+        return normalized
+
+    @torch.no_grad()
+    def _update_normalized_stats(self, x: Tensor) -> None:
+        """Update statistics after normalization."""
+        batch_mean = torch.mean(x, dim=self.dims)
+        batch_var = torch.var(x, dim=self.dims)
+        batch_count = torch.tensor(x.shape[self.dims[0]], dtype=torch.float)
+
+        n_ab = self.norm_count + batch_count
+        m_a = self.norm_mean * self.norm_count
+        m_b = batch_mean * batch_count
+        M2_a = self.norm_var * self.norm_count
+        M2_b = batch_var * batch_count
+
+        delta = batch_mean - self.norm_mean
+
+        self.norm_mean = (m_a + m_b) / (n_ab)
+        self.norm_var = (
+            M2_a + M2_b + delta**2 * self.norm_count * batch_count / (n_ab)
+        ) / (n_ab)
+        self.norm_count += batch_count
+        self.norm_std = torch.sqrt(self.norm_var + 1e-8)
 
     def forward(self, x: Tensor) -> Tensor:
-        """Update the statistics with a new batch of inputs and return the inputs.
-
-        Args:
-            x: tensor over which to compute statistics
-        """
-        self.update(x)
+        """Update the statistics with a new batch of inputs and return the inputs."""
+        with torch.no_grad():
+            self.update(x)
         return x
 
     def extra_repr(self) -> str:
-        """Return a string representation of the ImageSatistics object."""
-        return (
-            f"ImageSatistics(mean={self.mean}, var={self.var}, std={self.std}, "
-            f"min={self.min}, max={self.max}, count={self.count}, bins={self.bins}, dims={self.dims}, clip_min_val={self.clip_min_val}, clip_max_val={self.clip_max_val}))"
+        """Return a string representation of the ImageStatistics object."""
+        base_repr = (
+            f"ImageStatistics(mean={self.mean}, var={self.var}, std={self.std}, "
+            f"min={self.min}, max={self.max}, count={self.count}, bins={self.bins}, "
+            f"dims={self.dims}, clip_min_val={self.clip_min_val}, clip_max_val={self.clip_max_val}, "
+            f"normalization_mode={self.normalization_mode})"
         )
+
+        if hasattr(self, "norm_mean"):
+            base_repr += (
+                f"\nNormalized stats: norm_mean={self.norm_mean}, norm_var={self.norm_var}, "
+                f"norm_std={self.norm_std}, norm_count={self.norm_count})"
+            )
+
+        return base_repr
 
 
 class DatasetStatistics(ABC):
@@ -193,6 +307,7 @@ class DatasetStatistics(ABC):
         range_vals: dict[str, tuple[float, float]] | tuple[float, float] = (0.0, 1.0),
         clip_min_vals: dict[str, float] | None = None,
         clip_max_vals: dict[str, float] | None = None,
+        normalization_mode: str = "none",
         input_keys: list[str] = ["image"],
         target_key: str = "label",
         device: str = "cpu",
@@ -207,6 +322,7 @@ class DatasetStatistics(ABC):
             range_vals: Range for histogram
             clip_min_vals: Minimum values for clipping per input_key
             clip_max_vals: Maximum values for clipping per input_key
+            normalization_mode: Type of normalization to apply for the second stage stats
             input_keys: Keys for input data in batch dict, can compute statistics for multi-modal inputs
             target_key: Key for target data in batch dict, assume only single target
             device: Device for computation
@@ -221,6 +337,7 @@ class DatasetStatistics(ABC):
         self.range_vals = range_vals
         self.clip_min_vals = clip_min_vals
         self.clip_max_vals = clip_max_vals
+        self.normalization_mode = normalization_mode
 
         for key, value in kwargs.items():
             setattr(self, key, value)
@@ -242,7 +359,7 @@ class DatasetStatistics(ABC):
     def compute_batch_image_statistics(
         self, batch: dict[str, Tensor]
     ) -> dict[str, dict[str, Any]]:
-        """Compute statistics for input data using ImageSatistics.
+        """Compute statistics for input data using ImageStatistics.
 
         Args:
             batch: Batch of input data
@@ -270,16 +387,16 @@ class DatasetStatistics(ABC):
         pass
 
     def aggregate_image_statistics(self) -> dict[str, dict[str, Any]]:
-        """Aggregate image input statistics."""
-        # Extract statistics from running_stats
+        """Aggregate image input statistics, including two-stage normalization if enabled."""
         for key in self.running_stats:
             stats = self.running_stats[key]
             update_dict = {
+                "normalization_mode": self.normalization_mode,
                 "mean": stats.mean.cpu().numpy(),
                 "std": stats.std.cpu().numpy(),
                 "var": stats.var.cpu().numpy(),
-                "min": stats.min.cpu().numpy(),  # Min value *after* potential clipping
-                "max": stats.max.cpu().numpy(),  # Max value *after* potential clipping
+                "min": stats.min.cpu().numpy(),
+                "max": stats.max.cpu().numpy(),
                 "count": stats.count.cpu().item(),
                 "histograms": stats.hist.cpu().numpy(),
                 "histogram_bins": torch.linspace(
@@ -293,8 +410,20 @@ class DatasetStatistics(ABC):
                 "pct_98": stats.pct_98.cpu().numpy()
                 if hasattr(stats, "pct_98") and stats.pct_98 is not None
                 else None,
+                "shift_offsets": stats.shift_offsets.cpu().numpy()
+                if hasattr(stats, "shift_offsets")
+                else None,
             }
-            # Add used clip values if clipping was enabled for this key
+
+            if hasattr(stats, "norm_mean"):
+                update_dict.update(
+                    {
+                        "norm_mean": stats.norm_mean.cpu().numpy(),
+                        "norm_std": stats.norm_std.cpu().numpy(),
+                        "norm_var": stats.norm_var.cpu().numpy(),
+                    }
+                )
+
             if stats.clipping_enabled:
                 update_dict["clip_min_used"] = stats.clip_min_val.cpu().numpy()
                 update_dict["clip_max_used"] = stats.clip_max_val.cpu().numpy()
@@ -315,7 +444,7 @@ class DatasetStatistics(ABC):
 
     def initialize_running_stats(self) -> None:
         """Initialize running statistics for input data."""
-        self.running_stats: dict[str, ImageSatistics] = {}
+        self.running_stats: dict[str, ImageStatistics] = {}
 
         for key in self.input_keys:
             batch = next(iter(self.dataloader))
@@ -372,7 +501,7 @@ class DatasetStatistics(ABC):
                     shape = (1,)
                     dims = [0]
 
-            self.running_stats[key] = ImageSatistics(
+            self.running_stats[key] = ImageStatistics(
                 shape,
                 dims,
                 bins=self.bins,
@@ -383,10 +512,12 @@ class DatasetStatistics(ABC):
                 clip_max_val=self.clip_max_vals[key]
                 if self.clip_max_vals is not None
                 else None,
+                normalization_mode=self.normalization_mode,
+                compute_quantiles=True,
             ).to(self.device)
 
     def compute_statistics(self) -> dict[str, dict[str, Any]]:
-        """Compute statistics for input data using ImageSatistics.
+        """Compute statistics for input data using ImageStatistics.
 
         Returns:
             dictionary with input statistics for each input key
@@ -410,9 +541,10 @@ class ClassificationStatistics(DatasetStatistics):
         range_vals: tuple[float, float] = (0.0, 1.0),
         clip_min_vals: dict[str, float] | None = None,
         clip_max_vals: dict[str, float] | None = None,
+        normalization_mode: str = "none",
         input_keys: list[str] = ["image"],
         target_key: str = "label",
-        multilabel: bool = False,
+        multi_label: bool = False,
         device: str = "cpu",
         save_dir: str | None = None,
         **kwargs,
@@ -420,11 +552,15 @@ class ClassificationStatistics(DatasetStatistics):
         """Initialize classification statistics computer.
 
         Args:
-            datamodule
-            num_classes: Number of classes
+            datamodule: lightning datamodule
+            bins: Number of bins for histogram
+            range_vals: Range for histogram
+            clip_min_vals: Minimum values for clipping per input_key
+            clip_max_vals: Maximum values for clipping per input_key
+            normalization_mode: Type of normalization to apply for the second stage stats
             input_keys: Keys for input data in batch dict, can compute statistics for multi-modal inputs
             target_key: Key for target data in batch dict, assume only single target
-            multilabel: Whether the classification is multilabel
+            multi_label: Whether the classification is multilabel
             device: Device for computation
             save_dir: Directory to save statistics
             **kwargs: Additional task-specific arguments
@@ -435,6 +571,7 @@ class ClassificationStatistics(DatasetStatistics):
             range_vals=range_vals,
             clip_min_vals=clip_min_vals,
             clip_max_vals=clip_max_vals,
+            normalization_mode=normalization_mode,
             input_keys=input_keys,
             target_key=target_key,
             device=device,
@@ -444,6 +581,7 @@ class ClassificationStatistics(DatasetStatistics):
         self.num_classes = datamodule.num_classes
         self.class_counts = torch.zeros(self.num_classes, device=self.device)
         self.total_samples = 0
+        self.multi_label = multi_label
 
         if self.multi_label:
             self.label_co_occurrence = torch.zeros(
@@ -539,6 +677,7 @@ class SegmentationStatistics(DatasetStatistics):
         range_vals: tuple[float, float] = (0.0, 1.0),
         clip_min_vals: dict[str, float] | None = None,
         clip_max_vals: dict[str, float] | None = None,
+        normalization_mode: str = "none",
         input_keys: list[str] = ["image"],
         target_key: str = "mask",
         device: str = "cpu",
@@ -548,7 +687,12 @@ class SegmentationStatistics(DatasetStatistics):
         """Initialize segmentation statistics computer.
 
         Args:
-            datamodule:
+            datamodule: lightning datamodule
+            bins: Number of bins for histogram
+            range_vals: Range for histogram
+            clip_min_vals: Minimum values for clipping per input_key
+            clip_max_vals: Maximum values for clipping per input_key
+            normalization_mode: Type of normalization to apply for the second stage stats
             input_keys: Keys for input data in batch dict
             target_key: Key for target data in batch dict (typically 'mask')
             device: Device for computation
@@ -561,6 +705,7 @@ class SegmentationStatistics(DatasetStatistics):
             range_vals=range_vals,
             clip_min_vals=clip_min_vals,
             clip_max_vals=clip_max_vals,
+            normalization_mode=normalization_mode,
             input_keys=input_keys,
             target_key=target_key,
             device=device,
@@ -661,6 +806,7 @@ class PxRegressionStatistics(DatasetStatistics):
         range_vals: tuple[float, float] = (0.0, 1.0),
         clip_min_vals: dict[str, float] | None = None,
         clip_max_vals: dict[str, float] | None = None,
+        normalization_mode: str = "none",
         target_range_vals: tuple[float, float] = (0.0, 1.0),
         input_keys: list[str] = ["image"],
         target_key: str = "label",
@@ -671,11 +817,14 @@ class PxRegressionStatistics(DatasetStatistics):
         """Initialize pixel regression statistics computer.
 
         Args:
-            datamodule
-            input_keys: Keys for input data in batch dict
-            target_key: Key for target data in batch dict
+            datamodule: lightning datamodule
             bins: Number of bins for histogram
             range_vals: Range for histogram
+            clip_min_vals: Minimum values for clipping per input_key
+            clip_max_vals: Maximum values for clipping per input_key
+            normalization_mode: Type of normalization to apply for the second stage stats
+            input_keys: Keys for input data in batch dict
+            target_key: Key for target data in batch dict
             target_range_vals: Range for target histogram
             device: Device for computation
             save_dir: Directory to save statistics
@@ -687,6 +836,7 @@ class PxRegressionStatistics(DatasetStatistics):
             range_vals=range_vals,
             clip_min_vals=clip_min_vals,
             clip_max_vals=clip_max_vals,
+            normalization_mode=normalization_mode,
             input_keys=input_keys,
             target_key=target_key,
             device=device,
@@ -694,7 +844,7 @@ class PxRegressionStatistics(DatasetStatistics):
             **kwargs,
         )
         self.target_range_vals = target_range_vals
-        self.target_stats = ImageSatistics(
+        self.target_stats = ImageStatistics(
             shape=(1,),
             dims=[0, 2, 3],
             bins=self.bins,
@@ -746,6 +896,7 @@ class ObjectDetectionStatistics(DatasetStatistics):
         range_vals: tuple[float, float] = (0.0, 1.0),
         clip_min_vals: dict[str, float] | None = None,
         clip_max_vals: dict[str, float] | None = None,
+        normalization_mode: str = "none",
         input_keys: list[str] = ["image"],
         target_key: str = "boxes",
         device: str = "cpu",
@@ -755,11 +906,14 @@ class ObjectDetectionStatistics(DatasetStatistics):
         """Initialize object detection statistics computer.
 
         Args:
-            datamodule
-            input_keys: Keys for input data in batch dict
-            target_key: Key for target data in batch dict
+            datamodule: lightning datamodule
             bins: Number of bins for histogram
             range_vals: Range for histogram
+            clip_min_vals: Minimum values for clipping per input_key
+            clip_max_vals: Maximum values for clipping per input_key
+            normalization_mode: Type of normalization to apply for the second stage stats
+            input_keys: Keys for input data in batch dict
+            target_key: Key for target data in batch dict
             device: Device for computation
             save_dir: Directory to save statistics
             **kwargs: Additional task-specific arguments
@@ -770,6 +924,7 @@ class ObjectDetectionStatistics(DatasetStatistics):
             range_vals=range_vals,
             clip_min_vals=clip_min_vals,
             clip_max_vals=clip_max_vals,
+            normalization_mode=normalization_mode,
             input_keys=input_keys,
             target_key=target_key,
             device=device,
@@ -857,7 +1012,7 @@ class ObjectDetectionStatistics(DatasetStatistics):
         return self.target_stats
 
     def compute_statistics(self) -> dict[str, dict[str, Any]]:
-        """Compute statistics for input data using ImageSatistics.
+        """Compute statistics for input data using ImageStatistics.
 
         Returns:
             dictionary with input statistics for each input key

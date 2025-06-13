@@ -41,7 +41,7 @@ __all__ = (
     "GeoBenchBENV2",
     "GeoBenchEverWatch",
     "GeoBenchDOTAV2",
-    "GeoBenchFlair2",
+    "GeoBenchFLAIR2",
     "GeoBenchCloudSen12",
     "GeoBenchFLOGA",
     "GeoBenchKuroSiwo",

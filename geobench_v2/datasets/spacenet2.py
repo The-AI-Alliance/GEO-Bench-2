@@ -15,7 +15,7 @@ from shapely import wkt
 from torch import Tensor
 
 from .base import GeoBenchBaseDataset
-from .data_util import ClipZScoreNormalizer
+from .normalization import ZScoreNormalizer
 from .sensor_util import DatasetBandRegistry
 
 
@@ -31,21 +31,17 @@ class GeoBenchSpaceNet2(GeoBenchBaseDataset):
 
     url = "https://hf.co/datasets/aialliance/spacenet2/resolve/main/{}"
 
-    # paths = [
-    #     "SpaceNet2.0000.part.tortilla",
-    #     "SpaceNet2.0001.part.tortilla",
-    #     "SpaceNet2.0002.part.tortilla",
-    #     "SpaceNet2.0003.part.tortilla",
-    #     "SpaceNet2.0004.part.tortilla",
-    # ]
-
     paths = [
         "geobench_spacenet2.0000.part.tortilla",
         "geobench_spacenet2.0001.part.tortilla",
         "geobench_spacenet2.0002.part.tortilla",
     ]
 
-    sha256str = ["", "", ""]
+    sha256str = [
+        "97e47bca68e482bed0fe44d5e1d799cbbef7828374a1a7e5cf9687385047183a",
+        "66bfd89e7d80ceaef88a439034ab771e61ee396b8a3e785817e876c9c0a35163", 
+        "bcfcaedef82d7b49bc9bf23cb34fcf50e83d25fdb14e50332bfeabeb793b3e03"
+    ]
 
     dataset_band_config = DatasetBandRegistry.SPACENET2
 
@@ -99,7 +95,7 @@ class GeoBenchSpaceNet2(GeoBenchBaseDataset):
         root: Path,
         split: str,
         band_order: list[str] = band_default_order,
-        data_normalizer: type[nn.Module] = ClipZScoreNormalizer,
+        data_normalizer: type[nn.Module] = ZScoreNormalizer,
         label_type: Literal["instance_seg", "semantic_seg"] = "semantic_seg",
         transforms: nn.Module = None,
         metadata: Sequence[str] | None = None,
@@ -116,12 +112,14 @@ class GeoBenchSpaceNet2(GeoBenchBaseDataset):
                 specify ['red', 'green', 'blue', 'blue', 'blue'], the dataset would return images with 5 channels
                 in that order. This is useful for models that expect a certain band order, or
                 test the impact of band order on model performance.
-            data_normalizer:
-            label_type:
+            data_normalizer: The data normalizer to apply to the data, defaults to :class:`data_util.ZScoreNormalizer`,
+                which applies z-score normalization to each band.
+            label_type: The type of label to return, supports 'instance_seg' or 'semantic_seg'
             transforms: The transforms to apply to the data, defaults to None
             metadata: metadata names to be returned as part of the sample in the
                 __getitem__ method. If None, no metadata is returned.
             return_stacked_image: if true, returns a single image tensor with all modalities stacked in band_order
+            download: Whether to download the dataset 
         """
         super().__init__(
             root=root,
@@ -184,7 +182,7 @@ class GeoBenchSpaceNet2(GeoBenchBaseDataset):
         if self.return_stacked_image:
             sample = {
                 "image": torch.cat(
-                    [val for key, val in sample.items() if key.startswith("image_")], 0
+                    [sample[f"image_{key}"] for key in self.band_order.keys()], 0
                 ),
                 "mask": sample["mask"],
             }

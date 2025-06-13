@@ -18,15 +18,11 @@ from .dotav2 import GeoBenchDOTAV2DataModule
 from .dynamic_earthnet import GeoBenchDynamicEarthNetDataModule
 from .everwatch import GeoBenchEverWatchDataModule
 from .flair2 import GeoBenchFLAIR2DataModule
-from .floga import GeoBenchFLOGADataModule
 from .fotw import GeoBenchFieldsOfTheWorldDataModule
 from .kuro_siwo import GeoBenchKuroSiwoDataModule
-from .mados import GeoBenchMADOSDataModule
 from .mmflood import GeoBenchMMFloodDataModule
 from .pastis import GeoBenchPASTISDataModule
 from .qfabric import GeoBenchQFabricDataModule
-from .resisc45 import GeoBenchRESISC45DataModule
-from .sen4agrinet import GeoBenchSen4AgriNetDataModule
 from .spacenet2 import GeoBenchSpaceNet2DataModule
 from .spacenet6 import GeoBenchSpaceNet6DataModule
 from .spacenet7 import GeoBenchSpaceNet7DataModule
@@ -39,7 +35,6 @@ __all__ = (
     "GeoBenchCaFFeDataModule",
     "GeoBenchFieldsOfTheWorldDataModule",
     "GeoBenchPASTISDataModule",
-    "GeoBenchRESISC45DataModule",
     "GeoBenchSpaceNet2DataModule",
     "GeoBenchSpaceNet6DataModule",
     "GeoBenchSpaceNet7DataModule",
@@ -58,7 +53,6 @@ __all__ = (
     "GeoBenchBioMasstersDataModule",
     "GeoBenchMADOSDataModule",
     "GeoBenchDynamicEarthNetDataModule",
-    "GeoBenchSen4AgriNetDataModule",
     "GeoBenchMMFloodDataModule",
     "GeoBenchBRIGHTDataModule",
     "GeoBenchQFabricDataModule",

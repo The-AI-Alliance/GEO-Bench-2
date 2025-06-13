@@ -63,6 +63,7 @@ class GeoBenchEverWatchDataModule(GeoBenchObjectDetectionDataModule):
 
         Args:
             img_size: Image size
+            band_order: The order of bands to return in the sample
             batch_size: Batch size during
             eval_batch_size: Evaluation batch size
             num_workers: Number of workers
@@ -118,7 +119,8 @@ class GeoBenchEverWatchDataModule(GeoBenchObjectDetectionDataModule):
         else:
             batch = next(iter(self.test_dataloader()))
 
-        batch = self.data_normalizer.unnormalize(batch)
+        if hasattr(self.data_normalizer, "unnormalize"):
+            batch = self.data_normalizer.unnormalize(batch)
 
         images = batch["image"]
         boxes_batch = batch["bbox_xyxy"]

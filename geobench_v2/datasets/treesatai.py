@@ -16,7 +16,7 @@ from shapely import wkt
 from torch import Tensor
 
 from .base import GeoBenchBaseDataset
-from .data_util import ClipZScoreNormalizer
+from .normalization import ZScoreNormalizer
 from .sensor_util import DatasetBandRegistry
 
 
@@ -135,7 +135,7 @@ class GeoBenchTreeSatAI(GeoBenchBaseDataset):
         band_order: dict[str, Sequence[str]] = {
             "aerial": ["red", "green", "blue", "nir"]
         },
-        data_normalizer: type[nn.Module] = ClipZScoreNormalizer,
+        data_normalizer: type[nn.Module] = ZScoreNormalizer,
         transforms: nn.Module | None = None,
         metadata: Sequence[str] | None = None,
         include_ts: bool = False,
@@ -152,14 +152,15 @@ class GeoBenchTreeSatAI(GeoBenchBaseDataset):
                 specify ['red', 'green', 'blue', 'nir', 'nir'], the dataset would return images with 5 channels
                 in that order. This is useful for models that expect a certain band order, or
                 test the impact of band order on model performance.
-            data_normalizer: The data normalizer to apply to the data, defaults to :class:`data_util.ClipZScoreNormalizer`,
+            data_normalizer: The data normalizer to apply to the data, defaults to :class:`data_util.ZScoreNormalizer`,
                 which applies z-score normalization to each band.
-            transforms:
+            transforms: image transformations to apply to the data, defaults to None
             metadata: metadata names to be returned as part of the sample in the
                 __getitem__ method. If None, no metadata is returned.
             include_ts: whether or not to return the time series in data loading
             num_time_steps: number of last time steps to return in the ts data
             return_stacked_image: if true, returns a single image tensor with all modalities stacked in band_order
+            download: Whether to download the dataset 
         """
         super().__init__(
             root=root,
@@ -215,6 +216,25 @@ class GeoBenchTreeSatAI(GeoBenchBaseDataset):
         if self.transforms is not None:
             sample = self.transforms(sample)
 
+        if self.return_stacked_image:
+            sample = {
+                "image": torch.cat(
+                    [sample[f"image_{key}"] for key in self.band_order.keys()], 0
+                )
+            }
+
+        sample["label"] = self._format_label(
+            sample_row.iloc[0]["species_labels"], sample_row.iloc[0]["dist_labels"]
+        )
+
+        point = wkt.loads(sample_row.iloc[0]["stac:centroid"])
+        lon, lat = point.x, point.y
+
+        if "lon" in self.metadata:
+            sample["lon"] = torch.tensor(lon)
+        if "lat" in self.metadata:
+            sample["lat"] = torch.tensor(lat)
+
         if self.include_ts:
             with h5py.File(
                 os.path.join(self.root, sample_row.iloc[0]["ts_path"]), "r"
@@ -247,38 +267,12 @@ class GeoBenchTreeSatAI(GeoBenchBaseDataset):
                     -self.num_time_steps :
                 ]
 
-        if self.return_stacked_image:
-            sample = {
-                "image": torch.cat(
-                    [sample[f"image_{key}"] for key in self.band_order.keys()], 0
-                )
-            }
-
-        sample["label"] = self._format_label(
-            sample_row.iloc[0]["species_labels"], sample_row.iloc[0]["dist_labels"]
-        )
-
-        point = wkt.loads(sample_row.iloc[0]["stac:centroid"])
-        lon, lat = point.x, point.y
-        sample["lon"], sample["lat"] = torch.tensor(lon), torch.tensor(lat)
-
-        if "lon" in self.metadata:
-            sample["lon"] = torch.tensor(lon)
-        if "lat" in self.metadata:
-            sample["lat"] = torch.tensor(lat)
-
-        # if self.include_ts:
-        #     metadata = ["image_s1_asc_ts", "image_s1_des_ts", "image_s2_ts"]
-        #     for key in metadata:
-        #         if key not in output:
-        #             output[key] = sample[key]
-
         return sample
 
     def _format_label(
         self, class_labels: list[str], dist_labels: list[float]
     ) -> Tensor:
-        """Format label list to Tensor
+        """Format label list to Tensor.
 
         Args:
             class_labels: list of label class names

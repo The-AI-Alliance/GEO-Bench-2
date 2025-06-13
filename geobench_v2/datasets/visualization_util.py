@@ -8,7 +8,7 @@ import json
 import matplotlib.pyplot as plt
 import numpy as np
 import seaborn as sns
-import torch.nn as nn
+from matplotlib.gridspec import GridSpec
 from torch import Tensor
 
 
@@ -29,10 +29,9 @@ def plot_channel_histograms(stats_json_path: str) -> plt.Figure:
 
     for modality_key, modality_stats in input_stats.items():
         band_names = modality_stats["band_names"]
-        # Ensure histograms is a list of lists, even if only one band exists
         histograms = modality_stats["histograms"]
         if not isinstance(histograms[0], list):
-            histograms = [histograms]  # Wrap if it's a single flat list for one band
+            histograms = [histograms]
 
         bins = modality_stats["histogram_bins"]
 
@@ -54,12 +53,9 @@ def plot_channel_histograms(stats_json_path: str) -> plt.Figure:
         for i, band_name in enumerate(band_names):
             counts = np.array(histograms[i])
 
-            # Determine x-values (pixel values) for plotting
             if len(bin_edges) == len(counts) + 1:
-                # Standard case: bins are edges, plot at bin centers
                 x_values = (bin_edges[:-1] + bin_edges[1:]) / 2
             elif len(bin_edges) == len(counts):
-                # Assume bins are centers or left edges
                 x_values = bin_edges
                 print(
                     f"Warning: Assuming histogram_bins for {band_name} in {modality_key} represent bin centers/starts."
@@ -70,7 +66,6 @@ def plot_channel_histograms(stats_json_path: str) -> plt.Figure:
                 )
                 continue
 
-            # Plot as a line plot
             ax.plot(x_values, counts, label=band_name, alpha=0.8)
 
         ax.set_title(f"Channel Histograms for Modality: {modality_key}")
@@ -81,42 +76,6 @@ def plot_channel_histograms(stats_json_path: str) -> plt.Figure:
         fig.tight_layout()
 
     return fig
-
-
-def create_normalization_stats(dataset_stats: dict) -> dict:
-    """Extract normalization stats from dataset stats format to normalizer format."""
-    norm_stats = {"means": {}, "stds": {}, "clip_min": {}, "clip_max": {}}
-
-    for modality_key, modality_stats in dataset_stats["input_stats"].items():
-        band_names = modality_stats["band_names"]
-        means = modality_stats["mean"]
-        stds = modality_stats["std"]
-
-        # Handle case where not all bands have stats
-        if len(band_names) > len(means):
-            print(
-                f"Warning: Number of band names ({len(band_names)}) > number of mean values ({len(means)}) for {modality_key}"
-            )
-            band_names = band_names[: len(means)]
-
-        for i, band in enumerate(band_names):
-            if i < len(means) and i < len(stds):
-                norm_stats["means"][band] = means[i]
-                norm_stats["stds"][band] = stds[i]
-
-                # Add optional clipping values (2% to 98% percentiles if available)
-                if "pct_02" in modality_stats and "pct_98" in modality_stats:
-                    if (
-                        modality_stats["pct_02"] is not None
-                        and modality_stats["pct_98"] is not None
-                    ):
-                        if i < len(modality_stats["pct_02"]) and i < len(
-                            modality_stats["pct_98"]
-                        ):
-                            norm_stats["clip_min"][band] = modality_stats["pct_02"][i]
-                            norm_stats["clip_max"][band] = modality_stats["pct_98"][i]
-
-    return norm_stats
 
 
 def compute_batch_histograms(
@@ -140,24 +99,19 @@ def compute_batch_histograms(
         if key.startswith("image") and isinstance(tensor, Tensor) and tensor.ndim == 4:
             modality = key
 
-            # Extract number of channels
             num_channels = tensor.shape[1]
             histograms = []
             bin_edges = None
 
-            # Compute per-channel histograms
             for c in range(num_channels):
                 channel_data = tensor[:, c, :, :].detach().cpu().numpy().flatten()
                 counts, edges = np.histogram(
                     channel_data, bins=n_bins, range=hist_range
                 )
                 histograms.append(counts.tolist())
-
-                # Store bin edges (same for all channels if range is fixed)
                 if bin_edges is None:
                     bin_edges = edges.tolist()
 
-            # Store stats for this modality
             batch_stats[modality] = {
                 "histograms": histograms,
                 "histogram_bins": bin_edges,
@@ -190,21 +144,14 @@ def plot_batch_histograms(
     """
     figs = []
 
-    # Convert band_order to dictionary format if it's a list
     if isinstance(band_order, list):
-        # If band_order is a list, we assume there's only one modality
-        # Check if there's just one key in batch_stats that starts with "image"
-        # or exactly one key named "image"
         image_keys = [key for key in batch_stats.keys() if key.startswith("image")]
 
         if len(image_keys) == 1:
-            # Use the detected image key
             band_order = {image_keys[0]: band_order}
         elif "image" in batch_stats:
-            # Use the "image" key directly
             band_order = {"image": band_order}
         else:
-            # Default to creating entries for all modalities with the same band_order
             band_order = {modality: band_order for modality in batch_stats.keys()}
             print(
                 f"Warning: Applying the same band names to all modalities: {list(batch_stats.keys())}"
@@ -214,7 +161,6 @@ def plot_batch_histograms(
         fig, ax = plt.subplots(figsize=figsize)
         figs.append(fig)
 
-        # Get histogram data
         histograms = stats["histograms"]
         bin_edges = stats["histogram_bins"]
 
@@ -224,21 +170,15 @@ def plot_batch_histograms(
             )
             continue
 
-        # Convert bin_edges to numpy array if it's not already
         bin_edges = np.array(bin_edges)
 
-        # Get labels for each channel
         if band_order and modality in band_order:
-            # Get all band names including numeric scaling factors
             labels = [str(item) for item in band_order[modality]]
 
-            # Ensure length matches number of histograms
             if len(labels) != len(histograms):
-                # Keep only the number of labels that match the histograms
                 if len(labels) > len(histograms):
                     labels = labels[: len(histograms)]
                 else:
-                    # Append generic labels if we have more histograms than labels
                     labels.extend(
                         [
                             f"Channel {i + len(labels)}"
@@ -248,14 +188,11 @@ def plot_batch_histograms(
         else:
             labels = [f"Channel {i}" for i in range(len(histograms))]
 
-        # Plot histograms as line plots
         for i, (hist, label) in enumerate(zip(histograms, labels)):
-            # Convert histogram to numpy array if it's not already
             hist = np.array(hist)
             bin_centers = 0.5 * (bin_edges[:-1] + bin_edges[1:])
             ax.plot(bin_centers, hist, label=label, alpha=0.7)
 
-        # Customize plot
         title = f"Histogram for {modality}{title_suffix}"
         ax.set_title(title)
         ax.set_xlabel("Pixel Value")
@@ -263,7 +200,6 @@ def plot_batch_histograms(
         ax.legend()
         ax.grid(True, linestyle="--", alpha=0.6)
 
-        # Add stats to plot as text
         stats_text = []
         for i, label in enumerate(labels):
             if i < len(stats["mean"]) and i < len(stats["std"]):
@@ -286,67 +222,8 @@ def plot_batch_histograms(
     return figs
 
 
-def get_normalized_batch(
-    datamodule, normalizer: nn.Module, split: str = "train", batch_index: int = 0
-) -> tuple[dict[str, Tensor], dict[str, Tensor]]:
-    """Get a batch of data and its normalized version.
-
-    Args:
-        datamodule: Lightning DataModule instance
-        normalizer: Normalizer module
-        split: Data split ('train', 'val', 'test')
-        batch_index: Index of batch to retrieve
-
-    Returns:
-        Tuple of (original_batch, normalized_batch)
-    """
-    # Store original normalizer
-    original_normalizer = None
-
-    # Find the dataset attribute based on split
-    if split == "train":
-        dataset = datamodule.train_dataset
-    elif split == "val":
-        dataset = datamodule.val_dataset
-    elif split == "test":
-        dataset = datamodule.test_dataset
-    else:
-        raise ValueError(f"Invalid split: {split}. Must be 'train', 'val', or 'test'")
-
-    # Store original normalizer and set to None temporarily
-    if hasattr(dataset, "data_normalizer"):
-        original_normalizer = dataset.data_normalizer
-        dataset.data_normalizer = nn.Identity()  # Temporarily disable normalization
-
-    # Get dataloader for specified split
-    if split == "train":
-        dataloader = datamodule.train_dataloader()
-    elif split == "val":
-        dataloader = datamodule.val_dataloader()
-    else:
-        dataloader = datamodule.test_dataloader()
-
-    # Get batch
-    for i, batch in enumerate(dataloader):
-        if i == batch_index:
-            # Apply custom normalizer
-            normalized_batch = normalizer(batch)
-
-            # Restore original normalizer
-            if original_normalizer is not None:
-                dataset.data_normalizer = original_normalizer
-
-            return batch, normalized_batch
-
-    # Restore original normalizer if we didn't find the batch
-    if original_normalizer is not None:
-        dataset.data_normalizer = original_normalizer
-
-    raise IndexError(f"Batch index {batch_index} out of range for {split} split")
-
-
 def visualize_segmentation_target_statistics(
-    stats_json_path: str, dataset_name: str = None, figsize: tuple[int, int] = (26, 10)
+    stats_json_path: str, dataset_name: str, figsize: tuple[int, int] = (26, 10)
 ) -> plt.Figure:
     """Visualizes target statistics from earth observation datasets with three informative subplots.
 
@@ -365,7 +242,6 @@ def visualize_segmentation_target_statistics(
 
     pixel_distribution = target_stats.get("pixel_distribution", [])
     class_presence_ratio = target_stats.get("class_presence_ratio", [])
-    pixel_counts = target_stats.get("pixel_counts", [])
     num_classes = target_stats.get("num_classes", len(pixel_distribution))
     total_images = target_stats.get("total_images", 0)
 
@@ -375,9 +251,6 @@ def visualize_segmentation_target_statistics(
 
     has_cooccurrence = "class_cooccurrence_ratio" in target_stats
     cooccurrence_ratio = target_stats.get("class_cooccurrence_ratio", None)
-
-    if dataset_name is None:
-        dataset_name = os.path.basename(stats_json_path).split("_stats")[0]
 
     fig = plt.figure(figsize=figsize)
     gs = fig.add_gridspec(1, 3, width_ratios=[1, 1, 1.2])
@@ -406,7 +279,6 @@ def visualize_segmentation_target_statistics(
     ax1.grid(axis="y", linestyle="--", alpha=0.7)
     ax1.tick_params(axis="both", which="major", labelsize=13)
 
-    # center plot about overall class distribution
     ax2 = fig.add_subplot(gs[0, 1])
 
     sorted_indices = np.argsort(pixel_distribution)[::-1]
@@ -492,3 +364,165 @@ def visualize_segmentation_target_statistics(
     fig.subplots_adjust(top=0.90)
 
     return fig
+
+def compare_normalization_methods(
+    batch, normalizer_modules, datamodule, figsize=(20, 8)
+) -> tuple[plt.Figure, list[dict[str, Tensor]]]:
+    """Create a visualization showing before/after distributions for multiple normalization methods.
+
+    The visualization is organized with:
+    - Rows: Different modalities (e.g., S1, S2) or single modality ("image")
+    - Columns: Raw data and different normalization methods
+
+    Args:
+        batch: Dictionary containing the batch data
+        normalizer_modules: List of normalizer modules to compare
+        datamodule: Datamodule to extract band information
+        figsize: Base figure size (width, height), will be adjusted based on number of normalizers
+
+    Returns:
+        matplotlib figure with the visualizations, and list of normalized batches
+    """
+    n_normalizers = len(normalizer_modules)
+    normalized_batches = [normalizer(batch.copy()) for normalizer in normalizer_modules]
+    modalities = [key for key in batch.keys() if key.startswith("image")]
+    n_modalities = len(modalities)
+
+    adjusted_width = figsize[0] * (n_normalizers + 1) / 3
+    adjusted_height = figsize[1] * n_modalities
+    fig = plt.figure(figsize=(adjusted_width, adjusted_height))
+
+    gs = GridSpec(
+        n_modalities * 2,
+        n_normalizers + 1,
+        height_ratios=[4, 1] * n_modalities,
+        width_ratios=[1] * (n_normalizers + 1),
+        figure=fig,
+    )
+
+    column_titles = ["Raw Data"] + [
+        f"{norm.__class__.__name__}" for norm in normalizer_modules
+    ]
+
+    for row_idx, modality in enumerate(modalities):
+        if modality == "image":
+            modality_prefix = "main"
+            plot_title = "Image"
+        else:
+            modality_prefix = modality.replace("image_", "")
+            plot_title = f"{modality_prefix.upper()} Modality"
+
+        band_names = []
+        modality_config = None
+        
+        if hasattr(datamodule, "dataset_band_config") and hasattr(datamodule.dataset_band_config, "modalities"):
+            if modality_prefix in datamodule.dataset_band_config.modalities:
+                modality_config = datamodule.dataset_band_config.modalities[modality_prefix]
+            elif modality == "image" and len(datamodule.dataset_band_config.modalities) == 1:
+                config_key = next(iter(datamodule.dataset_band_config.modalities))
+                modality_config = datamodule.dataset_band_config.modalities[config_key]
+                
+        band_names = modality_config.plot_bands
+        if modality == "image":
+            plot_title = "Single Modality"
+        else:
+            plot_title = f"{modality_prefix.upper()}"
+
+        band_indices = []
+        for band in band_names:
+            try:
+                if isinstance(datamodule.band_order, dict):
+                    if modality_prefix in datamodule.band_order:
+                        band_indices.append(datamodule.band_order[modality_prefix].index(band))
+                    elif modality == "image" and len(datamodule.band_order) == 1:
+                        config_key = next(iter(datamodule.band_order))
+                        band_indices.append(datamodule.band_order[config_key].index(band))
+                else:
+                    band_indices.append(datamodule.band_order.index(band))
+            except (ValueError, KeyError):
+                print(f"Warning: Band {band} not found in band_order for modality {modality}")
+
+        if not band_indices and modality in batch:
+            band_indices = list(range(batch[modality].shape[1]))
+            band_names = [f"Band {i}" for i in band_indices]
+
+        all_data = {"raw": {}}
+        normalizer_display_names = {}
+        
+        for i, normalizer in enumerate(normalizer_modules):
+            base_name = normalizer.__class__.__name__
+            if hasattr(normalizer, "processing_mode"):
+                base_name = f"{base_name} ({normalizer.processing_mode})"
+                
+            norm_key = base_name
+            suffix = 1
+            while norm_key in all_data:
+                norm_key = f"{base_name}_{suffix}"
+                suffix += 1
+
+            all_data[norm_key] = {}
+            normalizer_display_names[i] = norm_key
+
+        for i, band_idx in enumerate(band_indices):
+            if band_idx < batch[modality].shape[1]:
+                band_label = band_names[i] if i < len(band_names) else f"Band {band_idx}"
+                all_data["raw"][band_label] = batch[modality][:, band_idx].flatten().numpy()
+                
+                for j, norm_batch in enumerate(normalized_batches):
+                    norm_key = normalizer_display_names[j]
+                    all_data[norm_key][band_label] = norm_batch[modality][:, band_idx].flatten().numpy()
+
+        for col_idx in range(n_normalizers + 1):
+            data_key = "raw" if col_idx == 0 else normalizer_display_names[col_idx - 1]
+            
+            main_ax = fig.add_subplot(gs[row_idx * 2, col_idx])
+            stats_ax = fig.add_subplot(gs[row_idx * 2 + 1, col_idx])
+            stats_ax.axis("off")
+            
+            bins = 100
+            for band in all_data[data_key].keys():
+                hist, bin_edges = np.histogram(all_data[data_key][band], bins=bins)
+                bin_centers = (bin_edges[:-1] + bin_edges[1:]) / 2
+                main_ax.plot(bin_centers, hist, label=band, linewidth=2.5)
+            
+            if row_idx == 0:
+                display_title = column_titles[col_idx]
+                main_ax.set_title(display_title, fontsize=16, pad=20)
+            
+            main_ax.set_title(f"{plot_title}", fontsize=14, pad=5)
+            main_ax.set_xlabel("Value")
+            main_ax.set_ylabel("Frequency")
+            main_ax.legend(loc="upper right")
+            
+            main_ax.grid(True, alpha=0.3)
+            main_ax.spines["top"].set_visible(False)
+            main_ax.spines["right"].set_visible(False)
+            
+            stats_text = f"Statistics for {plot_title} ({data_key}):\n"
+            for band in all_data[data_key].keys():
+                data = all_data[data_key][band]
+                mean_val = np.mean(data)
+                std_val = np.std(data)
+                min_val = np.min(data)
+                max_val = np.max(data)
+                stats_text += f"{band}: Mean={mean_val:.3f}, Std={std_val:.3f}, Range=[{min_val:.3f}, {max_val:.3f}]\n"
+            
+            stats_ax.text(
+                0.5, 0.5, stats_text,
+                ha="center", va="center", fontsize=10,
+                bbox=dict(boxstyle="round", facecolor="white", alpha=0.7)
+            )
+
+    normalizer_labels = []
+    for norm in normalizer_modules:
+        if hasattr(norm, "processing_mode"):
+            normalizer_labels.append(f"{norm.__class__.__name__} ({norm.processing_mode})")
+        else:
+            normalizer_labels.append(norm.__class__.__name__)
+            
+    normalizer_names = ", ".join(normalizer_labels)
+    plt.suptitle(f"Comparison of Normalization Methods: {normalizer_names}", fontsize=18, y=0.995)
+    plt.tight_layout()
+    fig.subplots_adjust(top=0.95 if n_modalities == 1 else 0.97)
+    
+    return fig, normalized_batches

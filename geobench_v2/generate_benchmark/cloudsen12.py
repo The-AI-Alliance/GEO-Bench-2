@@ -14,7 +14,6 @@ from huggingface_hub import snapshot_download
 from geobench_v2.generate_benchmark.utils import (
     create_subset_from_df,
     create_unittest_subset,
-    plot_sample_locations,
 )
 
 
@@ -77,10 +76,6 @@ def create_subset(root: str, save_dir: str) -> None:
             nworkers=4,
         )
 
-        test_taco = tacoreader.load(
-            os.path.join(save_dir, f"geobench_cloudsen12-{key}.taco")
-        )
-
         meta_dfs.append(metadata_df)
 
     full_metadata = pd.concat(meta_dfs)
@@ -103,16 +98,16 @@ def main():
     args = parser.parse_args()
 
     metadata_path = os.path.join(args.save_dir, "geobench_cloudsen12_metadata.parquet")
-    if os.path.exists(metadata_path):
-        metadata_df = pd.read_parquet(metadata_path)
-    else:
-        metadata_df = create_subset(args.root, save_dir=args.save_dir)
-        metadata_df.to_parquet(metadata_path)
+    # if os.path.exists(metadata_path):
+    #     metadata_df = pd.read_parquet(metadata_path)
+    # else:
+    metadata_df = create_subset(args.root, save_dir=args.save_dir)
+    metadata_df.to_parquet(metadata_path)
 
-    plot_sample_locations(
-        metadata_df=metadata_df,
-        output_path=os.path.join(args.save_dir, "sample_locations.png"),
-    )
+    # plot_sample_locations(
+    #     metadata_df=metadata_df,
+    #     output_path=os.path.join(args.save_dir, "sample_locations.png"),
+    # )
 
     l2a_taco = tacoreader.load(
         os.path.join(args.save_dir, "geobench_cloudsen12-l2a.taco")
@@ -121,21 +116,21 @@ def main():
     subset_taco = create_subset_from_df(
         l2a_taco,
         n_train_samples=4000,
-        n_val_samples=-1,
-        n_test_samples=-1,
+        n_val_samples=1000,
+        n_test_samples=2000,
         split_column="tortilla:data_split",
         random_state=41,
     )
 
     tacoreader.compile(
         dataframe=subset_taco,
-        output=os.path.join(args.save_dir, "geobench_cloudsen12.taco"),
+        output=os.path.join(args.save_dir, "geobench_cloudsen12.tortilla"),
         nworkers=4,
     )
 
     create_unittest_subset(
         data_dir=args.save_dir,
-        tortilla_pattern="geobench_cloudsen12.taco",
+        tortilla_pattern="geobench_cloudsen12.tortilla",
         test_dir_name="cloudsen12",
         n_train_samples=2,
         n_val_samples=1,

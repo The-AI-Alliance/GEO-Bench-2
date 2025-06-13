@@ -98,7 +98,6 @@ def generate_metadata_df(root: str) -> pd.DataFrame:
         subdirectory = parts[1]
 
         filename = os.path.basename(path)
-        ext = os.path.splitext(filename)[1]
 
         filename_parts = filename.split("_")
         scene_num = filename_parts[1]
@@ -298,9 +297,6 @@ def process_mados_sample(args):
         if "CL_path" in row and pd.notna(row["CL_path"]):
             mask_path = os.path.join(root_dir, "MADOS", row["CL_path"])
 
-        with rasterio.open(band_paths[0]) as src:
-            crs = src.crs
-            transform = src.transform
 
         for band_path in band_paths:
             with rasterio.open(band_path) as src:

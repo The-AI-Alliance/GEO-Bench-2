@@ -42,6 +42,7 @@ class GeoBenchSpaceNet8DataModule(GeoBenchSegmentationDataModule):
 
         Args:
             img_size: Image size, created patches are of size 512
+            band_order: The order of bands to return in the sample
             batch_size: Batch size during training
             eval_batch_size: Evaluation batch size
             num_workers: Number of workers
@@ -163,7 +164,7 @@ class GeoBenchSpaceNet8DataModule(GeoBenchSegmentationDataModule):
             ax = axes[i, 2]
             mask_img = masks[i].cpu().numpy()
 
-            im = ax.imshow(mask_img, cmap=flood_cmap, vmin=0, vmax=4)
+            ax.imshow(mask_img, cmap=flood_cmap, vmin=0, vmax=4)
             ax.set_title("Flood Mask" if i == 0 else "")
             ax.axis("off")
 
