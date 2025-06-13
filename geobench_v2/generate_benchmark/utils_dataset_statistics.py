@@ -24,7 +24,7 @@ class ImageStatistics(torch.nn.Module):
         self,
         shape: tuple[int],
         dims: list[int],
-        bins: int = 1000,
+        bins: int = 100,
         range_vals: tuple[float, float] = (0, 100),
         compute_quantiles: bool = False,
         clip_min_val: Tensor | None = None,
@@ -303,7 +303,7 @@ class DatasetStatistics(ABC):
     def __init__(
         self,
         datamodule: LightningDataModule,
-        bins: int = 500,
+        bins: int = 100,
         range_vals: dict[str, tuple[float, float]] | tuple[float, float] = (0.0, 1.0),
         clip_min_vals: dict[str, float] | None = None,
         clip_max_vals: dict[str, float] | None = None,
@@ -537,7 +537,7 @@ class ClassificationStatistics(DatasetStatistics):
     def __init__(
         self,
         datamodule: LightningDataModule,
-        bins: int = 500,
+        bins: int = 100,
         range_vals: tuple[float, float] = (0.0, 1.0),
         clip_min_vals: dict[str, float] | None = None,
         clip_max_vals: dict[str, float] | None = None,
@@ -673,7 +673,7 @@ class SegmentationStatistics(DatasetStatistics):
     def __init__(
         self,
         datamodule: LightningDataModule,
-        bins: int = 500,
+        bins: int = 100,
         range_vals: tuple[float, float] = (0.0, 1.0),
         clip_min_vals: dict[str, float] | None = None,
         clip_max_vals: dict[str, float] | None = None,
@@ -802,7 +802,7 @@ class PxRegressionStatistics(DatasetStatistics):
     def __init__(
         self,
         datamodule: LightningDataModule,
-        bins: int = 500,
+        bins: int = 100,
         range_vals: tuple[float, float] = (0.0, 1.0),
         clip_min_vals: dict[str, float] | None = None,
         clip_max_vals: dict[str, float] | None = None,
@@ -892,7 +892,7 @@ class ObjectDetectionStatistics(DatasetStatistics):
     def __init__(
         self,
         datamodule: LightningDataModule,
-        bins: int = 500,
+        bins: int = 100,
         range_vals: tuple[float, float] = (0.0, 1.0),
         clip_min_vals: dict[str, float] | None = None,
         clip_max_vals: dict[str, float] | None = None,
