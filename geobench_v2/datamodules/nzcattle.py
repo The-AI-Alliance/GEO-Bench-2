@@ -22,7 +22,7 @@ from .base import GeoBenchObjectDetectionDataModule
 
 
 def nzcattle_collate_fn(batch: Sequence[dict[str, Any]]) -> dict[str, Any]:
-    """Collate function for WindTurbine dataset.
+    """Collate function for nzCattle dataset.
 
     Args:
         batch: A list of dictionaries containing the data for each sample
