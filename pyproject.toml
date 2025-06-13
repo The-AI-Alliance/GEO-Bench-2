@@ -53,6 +53,10 @@ dependencies = [
     # torchgeo 
     #"torchgeo @ git+https://github.com/microsoft/torchgeo.git"
     "torchgeo>=0.7",
+    "geopandas",
+    "tacotoolbox",
+    "tacoreader",
+    "pytortilla"
 ]
 dynamic = ["version"]
 
