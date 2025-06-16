@@ -2,35 +2,17 @@
 import argparse
 import os
 
-import numpy as np
 import pandas as pd
 
-import json
 from tqdm import tqdm
-from PIL import ImageFile
-from PIL import Image
-import geopandas as gpd
-from shapely.geometry import shape
 
 import os
-import numpy as np
 import rasterio
-from rasterio.transform import from_origin
-from PIL import Image
 from tqdm import tqdm
-import multiprocessing
-from functools import partial
-import h5py
 
-from geobench_v2.generate_benchmark.object_detection_util import (
-    convert_pngs_to_geotiffs,
-)
-
-from geobench_v2.generate_benchmark.utils import create_subset_from_df
-
+from geobench_v2.generate_benchmark.utils import create_unittest_subset
 
 import os
-import json
 import glob
 import rasterio
 import tacoreader
@@ -169,6 +151,15 @@ if __name__ == '__main__':
     tortilla_name = "geobench_burn_scars.tortilla"
 
     create_tortilla(args.root, args.save_dir, tortilla_name=tortilla_name)
+
+    create_unittest_subset(
+        data_dir=args.save_dir,
+        tortilla_pattern=tortilla_name,
+        test_dir_name="burn_scars",
+        n_train_samples=2,
+        n_val_samples=1,
+        n_test_samples=1,
+    )
 
 
 
