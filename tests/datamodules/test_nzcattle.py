@@ -35,7 +35,7 @@ def datamodule(
         "sha256str",
         ["eb578f1553d8860dd86b82452318855a09885ba53e7af981f6356b51baffe8b0"],
     )
-    pdb.set_trace()
+
     dm = GeoBenchNZCattleDataModule(
         img_size=256,
         batch_size=2,

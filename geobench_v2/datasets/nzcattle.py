@@ -75,31 +75,6 @@ class GeoBenchNZCattle(GeoBenchBaseDataset):
             download=download,
         )
 
-        self.data_df = tacoreader.load(os.path.join(self.root, "geobench_nzcattle.tortilla"))
-        
-        self.data_df = self.data_df[self.data_df["tortilla:data_split"] == split].reset_index(
-            drop=True
-        )
-
-        if isinstance(data_normalizer, type):
-            print(f"Initializing normalizer from class: {data_normalizer.__name__}")
-            if issubclass(data_normalizer, DataNormalizer):
-                self.data_normalizer = data_normalizer(
-                    self.normalization_stats, self.band_order
-                )
-            else:
-                self.data_normalizer = data_normalizer()
-
-        elif callable(data_normalizer):
-            print(
-                f"Using provided pre-initialized normalizer instance: {data_normalizer.__class__.__name__}"
-            )
-            self.data_normalizer = data_normalizer
-        else:
-            raise TypeError(
-                f"data_normalizer must be a DataNormalizer subclass type or a callable instance. Got {type(data_normalizer)}"
-            )
-
     def __len__(self) -> int:
         """Return the length of the dataset.
 
