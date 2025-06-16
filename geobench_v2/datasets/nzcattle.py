@@ -12,12 +12,13 @@ import torch.nn as nn
 from torch import Tensor
 from torchgeo.datasets import NonGeoDataset
 import tacoreader
-from geobench_v2.datasets.data_util import ClipZScoreNormalizer, DataUtilsMixin, DataNormalizer
+from geobench_v2.datasets.data_util import DataUtilsMixin
 from geobench_v2.datasets.sensor_util import DatasetBandRegistry
 import pdb
 import rasterio
 import h5py
 import json
+from .normalization import ClipZScoreNormalizer, DataNormalizer
 
 class GeoBenchNZCattle(NonGeoDataset, DataUtilsMixin):
     """ nzCattle dataset.
@@ -42,6 +43,7 @@ class GeoBenchNZCattle(NonGeoDataset, DataUtilsMixin):
         band_order: list[str] = band_default_order,
         data_normalizer: type[nn.Module] = ClipZScoreNormalizer,
         transforms: nn.Module | None = None,
+        download: bool = False,
     ) -> None:
         """Initialize nzCattle dataset.
 
@@ -55,13 +57,25 @@ class GeoBenchNZCattle(NonGeoDataset, DataUtilsMixin):
             data_normalizer: The data normalizer to apply to the data, defaults to :class:`data_util.ClipZScoreNormalizer`,
                 which applies z-score normalization to each band.
             transforms: image transformations to apply to the data, defaults to None
+            download: Whether to download the dataset 
         """
-        self.root = root
-        self.split = split
 
-        self.transforms = transforms
+        super().__init__(
+            root=root,
+            split=split,
+            band_order=band_order,
+            data_normalizer=data_normalizer,
+            transforms=transforms,
+            metadata=None,
+            download=download,
+        )
 
-        self.band_order = self.resolve_band_order(band_order)
+        # self.root = root
+        # self.split = split
+
+        # self.transforms = transforms
+
+        # self.band_order = self.resolve_band_order(band_order)
 
         self.data_df = tacoreader.load(os.path.join(self.root, "geobench_nzcattle.tortilla")
                                   )
