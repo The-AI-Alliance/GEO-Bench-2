@@ -112,8 +112,8 @@ class GeoBenchBurnScarsDataModule(GeoBenchSegmentationDataModule):
         masks = masks[indices]
 
         plot_bands = self.dataset_band_config.plot_bands
-        plot_index = self.band_order.index(plot_bands[0])
-        images = images[:, plot_index, :, :]
+        plot_indices = [self.band_order.index(band) for band in plot_bands]
+        images = images[:, plot_indices, :, :]
 
         # Create figure with 3 columns: image, mask, and legend
         fig, axes = plt.subplots(
@@ -136,9 +136,9 @@ class GeoBenchBurnScarsDataModule(GeoBenchSegmentationDataModule):
         for i in range(n_samples):
             ax = axes[i, 0]
             img = images[i].cpu().numpy()
-            img = percentile_normalization(img, lower=2, upper=98)
+            img = percentile_normalization(img, lower=2, upper=98).transpose((1,2,0))
             ax.imshow(img, cmap="gray")
-            ax.set_title("SAR Image" if i == 0 else "")
+            ax.set_title("HLS Image" if i == 0 else "")
             ax.axis("off")
 
             ax = axes[i, 1]

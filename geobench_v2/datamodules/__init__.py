@@ -30,7 +30,7 @@ from .spacenet7 import GeoBenchSpaceNet7DataModule
 from .spacenet8 import GeoBenchSpaceNet8DataModule
 from .treesatai import GeoBenchTreeSatAIDataModule
 from .wind_turbine import GeoBenchWindTurbineDataModule
-from .burn_scars import GeoBenchBurnScars
+from .burn_scars import GeoBenchBurnScarsDataModule
 
 __all__ = (
     "GeoBenchCaFFeDataModule",

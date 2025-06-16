@@ -119,9 +119,14 @@ class GeoBenchBurnScars(GeoBenchBaseDataset):
 
         sample["mask"] = mask
 
-        sample["lon"] = sample_row.iloc[0]["tortillac:lon"]
-        sample["lat"] = sample_row.iloc[0]["tortillac:lat"]
-        
+        point = wkt.loads(sample_row.iloc[0]["stac:centroid"])
+        lon, lat = point.x, point.y
+
+        if "lon" in self.metadata:
+            sample["lon"] = torch.tensor(lon)
+        if "lat" in self.metadata:
+            sample["lat"] = torch.tensor(lat)
+
         if self.transforms is not None:
             sample = self.transforms(sample)
 
