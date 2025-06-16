@@ -11,7 +11,7 @@ from pytest import MonkeyPatch
 
 from geobench_v2.datamodules import GeoBenchNZCattleDataModule
 from geobench_v2.datasets import GeoBenchNZCattle
-
+import pdb
 
 @pytest.fixture(params=[["red", "green", 0, "blue"]])
 def band_order(request):
@@ -33,8 +33,9 @@ def datamodule(
     monkeypatch.setattr(
         GeoBenchNZCattle,
         "sha256str",
-        ["5e92fe98d665dcb08efaa8cb749b72c6890ff9b7a63987b675a7fc0795085a37"],
+        ["eb578f1553d8860dd86b82452318855a09885ba53e7af981f6356b51baffe8b0"],
     )
+    pdb.set_trace()
     dm = GeoBenchNZCattleDataModule(
         img_size=256,
         batch_size=2,
