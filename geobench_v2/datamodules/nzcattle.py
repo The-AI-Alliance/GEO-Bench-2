@@ -90,16 +90,6 @@ class GeoBenchNZCattleDataModule(GeoBenchObjectDetectionDataModule):
             **kwargs,
         )
 
-    def load_metadata(self) -> pd.DataFrame:
-        """Load metadata file.
-
-        Returns:
-            pandas DataFrame with metadata.
-        """
-        return pd.read_parquet(
-            os.path.join(self.kwargs["root"], "geobench_windturbine.parquet")
-        )
-
     def visualize_batch(
         self, split: str = "train"
     ) -> tuple[plt.Figure, dict[str, Tensor]]:
