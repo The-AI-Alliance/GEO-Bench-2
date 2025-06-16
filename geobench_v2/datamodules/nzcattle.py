@@ -1,7 +1,7 @@
 # Copyright (c) 2025 GeoBenchV2. All rights reserved.
 # Licensed under the Apache License 2.0.
 
-"""GeoBench WindTurbine DataModule."""
+"""GeoBench NZCattle DataModule."""
 
 import os
 from collections.abc import Callable, Sequence
@@ -62,6 +62,10 @@ class GeoBenchNZCattleDataModule(GeoBenchObjectDetectionDataModule):
 
         Args:
             img_size: Image size
+            band_order: The order of bands to return, defaults to ['red', 'green', 'blue'], if one would
+                specify ['red', 'green', 'blue', 'blue'], the dataset would return images with 4 channels
+                in that order. This is useful for models that expect a certain band order, or
+                test the impact of band order on model performance.
             batch_size: Batch size during
             eval_batch_size: Evaluation batch size
             num_workers: Number of workers
