@@ -1,7 +1,7 @@
 # Copyright (c) 2025 GeoBenchV2. All rights reserved.
 # Licensed under the Apache License 2.0.
 
-"""WindTurbine dataset."""
+"""NZCattle dataset."""
 
 import os
 from pathlib import Path
@@ -74,14 +74,6 @@ class GeoBenchNZCattle(GeoBenchBaseDataset):
             metadata=None,
             download=download,
         )
-
-    def __len__(self) -> int:
-        """Return the length of the dataset.
-
-        Returns:
-            length of the dataset
-        """
-        return len(self.data_df)
 
     def __getitem__(self, index: int) -> dict[str, Tensor]:
         """Return an index within the dataset.
@@ -177,10 +169,3 @@ class GeoBenchNZCattle(GeoBenchBaseDataset):
 
         return torch.tensor(boxes, dtype=torch.float32), torch.tensor(labels, dtype=torch.int64)
 
-
-if __name__ == '__main__':
-
-    dataset = GeoBenchNZCattle(root='/Users/paolofraccaro/Documents/IBM/use-cases/nz-cattle-conversion/', split='train')
-
-    sample = dataset[0]
-    pdb.set_trace()
