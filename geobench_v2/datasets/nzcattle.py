@@ -10,19 +10,24 @@ import io
 import torch
 import torch.nn as nn
 from torch import Tensor
-from torchgeo.datasets import NonGeoDataset
 import tacoreader
-from geobench_v2.datasets.data_util import DataUtilsMixin
 from geobench_v2.datasets.sensor_util import DatasetBandRegistry
 import pdb
 import rasterio
 import h5py
 import json
-from .normalization import ClipZScoreNormalizer, DataNormalizer
+from .normalization import ZScoreNormalizer, DataNormalizer
+from .base import GeoBenchBaseDataset
 
-class GeoBenchNZCattle(NonGeoDataset, DataUtilsMixin):
+class GeoBenchNZCattle(GeoBenchBaseDataset):
     """ nzCattle dataset.
     """
+
+    url = "https://hf.co/datasets/aialliance/nzcattle/resolve/main/{}"
+
+    paths = ["geobench_nzcattle.tortilla"]
+
+    sha256str = ["70ca3b78af3f5b17868dd856b8e31b102a03e74439d58960a69c77b1efcd31c1"]
 
     dataset_band_config = DatasetBandRegistry.NZCATTLE
     band_default_order = ("red", "green", "blue")
@@ -41,7 +46,7 @@ class GeoBenchNZCattle(NonGeoDataset, DataUtilsMixin):
         root: Path,
         split: str,
         band_order: list[str] = band_default_order,
-        data_normalizer: type[nn.Module] = ClipZScoreNormalizer,
+        data_normalizer: type[nn.Module] = ZScoreNormalizer,
         transforms: nn.Module | None = None,
         download: bool = False,
     ) -> None:
@@ -54,7 +59,7 @@ class GeoBenchNZCattle(NonGeoDataset, DataUtilsMixin):
                 specify ['red', 'green', 'blue', 'blue'], the dataset would return images with 4 channels
                 in that order. This is useful for models that expect a certain band order, or
                 test the impact of band order on model performance.
-            data_normalizer: The data normalizer to apply to the data, defaults to :class:`data_util.ClipZScoreNormalizer`,
+            data_normalizer: The data normalizer to apply to the data, defaults to :class:`ZScoreNormalizer`,
                 which applies z-score normalization to each band.
             transforms: image transformations to apply to the data, defaults to None
             download: Whether to download the dataset 
@@ -70,15 +75,7 @@ class GeoBenchNZCattle(NonGeoDataset, DataUtilsMixin):
             download=download,
         )
 
-        # self.root = root
-        # self.split = split
-
-        # self.transforms = transforms
-
-        # self.band_order = self.resolve_band_order(band_order)
-
-        self.data_df = tacoreader.load(os.path.join(self.root, "geobench_nzcattle.tortilla")
-                                  )
+        self.data_df = tacoreader.load(os.path.join(self.root, "geobench_nzcattle.tortilla"))
         
         self.data_df = self.data_df[self.data_df["tortilla:data_split"] == split].reset_index(
             drop=True
