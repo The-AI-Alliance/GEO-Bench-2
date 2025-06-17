@@ -5,7 +5,7 @@ import os
 import pandas as pd
 
 from tqdm import tqdm
-
+import numpy as np
 import os
 import rasterio
 from tqdm import tqdm
@@ -38,7 +38,7 @@ def generate_metadata_df(root_dir: str) -> pd.DataFrame:
     metadata_df = pd.merge(metadata_df, splits_df, how='left', on='image_key')
 
     # add labels
-    metadata_df['label_file'] = [x.replace('_merge.tif', '.mask.tif') for x in metadata_df['file_path'].values]
+    metadata_df['label_file'] = [x.replace('_merged.tif', '.mask.tif') for x in metadata_df['file_path'].values]
 
     return metadata_df
 
@@ -56,7 +56,6 @@ def create_tortilla(dataset_dir, save_dir, tortilla_name):
     os.makedirs(tortilla_dir, exist_ok=True)
 
     metadata_df = generate_metadata_df(dataset_dir)
-
     for idx, geotiff_path in enumerate(tqdm(metadata_df['file_path'].values, desc="Creating tortillas")):
 
         with rasterio.open(geotiff_path) as src:
@@ -83,6 +82,10 @@ def create_tortilla(dataset_dir, save_dir, tortilla_name):
             tile=tile
         )
 
+        with rasterio.open(metadata_df['label_file'].values[idx]) as src:
+            mask = src.read(1)
+            mask_sum = np.sum(mask)
+
         # Create annotation part
         label_sample = tacotoolbox.tortilla.datamodel.Sample(
             id="label",
@@ -95,7 +98,8 @@ def create_tortilla(dataset_dir, save_dir, tortilla_name):
                 "raster_shape": (height, width),
                 "time_start": time,
             },
-            tile=tile
+            tile=tile,
+            burn_scar = mask_sum
         )
 
         taco_samples = tacotoolbox.tortilla.datamodel.Samples(
