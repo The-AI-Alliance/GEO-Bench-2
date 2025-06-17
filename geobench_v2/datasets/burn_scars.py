@@ -14,14 +14,14 @@ from torch import Tensor
 from .base import GeoBenchBaseDataset
 from .normalization import ZScoreNormalizer
 from .sensor_util import DatasetBandRegistry
-
+import pdb
 
 class GeoBenchBurnScars(GeoBenchBaseDataset):
     """GeoBench Caffe dataset."""
 
     url = "https://hf.co/datasets/aialliance/burn_scar/resolve/main/{}"
     paths = ["geobench_burn_scars.tortilla"]
-    sha256str = ["2b3dc4d89cda5f36dfc4cccb37ce5da7286c0c4956a52c82c24d6abf80bbb3e2"]
+    sha256str = ["ce8328f51d02929a071e120c942def32ceaed1f9209096866fb6e0080425bae4"]
 
     dataset_band_config = DatasetBandRegistry.BURNSCARS
     # TODO update sensor type with wavelength and resolution
