@@ -4,6 +4,7 @@
 import os
 from collections.abc import Sequence
 from pathlib import Path
+import torch
 
 import matplotlib.pyplot as plt
 import pytest
@@ -72,8 +73,21 @@ class TestWindTurbineDataModule:
 
     def test_batch_visualization(self, datamodule):
         """Test batch visualization."""
-        fig, batch = datamodule.visualize_batch("train")
+        fig, batch = datamodule.visualize_batch(split="train")
         assert isinstance(fig, plt.Figure)
         assert isinstance(batch, dict)
 
         fig.savefig(os.path.join("tests", "data", "wind_turbine", "test_batch.png"))
+
+    def test_batch_visualization_with_pred(self, datamodule):
+        """Test batch visualization with predictions."""
+        # Simulate a prediction in the batch
+        train_batch = next(iter(datamodule.train_dataloader()))
+        
+        train_batch["predictions"] = [
+            train_batch["bbox_xyxy"][i] + torch.ones_like(train_batch["bbox_xyxy"][i]) * 5 for i in range(len(train_batch["bbox_xyxy"]))
+        ]
+
+        fig, batch = datamodule.visualize_batch(batch=train_batch)
+
+        fig.savefig(os.path.join("tests", "data", "wind_turbine", "test_batch_with_pred.png"))

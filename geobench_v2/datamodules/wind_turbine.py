@@ -103,7 +103,7 @@ class GeoBenchWindTurbineDataModule(GeoBenchObjectDetectionDataModule):
         )
 
     def visualize_batch(
-        self, split: str = "train"
+        self, batch: dict[str, Tensor] | None = None, split: str = "train"
     ) -> tuple[plt.Figure, dict[str, Tensor]]:
         """Visualize a batch of data.
 
@@ -113,12 +113,13 @@ class GeoBenchWindTurbineDataModule(GeoBenchObjectDetectionDataModule):
         Returns:
             The matplotlib figure and the batch of data
         """
-        if split == "train":
-            batch = next(iter(self.train_dataloader()))
-        elif split == "validation":
-            batch = next(iter(self.val_dataloader()))
-        else:
-            batch = next(iter(self.test_dataloader()))
+        if batch is None:
+            if split == "train":
+                batch = next(iter(self.train_dataloader()))
+            elif split == "validation":
+                batch = next(iter(self.val_dataloader()))
+            else:
+                batch = next(iter(self.test_dataloader()))
 
         if hasattr(self.data_normalizer, "unnormalize"):
             batch = self.data_normalizer.unnormalize(batch)
@@ -127,6 +128,15 @@ class GeoBenchWindTurbineDataModule(GeoBenchObjectDetectionDataModule):
         boxes_batch = batch["bbox_xyxy"]
         labels_batch = batch["label"]
 
+        # Check if predictions are available
+        has_predictions = any(key in batch for key in ["pred", "prediction", "predictions"])
+        pred_key = None
+        if has_predictions:
+            for key in ["pred", "prediction", "predictions"]:
+                if key in batch:
+                    pred_key = key
+                    break
+
         batch_size = images.shape[0]
         n_samples = min(8, batch_size)
         indices = torch.randperm(batch_size)[:n_samples]
@@ -134,6 +144,10 @@ class GeoBenchWindTurbineDataModule(GeoBenchObjectDetectionDataModule):
         images = images[indices]
         boxes_batch = [boxes_batch[i] for i in indices]
         labels_batch = [labels_batch[i] for i in indices]
+
+        predictions = None
+        if has_predictions:
+            predictions = [batch[pred_key][i] for i in indices]
 
         plot_bands = self.dataset_band_config.plot_bands
         rgb_indices = [
@@ -202,8 +216,34 @@ class GeoBenchWindTurbineDataModule(GeoBenchObjectDetectionDataModule):
                     linewidth=2,
                     edgecolor=color,
                     facecolor="none",
+                    linestyle="-",
                 )
                 ax_img.add_patch(rect)
+
+            if predictions:
+                pred_boxes = predictions[i].get("boxes", []) if isinstance(predictions[i], dict) else predictions[i]
+                pred_labels = predictions[i].get("labels", []) if isinstance(predictions[i], dict) else [0] * len(pred_boxes)
+                
+                for pred_box, pred_label in zip(pred_boxes, pred_labels):
+                    if isinstance(pred_box, torch.Tensor):
+                        pred_box = pred_box.cpu().numpy()
+                    if isinstance(pred_label, torch.Tensor):
+                        pred_label = pred_label.item()
+
+                    x1, y1, x2, y2 = pred_box
+                    color = colors[int(pred_label) % len(colors)]
+
+                    pred_rect = plt.Rectangle(
+                        (x1, y1),
+                        x2 - x1,
+                        y2 - y1,
+                        linewidth=2,
+                        edgecolor=color,
+                        facecolor="none",
+                        linestyle=":",
+                        alpha=0.8,
+                    )
+                    ax_img.add_patch(pred_rect)
 
             ax_img.set_title(f"Sample {i + 1}" if i == 0 else "")
             ax_img.set_xticks([])
@@ -259,6 +299,11 @@ class GeoBenchWindTurbineDataModule(GeoBenchObjectDetectionDataModule):
                 ax_stats.text(0.1, 0.5, "No objects detected", va="center")
 
         plt.tight_layout()
+
+        if has_predictions:
+            fig.text(0.5, 0.02, "Note: Dotted lines indicate predictions", 
+                    ha='center', va='bottom', fontsize=10, style='italic', color='gray')
+            plt.subplots_adjust(bottom=0.08)
 
         return fig, batch
 
