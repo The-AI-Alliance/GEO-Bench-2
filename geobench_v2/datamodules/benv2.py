@@ -78,7 +78,7 @@ class GeoBenchBENV2DataModule(GeoBenchClassificationDataModule):
         return self.data_df
 
     def visualize_batch(
-        self, batch: dict[str, Tensor] = None, split: str = "train"
+        self, batch: dict[str, Tensor] | None = None, split: str = "train"
     ) -> tuple[plt.Figure, dict[str, Tensor]]:
         """Visualize a batch of data.
 

@@ -108,22 +108,38 @@ class GeoBenchCloudSen12DataModule(GeoBenchSegmentationDataModule):
         images = batch["image"]
         masks = batch["mask"]
 
+        # Check if predictions are available
+        has_predictions = any(key in batch for key in ["pred", "prediction", "predictions"])
+        pred_key = None
+        if has_predictions:
+            for key in ["pred", "prediction", "predictions"]:
+                if key in batch:
+                    pred_key = key
+                    break
+
         n_samples = min(8, images.shape[0])
         indices = torch.randperm(images.shape[0])[:n_samples]
 
         images = images[indices]
         masks = masks[indices]
 
+        predictions = None
+        if has_predictions:
+            predictions = batch[pred_key][indices]
+
         plot_bands = self.dataset_band_config.plot_bands
         plot_index = self.band_order.index(plot_bands[0])
         images = images[:, plot_index, :, :]
 
-        # Create figure with 3 columns: image, mask, and legend
+        # Create figure with 3 columns: image, mask, (optional pred), and legend
+        num_cols = 4 if has_predictions else 3
+        width_ratios = [1, 1, 1, 0.5] if has_predictions else [1, 1, 0.5]
+        
         fig, axes = plt.subplots(
             n_samples,
-            3,
-            figsize=(12, 3 * n_samples),
-            gridspec_kw={"width_ratios": [1, 1, 0.5]},
+            num_cols,
+            figsize=(4 * num_cols, 3 * n_samples),
+            gridspec_kw={"width_ratios": width_ratios},
         )
 
         if n_samples == 1:
@@ -141,16 +157,24 @@ class GeoBenchCloudSen12DataModule(GeoBenchSegmentationDataModule):
             img = images[i].cpu().numpy()
             img = percentile_normalization(img, lower=2, upper=98)
             ax.imshow(img, cmap="gray")
-            ax.set_title("SAR Image" if i == 0 else "")
+            ax.set_title("Sentinel 2 Image" if i == 0 else "")
             ax.axis("off")
 
             ax = axes[i, 1]
             mask_img = masks[i].cpu().numpy()
             ax.imshow(mask_img, cmap="tab20", vmin=0, vmax=19)
-            ax.set_title("Mask" if i == 0 else "")
+            ax.set_title("Target" if i == 0 else "")
             ax.axis("off")
 
-            ax = axes[i, 2]
+            if has_predictions:
+                ax = axes[i, 2]
+                pred_img = predictions[i].cpu().numpy()
+                ax.imshow(pred_img, cmap="tab20", vmin=0, vmax=19)
+                ax.set_title("Prediction" if i == 0 else "")
+                ax.axis("off")
+
+            legend_col = 3 if has_predictions else 2
+            ax = axes[i, legend_col]
             ax.axis("off")
 
             if i == 0:

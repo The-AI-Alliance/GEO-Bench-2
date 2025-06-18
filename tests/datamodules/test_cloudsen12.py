@@ -8,6 +8,7 @@ from collections.abc import Sequence
 from pathlib import Path
 
 import pytest
+import matplotlib.pyplot as plt
 import torch
 from pytest import MonkeyPatch
 from torchgeo.datasets import DatasetNotFoundError
@@ -16,7 +17,7 @@ from geobench_v2.datamodules import GeoBenchCloudSen12DataModule
 from geobench_v2.datasets import GeoBenchCloudSen12
 
 
-@pytest.fixture(params=[["B01", "B02", "B08", "B02", 0.0]])
+@pytest.fixture(params=[["B01", "B02", "B08", "B02", "B03", "B04", 0.0]])
 def band_order(request):
     """Parameterized band configuration with different configurations."""
     return request.param
@@ -75,16 +76,32 @@ class TestCloudSen12DataModule:
         assert train_batch["image"].shape[3] == 74
 
         assert train_batch["mask"].shape[0] == datamodule.batch_size
-        assert train_batch["mask"].shape[1] == 1
-        assert train_batch["mask"].shape[2] == datamodule.img_size
-        assert train_batch["mask"].shape[3] == 74
+        assert train_batch["mask"].shape[1] == datamodule.img_size
+        assert train_batch["mask"].shape[2] == 74
 
-        assert torch.isclose(train_batch["image"][:, 4], torch.tensor(0.0)).all()
+        assert torch.isclose(train_batch["image"][:, 6], torch.tensor(0.0)).all()
 
         assert "lon" in train_batch
         assert "lat" in train_batch
         assert train_batch["lon"].shape == (datamodule.batch_size,)
         assert train_batch["lat"].shape == (datamodule.batch_size,)
+
+    def test_batch_visualization(self, datamodule):
+        """Test batch visualization."""
+        fig, batch = datamodule.visualize_batch(split="train")
+        assert isinstance(fig, plt.Figure)
+        assert isinstance(batch, dict)
+
+        fig.savefig(os.path.join("tests", "data", "cloudsen12", "test_batch.png"))
+
+    def test_batch_visualization_with_pred(self, datamodule):
+        """Test batch visualization with predictions."""
+        # Simulate a prediction in the batch
+        batch = next(iter(datamodule.train_dataloader()))
+        batch["pred"] = batch["mask"]
+        fig, batch = datamodule.visualize_batch(batch=batch)
+
+        fig.savefig(os.path.join("tests", "data", "cloudsen12", "test_batch_with_pred.png"))
 
     def test_not_downloaded(self, tmp_path: Path) -> None:
         with pytest.raises(DatasetNotFoundError, match="Dataset not found"):
