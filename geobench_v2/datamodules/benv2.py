@@ -78,11 +78,12 @@ class GeoBenchBENV2DataModule(GeoBenchClassificationDataModule):
         return self.data_df
 
     def visualize_batch(
-        self, split: str = "train"
+        self, batch: dict[str, Tensor] = None, split: str = "train"
     ) -> tuple[plt.Figure, dict[str, Tensor]]:
         """Visualize a batch of data.
 
         Args:
+            batch:
             split: One of 'train', 'val', 'test'
 
         Returns:
@@ -91,12 +92,13 @@ class GeoBenchBENV2DataModule(GeoBenchClassificationDataModule):
         Raises:
             AssertionError: If bands needed for plotting are missing
         """
-        if split == "train":
-            batch = next(iter(self.train_dataloader()))
-        elif split == "validation":
-            batch = next(iter(self.val_dataloader()))
-        else:
-            batch = next(iter(self.test_dataloader()))
+        if batch is None:
+            if split == "train":
+                batch = next(iter(self.train_dataloader()))
+            elif split == "validation":
+                batch = next(iter(self.val_dataloader()))
+            else:
+                batch = next(iter(self.test_dataloader()))
 
         if hasattr(self.data_normalizer, "unnormalize"):
             batch = self.data_normalizer.unnormalize(batch)
@@ -125,11 +127,24 @@ class GeoBenchBENV2DataModule(GeoBenchClassificationDataModule):
             mod_images = rearrange(mod_images, "b c h w -> b h w c").cpu().numpy()
             modalities[mod] = mod_images
 
-        num_modalities = len(modalities)
-        fig = plt.figure(figsize=(num_modalities * 4 + 2, 3 * n_samples))
-        gs = fig.add_gridspec(
-            n_samples, num_modalities + 1, width_ratios=[*[1] * num_modalities, 0.4]
+        # Check if predictions are available in the batch
+        has_predictions = any(
+            key in batch for key in ["pred", "prediction", "predictions"]
         )
+        pred_key = None
+        if has_predictions:
+            for key in ["pred", "prediction", "predictions"]:
+                if key in batch:
+                    pred_key = key
+                    break
+
+        num_modalities = len(modalities)
+        # Adjust layout based on whether we have predictions
+        num_cols = num_modalities + (2 if has_predictions else 1)
+        width_ratios = [1] * num_modalities + ([0.6, 0.6] if has_predictions else [0.6])
+
+        fig = plt.figure(figsize=(num_cols * 4 + 2, 3 * n_samples))
+        gs = fig.add_gridspec(n_samples, num_cols, width_ratios=width_ratios)
 
         labels = batch["label"][indices]
         sample_labels = []
@@ -137,7 +152,17 @@ class GeoBenchBENV2DataModule(GeoBenchClassificationDataModule):
             present_labels = torch.where(labels[i] == 1)[0].cpu().tolist()
             sample_labels.append(present_labels)
 
+        sample_predictions = []
         for i in range(n_samples):
+            if has_predictions:
+                pred = batch[pred_key][indices[i]]
+                pred_labels = torch.where(pred == 1)[0].cpu().tolist()
+                sample_predictions.append(pred_labels)
+            else:
+                sample_predictions.append([])
+
+        for i in range(n_samples):
+            # Plot modalities
             for j, (mod, modality_img) in enumerate(modalities.items()):
                 ax = fig.add_subplot(gs[i, j])
                 plot_img = modality_img[i]
@@ -162,12 +187,13 @@ class GeoBenchBENV2DataModule(GeoBenchClassificationDataModule):
                 ax.set_title(f"{mod} image" if i == 0 else "", fontsize=20)
                 ax.axis("off")
 
-            label_ax = fig.add_subplot(gs[i, -1])
+            # Plot ground truth labels
+            label_col_idx = num_modalities
+            label_ax = fig.add_subplot(gs[i, label_col_idx])
             label_ax.axis("off")
 
             label_names = [f"- {self.class_names[label]}" for label in sample_labels[i]]
-
-            label_text = "\n".join(label_names)
+            label_text = "\n".join(label_names) if label_names else "No labels"
 
             label_ax.text(
                 0.05,
@@ -187,11 +213,45 @@ class GeoBenchBENV2DataModule(GeoBenchClassificationDataModule):
             )
 
             if i == 0:
-                label_ax.set_title("Labels", fontsize=15)
+                label_ax.set_title("Target", fontsize=15)
+
+            # Plot predictions if available
+            if has_predictions:
+                pred_col_idx = num_modalities + 1
+                pred_ax = fig.add_subplot(gs[i, pred_col_idx])
+                pred_ax.axis("off")
+
+                pred_names = [
+                    f"- {self.class_names[label]}" for label in sample_predictions[i]
+                ]
+                pred_text = "\n".join(pred_names) if pred_names else "No predictions"
+
+                # Color code based on correctness
+                correct_preds = set(sample_predictions[i]) == set(sample_labels[i])
+                bbox_color = "lightgreen" if correct_preds else "lightcoral"
+
+                pred_ax.text(
+                    0.05,
+                    0.5,
+                    pred_text,
+                    ha="left",
+                    va="center",
+                    fontsize=9,
+                    bbox=dict(
+                        boxstyle="round,pad=0.5",
+                        facecolor=bbox_color,
+                        alpha=0.8,
+                        edgecolor="lightgray",
+                    ),
+                    transform=pred_ax.transAxes,
+                    wrap=True,
+                )
+
+                if i == 0:
+                    pred_ax.set_title("Predictions", fontsize=15)
 
         plt.tight_layout()
-
-        plt.subplots_adjust(bottom=0.1)
+        plt.subplots_adjust(wspace=0.05, hspace=0.1)
 
         return fig, batch
 
@@ -206,7 +266,7 @@ class GeoBenchBENV2DataModule(GeoBenchClassificationDataModule):
         s: float = 0.5,
     ) -> None:
         """Visualize the geospatial distribution of the dataset.
-        
+
         Args:
             output_path: Path to save the visualization
             split_column: Column name for the split
