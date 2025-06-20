@@ -26,7 +26,13 @@ import tacotoolbox
 import pdb
 import json
 
+from pyproj import CRS
+from pyproj import Transformer
+from rasterio.transform import Affine
+
 from geobench_v2.generate_benchmark.utils import create_unittest_subset
+
+
 
 def generate_metadata_df(root_dir: str) -> pd.DataFrame:
 
@@ -55,17 +61,26 @@ def generate_metadata_df(root_dir: str) -> pd.DataFrame:
     
     return metadata_df
 
-def generate_random_subsample(metadata_df, n_splits = [7000, 1500, 1500]):
+def generate_random_subsample(metadata_df, n_splits):
 
     splits = ['train', 'val', 'test']
 
     metadata_sub_df = pd.DataFrame() 
 
-    for n, split in zip(n_splits, n_splits):
+    for n, split in zip(n_splits, splits):
 
         tmp = metadata_df[metadata_df['split'].values == split]
-        tmp = tmp.sample(n=n, random_state=123)
+        image_ids = tmp['image_id'].unique()
+        rng = np.random.RandomState(42)
+        image_ids_sample = rng.choice(image_ids, size=n, replace=False)
+        image_ids_sample=[int(x) for x in list(image_ids_sample)]
+        filter = [True if x in image_ids_sample else False for x in tmp['image_id'].values]
+        tmp = tmp[filter]
         metadata_sub_df = pd.concat([metadata_sub_df, tmp], axis=0)
+
+    metadata_sub_df = metadata_sub_df.reset_index(drop=True)
+
+    metadata_sub_df['split'].values[metadata_sub_df['split'].values == 'val'] = 'validation'
     
     return metadata_sub_df
 
@@ -78,6 +93,45 @@ def download(root):
     # To be implemented. Use the download method from https://github.com/IBM/terratorch/blob/main/terratorch/datasets/substation.py
     return 
 
+def save_image_tiff(image_path, lat, lon, output_folder):
+
+    image_data = np.load(image_path)['arr_0']
+    t, b, h, w = image_data.shape
+    image_data = image_data.reshape(t*b, h, w)
+    utm_zone = int((lon + 180) / 6) + 1
+    utm_crs = CRS.from_epsg(32600 + utm_zone)
+
+    transformer = Transformer.from_crs("EPSG:4326", utm_crs, always_xy=True)
+    centroid_x, centroid_y = transformer.transform(lon, lat)
+
+    # For a 1000x1000 pixel raster at 10m resolution
+    rows, cols = image_data.shape[-2:]
+    resolution = 10  # meters
+
+    x_top_left = centroid_x - (cols * resolution) / 2
+    y_top_left = centroid_y + (rows * resolution) / 2  # Negative height handled in transform
+
+    transform = Affine(resolution, 0, x_top_left, 0, -resolution, y_top_left)
+
+    profile = {
+        'driver': 'GTiff',
+        'height': rows,
+        'width': cols,
+        'count': image_data.shape[0],
+        'dtype': np.float32,
+        'crs': utm_crs,  # UTM CRS in meters
+        'transform': transform,
+        'nodata': None
+    }
+
+    new_image_path = output_folder + image_path.split('/')[-1].replace('.npz','.tiff')
+
+    with rasterio.open(new_image_path, 'w', **profile) as dst:
+
+        for i in range(image_data.shape[0]):
+            dst.write(image_data[i].astype(np.float32), i+1)
+
+    return profile, t, new_image_path
 
 
 def create_tortilla(metadata_df, save_dir, tortilla_name):
@@ -95,18 +149,12 @@ def create_tortilla(metadata_df, save_dir, tortilla_name):
     unique_images = metadata_df["file_name"].unique()
 
 
-    for idx, img_name in enumerate(tqdm(unique_images, desc="Creating tortillas")):
+    for idx, image_path in enumerate(tqdm(unique_images, desc="Creating tortillas")):
 
         ###### image conversion
-        image_data = np.load(image_path)['arr_0']
+        tiff_profile, n_timestamps, new_image_path = save_image_tiff(image_path, metadata_df['lat'].values[idx], metadata_df['lon'].values[idx], save_dir)
 
-        img_annotations = metadata_df[metadata_df["file_name"] == img_name]
-
-
-
-
-
-        geotiff_path = os.path.join(save_dir, img_name)
+        img_annotations = metadata_df[metadata_df["file_name"] == image_path]
 
         # Create annotations dictionary in COCO-like format
         boxes = []
@@ -120,11 +168,6 @@ def create_tortilla(metadata_df, save_dir, tortilla_name):
                 }
             )
 
-        with rasterio.open(geotiff_path) as src:
-            profile = src.profile
-            height, width = profile["height"], profile["width"]
-            crs = "EPSG:" + str(profile["crs"].to_epsg()) if profile["crs"] else None
-            transform = profile["transform"].to_gdal() if profile["transform"] else None
 
         first_row = img_annotations.iloc[0]
         split = first_row["split"]
@@ -133,27 +176,28 @@ def create_tortilla(metadata_df, save_dir, tortilla_name):
         lat = first_row["lat"] if not pd.isna(first_row["lat"]) else None
 
         annotations_file = os.path.join(
-            tortilla_dir, f"{os.path.splitext(img_name.split('/')[-1])[0]}_annotations.HDF5"
+            tortilla_dir, f"{os.path.splitext(new_image_path.split('/')[-1])[0]}_annotations.HDF5"
         )
 
         with h5py.File(annotations_file, 'w') as f:
             # Store the entire dictionary as a JSON string attribute
-            f.attrs['annotation'] = json.dumps({"boxes": boxes, "image_size": (height, width)})
+            f.attrs['annotation'] = json.dumps({"sample_annotations": boxes, "image_size": (tiff_profile['height'], tiff_profile['width'])})
 
         # create image
         image_sample = tacotoolbox.tortilla.datamodel.Sample(
             id="image",
-            path=geotiff_path,
+            path=new_image_path,
             file_format="GTiff",
             data_split=split,
             stac_data={
-                "crs": crs,
-                "geotransform": transform,
-                "raster_shape": (height, width),
+                "crs": "EPSG:" + str(tiff_profile["crs"].to_epsg()) if tiff_profile["crs"] else None,
+                "geotransform": tiff_profile["transform"].to_gdal() if tiff_profile["transform"] else None,
+                "raster_shape": (tiff_profile['height'], tiff_profile['width']),
                 "time_start": "2020",
             },
             lon=lon,
             lat=lat,
+            n_timestamps=n_timestamps
         )
 
         # Create annotation part
@@ -202,7 +246,7 @@ def create_tortilla(metadata_df, save_dir, tortilla_name):
 
 
 if __name__ == '__main__':
-    """Generate nzCattle Object Dection Benchmark."""
+    """Generate Substation Instance Segmentation Benchmark."""
 
     parser = argparse.ArgumentParser()
     parser.add_argument(
@@ -219,7 +263,10 @@ if __name__ == '__main__':
     download(args.root)
 
     metadata_df = generate_metadata_df(args.root)
-    tortilla_name = "geobench_nzcattle.tortilla"
+
+    metadata_df = generate_random_subsample(metadata_df, [7000, 1500, 1500])
+
+    tortilla_name = "geobench_substation.tortilla"
 
     create_tortilla(metadata_df, args.save_dir, tortilla_name=tortilla_name)
 
