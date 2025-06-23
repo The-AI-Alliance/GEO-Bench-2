@@ -118,7 +118,7 @@ def save_image_tiff(image_path, lat, lon, output_folder):
         'height': rows,
         'width': cols,
         'count': image_data.shape[0],
-        'dtype': np.float32,
+        'dtype': np.int16,
         'crs': utm_crs,  # UTM CRS in meters
         'transform': transform,
         'nodata': None
@@ -129,7 +129,7 @@ def save_image_tiff(image_path, lat, lon, output_folder):
     with rasterio.open(new_image_path, 'w', **profile) as dst:
 
         for i in range(image_data.shape[0]):
-            dst.write(image_data[i].astype(np.float32), i+1)
+            dst.write(image_data[i].astype(np.int16), i+1)
 
     return profile, t, new_image_path
 
@@ -143,7 +143,7 @@ def create_tortilla(metadata_df, save_dir, tortilla_name):
         tortilla_name: Name of the final tortilla file
     """
     
-    tortilla_dir = os.path.join(save_dir, "tortilla")
+    tortilla_dir = os.path.join(save_dir, "tortilla/")
     os.makedirs(tortilla_dir, exist_ok=True)
 
     unique_images = metadata_df["file_name"].unique()
@@ -152,7 +152,7 @@ def create_tortilla(metadata_df, save_dir, tortilla_name):
     for idx, image_path in enumerate(tqdm(unique_images, desc="Creating tortillas")):
 
         ###### image conversion
-        tiff_profile, n_timestamps, new_image_path = save_image_tiff(image_path, metadata_df['lat'].values[idx], metadata_df['lon'].values[idx], save_dir)
+        tiff_profile, n_timestamps, new_image_path = save_image_tiff(image_path, metadata_df['lat'].values[idx], metadata_df['lon'].values[idx], tortilla_dir)
 
         img_annotations = metadata_df[metadata_df["file_name"] == image_path]
 
@@ -260,11 +260,11 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
 
-    download(args.root)
+    # download(args.root)
 
     metadata_df = generate_metadata_df(args.root)
 
-    metadata_df = generate_random_subsample(metadata_df, [7000, 1500, 1500])
+    metadata_df = generate_random_subsample(metadata_df, [4000, 500, 500])
 
     tortilla_name = "geobench_substation.tortilla"
 
@@ -272,7 +272,7 @@ if __name__ == '__main__':
 
     create_unittest_subset(
         data_dir=args.save_dir,
-        tortilla_pattern=tortilla_name,
+        tortilla_pattern='geobench_substation*tortilla',
         test_dir_name="substation",
         n_train_samples=2,
         n_val_samples=1,
