@@ -495,6 +495,8 @@ class DatasetBandRegistry:
 
     EVERWATCH = SensorBandRegistry.RGB
 
+    NZCATTLE = SensorBandRegistry.RGB
+
     FOTW = SensorBandRegistry.RGBN
 
     RESISC45 = ModalityConfig(

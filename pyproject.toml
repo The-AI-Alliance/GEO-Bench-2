@@ -57,6 +57,9 @@ dependencies = [
     # torchgeo 
     #"torchgeo @ git+https://github.com/microsoft/torchgeo.git"
     "torchgeo>=0.7",
+    "geopandas>=1.1.0",
+ #   "tacotoolbox", required for generate benchmark
+    "tacoreader>=0.5.6",
 ]
 dynamic = ["version"]
 
