@@ -116,6 +116,8 @@ class GeoBenchSubstation(GeoBenchBaseDataset):
                 which applies z-score normalization to each band.
             transforms: image transformations to apply to the data, defaults to None
             download: Whether to download the dataset 
+            num_of_timepoints:  Number of timepoints to use
+            timepoint_aggregation: Type of temporal aggregation to use ['mean', 'median', 'last', 'first', 'random', 'identity']
         """
 
         super().__init__(
