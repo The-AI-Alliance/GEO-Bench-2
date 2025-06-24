@@ -51,9 +51,13 @@ class GeoBenchSubstation(GeoBenchBaseDataset):
 
     url = "https://hf.co/datasets/aialliance/substation/resolve/main/{}"
 
-    paths = ["geobench_substation.0000.part.tortilla", "geobench_substation.0001.part.tortilla"]
+    # paths = ["geobench_substation.0000.part.tortilla", "geobench_substation.0001.part.tortilla"]
 
-    sha256str = ["7eb50ad9ad3bf7707cb5f4ed55261f1a05e5ebb1418aa862f0a2b8e0a8995d28", "b457bb4fcdab9773dc793a1f1e8d70aeb9a4683e5fbd3221d37c0d3626251eed"]
+    # sha256str = ["7eb50ad9ad3bf7707cb5f4ed55261f1a05e5ebb1418aa862f0a2b8e0a8995d28", "b457bb4fcdab9773dc793a1f1e8d70aeb9a4683e5fbd3221d37c0d3626251eed"]
+
+    paths = ["geobench_substation.tortilla"]
+
+    sha256str = ["7f12cd5b510fca4a153b8e77b786d7fc7f7c4e04aece1507121e9c24ff1d47a4"]
 
     dataset_band_config = DatasetBandRegistry.SUBSTATION
     band_default_order = dataset_band_config.default_order

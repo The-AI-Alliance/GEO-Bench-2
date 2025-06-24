@@ -93,51 +93,11 @@ def download(root):
     # To be implemented. Use the download method from https://github.com/IBM/terratorch/blob/main/terratorch/datasets/substation.py
     return 
 
-def save_image_tiff(image_path, lat, lon, output_folder):
-
-    image_data = np.load(image_path)['arr_0']
-    t, b, h, w = image_data.shape
-    image_data = image_data.reshape(t*b, h, w)
-    utm_zone = int((lon + 180) / 6) + 1
-    utm_crs = CRS.from_epsg(32600 + utm_zone)
-
-    transformer = Transformer.from_crs("EPSG:4326", utm_crs, always_xy=True)
-    centroid_x, centroid_y = transformer.transform(lon, lat)
-
-    # For a 1000x1000 pixel raster at 10m resolution
-    rows, cols = image_data.shape[-2:]
-    resolution = 10  # meters
-
-    x_top_left = centroid_x - (cols * resolution) / 2
-    y_top_left = centroid_y + (rows * resolution) / 2  # Negative height handled in transform
-
-    transform = Affine(resolution, 0, x_top_left, 0, -resolution, y_top_left)
-
-    profile = {
-        'driver': 'GTiff',
-        'height': rows,
-        'width': cols,
-        'count': image_data.shape[0],
-        'dtype': np.int16,
-        'crs': utm_crs,  # UTM CRS in meters
-        'transform': transform,
-        'nodata': None
-    }
-
-    new_image_path = output_folder + image_path.split('/')[-1].replace('.npz','.tiff')
-
-    with rasterio.open(new_image_path, 'w', **profile) as dst:
-
-        for i in range(image_data.shape[0]):
-            dst.write(image_data[i].astype(np.int16), i+1)
-
-    return profile, t, new_image_path
-
-
 # def save_image_tiff(image_path, lat, lon, output_folder):
 
 #     image_data = np.load(image_path)['arr_0']
-#     image_data = np.median(image_data, axis=0)
+#     t, b, h, w = image_data.shape
+#     image_data = image_data.reshape(t*b, h, w)
 #     utm_zone = int((lon + 180) / 6) + 1
 #     utm_crs = CRS.from_epsg(32600 + utm_zone)
 
@@ -171,7 +131,47 @@ def save_image_tiff(image_path, lat, lon, output_folder):
 #         for i in range(image_data.shape[0]):
 #             dst.write(image_data[i].astype(np.int16), i+1)
 
-#     return profile, new_image_path
+#     return profile, t, new_image_path
+
+
+def save_image_tiff(image_path, lat, lon, output_folder):
+
+    image_data = np.load(image_path)['arr_0']
+    image_data = np.mean(image_data, axis=0)
+    utm_zone = int((lon + 180) / 6) + 1
+    utm_crs = CRS.from_epsg(32600 + utm_zone)
+
+    transformer = Transformer.from_crs("EPSG:4326", utm_crs, always_xy=True)
+    centroid_x, centroid_y = transformer.transform(lon, lat)
+
+    # For a 1000x1000 pixel raster at 10m resolution
+    rows, cols = image_data.shape[-2:]
+    resolution = 10  # meters
+
+    x_top_left = centroid_x - (cols * resolution) / 2
+    y_top_left = centroid_y + (rows * resolution) / 2  # Negative height handled in transform
+
+    transform = Affine(resolution, 0, x_top_left, 0, -resolution, y_top_left)
+
+    profile = {
+        'driver': 'GTiff',
+        'height': rows,
+        'width': cols,
+        'count': image_data.shape[0],
+        'dtype': np.int16,
+        'crs': utm_crs,  # UTM CRS in meters
+        'transform': transform,
+        'nodata': None
+    }
+
+    new_image_path = output_folder + image_path.split('/')[-1].replace('.npz','.tiff')
+
+    with rasterio.open(new_image_path, 'w', **profile) as dst:
+
+        for i in range(image_data.shape[0]):
+            dst.write(image_data[i].astype(np.int16), i+1)
+
+    return profile, new_image_path
 
 
 
@@ -193,8 +193,8 @@ def create_tortilla(metadata_df, save_dir, tortilla_name):
     for idx, image_path in enumerate(tqdm(unique_images, desc="Creating tortillas")):
 
         ###### image conversion
-        tiff_profile, n_timestamps, new_image_path = save_image_tiff(image_path, metadata_df['lat'].values[idx], metadata_df['lon'].values[idx], tortilla_dir)
-        # tiff_profile, new_image_path = save_image_tiff(image_path, metadata_df['lat'].values[idx], metadata_df['lon'].values[idx], tortilla_dir)
+        # tiff_profile, n_timestamps, new_image_path = save_image_tiff(image_path, metadata_df['lat'].values[idx], metadata_df['lon'].values[idx], tortilla_dir)
+        tiff_profile, new_image_path = save_image_tiff(image_path, metadata_df['lat'].values[idx], metadata_df['lon'].values[idx], tortilla_dir)
 
         img_annotations = metadata_df[metadata_df["file_name"] == image_path]
 
