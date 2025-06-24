@@ -19,6 +19,8 @@ from torchgeo.datasets.utils import percentile_normalization
 from geobench_v2.datasets import GeoBenchSubstation
 
 from .base import GeoBenchObjectDetectionDataModule
+import skimage
+from matplotlib import patches
 
 
 def substation_collate_fn(batch: Sequence[dict[str, Any]]) -> dict[str, Any]:
@@ -33,7 +35,7 @@ def substation_collate_fn(batch: Sequence[dict[str, Any]]) -> dict[str, Any]:
     # collate images
     images = [sample["image"] for sample in batch]
     images = torch.stack(images, dim=0)
-
+    print(images.shape)
     # collate boxes into list of boxes
     boxes = [sample["bbox_xyxy"] for sample in batch]
     label = [sample["label"] for sample in batch]
@@ -47,7 +49,7 @@ class GeoBenchSubstationDataModule(GeoBenchObjectDetectionDataModule):
 
     def __init__(
         self,
-        img_size: int = 512,
+        img_size: int = 228,
         band_order: Sequence[float | str] = GeoBenchSubstation.band_default_order,
         batch_size: int = 32,
         eval_batch_size: int = 64,
@@ -56,6 +58,8 @@ class GeoBenchSubstationDataModule(GeoBenchObjectDetectionDataModule):
         train_augmentations: nn.Module | None = None,
         eval_augmentations: nn.Module | None = None,
         pin_memory: bool = False,
+        num_of_timepoints: int = 4,
+        timepoint_aggregation: str = "mean",
         **kwargs: Any,
     ) -> None:
         
@@ -78,11 +82,13 @@ class GeoBenchSubstationDataModule(GeoBenchObjectDetectionDataModule):
                 at the sample level and should include normalization. See :method:`define_augmentations`
                 for the default transformation.
             pin_memory: Pin memory
+            num_of_timepoints:  Number of timepoints to use
+            timepoint_aggregation: Type of temporal aggregation to use ['mean', 'median', 'last', 'first', 'random', 'identity']
             **kwargs: Additional keyword arguments for the dataset class
 
         """
         super().__init__(
-            dataset_class=GeoBenchNZCattle,
+            dataset_class=GeoBenchSubstation,
             img_size=img_size,
             band_order=band_order,
             batch_size=batch_size,
@@ -92,6 +98,8 @@ class GeoBenchSubstationDataModule(GeoBenchObjectDetectionDataModule):
             train_augmentations=train_augmentations,
             eval_augmentations=eval_augmentations,
             pin_memory=pin_memory,
+            num_of_timepoints=num_of_timepoints,
+            timepoint_aggregation=timepoint_aggregation,
             **kwargs,
         )
 
@@ -118,6 +126,7 @@ class GeoBenchSubstationDataModule(GeoBenchObjectDetectionDataModule):
         images = batch["image"]
         boxes_batch = batch["bbox_xyxy"]
         labels_batch = batch["label"]
+        masks_batch = batch["mask"]
 
         batch_size = images.shape[0]
         n_samples = min(8, batch_size)
@@ -126,6 +135,7 @@ class GeoBenchSubstationDataModule(GeoBenchObjectDetectionDataModule):
         images = images[indices]
         boxes_batch = [boxes_batch[i] for i in indices]
         labels_batch = [labels_batch[i] for i in indices]
+        masks_batch =  [masks_batch[i] for i in indices]
 
         plot_bands = self.dataset_band_config.plot_bands
         rgb_indices = [
@@ -170,6 +180,7 @@ class GeoBenchSubstationDataModule(GeoBenchObjectDetectionDataModule):
 
             boxes = boxes_batch[i]
             labels = labels_batch[i]
+            masks = masks_batch[i]
 
             class_counts = {}
             for label in labels:
@@ -178,11 +189,13 @@ class GeoBenchSubstationDataModule(GeoBenchObjectDetectionDataModule):
                 class_name = self.class_names[int(label)]
                 class_counts[class_name] = class_counts.get(class_name, 0) + 1
 
-            for box, label in zip(boxes, labels):
+            for box, label, mask in zip(boxes, labels, masks):
                 if isinstance(box, torch.Tensor):
                     box = box.cpu().numpy()
                 if isinstance(label, torch.Tensor):
                     label = label.item()
+                if isinstance(mask, torch.Tensor):
+                    mask = mask.cpu().numpy()
 
                 x1, y1, x2, y2 = box
                 color = colors[int(label)]
@@ -196,6 +209,13 @@ class GeoBenchSubstationDataModule(GeoBenchObjectDetectionDataModule):
                     facecolor="none",
                 )
                 ax_img.add_patch(rect)
+                contours = skimage.measure.find_contours(mask, 0.5)
+                for verts in contours:
+                    verts = np.fliplr(verts)
+                    p = patches.Polygon(
+                        verts, facecolor=color, alpha=0.4, edgecolor='white'
+                    )
+                    ax_img.add_patch(p)
 
             ax_img.set_title(f"Sample {i + 1}" if i == 0 else "")
             ax_img.set_xticks([])
