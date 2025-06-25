@@ -32,7 +32,6 @@ def datamodule(
     monkeypatch.setattr(
         GeoBenchSubstation,
         "sha256str",
-        # ["9c4b3b1472cb7a809a1e3b6a9f726a60bfce9b3f1f28afbf8717b3b08b725fad"],
         ["bd8eaa5f156279529c481e70699ba92e6905862d3a5c4c2cf54a1b5d361e2c89"],
     )
 
@@ -45,7 +44,6 @@ def datamodule(
         band_order=band_order,
         root=tmp_path,
         download=True,
-        timepoint_aggregation='mean'
     )
     dm.setup("fit")
     dm.setup("test")
