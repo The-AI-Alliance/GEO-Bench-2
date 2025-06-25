@@ -51,10 +51,6 @@ class GeoBenchSubstation(GeoBenchBaseDataset):
 
     url = "https://hf.co/datasets/aialliance/substation/resolve/main/{}"
 
-    # paths = ["geobench_substation.0000.part.tortilla", "geobench_substation.0001.part.tortilla"]
-
-    # sha256str = ["7eb50ad9ad3bf7707cb5f4ed55261f1a05e5ebb1418aa862f0a2b8e0a8995d28", "b457bb4fcdab9773dc793a1f1e8d70aeb9a4683e5fbd3221d37c0d3626251eed"]
-
     paths = ["geobench_substation.tortilla"]
 
     sha256str = ["7f12cd5b510fca4a153b8e77b786d7fc7f7c4e04aece1507121e9c24ff1d47a4"]
@@ -103,8 +99,6 @@ class GeoBenchSubstation(GeoBenchBaseDataset):
         data_normalizer: type[nn.Module] = ZScoreNormalizer,
         transforms: nn.Module | None = None,
         download: bool = False,
-        num_of_timepoints: int = 4,
-        timepoint_aggregation: str = "mean",
 
     ) -> None:
         """Initialize Substation dataset.
@@ -120,8 +114,6 @@ class GeoBenchSubstation(GeoBenchBaseDataset):
                 which applies z-score normalization to each band.
             transforms: image transformations to apply to the data, defaults to None
             download: Whether to download the dataset 
-            num_of_timepoints:  Number of timepoints to use
-            timepoint_aggregation: Type of temporal aggregation to use ['mean', 'median', 'last', 'first', 'random', 'identity']
         """
 
         super().__init__(
@@ -133,12 +125,10 @@ class GeoBenchSubstation(GeoBenchBaseDataset):
             metadata=None,
             download=download,
         )
-        self.num_of_timepoints = num_of_timepoints
-        self.timepoint_aggregation = timepoint_aggregation
+
         self.band_indexes = [[i for i, y in enumerate(self.band_default_order) if y == x][0] for x in self.band_order]
         if len(self.band_indexes) != len(self.band_order):
             assert  "Invalid element in band_order"
-        assert (self.timepoint_aggregation in ['mean', 'median', 'last', 'first', 'random', 'identity']) == True, "Invalid timepoint aggregation: " + self.timepoint_aggregation 
 
     def __getitem__(self, index: int) -> dict[str, Tensor]:
         """Return an index within the dataset.
@@ -186,40 +176,8 @@ class GeoBenchSubstation(GeoBenchBaseDataset):
         """
         ## load image
         with rasterio.open(path) as src: image = src.read(out_dtype="float32")
-        c, h, w = image.shape
-        image = image.reshape(int(c/13), 13, h, w)
 
-        ### from https://github.com/IBM/terratorch/blob/0601cc285e281ad1c8b72da92a817efba71419e0/terratorch/datasets/substation.py#L245C1-L285C28
-        image = image[:, self.band_indexes, :, :]    
-
-        # handling multiple images across timepoints
-        if image.shape[0] < self.num_of_timepoints:
-
-            # Padding: cycle through existing timepoints
-            padded_images = []
-            for i in range(self.num_of_timepoints):
-                padded_images.append(image[i % image.shape[0]])
-            image = np.stack(padded_images)
-        elif image.shape[0] > self.num_of_timepoints:
-            # Removal: take the most recent timepoints
-            image = image[-self.num_of_timepoints :]
-
-        # if self.timepoint_aggregation == 'concat':
-        #     image = np.reshape(
-        #         image, (-1, image.shape[2], image.shape[3])
-        #     )  # (num_of_timepoints*channels,h,w)
-        if self.timepoint_aggregation == 'median':
-            image = np.median(image, axis=0)
-        if self.timepoint_aggregation == 'mean':
-            image = np.mean(image, axis=0)
-        elif self.timepoint_aggregation == 'first':
-            image = image[0]
-        elif self.timepoint_aggregation == 'last':
-            image = image[-1]
-        elif self.timepoint_aggregation == 'random':
-            image = image[np.random.randint(image.shape[0])]
-        elif self.timepoint_aggregation == 'identity':
-            pass
+        image = image[self.band_indexes, :, :]    
         
         tensor_image = torch.from_numpy(image)
         tensor_image = tensor_image.float()

@@ -45,7 +45,7 @@ def substation_collate_fn(batch: Sequence[dict[str, Any]]) -> dict[str, Any]:
 
 
 class GeoBenchSubstationDataModule(GeoBenchObjectDetectionDataModule):
-    """GeoBench nzCattle Data Module."""
+    """GeoBench Substation Data Module."""
 
     def __init__(
         self,
@@ -58,8 +58,6 @@ class GeoBenchSubstationDataModule(GeoBenchObjectDetectionDataModule):
         train_augmentations: nn.Module | None = None,
         eval_augmentations: nn.Module | None = None,
         pin_memory: bool = False,
-        num_of_timepoints: int = 4,
-        timepoint_aggregation: str = "mean",
         **kwargs: Any,
     ) -> None:
         
@@ -82,8 +80,6 @@ class GeoBenchSubstationDataModule(GeoBenchObjectDetectionDataModule):
                 at the sample level and should include normalization. See :method:`define_augmentations`
                 for the default transformation.
             pin_memory: Pin memory
-            num_of_timepoints:  Number of timepoints to use
-            timepoint_aggregation: Type of temporal aggregation to use ['mean', 'median', 'last', 'first', 'random', 'identity']
             **kwargs: Additional keyword arguments for the dataset class
 
         """
@@ -98,8 +94,6 @@ class GeoBenchSubstationDataModule(GeoBenchObjectDetectionDataModule):
             train_augmentations=train_augmentations,
             eval_augmentations=eval_augmentations,
             pin_memory=pin_memory,
-            num_of_timepoints=num_of_timepoints,
-            timepoint_aggregation=timepoint_aggregation,
             **kwargs,
         )
 
