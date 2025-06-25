@@ -1,7 +1,7 @@
 # Copyright (c) 2025 GeoBenchV2. All rights reserved.
 # Licensed under the Apache License 2.0.
 
-"""GeoBench NZCattle DataModule."""
+"""GeoBench Substation DataModule."""
 
 import os
 from collections.abc import Callable, Sequence
@@ -24,7 +24,7 @@ from matplotlib import patches
 
 
 def substation_collate_fn(batch: Sequence[dict[str, Any]]) -> dict[str, Any]:
-    """Collate function for nzCattle dataset.
+    """Collate function for Substation dataset.
 
     Args:
         batch: A list of dictionaries containing the data for each sample
