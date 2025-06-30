@@ -84,8 +84,11 @@ class TestWindTurbineDataModule:
         # Simulate a prediction in the batch
         train_batch = next(iter(datamodule.train_dataloader()))
         
-        train_batch["predictions"] = [
-            train_batch["bbox_xyxy"][i] + torch.ones_like(train_batch["bbox_xyxy"][i]) * 5 for i in range(len(train_batch["bbox_xyxy"]))
+        train_batch["pred_boxes"] = [
+            train_batch["bbox_xyxy"][i] + torch.ones_like(train_batch["bbox_xyxy"][i]) * 0.1 for i in range(len(train_batch["bbox_xyxy"]))
+        ]
+        train_batch["pred_labels"] = [
+            train_batch["label"][i] for i in range(len(train_batch["label"]))
         ]
 
         fig, batch = datamodule.visualize_batch(batch=train_batch)

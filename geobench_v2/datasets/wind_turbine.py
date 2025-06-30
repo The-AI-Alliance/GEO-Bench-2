@@ -132,8 +132,9 @@ class GeoBenchWindTurbine(GeoBenchBaseDataset):
         Returns:
             bounding boxes and labels
         """
+        # relative coordinates in the range [0, 1]
         boxes = torch.from_numpy(
-            annot_df[["xmin", "ymin", "xmax", "ymax"]].values
+            annot_df[["xmin", "ymin", "xmax", "ymax"]].values / 512
         ).float()
         labels = torch.Tensor(
             [self.class2idx[label] for label in annot_df["label"].tolist()]

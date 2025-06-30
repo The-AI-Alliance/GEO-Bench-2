@@ -108,7 +108,8 @@ class GeoBenchWindTurbineDataModule(GeoBenchObjectDetectionDataModule):
         """Visualize a batch of data.
 
         Args:
-            split: One of 'train', 'val', 'test'
+            batch: A batch of data to visualize. If None, a batch will be fetched from the dataloader.
+            split: One of 'train', 'val', 'test', to determine which dataloader to fetch data from
 
         Returns:
             The matplotlib figure and the batch of data
@@ -221,8 +222,8 @@ class GeoBenchWindTurbineDataModule(GeoBenchObjectDetectionDataModule):
                 ax_img.add_patch(rect)
 
             if predictions:
-                pred_boxes = predictions[i].get("boxes", []) if isinstance(predictions[i], dict) else predictions[i]
-                pred_labels = predictions[i].get("labels", []) if isinstance(predictions[i], dict) else [0] * len(pred_boxes)
+                pred_boxes = predictions[i].get("pred_boxes", []) if isinstance(predictions[i], dict) else predictions[i]
+                pred_labels = predictions[i].get("pred_labels", []) if isinstance(predictions[i], dict) else [0] * len(pred_boxes)
                 
                 for pred_box, pred_label in zip(pred_boxes, pred_labels):
                     if isinstance(pred_box, torch.Tensor):

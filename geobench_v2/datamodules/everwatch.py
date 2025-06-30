@@ -20,8 +20,6 @@ from geobench_v2.datasets import GeoBenchEverWatch
 
 from .base import GeoBenchObjectDetectionDataModule
 
-# TODO everwatch collate_fn check the different image sizes
-
 
 def everwatch_collate_fn(batch: Sequence[dict[str, Any]]) -> dict[str, Any]:
     """Collate function for EverWatch dataset.
@@ -59,7 +57,7 @@ class GeoBenchEverWatchDataModule(GeoBenchObjectDetectionDataModule):
         pin_memory: bool = False,
         **kwargs: Any,
     ) -> None:
-        """Initialize GeoBench DOTAV2 dataset module.
+        """Initialize GeoBench EverWatch dataset module.
 
         Args:
             img_size: Image size
@@ -102,22 +100,24 @@ class GeoBenchEverWatchDataModule(GeoBenchObjectDetectionDataModule):
         )
 
     def visualize_batch(
-        self, split: str = "train"
+        self, batch: dict[str, Tensor] | None = None, split: str = "train"
     ) -> tuple[plt.Figure, dict[str, Tensor]]:
         """Visualize a batch of data.
 
         Args:
-            split: One of 'train', 'val', 'test'
+            batch: A batch of data to visualize. If None, a batch will be fetched from the dataloader.
+            split: One of 'train', 'val', 'test', to determine which dataloader to fetch data from
 
         Returns:
             The matplotlib figure and the batch of data
         """
-        if split == "train":
-            batch = next(iter(self.train_dataloader()))
-        elif split == "validation":
-            batch = next(iter(self.val_dataloader()))
-        else:
-            batch = next(iter(self.test_dataloader()))
+        if batch is None:
+            if split == "train":
+                batch = next(iter(self.train_dataloader()))
+            elif split == "validation":
+                batch = next(iter(self.val_dataloader()))
+            else:
+                batch = next(iter(self.test_dataloader()))
 
         if hasattr(self.data_normalizer, "unnormalize"):
             batch = self.data_normalizer.unnormalize(batch)
@@ -125,6 +125,8 @@ class GeoBenchEverWatchDataModule(GeoBenchObjectDetectionDataModule):
         images = batch["image"]
         boxes_batch = batch["bbox_xyxy"]
         labels_batch = batch["label"]
+
+        # Check if predictions are available
 
         batch_size = images.shape[0]
         n_samples = min(8, batch_size)
@@ -204,6 +206,31 @@ class GeoBenchEverWatchDataModule(GeoBenchObjectDetectionDataModule):
                 )
                 ax_img.add_patch(rect)
 
+            if "pred_boxes" in batch:
+                pred_boxes = predictions[i].get("pred_boxes", []) if isinstance(predictions[i], dict) else predictions[i]
+                pred_labels = predictions[i].get("pred_labels", []) if isinstance(predictions[i], dict) else [0] * len(pred_boxes)
+                
+                for pred_box, pred_label in zip(pred_boxes, pred_labels):
+                    if isinstance(pred_box, torch.Tensor):
+                        pred_box = pred_box.cpu().numpy()
+                    if isinstance(pred_label, torch.Tensor):
+                        pred_label = pred_label.item()
+
+                    x1, y1, x2, y2 = pred_box
+                    color = colors[int(pred_label)]
+
+                    pred_rect = plt.Rectangle(
+                        (x1, y1),
+                        x2 - x1,
+                        y2 - y1,
+                        linewidth=2,
+                        edgecolor=color,
+                        facecolor="none",
+                        linestyle=":",
+                        alpha=0.8,
+                    )
+                    ax_img.add_patch(pred_rect)
+
             ax_img.set_title(f"Sample {i + 1}" if i == 0 else "")
             ax_img.set_xticks([])
             ax_img.set_yticks([])
@@ -258,6 +285,11 @@ class GeoBenchEverWatchDataModule(GeoBenchObjectDetectionDataModule):
                 ax_stats.text(0.1, 0.5, "No objects detected", va="center")
 
         plt.tight_layout()
+
+        if has_predictions:
+            fig.text(0.5, 0.02, "Note: Dotted lines indicate predictions", 
+                    ha='center', va='bottom', fontsize=10, style='italic', color='gray')
+            plt.subplots_adjust(bottom=0.08)
 
         return fig, batch
 
