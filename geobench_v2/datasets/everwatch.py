@@ -61,7 +61,7 @@ class GeoBenchEverWatch(GeoBenchBaseDataset):
         transforms: nn.Module | None = None,
         metadata: Sequence[str] | None = None,
         download: bool = False,
-        torchvision_detection_compatible: bool = True
+        torchvision_detection_compatible: bool = False
     ) -> None:
         """Initialize EverWatch dataset.
 
