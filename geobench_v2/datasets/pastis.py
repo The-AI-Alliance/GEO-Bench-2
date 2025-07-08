@@ -18,6 +18,15 @@ from torchgeo.datasets import PASTIS
 from .data_util import DataUtilsMixin
 from .normalization import DataNormalizer, ZScoreNormalizer
 from .sensor_util import DatasetBandRegistry
+import pdb
+
+
+def greater_than_zero_area_bbox_indexes(bboxes):
+    """
+    Returns the indexes of bounding boxes with greater than zero area.
+    bboxes: list of [x1, y1, x2, y2]
+    """
+    return [i for i, (x1, y1, x2, y2) in enumerate(bboxes) if ((x1 != x2) and (y1 != y2))]
 
 
 class GeoBenchPASTIS(PASTIS, DataUtilsMixin):
@@ -31,22 +40,6 @@ class GeoBenchPASTIS(PASTIS, DataUtilsMixin):
     """
 
     dataset_band_config = DatasetBandRegistry.PASTIS
-
-    band_default_order = (
-        "B01",
-        "B02",
-        "B03",
-        "B04",
-        "B05",
-        "B06",
-        "B07",
-        "B08",
-        "B8A",
-        "B09",
-        "B10",
-        "B11",
-        "B12",
-    )
 
     band_default_order = {
         "s2": ("B02", "B03", "B04", "B05", "B06", "B07", "B08", "B8A", "B11", "B12"),
@@ -112,6 +105,8 @@ class GeoBenchPASTIS(PASTIS, DataUtilsMixin):
         metadata: Sequence[str] | None = None,
         label_type: Literal["instance_seg", "semantic_seg"] = "semantic_seg",
         return_stacked_image: bool = False,
+        temporal_aggregation: Literal["mean", "median"] = None,
+        temporal_output_format: Literal["TCHW", "CTHW"] = "TCHW"
     ) -> None:
         """Initialize PASTIS Dataset.
 
@@ -133,6 +128,7 @@ class GeoBenchPASTIS(PASTIS, DataUtilsMixin):
                 __getitem__ method. If None, no metadata is returned.
             label_type: The type of label to return, either 'instance_seg' or 'semantic_seg'
             return_stacked_image: if true, returns a single image tensor with all modalities stacked in band_order
+            temporal_aggregation: whether apply temporal aggregation [mean, median]
 
         Raises:
             AssertionError: If an invalid split is specified
@@ -183,6 +179,9 @@ class GeoBenchPASTIS(PASTIS, DataUtilsMixin):
             raise TypeError(
                 f"data_normalizer must be a DataNormalizer subclass type or a callable instance. Got {type(data_normalizer)}"
             )
+            
+        self.temporal_aggregation = temporal_aggregation
+        self.temporal_output_format = temporal_output_format
 
     def __len__(self) -> int:
         """Return the length of the dataset."""
@@ -210,6 +209,10 @@ class GeoBenchPASTIS(PASTIS, DataUtilsMixin):
         img_dict = self.rearrange_bands(data, self.band_order)
 
         img_dict = self.data_normalizer(img_dict)
+        
+        if self.temporal_output_format == "CTHW":
+            for key in img_dict.keys():
+                img_dict[key] = img_dict[key].permute((1,0,2,3))
 
         sample.update(img_dict)
 
@@ -221,7 +224,7 @@ class GeoBenchPASTIS(PASTIS, DataUtilsMixin):
             sample["mask"], sample["boxes"], sample["label"] = (
                 self._load_instance_targets(
                     os.path.join(self.root, sample_row["semantic_path"]),
-                    os.path.join(sample_row["instance_path"]),
+                    os.path.join(self.root, sample_row["instance_path"]),
                 )
             )
 
@@ -230,17 +233,11 @@ class GeoBenchPASTIS(PASTIS, DataUtilsMixin):
             sample_dates = [0] * (self.num_time_steps - len(dates)) + dates
         else:
             sample_dates = dates[-self.num_time_steps :]
-
         if self.transforms:
             sample = self.transforms(sample)
 
         if self.return_stacked_image:
-            sample = {
-                "image": torch.cat(
-                    [sample[f"image_{key}"] for key in self.band_order.keys()], 0
-                ),
-                "mask": sample["mask"],
-            }
+            sample["image"] = torch.cat([sample[f"image_{key}"] for key in self.band_order.keys()], 0)
 
         if "lon" in self.metadata:
             sample["lon"] = torch.tensor(sample_row["longitude"])
@@ -261,18 +258,24 @@ class GeoBenchPASTIS(PASTIS, DataUtilsMixin):
             the time-series
         """
         tensor = torch.tensor(np.load(path).astype(np.float32))
-
         if tensor.shape[0] < self.num_time_steps:
             padding = torch.zeros(
                 self.num_time_steps - tensor.shape[0], *tensor.shape[1:]
             )
             tensor = torch.cat((padding, tensor), dim=0)
         else:
-            tensor = tensor[-self.num_time_steps :]
+            step =  tensor.shape[0] / self.num_time_steps
+            indexes = [int(i * step) for i in range(self.num_time_steps)]
+            tensor = tensor[indexes, :, :, :]
+
+        if self.temporal_aggregation is not None:
+            if self.temporal_aggregation == 'mean':
+                tensor = torch.mean(tensor, 0)
+            if self.temporal_aggregation == 'median':
+                tensor = torch.median(tensor, 0).values
 
         if self.num_time_steps == 1:
             tensor = tensor.squeeze(0)
-
         return tensor.float()
 
     def _load_semantic_targets(self, path: str) -> Tensor:
@@ -302,6 +305,7 @@ class GeoBenchPASTIS(PASTIS, DataUtilsMixin):
         Returns:
             the instance segmentation mask, box, and label for each instance
         """
+
         mask_array = np.load(sem_path)[0].copy()
         instance_array = np.load(instance_path).copy()
 
@@ -314,7 +318,8 @@ class GeoBenchPASTIS(PASTIS, DataUtilsMixin):
         instance_ids = instance_ids[instance_ids != 0]
         instance_ids = instance_ids[:, None, None]
         masks: Tensor = instance_tensor == instance_ids
-
+        
+        mask_tensor = mask_tensor.to(torch.int16)
         # Parse labels for each instance
         labels_list = []
         for mask in masks:
@@ -330,6 +335,10 @@ class GeoBenchPASTIS(PASTIS, DataUtilsMixin):
             xmax = torch.max(pos[1])
             ymin = torch.min(pos[0])
             ymax = torch.max(pos[0])
+            if xmin == xmax:
+                xmax = xmax +1
+            if ymin == ymax:
+                ymax = ymax +1    
             boxes_list.append([xmin, ymin, xmax, ymax])
 
         masks = masks.to(torch.uint8)
