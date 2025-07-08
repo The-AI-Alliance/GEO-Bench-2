@@ -35,7 +35,6 @@ def substation_collate_fn(batch: Sequence[dict[str, Any]]) -> dict[str, Any]:
     # collate images
     images = [sample["image"] for sample in batch]
     images = torch.stack(images, dim=0)
-    print(images.shape)
     # collate boxes into list of boxes
     boxes = [sample["bbox_xyxy"] for sample in batch]
     label = [sample["label"] for sample in batch]
