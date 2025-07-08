@@ -47,7 +47,7 @@ class GeoBenchWindTurbine(GeoBenchBaseDataset):
         data_normalizer: type[nn.Module] = ZScoreNormalizer,
         transforms: nn.Module | None = None,
         download: bool = False,
-        torchvision_detection_compatible: bool = True
+        torchvision_detection_compatible: bool = False
     ) -> None:
         """Initialize WindTurbine dataset.
 
