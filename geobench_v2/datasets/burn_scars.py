@@ -19,9 +19,9 @@ import pdb
 class GeoBenchBurnScars(GeoBenchBaseDataset):
     """GeoBench Burn Scars dataset."""
 
-    url = "https://hf.co/datasets/aialliance/burn_scar/resolve/main/{}"
+    url = "https://hf.co/datasets/aialliance/burn_scars/resolve/main/{}"
     paths = ["geobench_burn_scars.tortilla"]
-    sha256str = ["ce8328f51d02929a071e120c942def32ceaed1f9209096866fb6e0080425bae4"]
+    sha256str = ["9f865e72bc4aeb657ee03be167a093f80ee92403ccb2c23b4d19be1189e442aa"]
 
     dataset_band_config = DatasetBandRegistry.BURNSCARS
     # TODO update sensor type with wavelength and resolution
@@ -38,12 +38,12 @@ class GeoBenchBurnScars(GeoBenchBaseDataset):
             "B12": 0.0,
         },
         "stds": {
-            "B02": 3000.0,
-            "B03": 3000.0,
-            "B04": 3000.0,
-            "B8A": 3000.0,
-            "B11": 3000.0,
-            "B12": 3000.0,
+            "B02": 1,
+            "B03": 1,
+            "B04": 1,
+            "B8A": 1,
+            "B11": 1,
+            "B12": 1,
         },
     }
 
