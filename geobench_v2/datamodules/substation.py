@@ -15,7 +15,7 @@ import torch.nn as nn
 from einops import rearrange
 from torch import Tensor
 from torchgeo.datasets.utils import percentile_normalization
-
+import tacoreader
 from geobench_v2.datasets import GeoBenchSubstation
 
 from .base import GeoBenchObjectDetectionDataModule
@@ -95,6 +95,17 @@ class GeoBenchSubstationDataModule(GeoBenchObjectDetectionDataModule):
             pin_memory=pin_memory,
             **kwargs,
         )
+    
+    def load_metadata(self) -> pd.DataFrame:
+        """Load metadata file.
+
+        Returns:
+            pandas DataFrame with metadata.
+        """
+        self.data_df = tacoreader.load(
+            [os.path.join(self.kwargs["root"], f) for f in GeoBenchSubstation.paths]
+        )
+        return self.data_df
 
     def visualize_batch(
         self, split: str = "train"
