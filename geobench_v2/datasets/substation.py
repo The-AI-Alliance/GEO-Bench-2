@@ -230,7 +230,7 @@ class GeoBenchSubstation(GeoBenchBaseDataset):
                 0, dtype=torch.int64
             )
 
-        return torch.tensor(boxes, dtype=torch.float32), torch.tensor(labels, dtype=torch.int64), torch.tensor(masks, dtype=torch.int64)
+        return torch.tensor(np.array(boxes), dtype=torch.float32), torch.tensor(np.array(labels), dtype=torch.int64), torch.tensor(np.array(masks), dtype=torch.int64)
     
 
  
