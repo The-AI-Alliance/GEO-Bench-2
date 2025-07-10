@@ -17,7 +17,7 @@ from .sensor_util import DatasetBandRegistry
 import pdb
 
 class GeoBenchBurnScars(GeoBenchBaseDataset):
-    """GeoBench Caffe dataset."""
+    """GeoBench Burn Scars dataset."""
 
     url = "https://hf.co/datasets/aialliance/burn_scar/resolve/main/{}"
     paths = ["geobench_burn_scars.tortilla"]
