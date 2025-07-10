@@ -31,6 +31,7 @@ class GeoBenchEverWatch(GeoBenchBaseDataset):
     sha256str = ["4afb1eada24ce990c1798fa481963ab8c0a0e302ba2d4112f02261c6a8246272"]
 
     classes = (
+        "Background",
         "White Ibis",
         "Great Egret",
         "Great Blue Heron",
@@ -61,7 +62,6 @@ class GeoBenchEverWatch(GeoBenchBaseDataset):
         transforms: nn.Module | None = None,
         metadata: Sequence[str] | None = None,
         download: bool = False,
-        torchvision_detection_compatible: bool = False
     ) -> None:
         """Initialize EverWatch dataset.
 
@@ -76,8 +76,7 @@ class GeoBenchEverWatch(GeoBenchBaseDataset):
                 which applies z-score normalization to each band.
             transforms: The transforms to apply to the data, defaults to None.
             metadata: The metadata to return, defaults to None. If None, no metadata is returned.
-            download: Whether to download the dataset 
-            torchvision_detection_compatible: Whether to make the labels start from 1 as per torchvision
+            download: Whether to download the dataset
         """
         super().__init__(
             root=root,
@@ -90,7 +89,6 @@ class GeoBenchEverWatch(GeoBenchBaseDataset):
         )
 
         self.class2idx: dict[str, int] = {c: i for i, c in enumerate(self.classes)}
-        self.torchvision_detection_compatible = torchvision_detection_compatible
 
     def __getitem__(self, idx: int) -> dict[str, Tensor]:
         """Return an index within the dataset.
@@ -134,7 +132,7 @@ class GeoBenchEverWatch(GeoBenchBaseDataset):
         sample.update(image_dict)
 
         sample["bbox_xyxy"] = boxes
-        sample["label"] = labels + 1 if self.torchvision_detection_compatible else labels
+        sample["label"] = labels + 1
 
         if self.transforms is not None:
             sample = self.transforms(sample)
