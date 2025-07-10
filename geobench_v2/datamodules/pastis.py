@@ -43,7 +43,7 @@ from .base import GeoBenchSegmentationDataModule
 
 # TODO add timeseries argument
 class GeoBenchPASTISDataModule(GeoBenchSegmentationDataModule):
-    """GeoBench PASIS Data Module."""
+    """GeoBench PASTIS Data Module."""
 
     def __init__(
         self,

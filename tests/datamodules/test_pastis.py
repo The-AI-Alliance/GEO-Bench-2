@@ -38,8 +38,10 @@ def datamodule(band_order):
         batch_size=8,
         num_workers=0,
         band_order=band_order,
-        root="/mnt/rg_climate_benchmark/data/geobenchV2/pastis",
+        root="/opt/app-root/src/fm-geospatial/data/PASTIS/",
         metadata=["lon", "lat"],
+        train_augmentations=None,
+        temporal_output_format="CTHW"
     )
     datamodule.setup("fit")
     datamodule.setup("test")
@@ -99,7 +101,7 @@ class TestPASTISDataModule:
             batch_size=4,
             num_time_steps=num_time_steps,
             band_order=band_order,
-            root="/mnt/rg_climate_benchmark/data/geobenchV2/pastis",
+            root="/opt/app-root/src/fm-geospatial/data/PASTIS/",
         )
         datamodule.setup("fit")
         batch = next(iter(datamodule.train_dataloader()))
