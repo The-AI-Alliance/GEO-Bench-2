@@ -4,7 +4,7 @@ __pycache__/
 *$py.class
 
 #
-geobench_v2/generate_benchmark/**/*.png
+# geobench_v2/generate_benchmark/**/*.png
 
 # C extensions
 *.so
