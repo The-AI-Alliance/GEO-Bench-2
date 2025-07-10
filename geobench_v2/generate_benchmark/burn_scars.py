@@ -20,6 +20,9 @@ import tacotoolbox
 import pdb
 import glob
 
+from affine import Affine
+from pyproj import Transformer, CRS
+
 def generate_metadata_df(root_dir: str) -> pd.DataFrame:
 
     # generate df with split info and keys
@@ -61,12 +64,18 @@ def create_tortilla(dataset_dir, save_dir, tortilla_name):
         with rasterio.open(geotiff_path) as src:
             profile = src.profile
             height, width = profile["height"], profile["width"]
-            crs = "EPSG:32660"
+            crs = "EPSG:" + str(CRS.from_wkt(profile['crs'].to_string()).to_epsg(min_confidence=25))
             transform = profile["transform"].to_gdal() if profile["transform"] else None
 
         tile = metadata_df['image_key'].values[idx].split('.')[0]
         time = metadata_df['image_key'].values[idx].split('.')[1].split('.')[0]
-        
+
+        # calculate lat/lon
+        centroid_x = transform[0] + (width/2*transform[1])
+        centroid_y = transform[3] + (height/2*transform[5])
+        transformer = Transformer.from_crs(crs, "EPSG:4326", always_xy=True)
+        lon, lat = transformer.transform(centroid_x, centroid_y)
+
         # create image
         image_sample = tacotoolbox.tortilla.datamodel.Sample(
             id="image",
@@ -79,7 +88,9 @@ def create_tortilla(dataset_dir, save_dir, tortilla_name):
                 "raster_shape": (height, width),
                 "time_start": time,
             },
-            tile=tile
+            tile=tile,
+            lat=lat,
+            lon=lon,
         )
 
         with rasterio.open(metadata_df['label_file'].values[idx]) as src:
