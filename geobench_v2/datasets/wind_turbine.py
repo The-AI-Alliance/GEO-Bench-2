@@ -29,7 +29,7 @@ class GeoBenchWindTurbine(GeoBenchBaseDataset):
 
     sha256str = ["ce04744472ce5ef4159575a31c662aa5d4b68ba068c7079f26ac60816ddfe23c"]
 
-    classes = ("windTurbine",)
+    classes = ("Background", "windTurbine")
     num_classes = len(classes)
 
     dataset_band_config = DatasetBandRegistry.WINDTURBINE
@@ -47,7 +47,6 @@ class GeoBenchWindTurbine(GeoBenchBaseDataset):
         data_normalizer: type[nn.Module] = ZScoreNormalizer,
         transforms: nn.Module | None = None,
         download: bool = False,
-        torchvision_detection_compatible: bool = False
     ) -> None:
         """Initialize WindTurbine dataset.
 
@@ -61,8 +60,7 @@ class GeoBenchWindTurbine(GeoBenchBaseDataset):
             data_normalizer: The data normalizer to apply to the data, defaults to :class:`data_util.ZScoreNormalizer`,
                 which applies z-score normalization to each band.
             transforms: image transformations to apply to the data, defaults to None
-            download: Whether to download the dataset 
-            torchvision_detection_compatible: Whether to make the labels start from 1 as per torchvision
+            download: Whether to download the dataset
         """
         super().__init__(
             root=root,
@@ -75,7 +73,6 @@ class GeoBenchWindTurbine(GeoBenchBaseDataset):
         )
 
         self.class2idx: dict[str, int] = {c: i for i, c in enumerate(self.classes)}
-        self.torchvision_detection_compatible = torchvision_detection_compatible
 
     def __getitem__(self, idx: int) -> dict[str, Tensor]:
         """Return an index within the dataset.
@@ -119,7 +116,7 @@ class GeoBenchWindTurbine(GeoBenchBaseDataset):
         sample.update(image_dict)
 
         sample["bbox_xyxy"] = boxes
-        sample["label"] = labels + 1 if self.torchvision_detection_compatible else labels
+        sample["label"] = labels
 
         if self.transforms is not None:
             sample = self.transforms(sample)

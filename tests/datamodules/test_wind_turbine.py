@@ -69,14 +69,6 @@ class TestWindTurbineDataModule:
         """Test if band order is correctly resolved."""
         assert len(datamodule.band_order) == 4
         assert datamodule.band_order[0] == "red"
-    
-    def test_torchvision_compatibility(self, datamodule):
-        """Test if torchvision compatibility increases label value by 1"""
-        old_sample = datamodule.train_dataset[0]
-        datamodule.train_dataset.torchvision_detection_compatible = True
-        new_sample = datamodule.train_dataset[0]
-        assert old_sample["label"][0]+1 == new_sample["label"][0]
-
 
     def test_batch_visualization(self, datamodule):
         """Test batch visualization."""
