@@ -37,7 +37,7 @@ def datamodule(
     monkeypatch.setattr(
         GeoBenchBurnScars,
         "sha256str",
-        ["ad88afd200ee16067886a3b96f854490f2f7619578933d4d51e358f830da84ac"],
+        ["dd5c9aca65a65ef21325fa9de130a7dab9fda7b2ae9f669dd306d4571ddc7c20"],
     )
     dm = GeoBenchBurnScarsDataModule(
         img_size=512,
