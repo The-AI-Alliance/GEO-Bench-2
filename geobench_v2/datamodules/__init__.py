@@ -23,7 +23,6 @@ from .kuro_siwo import GeoBenchKuroSiwoDataModule
 from .m4sar import GeoBenchM4SARDataModule
 from .mmflood import GeoBenchMMFloodDataModule
 from .pastis import GeoBenchPASTISDataModule
-from .pastis_panoptic import GeoBenchPASTISPanopticDataModule
 from .qfabric import GeoBenchQFabricDataModule
 from .spacenet2 import GeoBenchSpaceNet2DataModule
 from .spacenet6 import GeoBenchSpaceNet6DataModule
@@ -60,5 +59,6 @@ __all__ = (
     "GeoBenchQFabricDataModule",
     "GeoBenchWindTurbineDataModule",
     "GeoBenchNZCattleDataModule",
-    "GeoBenchPASTISPanopticDataModule"
+     "GeoBenchSubstationDataModule",
+     "GeoBenchPASTISPanopticDataModule",
 )

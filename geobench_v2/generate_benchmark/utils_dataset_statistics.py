@@ -12,6 +12,7 @@ import torch
 from lightning import LightningDataModule
 from torch import Tensor
 from tqdm.auto import tqdm
+import pdb
 
 
 # Using Caleb Robinson's implementation: https://gist.github.com/calebrob6/1ef1e64bd62b1274adf2c6f91e20d215
@@ -364,11 +365,13 @@ class DatasetStatistics(ABC):
         Args:
             batch: Batch of input data
         """
+        
         for key in self.running_stats:
             input_data = batch[key]
             if torch.is_tensor(input_data):
                 input_data = input_data.to(self.device)
                 self.running_stats[key](input_data)
+        
 
     @abstractmethod
     def compute_batch_target_statistics(
@@ -952,7 +955,6 @@ class ObjectDetectionStatistics(DatasetStatistics):
         """Compute Object detection target statistics."""
         batch_size = len(bboxes)
         assert len(bboxes) == len(labels)
-
         for i in range(batch_size):
             boxes = bboxes[i]
             labels_i = labels[i]
@@ -990,6 +992,12 @@ class ObjectDetectionStatistics(DatasetStatistics):
         box_width = self.box_width / self.box_width_counts
         box_height = self.box_height / self.box_height_counts
         box_aspect_ratio = self.box_aspect_ratio / self.box_aspect_ratio_counts
+
+        # replace nan in case of non present category or 0 as background
+        box_area = torch.nan_to_num(box_area, nan=0)
+        box_width = torch.nan_to_num(box_width, nan=0)
+        box_height = torch.nan_to_num(box_height, nan=0)
+        box_aspect_ratio = torch.nan_to_num(box_aspect_ratio, nan=0)
 
         class_frequencies = (
             self.class_counts.float() / self.total_samples

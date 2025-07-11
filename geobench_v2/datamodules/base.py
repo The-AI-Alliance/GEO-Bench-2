@@ -721,7 +721,7 @@ class GeoBenchObjectDetectionDataModule(GeoBenchDataModule):
             self.train_augmentations = K.AugmentationSequential(
                 K.RandomHorizontalFlip(p=0.5),
                 K.RandomVerticalFlip(p=0.5),
-                data_keys=["image", "bbox_xyxy", "label"],
+                data_keys=None,
                 keepdim=True,
             )
         elif self.train_augmentations is None:

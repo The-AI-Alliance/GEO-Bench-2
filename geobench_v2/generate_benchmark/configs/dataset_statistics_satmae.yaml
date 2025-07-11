@@ -230,18 +230,45 @@ datamodules:
   #       image_s2: [0, 10000]
   #       image_s1: [-50, 50]
 
-  - name: m4sar
+  # - name: m4sar
+  #   stats_computer:
+  #     _target_: geobench_v2.generate_benchmark.utils_dataset_statistics.ObjectDetectionStatistics
+  #     datamodule:
+  #       _target_: geobench_v2.datamodules.GeoBenchM4SARDataModule
+  #       batch_size: 16
+  #       num_workers: 4
+  #       root: "/mnt/rg_climate_benchmark/data/final_geobenchV2/m4sar"
+  #       bbox_orientation: "horizontal"
+  #     input_keys: ["image_optical", "image_sar"]
+  #     target_key: "label"
+  #     range_vals:
+  #       image_optical: [0, 255]
+  #       image_sar: [0, 255]
+        
+  - name: nzcattle
     stats_computer:
       _target_: geobench_v2.generate_benchmark.utils_dataset_statistics.ObjectDetectionStatistics
       datamodule:
-        _target_: geobench_v2.datamodules.GeoBenchM4SARDataModule
+        _target_: geobench_v2.datamodules.GeoBenchNZCattleDataModule
         batch_size: 16
         num_workers: 4
-        root: "/mnt/rg_climate_benchmark/data/final_geobenchV2/m4sar"
-        bbox_orientation: "horizontal"
-      input_keys: ["image_optical", "image_sar"]
-      target_key: "label"
+        root: '/opt/app-root/src/fm-geospatial/data/GEO-Bench_V2'
+      input_keys: ["image"]
+      target_key: "annotation"
       range_vals:
-        image_optical: [0, 255]
-        image_sar: [0, 255]
+        image: [0, 255]
+  
+  - name: substation
+    stats_computer:
+      _target_: geobench_v2.generate_benchmark.utils_dataset_statistics.ObjectDetectionStatistics
+      datamodule:
+        _target_: geobench_v2.datamodules.GeoBenchSubstationDataModule
+        batch_size: 16
+        num_workers: 4
+        root: '/opt/app-root/src/fm-geospatial/data/GEO-Bench_V2'
+      input_keys: ["image"]
+      target_key: "annotation"
+      range_vals:
+        image: [0, 3000]
+
 
