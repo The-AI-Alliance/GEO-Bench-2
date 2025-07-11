@@ -132,7 +132,7 @@ class GeoBenchEverWatch(GeoBenchBaseDataset):
         sample.update(image_dict)
 
         sample["bbox_xyxy"] = boxes
-        sample["label"] = labels + 1
+        sample["label"] = labels
 
         if self.transforms is not None:
             sample = self.transforms(sample)
