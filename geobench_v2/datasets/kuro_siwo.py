@@ -199,7 +199,7 @@ class GeoBenchKuroSiwo(GeoBenchBaseDataset):
 
         if self.return_stacked_image:
             modality_keys = {
-                "sar": ["image_sar_pre_1", "image_sar_pre_2", "image_sar_post"],
+                "sar": ["image_pre_1", "image_pre_2", "image_post"],
                 "dem": ["image_dem"],
             }
             stacked_images = [
@@ -208,6 +208,11 @@ class GeoBenchKuroSiwo(GeoBenchBaseDataset):
                 for key in modality_keys.get(modality, [])
                 if key in sample
             ]
-            sample = {"image": torch.cat(stacked_images, dim=0), "mask": sample["mask"]}
+            images_sizes = [item.shape for item in stacked_images]
+            assert len(set(images_sizes)) == 1, "currently only supports stacking of images/modalities with the same number of bands"
+            sample = { #TODO: stack dem for each sar timestamp
+                "image": torch.stack(stacked_images, dim=1), #[C, T, H, W]
+                "mask": sample["mask"]
+                }
 
         return sample
