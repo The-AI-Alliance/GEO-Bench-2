@@ -179,29 +179,31 @@ class GeoBenchBioMassters(GeoBenchBaseDataset):
 
         spatial_mask = None
 
+        #s1 data should always be read to obtain spatial mask
+        sample_s1_row = sample_row[sample_row["modality"] == "S1"]
+        s1_data = []
+        for i in sample_s1_row.index[: self.num_time_steps]:
+            s1_step = sample_row.read(i)
+            with rasterio.open(s1_step) as src:
+                img = src.read()
+            img = torch.from_numpy(img)
+            s1_data.append(img)
+        s1_data = torch.stack(s1_data)
+
+        # for single time step only return [C, H, W]
+        if self.num_time_steps == 1:
+            s1_data = s1_data[0]
+
+        # replace -9999 with 0
+        s1_mask = s1_data == -9999
+        s1_data[s1_mask] = 0.0
+        # Create a spatial mask that ignores channels/timesteps
+        if s1_mask.dim() == 3:  # [C, H, W]
+            spatial_mask = s1_mask.any(dim=0)  # [H, W]
+        else:  # [T, C, H, W]
+            spatial_mask = s1_mask.any(dim=(1))  # [T, H, W]
+                
         if "s1" in self.band_order:
-            sample_s1_row = sample_row[sample_row["modality"] == "S1"]
-            s1_data = []
-            for i in sample_s1_row.index[: self.num_time_steps]:
-                s1_step = sample_row.read(i)
-                with rasterio.open(s1_step) as src:
-                    img = src.read()
-                img = torch.from_numpy(img)
-                s1_data.append(img)
-            s1_data = torch.stack(s1_data)
-
-            # for single time step only return [C, H, W]
-            if self.num_time_steps == 1:
-                s1_data = s1_data[0]
-
-            # replace -9999 with 0
-            s1_mask = s1_data == -9999
-            s1_data[s1_mask] = 0.0
-            # Create a spatial mask that ignores channels/timesteps
-            if s1_mask.dim() == 3:  # [C, H, W]
-                spatial_mask = s1_mask.any(dim=0)  # [H, W]
-            else:  # [T, C, H, W]
-                spatial_mask = s1_mask.any(dim=(1))  # [T, H, W]
             img_dict["s1"] = s1_data
 
         if "s2" in self.band_order:
@@ -245,18 +247,22 @@ class GeoBenchBioMassters(GeoBenchBaseDataset):
                     )
                 ] = 0.0
 
-        if "s2" in self.band_order and spatial_mask is not None:
-            if img_dict["image_s2"].dim() == 3:  # [C, H, W]
-                img_dict["image_s2"][:, spatial_mask] = 0.0
-            else:  # [T, C, H, W]
-                # unsqueeze channel dim for broadcasting
-                img_dict["image_s2"][
-                    einops.repeat(
-                        spatial_mask,
-                        "t h w -> t c h w",
-                        c=img_dict["image_s2"].shape[1],
-                    )
-                ] = 0.0
+        if "s2" in self.band_order: 
+            if spatial_mask is not None:
+                if img_dict["image_s2"].dim() == 3:  # [C, H, W]
+                    img_dict["image_s2"][:, spatial_mask] = 0.0
+                else:  # [T, C, H, W]
+                    # unsqueeze channel dim for broadcasting
+                    img_dict["image_s2"][
+                        einops.repeat(
+                            spatial_mask,
+                            "t h w -> t c h w",
+                            c=img_dict["image_s2"].shape[1],
+                        )
+                    ] = 0.0
+
+            if img_dict["image_s2"].dim() == 4: # [T, C, H, W]                
+                img_dict["image_s2"] = img_dict["image_s2"].permute(1, 0, 2, 3) #C, T, H, W
 
         sample.update(img_dict)
 
@@ -272,6 +278,15 @@ class GeoBenchBioMassters(GeoBenchBaseDataset):
         ) / self.normalization_stats["stds"]["AGB"]
 
         sample["mask"] = agb
+
+        if self.return_stacked_image:
+            sample = { #TODO: stack
+                "image": torch.cat(
+                    [sample[f"image_{key}"] for key in self.band_order.keys()], 0
+                ),
+                "mask": sample["mask"],
+            }
+            sample["mask"] = torch.squeeze(sample["mask"])
 
         if self.transforms is not None:
             sample = self.transforms(sample)
