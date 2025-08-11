@@ -130,6 +130,7 @@ class GeoBenchDynamicEarthNet(GeoBenchBaseDataset):
         transforms: nn.Module | None = None,
         metadata: Sequence[str] | None = None,
         temporal_setting: Literal["single", "daily", "weekly"] = "single",
+        return_stacked_image: bool = False,
         download: bool = False,
     ) -> None:
         """Initialize the dataset.
@@ -158,6 +159,7 @@ class GeoBenchDynamicEarthNet(GeoBenchBaseDataset):
             "temporal_setting must be one of the following: single, daily, or weekly"
         )
         self.temporal_setting = temporal_setting
+        self.return_stacked_image = return_stacked_image
 
     def __getitem__(self, idx: int) -> dict[str, Tensor]:
         """Return an index within the dataset.
@@ -221,6 +223,26 @@ class GeoBenchDynamicEarthNet(GeoBenchBaseDataset):
 
         point = wkt.loads(sample_row.iloc[0]["stac:centroid"])
         lon, lat = point.x, point.y
+
+        if "planet" in self.band_order:
+            #convert from T, C, H, W -> C, T, H, W
+            sample["image_planet"] = sample["image_planet"].permute(1, 0, 2, 3)
+
+        if self.return_stacked_image:
+            if ("s2" in self.band_order):
+                if (self.temporal_setting == "single"):
+                    sample["image_planet"] = sample["image_planet"].squeeze(1)
+                else:
+                    raise ValueError("To stack Sentinel 2 (s2) with Planet, please use temporal_setting = single")
+            
+            sample = { 
+                "image": torch.cat(
+                    [sample[f"image_{key}"] for key in self.band_order.keys()], 0
+                ),
+                "mask": sample["mask"],
+            }
+            sample["mask"] = torch.squeeze(sample["mask"])
+            
 
         if "lon" in self.metadata:
             sample["lon"] = torch.tensor(lon)
