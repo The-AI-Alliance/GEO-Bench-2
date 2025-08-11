@@ -155,7 +155,7 @@ class GeoBenchDynamicEarthNet(GeoBenchBaseDataset):
             download=download,
         )
         assert temporal_setting in ["single", "daily", "weekly"], (
-            "temporal_setting must be on of the following: single, daily, or weekly"
+            "temporal_setting must be one of the following: single, daily, or weekly"
         )
         self.temporal_setting = temporal_setting
 
