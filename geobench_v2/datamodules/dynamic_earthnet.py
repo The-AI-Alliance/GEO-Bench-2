@@ -25,7 +25,7 @@ class GeoBenchDynamicEarthNetDataModule(GeoBenchSegmentationDataModule):
     # TODO img_size will change to 512
     def __init__(
         self,
-        img_size: int = 1024,
+        img_size: int = 512,
         band_order: Sequence[float | str] = GeoBenchDynamicEarthNet.band_default_order,
         batch_size: int = 32,
         eval_batch_size: int = 64,
