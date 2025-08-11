@@ -124,7 +124,7 @@ class GeoBenchDynamicEarthNet(GeoBenchBaseDataset):
         root: Path,
         split: str,
         band_order: dict[str, Sequence[float | str]] = {
-            "plane": ["r", "g", "b", "nir"]
+            "planet": ["r", "g", "b", "nir"]
         },
         data_normalizer: type[nn.Module] = ZScoreNormalizer,
         transforms: nn.Module | None = None,
