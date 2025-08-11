@@ -224,11 +224,6 @@ class GeoBenchDynamicEarthNet(GeoBenchBaseDataset):
         point = wkt.loads(sample_row.iloc[0]["stac:centroid"])
         lon, lat = point.x, point.y
 
-        if "lon" in self.metadata:
-            sample["lon"] = torch.tensor(lon)
-        if "lat" in self.metadata:
-            sample["lat"] = torch.tensor(lat)
-
         if self.transforms is not None:
             sample = self.transforms(sample)
 
@@ -250,5 +245,10 @@ class GeoBenchDynamicEarthNet(GeoBenchBaseDataset):
                 "mask": sample["mask"],
             }
             sample["mask"] = torch.squeeze(sample["mask"])
+
+        if "lon" in self.metadata:
+            sample["lon"] = torch.tensor(lon)
+        if "lat" in self.metadata:
+            sample["lat"] = torch.tensor(lat)
 
         return sample
