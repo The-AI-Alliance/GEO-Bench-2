@@ -227,7 +227,7 @@ class GeoBenchDynamicEarthNet(GeoBenchBaseDataset):
         if self.transforms is not None:
             sample = self.transforms(sample)
 
-        if "planet" in self.band_order:
+        if ("planet" in self.band_order) and (self.temporal_setting != "single")
             #convert from T, C, H, W -> C, T, H, W
             sample["image_planet"] = sample["image_planet"].permute(1, 0, 2, 3)
 
