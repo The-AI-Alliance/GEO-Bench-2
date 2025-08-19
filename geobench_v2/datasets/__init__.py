@@ -24,6 +24,7 @@ from .spacenet7 import GeoBenchSpaceNet7
 from .spacenet8 import GeoBenchSpaceNet8
 from .treesatai import GeoBenchTreeSatAI
 from .wind_turbine import GeoBenchWindTurbine
+from .burn_scars import GeoBenchBurnScars
 from .nzcattle import GeoBenchNZCattle
 from .substation import GeoBenchSubstation
 
@@ -49,6 +50,7 @@ __all__ = (
     "GeoBenchBRIGHT",
     "GeoBenchWindTurbine",
     "GeoBenchQFabric",
+    "GeoBenchBurnScars"
     "GeoBenchNZCattle",
     "GeoBenchSubstation"
 )
