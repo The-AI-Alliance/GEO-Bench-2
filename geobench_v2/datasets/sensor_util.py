@@ -533,6 +533,8 @@ class DatasetBandRegistry:
 
     NZCATTLE = SensorBandRegistry.RGB
 
+    SUBSTATION = SensorBandRegistry.SENTINEL2
+
     FOTW = SensorBandRegistry.RGBN
 
     RESISC45 = ModalityConfig(

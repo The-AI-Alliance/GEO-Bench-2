@@ -26,6 +26,7 @@ from .treesatai import GeoBenchTreeSatAI
 from .wind_turbine import GeoBenchWindTurbine
 from .burn_scars import GeoBenchBurnScars
 from .nzcattle import GeoBenchNZCattle
+from .substation import GeoBenchSubstation
 
 __all__ = (
     "GeoBenchCaFFe",
@@ -50,5 +51,6 @@ __all__ = (
     "GeoBenchWindTurbine",
     "GeoBenchQFabric",
     "GeoBenchBurnScars"
-    "GeoBenchNZCattle"
+    "GeoBenchNZCattle",
+    "GeoBenchSubstation"
 )
