@@ -46,7 +46,7 @@ def datamodule(
     monkeypatch.setattr(
         GeoBenchTreeSatAI,
         "sha256str",
-        ["157322209c9f91be4ca4603d58d26688cac7409c081fc78d5327147ae615ccec"],
+        ["134cc053297d4bb626696680796da1e4aed92ca4633b0e841f9813d9c4e70ff5"],
     )
     dm = GeoBenchTreeSatAIDataModule(
         img_size=74,
@@ -93,6 +93,7 @@ class TestTreeSatAIDataModule:
         assert len(datamodule.train_dataloader()) > 0
         assert len(datamodule.val_dataloader()) > 0
         assert len(datamodule.test_dataloader()) > 0
+        assert len(datamodule.extra_test_dataloader()) > 0
 
     def test_load_batch_and_check_dims(self, datamodule):
         """Test loading a batch."""
