@@ -77,6 +77,7 @@ class SensorType(Enum):
     GRAYSCALE = "gray"
     LANDSAT8 = "l8"
     MODIS = "modis"
+    HLS = "hls"
 
 
 class SensorBandRegistry:
@@ -288,6 +289,41 @@ class SensorBandRegistry:
             "M19",
         ],
         native_resolution=500,
+    )
+
+    HLS = ModalityConfig(
+        bands={
+            "B02": BandConfig("blue", ["b02", "blue"], wavelength=0.490, resolution=30),
+            "B03": BandConfig(
+                "green", ["b03", "green"], wavelength=0.560, resolution=30
+            ),
+            "B04": BandConfig("red", ["b04", "red"], wavelength=0.665, resolution=30),
+            "B8A": BandConfig(
+                "nir_narrow", ["b8a"], wavelength=0.850, resolution=60
+            ),
+            "B11": BandConfig(
+                "swir1",
+                ["short_wave_infrared_1", "b11"],
+                wavelength=1.570,
+                resolution=60,
+            ),
+            "B12": BandConfig(
+                "swir2",
+                ["short_wave_infrared_2", "b12"],
+                wavelength=2.11,
+                resolution=60,
+            ),
+        },
+        default_order=[
+            "B02",
+            "B03",
+            "B04",
+            "B8A",
+            "B11",
+            "B12",
+        ],
+        native_resolution=10,
+        plot_bands=["B04", "B03", "B02"],
     )
 
     @classmethod
@@ -1097,6 +1133,8 @@ class DatasetBandRegistry:
             "vh": "sar",
         },
     )
+
+    BURNSCARS = SensorBandRegistry.HLS
 
     @classmethod
     def get_dataset_config(cls, dataset_name: str) -> ModalityConfig | MultiModalConfig:
