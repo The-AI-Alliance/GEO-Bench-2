@@ -311,6 +311,7 @@ def create_subset_from_df(
     n_train_samples: int,
     n_val_samples: int,
     n_test_samples: int,
+    n_additional_test_samples: int = 0,
     random_state: int = 42,
     split_column: str = "split",
 ) -> pd.DataFrame:
@@ -321,15 +322,28 @@ def create_subset_from_df(
         n_train_samples: Number of training samples to include in the subset
         n_val_samples: Number of validation samples to include in the subset
         n_test_samples: Number of test samples to include in the subset
+        n_additional_test_samples: Number of additional test samples to create from remaining train samples
         random_state: Random seed for reproducibility
         split_column: Column name that indicates the dataset split
 
     Returns:
-        A DataFrame containing the selected subset of samples
+        A DataFrame containing the selected subset of samples with an additional 'test_from_train' split
     """
     train_count = len(metadata_df[metadata_df[split_column] == "train"])
     val_count = len(metadata_df[metadata_df[split_column] == "validation"])
     test_count = len(metadata_df[metadata_df[split_column] == "test"])
+
+    total_train_needed = n_train_samples + n_additional_test_samples
+    if (
+        n_train_samples != -1
+        and n_additional_test_samples > 0
+        and total_train_needed > train_count
+    ):
+        raise ValueError(
+            f"Not enough training samples available. Need {total_train_needed} "
+            f"({n_train_samples} train + {n_additional_test_samples} additional test) "
+            f"but only {train_count} available."
+        )
 
     n_train_samples = (
         train_count if n_train_samples == -1 else min(n_train_samples, train_count)
@@ -340,19 +354,46 @@ def create_subset_from_df(
     )
 
     print(
-        f"Selecting {n_train_samples} train, {n_val_samples} validation, and {n_test_samples} test samples"
+        f"Selecting {n_train_samples} train, {n_val_samples} validation, "
+        f"{n_test_samples} test, and {n_additional_test_samples} additional test samples"
     )
 
-    train_samples = metadata_df[metadata_df[split_column] == "train"].sample(
-        n_train_samples, random_state=random_state
-    )
+    train_data = metadata_df[metadata_df[split_column] == "train"]
+
+    if n_additional_test_samples > 0:
+        total_train_sample = train_data.sample(
+            n_train_samples + n_additional_test_samples, random_state=random_state
+        )
+
+        train_samples = total_train_sample.iloc[:n_train_samples].copy()
+        additional_test_samples = total_train_sample.iloc[n_train_samples:].copy()
+    else:
+        train_samples = train_data.sample(n_train_samples, random_state=random_state)
+        additional_test_samples = pd.DataFrame()
+
     val_samples = metadata_df[metadata_df[split_column] == "validation"].sample(
         n_val_samples, random_state=random_state
     )
     test_samples = metadata_df[metadata_df[split_column] == "test"].sample(
         n_test_samples, random_state=random_state
     )
-    subset_df = pd.concat([train_samples, val_samples, test_samples])
+
+    train_samples["add_test_split"] = False
+    val_samples["add_test_split"] = False
+    test_samples["add_test_split"] = False
+    additional_test_samples["add_test_split"] = True
+
+    subset_dfs = [train_samples, val_samples, test_samples]
+    if len(additional_test_samples) > 0:
+        subset_dfs.append(additional_test_samples)
+
+    subset_df = pd.concat(subset_dfs, ignore_index=True)
+
+    split_counts = subset_df[split_column].value_counts()
+    print("Final subset composition:")
+    for split, count in split_counts.items():
+        print(f"  {split}: {count} samples")
+
     return subset_df
 
 
@@ -363,6 +404,7 @@ def create_unittest_subset(
     n_train_samples: int,
     n_val_samples: int,
     n_test_samples: int,
+    n_additional_test_samples: int = 0,
     random_state: int = 42,
 ) -> None:
     """Create a unittest version tortilla.
@@ -374,6 +416,7 @@ def create_unittest_subset(
         n_train_samples: Number of training samples to include in the subset
         n_val_samples: Number of validation samples to include in the subset
         n_test_samples: Number of test samples to include in the subset
+        n_additional_test_samples: Number of additional test samples from train split
         random_state: Random seed for reproducibility
     """
     taco_glob = sorted(glob(os.path.join(data_dir, tortilla_pattern)))
@@ -385,6 +428,7 @@ def create_unittest_subset(
         n_train_samples=n_train_samples,
         n_val_samples=n_val_samples,
         n_test_samples=n_test_samples,
+        n_additional_test_samples=n_additional_test_samples,
         random_state=random_state,
         split_column="tortilla:data_split",
     )

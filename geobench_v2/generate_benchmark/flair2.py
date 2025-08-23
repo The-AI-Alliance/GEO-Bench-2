@@ -118,9 +118,9 @@ def generate_metadata_df(save_dir: str, root: str) -> pd.DataFrame:
 
     metadata_df["aerial_path"] = (
         "aerial"
-        + "/"
+        + os.sep
         + metadata_df["zone"].astype(str)
-        + "/"
+        + os.sep
         + metadata_df["image_id"]
         + ".tif"
     )
@@ -131,15 +131,15 @@ def generate_metadata_df(save_dir: str, root: str) -> pd.DataFrame:
     )
 
     metadata_df["aerial_path"] = metadata_df.apply(
-        lambda x: "train-val" + "/" + x["aerial_path"]
+        lambda x: "data" + os.sep + "train-val" + os.sep + x["aerial_path"]
         if x["split"] in ["train", "validation"]
-        else "flair#2-test" + "/" + x["aerial_path"],
+        else "data" + os.sep + "flair#2-test" + os.sep + x["aerial_path"],
         axis=1,
     )
     metadata_df["mask_path"] = metadata_df.apply(
-        lambda x: "train-val" + "/" + x["mask_path"]
+        lambda x: "data" + os.sep + "train-val" + os.sep + x["mask_path"]
         if x["split"] in ["train", "validation"]
-        else "flair#2-test" + "/" + x["mask_path"],
+        else "data" + os.sep + "flair#2-test" + os.sep + x["mask_path"],
         axis=1,
     )
 
@@ -159,7 +159,7 @@ def generate_metadata_df(save_dir: str, root: str) -> pd.DataFrame:
     )
     metadata_df = metadata_df[metadata_df["img_path_exists"]].reset_index(
         drop=True
-    )
+    ) 
 
     return metadata_df
 
@@ -193,6 +193,7 @@ def create_tortilla(root_dir, df, save_dir, tortilla_name):
                     "raster_shape": (profile["height"], profile["width"]),
                     "time_start": row["date"],
                 },
+                add_test_split=row["is_additional_test"],
                 lon=row["lon"],
                 lat=row["lat"],
                 image_id=row["image_id"],
@@ -230,6 +231,7 @@ def create_tortilla(root_dir, df, save_dir, tortilla_name):
                 "time_start": sample_data["stac:time_start"],
             },
             data_split=sample_data["tortilla:data_split"],
+            add_test_split=sample_data["add_test_split"],
             lon=sample_data["lon"],
             lat=sample_data["lat"],
             image_id=sample_data["image_id"],
@@ -373,7 +375,6 @@ def store_dataset_under_new_profile(
                 )
 
     results_df = pd.DataFrame(results)
-
     results_df["image_id"] = results_df["new_aerial_path"].apply(
         lambda x: os.path.basename(x).split(".")[0]
     )
@@ -402,6 +403,7 @@ def create_geobench_version(
     n_train_samples: int,
     n_val_samples: int,
     n_test_samples: int,
+    n_additional_test_samples: int = 0,
 ) -> pd.DataFrame:
     """Create a GeoBench version of the dataset.
 
@@ -410,6 +412,7 @@ def create_geobench_version(
         n_train_samples: Number of final training samples, -1 means all
         n_val_samples: Number of final validation samples, -1 means all
         n_test_samples: Number of final test samples, -1 means all
+        n_additional_test_samples: Number of additional test samples from train split
         root_dir: Root directory for FLAIR2 dataset
         save_dir: Directory to save the subset benchmark data
         block_size: Size of blocks for optimized GeoTIFF writing
@@ -422,6 +425,7 @@ def create_geobench_version(
         n_train_samples=n_train_samples,
         n_val_samples=n_val_samples,
         n_test_samples=n_test_samples,
+        n_additional_test_samples=n_additional_test_samples,
         random_state=random_state,
     )
 
@@ -458,12 +462,21 @@ def main():
         s=2.0,
     )
 
+    result_df_path = os.path.join(args.save_dir, "geobench_flair2.parquet")
+    if os.path.exists(result_df_path):
+        result_df = pd.read_parquet(result_df_path)
+    else:
+        result_df = create_geobench_version(
+            metadata_df, n_train_samples=4000, n_val_samples=1000, n_test_samples=2000, n_additional_test_samples=1000
+        )
+        result_df.to_parquet(result_df_path)
+
     optimized_path = os.path.join(args.save_dir, "optimized_metadata.parquet")
     if os.path.exists(optimized_path):
         optimized_df = pd.read_parquet(optimized_path)
     else:
         optimized_df = store_dataset_under_new_profile(
-            metadata_df,
+            result_df,
             root_dir=args.root,
             save_dir=args.save_dir,
             block_size=(512, 512),
@@ -471,18 +484,10 @@ def main():
         )
         optimized_df.to_parquet(optimized_path)
 
-    result_df_path = os.path.join(args.save_dir, "geobench_flair2.parquet")
-    if os.path.exists(result_df_path):
-        result_df = pd.read_parquet(result_df_path)
-    else:
-        result_df = create_geobench_version(
-            optimized_df, n_train_samples=4000, n_val_samples=1000, n_test_samples=3000
-        )
-        result_df.to_parquet(result_df_path)
 
     tortilla_name = "geobench_flair2.tortilla"
 
-    # create_tortilla(args.save_dir, result_df, args.save_dir, tortilla_name)
+    create_tortilla(args.save_dir, optimized_df, args.save_dir, tortilla_name)
 
     create_unittest_subset(
         data_dir=args.save_dir,
@@ -491,9 +496,8 @@ def main():
         n_train_samples=2,
         n_val_samples=1,
         n_test_samples=1,
+        n_additional_test_samples=1,
     )
-
-    # print("\nFLAIR2 benchmark metadata generation complete.")
 
 
 if __name__ == "__main__":

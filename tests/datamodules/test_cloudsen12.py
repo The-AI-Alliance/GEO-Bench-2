@@ -36,7 +36,7 @@ def datamodule(
     monkeypatch.setattr(
         GeoBenchCloudSen12,
         "sha256str",
-        ["53bc46848c9c14af1525b47de92fd334ed288f0f938c2f1e8b41bdb006a6c60e"],
+        ["be92ca1e65987bb7a35193a7fad4b5d8e45b7d7005a4e963d1fea1ded2b1d6fc"],
     )
     dm = GeoBenchCloudSen12DataModule(
         img_size=74,
@@ -63,6 +63,7 @@ class TestCloudSen12DataModule:
         assert len(datamodule.train_dataloader()) > 0
         assert len(datamodule.val_dataloader()) > 0
         assert len(datamodule.test_dataloader()) > 0
+        assert len(datamodule.extra_test_dataloader()) > 0
 
     def test_load_batch_and_check_dims(self, datamodule):
         """Test loading a batch."""

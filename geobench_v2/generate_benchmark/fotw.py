@@ -553,7 +553,8 @@ def create_tortilla(root_dir, df, save_dir, tortilla_name):
         modality_samples = []
 
         for modality in modalities:
-            path = os.path.join(root_dir, row[modality + "_path"])
+            path = os.path.join(root_dir, modality, row["country"] + "_" + os.path.basename(row[modality + "_path"]).replace(".tif", "") + "_" + modality + ".tif")
+            
             with rasterio.open(path) as src:
                 profile = src.profile
 
@@ -568,6 +569,7 @@ def create_tortilla(root_dir, df, save_dir, tortilla_name):
                     "raster_shape": (profile["height"], profile["width"]),
                     "time_start": row["year_of_collection"],
                 },
+                add_test_split=row["is_additional_test"],
                 lon=row["lon"],
                 lat=row["lat"],
                 aoi_id=row["aoi_id"],
@@ -603,6 +605,7 @@ def create_tortilla(root_dir, df, save_dir, tortilla_name):
                 "time_start": sample_data["stac:time_start"],
             },
             data_split=sample_data["tortilla:data_split"],
+            add_test_split=sample_data["add_test_split"],
             lon=sample_data["lon"],
             lat=sample_data["lat"],
             aoi_id=sample_data["aoi_id"],
@@ -622,6 +625,7 @@ def create_geobench_version(
     n_train_samples: int,
     n_val_samples: int,
     n_test_samples: int,
+    n_additional_test_samples: int = 0,
 ) -> None:
     """Create a GeoBench version of the dataset.
 
@@ -630,6 +634,7 @@ def create_geobench_version(
         n_train_samples: Number of final training samples, -1 means all
         n_val_samples: Number of final validation samples, -1 means all
         n_test_samples: Number of final test samples, -1 means all
+        n_additional_test_samples: Number of additional test samples from train split
     """
     random_state = 24
 
@@ -638,6 +643,7 @@ def create_geobench_version(
         n_train_samples=n_train_samples,
         n_val_samples=n_val_samples,
         n_test_samples=n_test_samples,
+        n_additional_test_samples=n_additional_test_samples,
         random_state=random_state,
     )
 
@@ -678,27 +684,28 @@ def main():
         title="Fields of the World Dataset - Geographic Distribution",
     )
 
-    optimized_path = os.path.join(args.save_dir, "optimized.parquet")
-    if os.path.exists(optimized_path):
-        optimized_df = pd.read_parquet(optimized_path)
-    else:
-        optimized_df = optimize_fotw_dataset(
-            metadata_df,
-            root_dir=args.root,
-            save_dir=os.path.join(args.save_dir, "optimized"),
-            num_workers=8,
-        )
-        optimized_df.to_parquet(optimized_path)
-
     # create geobench subset
     results_df_path = os.path.join(args.save_dir, "geobench_fotw.parquet")
     if os.path.exists(results_df_path):
         results_df = pd.read_parquet(results_df_path)
     else:
         results_df = create_geobench_version(
-            optimized_df, n_train_samples=4000, n_val_samples=1000, n_test_samples=2000
+            metadata_df, n_train_samples=4000, n_val_samples=1000, n_test_samples=2000, n_additional_test_samples=1000
         )
         results_df.to_parquet(results_df_path)
+
+    
+    optimized_path = os.path.join(args.save_dir, "optimized.parquet")
+    if os.path.exists(optimized_path):
+        optimized_df = pd.read_parquet(optimized_path)
+    else:
+        optimized_df = optimize_fotw_dataset(
+            results_df,
+            root_dir=args.root,
+            save_dir=os.path.join(args.save_dir, "optimized"),
+            num_workers=8,
+        )
+        optimized_df.to_parquet(optimized_path)
 
     # create tortilla
     tortilla_name = "geobench_fotw.tortilla"
@@ -716,6 +723,7 @@ def main():
         n_train_samples=4,
         n_val_samples=2,
         n_test_samples=2,
+        n_additional_test_samples=1
     )
 
 

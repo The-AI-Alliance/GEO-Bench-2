@@ -13,6 +13,7 @@ from geobench_v2.datamodules import GeoBenchNZCattleDataModule
 from geobench_v2.datasets import GeoBenchNZCattle
 import pdb
 
+
 @pytest.fixture(params=[["red", "green", 0, "blue"]])
 def band_order(request):
     """Parameterized band configuration with different configurations."""

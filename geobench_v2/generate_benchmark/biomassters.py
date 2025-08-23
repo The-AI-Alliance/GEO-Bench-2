@@ -89,9 +89,7 @@ def generate_metadata_df(root: str) -> pd.DataFrame:
     # create random train/val split from train entries
     train_df = consolidated_df[consolidated_df["split"] == "train"]
 
-    _, val_indices = train_test_split(
-        train_df.index, test_size=0.2, random_state=42
-    )
+    _, val_indices = train_test_split(train_df.index, test_size=0.2, random_state=42)
     consolidated_df.loc[val_indices, "split"] = "validation"
 
     split_counts = consolidated_df["split"].value_counts()
@@ -120,6 +118,7 @@ def create_tortilla(root_dir, df, save_dir, tortilla_name):
                     path=os.path.join(root_dir, path),
                     file_format="GTiff",
                     data_split=row["split"],
+                    add_test_split=row["is_additional_test"],
                     month=month,
                     source_img_file=path,
                     modality=modality,
@@ -133,6 +132,7 @@ def create_tortilla(root_dir, df, save_dir, tortilla_name):
             path=os.path.join(root_dir, row["agbm_path"]),
             file_format="GTiff",
             data_split=row["split"],
+            add_test_split=row["is_additional_test"],
             modality="AGBM",
             source_img_file=row["agbm_path"],
         )
@@ -160,6 +160,7 @@ def create_tortilla(root_dir, df, save_dir, tortilla_name):
             path=tortilla_file,
             file_format="TORTILLA",
             data_split=sample_data["tortilla:data_split"],
+            add_test_split=sample_data["add_test_split"],
         )
         samples.append(sample_tortilla)
 
@@ -323,6 +324,7 @@ def process_biomassters_sample(args):
             "agbm_path": rel_agbm_path,
             "num_S1_images": len(s1_paths),
             "num_S2_images": len(s2_paths),
+            "is_additional_test": row["is_additional_test"]
         }
 
     except Exception as e:
@@ -385,6 +387,7 @@ def create_test_subset(
     num_train_samples: int = 4,
     num_val_samples: int = 2,
     num_test_samples: int = 2,
+    n_additional_test_samples: int = 0
 ) -> None:
     """Create a test subset of the BioMassters dataset with downsampled 32x32 images.
 
@@ -395,6 +398,7 @@ def create_test_subset(
         num_train_samples: Number of training samples to include
         num_val_samples: Number of validation samples to include
         num_test_samples: Number of test samples to include
+        n_additional_test_samples: Number of additional test samples from train split
     """
     import warnings
 
@@ -417,13 +421,40 @@ def create_test_subset(
     ]:
         os.makedirs(directory, exist_ok=True)
 
-    train_df = df[df["split"] == "train"].sample(num_train_samples, random_state=42)
-    val_df = df[df["split"] == "validation"].sample(num_val_samples, random_state=42)
-    test_df = df[df["split"] == "test"].sample(num_test_samples, random_state=42)
+    # Prepare pools by split
+    train_pool = df[df["split"] == "train"]
+    val_pool = df[df["split"] == "validation"]
+    test_pool = df[df["split"] == "test"]
 
-    subset_df = pd.concat([train_df, val_df, test_df]).reset_index(drop=True)
+    # Validate availability
+    total_train_needed = num_train_samples + n_additional_test_samples
+    if total_train_needed > len(train_pool):
+        raise ValueError(
+            f"Not enough training samples: need {total_train_needed} "
+            f"({num_train_samples} train + {n_additional_test_samples} additional test) "
+            f"but only {len(train_pool)} available."
+        )
+
+    # Sample training and additional test disjointly from train
+    if n_additional_test_samples > 0:
+        selected = train_pool.sample(total_train_needed, random_state=42)
+        train_df = selected.iloc[:num_train_samples].copy()
+        additional_df = selected.iloc[num_train_samples:].copy()
+        additional_df["is_additional_test"] = True
+    else:
+        train_df = train_pool.sample(num_train_samples, random_state=42).copy()
+        additional_df = pd.DataFrame(columns=train_pool.columns)
+
+    val_df = val_pool.sample(num_val_samples, random_state=42).copy()
+    test_df = test_pool.sample(num_test_samples, random_state=42).copy()
+
+    subset_df = pd.concat([train_df, val_df, test_df, additional_df]).reset_index(drop=True)
+    subset_df["is_additional_test"] = subset_df.get("is_additional_test", False)
+
     print(
-        f"Created subset with {len(subset_df)} samples: {num_train_samples} train, {num_val_samples} validation, {num_test_samples} test"
+        f"Created subset with {len(subset_df)} samples: "
+        f"{num_train_samples} train, {num_val_samples} validation, "
+        f"{num_test_samples} test, {n_additional_test_samples} additional-from-train"
     )
 
     subset_metadata = []
@@ -515,6 +546,7 @@ def create_test_subset(
                 "agbm_path": rel_agbm_path,
                 "num_S1_images": len(s1_paths),
                 "num_S2_images": len(s2_paths),
+                "is_additional_test": row["is_additional_test"]
             }
         )
 
@@ -547,6 +579,7 @@ def create_geobench_version(
     n_train_samples: int,
     n_val_samples: int,
     n_test_samples: int,
+    n_additional_test_samples: int,
 ) -> None:
     """Create a GeoBench version of the dataset.
 
@@ -555,15 +588,15 @@ def create_geobench_version(
         n_train_samples: Number of final training samples, -1 means all
         n_val_samples: Number of final validation samples, -1 means all
         n_test_samples: Number of final test samples, -1 means all
+        n_additional_test_samples: Number of additional test samples to include from train set
     """
-    random_state = 24
-
     subset_df = create_subset_from_df(
         metadata_df,
         n_train_samples=n_train_samples,
         n_val_samples=n_val_samples,
         n_test_samples=n_test_samples,
-        random_state=random_state,
+        n_additional_test_samples=n_additional_test_samples,
+        random_state=24,
     )
 
     return subset_df
@@ -595,34 +628,38 @@ def main():
         metadata_df = generate_metadata_df(args.root)
         metadata_df.to_parquet(metadata_path)
 
-    optimized_path = os.path.join(args.save_dir, "biomassters_optimized.parquet")
-    # if os.path.exists(optimized_path):
-    #     optimized_df = pd.read_parquet(optimized_path)
-    # else:
-    optimized_df = optimize_biomassters_dataset(
-        metadata_df, args.root, args.save_dir, num_workers=8
-    )
-    optimized_df.to_parquet(optimized_path)
 
     results_path = os.path.join(args.save_dir, "geobench_biomassters.parquet")
     # if os.path.exists(results_path):
     #     results_df = pd.read_parquet(results_path)
     # else:
     results_df = create_geobench_version(
-        optimized_df, n_train_samples=4000, n_val_samples=-1, n_test_samples=-1
+        metadata_df, n_train_samples=4000, n_val_samples=1000, n_test_samples=2000, n_additional_test_samples=1000,
     )
     results_df.to_parquet(results_path)
 
+    optimized_path = os.path.join(args.save_dir, "biomassters_optimized.parquet")
+    # if os.path.exists(optimized_path):
+    #     optimized_df = pd.read_parquet(optimized_path)
+    # else:
+    optimized_df = optimize_biomassters_dataset(
+        results_df, args.root, args.save_dir, num_workers=8
+    )
+    optimized_df.to_parquet(optimized_path)
+
+    
+
     tortilla_name = "geobench_biomassters.tortilla"
-    create_tortilla(args.save_dir, results_df, args.save_dir, tortilla_name)
+    create_tortilla(args.save_dir, optimized_df, args.save_dir, tortilla_name)
 
     create_test_subset(
         args.save_dir,
-        results_df,
+        optimized_df,
         save_dir=args.save_dir,
         num_train_samples=4,
         num_val_samples=2,
         num_test_samples=2,
+        n_additional_test_samples=1,
     )
 
 

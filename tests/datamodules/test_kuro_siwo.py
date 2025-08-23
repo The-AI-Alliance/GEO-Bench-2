@@ -37,7 +37,7 @@ def datamodule(
     monkeypatch.setattr(
         GeoBenchKuroSiwo,
         "sha256str",
-        ["8b50712388243b3938599cd35407538f27832e18c769176addc73c5ff3b72141"],
+        ["4d0b48543e669f7df45e4195d1872fe7cf2c52c0810a9fe9872ee5daaec3a22b"],
     )
     dm = GeoBenchKuroSiwoDataModule(
         img_size=256,
@@ -85,6 +85,7 @@ class TestKuroSiwoDataModule:
         assert len(datamodule.train_dataloader()) > 0
         assert len(datamodule.val_dataloader()) > 0
         assert len(datamodule.test_dataloader()) > 0
+        assert len(datamodule.extra_test_dataloader()) > 0
 
     def test_load_batch_and_check_dims(self, datamodule):
         """Test loading a batch."""
@@ -130,7 +131,9 @@ class TestKuroSiwoDataModule:
         train_batch = next(iter(datamodule.train_dataloader()))
 
         # Check constants in sar bands if present
-        if any(isinstance(band, (int | float)) for band in datamodule.band_order["sar"]):
+        if any(
+            isinstance(band, (int | float)) for band in datamodule.band_order["sar"]
+        ):
             for i, band in enumerate(datamodule.band_order["sar"]):
                 if isinstance(band, (int | float)):
                     assert torch.isclose(
@@ -146,7 +149,9 @@ class TestKuroSiwoDataModule:
                     ).all(), f"Constant value mismatch for image_post channel {i}"
 
         # Check constants in dem bands if present
-        if any(isinstance(band, (int | float)) for band in datamodule.band_order["dem"]):
+        if any(
+            isinstance(band, (int | float)) for band in datamodule.band_order["dem"]
+        ):
             for i, band in enumerate(datamodule.band_order["dem"]):
                 if isinstance(band, (int | float)):
                     assert torch.isclose(

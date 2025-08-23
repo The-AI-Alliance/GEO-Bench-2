@@ -41,7 +41,7 @@ def datamodule(
     monkeypatch.setattr(
         GeoBenchBENV2,
         "sha256str",
-        ["a3eb9c6f40e7c46aa2a79c4a3b64d014d680257a343485c0406997a6e9e8c6fa"],
+        ["0ec9bf297bdb945db714923ed3220b156e9f3cae482046f732086efda1f09ec6"],
     )
     dm = GeoBenchBENV2DataModule(
         img_size=74,
@@ -68,6 +68,7 @@ class TestBENV2DataModule:
         assert len(datamodule.train_dataloader()) > 0
         assert len(datamodule.val_dataloader()) > 0
         assert len(datamodule.test_dataloader()) > 0
+        assert len(datamodule.extra_test_dataloader()) > 0
 
     def test_load_batch_and_check_dims(self, datamodule):
         """Test loading a batch."""

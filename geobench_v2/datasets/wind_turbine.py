@@ -60,7 +60,7 @@ class GeoBenchWindTurbine(GeoBenchBaseDataset):
             data_normalizer: The data normalizer to apply to the data, defaults to :class:`data_util.ZScoreNormalizer`,
                 which applies z-score normalization to each band.
             transforms: image transformations to apply to the data, defaults to None
-            download: Whether to download the dataset 
+            download: Whether to download the dataset
         """
         super().__init__(
             root=root,

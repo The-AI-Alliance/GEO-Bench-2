@@ -24,7 +24,7 @@ from .base import GeoBenchSegmentationDataModule
 class GeoBenchKuroSiwoDataModule(GeoBenchSegmentationDataModule):
     """GeoBench KuroSiwo Data Module."""
 
-    #
+    has_extra_test_samples = True
 
     def __init__(
         self,

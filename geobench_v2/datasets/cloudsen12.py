@@ -106,7 +106,7 @@ class GeoBenchCloudSen12(GeoBenchBaseDataset):
             transforms: Image resize transform on sample level
             metadata: metadata names to be returned under specified keys as part of the sample in the
                 __getitem__ method. If None, no metadata is returned.
-            download: Whether to download the dataset 
+            download: Whether to download the dataset
 
         Raises:
             AssertionError: If split is not in the splits

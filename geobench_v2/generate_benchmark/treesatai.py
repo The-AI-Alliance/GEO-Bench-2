@@ -109,6 +109,7 @@ def create_tortilla(root_dir, df, save_dir, tortilla_name):
                     path=path,
                     file_format="HDF5",
                     data_split=row["split"],
+                    add_test_split=row["is_additional_test"],
                     year=row["YEAR"],
                     lon=row["lon"],
                     lat=row["lat"],
@@ -125,6 +126,7 @@ def create_tortilla(root_dir, df, save_dir, tortilla_name):
                     path=path,
                     file_format="GTiff",
                     data_split=row["split"],
+                    add_test_split=row["is_additional_test"],
                     stac_data={
                         "crs": "EPSG:" + str(profile["crs"].to_epsg()),
                         "geotransform": profile["transform"].to_gdal(),
@@ -170,6 +172,7 @@ def create_tortilla(root_dir, df, save_dir, tortilla_name):
             },
             year=sample_data["year"],
             data_split=sample_data["tortilla:data_split"],
+            add_test_split=sample_data["add_test_split"],
             lon=sample_data["lon"],
             lat=sample_data["lat"],
             species_labels=sample_data["species_labels"],
@@ -202,7 +205,9 @@ def process_treesatai_sample(args):
             "original_path": row["path"],
             "split": row["split"],
             "sentinel-ts_path": row["sentinel-ts_path"],
+            "is_additional_test": row["is_additional_test"]
         }
+
 
         for modality in modalities:
             src_path = os.path.join(root_dir, row[f"{modality}_path"])
@@ -290,6 +295,7 @@ def create_geobench_version(
     n_train_samples: int,
     n_val_samples: int,
     n_test_samples: int,
+    n_additional_test_samples: int
 ) -> None:
     """Create a GeoBench version of the dataset.
 
@@ -299,14 +305,13 @@ def create_geobench_version(
         n_val_samples: Number of final validation samples, -1 means all
         n_test_samples: Number of final test samples, -1 means all
     """
-    random_state = 24
-
     subset_df = create_subset_from_df(
         metadata_df,
         n_train_samples=n_train_samples,
         n_val_samples=n_val_samples,
         n_test_samples=n_test_samples,
-        random_state=random_state,
+        n_additional_test_samples=n_additional_test_samples,
+        random_state=24,
     )
 
     return subset_df
@@ -365,9 +370,10 @@ def main():
     else:
         subset_df = create_geobench_version(
             metadata_df=final_metadata_df,
-            n_train_samples=2000,
-            n_val_samples=4000,
-            n_test_samples=4000,
+            n_train_samples=4000,
+            n_val_samples=1000,
+            n_test_samples=2000,
+            n_additional_test_samples=1000
         )
         optimized_df = optimize_treesatai_dataset(
             metadata_df=subset_df, root_dir=args.root, save_dir=args.save_dir
@@ -377,12 +383,12 @@ def main():
     # Create a tortilla version of the dataset
     tortilla_name = "geobench_treesatai.tortilla"
 
-    create_tortilla(
-        root_dir=args.save_dir,
-        df=optimized_df,
-        save_dir=args.save_dir,
-        tortilla_name=tortilla_name,
-    )
+    # create_tortilla(
+    #     root_dir=args.save_dir,
+    #     df=optimized_df,
+    #     save_dir=args.save_dir,
+    #     tortilla_name=tortilla_name,
+    # )
 
     create_unittest_subset(
         data_dir=args.save_dir,
@@ -391,6 +397,7 @@ def main():
         n_train_samples=4,
         n_val_samples=2,
         n_test_samples=2,
+        n_additional_test_samples=1
     )
 
 

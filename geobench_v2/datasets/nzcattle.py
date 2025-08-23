@@ -19,9 +19,9 @@ import json
 from .normalization import ZScoreNormalizer, DataNormalizer
 from .base import GeoBenchBaseDataset
 
+
 class GeoBenchNZCattle(GeoBenchBaseDataset):
-    """ nzCattle dataset.
-    """
+    """nzCattle dataset."""
 
     url = "https://hf.co/datasets/aialliance/nzcattle/resolve/main/{}"
 
@@ -62,7 +62,7 @@ class GeoBenchNZCattle(GeoBenchBaseDataset):
             data_normalizer: The data normalizer to apply to the data, defaults to :class:`ZScoreNormalizer`,
                 which applies z-score normalization to each band.
             transforms: image transformations to apply to the data, defaults to None
-            download: Whether to download the dataset 
+            download: Whether to download the dataset
         """
 
         super().__init__(
@@ -84,17 +84,17 @@ class GeoBenchNZCattle(GeoBenchBaseDataset):
         Returns:
             data and label at that index
         """
-        
+
         sample_row = self.data_df.read(index)
 
-        image_path = sample_row['internal:subfile'].values[0]
-        anno_path = sample_row['internal:subfile'].values[1]
+        image_path = sample_row["internal:subfile"].values[0]
+        anno_path = sample_row["internal:subfile"].values[1]
 
         sample: dict[str, Tensor] = {}
 
         ## load image
         image = self._load_image(image_path)
-        
+
         image_dict = self.rearrange_bands(image, self.band_order)
         image_dict = self.data_normalizer(image_dict)
         sample.update(image_dict)
@@ -103,14 +103,14 @@ class GeoBenchNZCattle(GeoBenchBaseDataset):
 
         boxes, labels = self._load_target(anno_path)
 
-        sample['bbox_xyxy'] = boxes
-        sample['label'] = labels
+        sample["bbox_xyxy"] = boxes
+        sample["label"] = labels
 
         if self.transforms is not None:
             sample = self.transforms(sample)
-        
+
         return sample
-    
+
     def _load_image(self, path: str) -> Tensor:
         """Load an image from disk.
 
@@ -121,7 +121,8 @@ class GeoBenchNZCattle(GeoBenchBaseDataset):
             image tensor
         """
         ## load image
-        with rasterio.open(path) as src: image = src.read(out_dtype="float32")
+        with rasterio.open(path) as src:
+            image = src.read(out_dtype="float32")
 
         return torch.tensor(image)
 
@@ -147,25 +148,26 @@ class GeoBenchNZCattle(GeoBenchBaseDataset):
             data = f.read(size)
         byte_stream = io.BytesIO(data)
 
-        with h5py.File(byte_stream, 'r') as f: annotations = json.loads(f.attrs['annotation'])        
-        
-        annotations = annotations['boxes']
+        with h5py.File(byte_stream, "r") as f:
+            annotations = json.loads(f.attrs["annotation"])
+
+        annotations = annotations["boxes"]
 
         boxes = []
         labels = []
 
         for anno in annotations:
-            
-            labels.append(anno['category_id'])
+            labels.append(anno["category_id"])
 
-            x, y, width, height = anno['bbox']
+            x, y, width, height = anno["bbox"]
 
-            boxes.append([x, y, x+ width, y + height])
-        
+            boxes.append([x, y, x + width, y + height])
+
         if len(boxes) == 0:
             return torch.zeros((0, 4), dtype=torch.float32), torch.zeros(
                 0, dtype=torch.int64
             )
 
-        return torch.tensor(boxes, dtype=torch.float32), torch.tensor(labels, dtype=torch.int64)
-
+        return torch.tensor(boxes, dtype=torch.float32), torch.tensor(
+            labels, dtype=torch.int64
+        )

@@ -297,7 +297,6 @@ def process_mados_sample(args):
         if "CL_path" in row and pd.notna(row["CL_path"]):
             mask_path = os.path.join(root_dir, "MADOS", row["CL_path"])
 
-
         for band_path in band_paths:
             with rasterio.open(band_path) as src:
                 data = src.read(

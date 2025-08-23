@@ -32,7 +32,7 @@ from geobench_v2.generate_benchmark.utils import (
 
 def load_metadata(metadata_path: str):
     """Load metadata from CSV file.
-    
+
     Args:
         metadata_path: Path to the metadata CSV file
     """
@@ -245,7 +245,7 @@ def save_patch_coordinates_only(
     raw_data_dir, patch_size, overlap, overlap_test, overlap_val
 ):
     """Save the patch coordinates for the images in the dataset.
-    
+
     Args:
         raw_data_dir: Directory containing the raw data
         patch_size: Size of the patches
@@ -628,6 +628,7 @@ def create_tortilla(root_dir, df, save_dir, tortilla_name):
                 path=path,
                 file_format="GTiff",
                 data_split=row["split"],
+                add_test_split=row["is_additional_test"],
                 stac_data=stac_data,
                 lat=row["latitude"],
                 lon=row["longitude"],
@@ -663,6 +664,7 @@ def create_tortilla(root_dir, df, save_dir, tortilla_name):
                 "time_start": sample_data["stac:time_start"],
             },
             data_split=sample_data["tortilla:data_split"],
+            add_test_split=sample_data["add_test_split"],
             lat=sample_data["lat"],
             lon=sample_data["lon"],
             glacier_name=sample_data["glacier_name"],
@@ -682,6 +684,7 @@ def create_geobench_version(
     n_train_samples: int,
     n_val_samples: int,
     n_test_samples: int,
+    n_additional_test_samples: int = 0,
 ) -> None:
     """Create a GeoBench version of the dataset.
 
@@ -690,6 +693,7 @@ def create_geobench_version(
         n_train_samples: Number of final training samples, -1 means all
         n_val_samples: Number of final validation samples, -1 means all
         n_test_samples: Number of final test samples, -1 means all
+        n_additional_test_samples: Number of additional test samples from training set
     """
     random_state = 24
 
@@ -698,6 +702,7 @@ def create_geobench_version(
         n_train_samples=n_train_samples,
         n_val_samples=n_val_samples,
         n_test_samples=n_test_samples,
+        n_additional_test_samples=n_additional_test_samples,
         random_state=random_state,
     )
 
@@ -739,7 +744,11 @@ def main():
             num_workers=8,
         )
         patches_df = create_geobench_version(
-            patches_df, n_train_samples=4000, n_val_samples=1000, n_test_samples=2000
+            patches_df,
+            n_train_samples=4000,
+            n_val_samples=1000,
+            n_test_samples=2000,
+            n_additional_test_samples=1000,
         )
         patches_df.to_parquet(patches_path)
 
@@ -753,6 +762,7 @@ def main():
         n_train_samples=4,
         n_val_samples=2,
         n_test_samples=2,
+        n_additional_test_samples=1,
     )
 
 

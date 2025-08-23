@@ -33,9 +33,7 @@ def _load_stats_from_path_or_dict(stats_path: str):
                 if stat_key in modality_stats:
                     if stat_key not in processed_stats:
                         processed_stats[stat_key] = {}
-                    processed_stats[stat_key][band_name] = modality_stats[stat_key][
-                        i
-                    ]
+                    processed_stats[stat_key][band_name] = modality_stats[stat_key][i]
         if "clip_min_used" in modality_stats:
             if "clip_min" not in processed_stats:
                 processed_stats["clip_min"] = {}

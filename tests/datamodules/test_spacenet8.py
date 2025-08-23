@@ -37,7 +37,7 @@ def datamodule(
     monkeypatch.setattr(
         GeoBenchSpaceNet8,
         "sha256str",
-        ["084714af0af5e087e583f27605ea83cf6955637f936697c13c4484e028de91fa"],
+        ["8356bfb4f59b8362c1e0f1244a343a3a60c5d1ea552020b956a10cc8c55a4681"],
     )
     dm = GeoBenchSpaceNet8DataModule(
         img_size=256,

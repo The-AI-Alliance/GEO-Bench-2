@@ -160,7 +160,7 @@ class GeoBenchTreeSatAI(GeoBenchBaseDataset):
             include_ts: whether or not to return the time series in data loading
             num_time_steps: number of last time steps to return in the ts data
             return_stacked_image: if true, returns a single image tensor with all modalities stacked in band_order
-            download: Whether to download the dataset 
+            download: Whether to download the dataset
         """
         super().__init__(
             root=root,

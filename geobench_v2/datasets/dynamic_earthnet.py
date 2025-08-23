@@ -30,9 +30,9 @@ class GeoBenchDynamicEarthNet(GeoBenchBaseDataset):
     ]
 
     sha256str = [
-        "11204f926bfd89feeaa4c045a79a640137a21f7c038f71665583e7a35d6ab73f", 
-        "b3444cab2ac66b2cb225bb1fc4c71c298b6e31a1a1c5eaea72df7d820bb640b7", 
-        "3e11fdb9726c4448c07ca6b33f94dfb2c07deb3caed4721c47fae46018b3a011"
+        "11204f926bfd89feeaa4c045a79a640137a21f7c038f71665583e7a35d6ab73f",
+        "b3444cab2ac66b2cb225bb1fc4c71c298b6e31a1a1c5eaea72df7d820bb640b7",
+        "3e11fdb9726c4448c07ca6b33f94dfb2c07deb3caed4721c47fae46018b3a011",
     ]
 
     dataset_band_config = DatasetBandRegistry.DYNAMICEARTHNET
@@ -143,7 +143,7 @@ class GeoBenchDynamicEarthNet(GeoBenchBaseDataset):
             metadata: metadata names to be returned as part of the sample in the
                 __getitem__ method. If None, no metadata is returned.
             temporal_setting: The temporal setting to use, either 'single', 'daily' or 'weekly'
-            download: Whether to download the dataset 
+            download: Whether to download the dataset
         """
         super().__init__(
             root=root,

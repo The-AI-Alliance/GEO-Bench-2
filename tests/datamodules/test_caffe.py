@@ -36,7 +36,7 @@ def datamodule(
     monkeypatch.setattr(
         GeoBenchCaFFe,
         "sha256str",
-        ["c59595f7ca5232a16c778e32ce6994309e357c4a52abda3c13a1ef20643d62a0"],
+        ["778ed1859519b761156742f5b8843f60e2042c244d49dd636f2f7293c0e5625a"],
     )
     dm = GeoBenchCaFFeDataModule(
         img_size=512,
@@ -63,6 +63,7 @@ class TestCaFFeDataModule:
         assert len(datamodule.train_dataloader()) > 0
         assert len(datamodule.val_dataloader()) > 0
         assert len(datamodule.test_dataloader()) > 0
+        assert len(datamodule.extra_test_dataloader()) > 0
 
     def test_batch_dimensions(self, datamodule):
         """Test if batches have correct dimensions."""
@@ -90,7 +91,7 @@ class TestCaFFeDataModule:
 
     def test_batch_visualization(self, datamodule):
         """Test batch visualization."""
-        fig, batch = datamodule.visualize_batch("train")
+        fig, batch = datamodule.visualize_batch(split="train")
         assert isinstance(fig, plt.Figure)
         assert isinstance(batch, dict)
 

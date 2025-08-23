@@ -101,10 +101,14 @@ def resize_and_save_dataset(df, root_dir, save_dir, target_size=512):
 
 
 def create_region_based_splits(
-    df: pd.DataFrame, train_ratio: float=0.7, val_ratio: float =0.1, test_ratio: float=0.2, random_seed: int=42
+    df: pd.DataFrame,
+    train_ratio: float = 0.7,
+    val_ratio: float = 0.1,
+    test_ratio: float = 0.2,
+    random_seed: int = 42,
 ):
     """Create train/validation/test splits based on region names.
-    
+
     Args:
         df: DataFrame with image and annotation paths (one row per sample)
         train_ratio: Proportion of data to use for training

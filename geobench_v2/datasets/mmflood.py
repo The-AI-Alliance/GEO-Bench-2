@@ -79,7 +79,7 @@ class GeoBenchMMFlood(GeoBenchBaseDataset):
             metadata: metadata names to be returned as part of the sample in the
                 __getitem__ method. If None, no metadata is returned.
             return_stacked_image: If True, return the stacked modalities across channel dimension instead of the individual modalities.
-            download: Whether to download the dataset 
+            download: Whether to download the dataset
         """
         super().__init__(
             root=root,

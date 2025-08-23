@@ -36,7 +36,7 @@ def datamodule(
     monkeypatch.setattr(
         GeoBenchFieldsOfTheWorld,
         "sha256str",
-        ["ac574b468d1303858056edf6943f7b4e1a73c9e828597331d9f101387ca40898"],
+        ["0f2bed365627d081dd541fb9de03e45288c6ce0b4439f2790550bf58d0ef7ca3"],
     )
     dm = GeoBenchFieldsOfTheWorldDataModule(
         img_size=74,
@@ -63,6 +63,7 @@ class TestFieldsOfTheWorldDataModule:
         assert len(datamodule.train_dataloader()) > 0
         assert len(datamodule.val_dataloader()) > 0
         assert len(datamodule.test_dataloader()) > 0
+        assert len(datamodule.extra_test_dataloader()) > 0
 
     def test_load_batch_and_check_dims(self, datamodule):
         """Test loading a batch."""
@@ -96,6 +97,14 @@ class TestFieldsOfTheWorldDataModule:
         assert "lat" in train_batch
         assert train_batch["lon"].shape == (datamodule.batch_size,)
         assert train_batch["lat"].shape == (datamodule.batch_size,)
+
+    def test_batch_visualization(self, datamodule):
+        """Test batch visualization."""
+        fig, batch = datamodule.visualize_batch("train")
+        assert isinstance(fig, plt.Figure)
+        assert isinstance(batch, dict)
+
+        fig.savefig(os.path.join("tests", "data", "fotw", "test_batch.png"))
 
     def test_not_downloaded(self, tmp_path: Path) -> None:
         with pytest.raises(DatasetNotFoundError, match="Dataset not found"):

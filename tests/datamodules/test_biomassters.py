@@ -9,6 +9,7 @@ from pathlib import Path
 
 import pytest
 from pytest import MonkeyPatch
+import matplotlib.pyplot as plt
 
 from geobench_v2.datamodules import GeoBenchBioMasstersDataModule
 from geobench_v2.datasets import GeoBenchBioMassters
@@ -16,7 +17,7 @@ from geobench_v2.datasets import GeoBenchBioMassters
 
 @pytest.fixture(
     params=[
-        {"s1": ["VV_asc", "VH_desc", -1.0], "s2": ["B02", "B03", "B04", 0.0]},
+        {"s1": ["VV_asc", "VH_desc", -1.0, "VH_asc"], "s2": ["B02", "B03", "B04", 0.0]},
         {"s2": ["B02", "B03", "B04"]},
     ]
 )
@@ -39,7 +40,7 @@ def datamodule(
     monkeypatch.setattr(
         GeoBenchBioMassters,
         "sha256str",
-        ["879addd2f408fe3c09746628495ee210a164b8072c29e91d0044547308123f2e"],
+        ["4e130ac568584ebb72b8798b91775756a7b78730531e2f3cddc75af94602dd12"],
     )
     dm = GeoBenchBioMasstersDataModule(
         img_size=74,
@@ -71,7 +72,7 @@ def ts_datamodule(
     monkeypatch.setattr(
         GeoBenchBioMassters,
         "sha256str",
-        ["879addd2f408fe3c09746628495ee210a164b8072c29e91d0044547308123f2e"],
+        ["4e130ac568584ebb72b8798b91775756a7b78730531e2f3cddc75af94602dd12"],
     )
     dm = GeoBenchBioMasstersDataModule(
         img_size=74,
@@ -98,6 +99,7 @@ class TestBioMasstersDataModule:
         assert len(datamodule.train_dataloader()) > 0
         assert len(datamodule.val_dataloader()) > 0
         assert len(datamodule.test_dataloader()) > 0
+        assert len(datamodule.extra_test_dataloader()) > 0
 
     def test_load_batch_and_check_dims(self, datamodule):
         """Test loading a batch."""
@@ -148,3 +150,11 @@ class TestBioMasstersDataModule:
             ts_datamodule.img_size,
             ts_datamodule.img_size,
         )
+
+    def test_batch_visualization(self, datamodule):
+        """Test batch visualization."""
+        fig, batch = datamodule.visualize_batch("train")
+        assert isinstance(fig, plt.Figure)
+        assert isinstance(batch, dict)
+
+        fig.savefig(os.path.join("tests", "data", "biomassters", "test_batch.png"))

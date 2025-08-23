@@ -7,6 +7,10 @@ import os
 from collections.abc import Sequence
 from pathlib import Path
 from typing import Literal
+import re
+import io
+import h5py
+
 
 import numpy as np
 import pandas as pd
@@ -15,12 +19,12 @@ import torch.nn as nn
 from torch import Tensor
 from torchgeo.datasets import PASTIS
 
-from .data_util import DataUtilsMixin
+from .base import GeoBenchBaseDataset
 from .normalization import DataNormalizer, ZScoreNormalizer
 from .sensor_util import DatasetBandRegistry
 
 
-class GeoBenchPASTIS(PASTIS, DataUtilsMixin):
+class GeoBenchPASTIS(GeoBenchBaseDataset):
     """PAStis Dataset with enhanced functionality.
 
     This is the PASTIS-R version.
@@ -29,6 +33,20 @@ class GeoBenchPASTIS(PASTIS, DataUtilsMixin):
     - Variable Band Selection
     - Return band wavelengths
     """
+
+    url = "https://hf.co/datasets/aialliance/pastis/resolve/main/{}"
+
+    paths = [
+        "geobench_pastis.0000.part.tortilla",
+        "geobench_pastis.0001.part.tortilla",
+        "geobench_pastis.0002.part.tortilla",
+    ]
+
+    sha256str = [
+        "215f404a2444a4eb3d1ad173af102144f4a847d81d172f8835a4664c51813b73",
+        "92b25a4220e35104ae2e79916d506c949da16dcba136d5f37452bafc0ca8ce13",
+        "f3038a4f7ced1c5faf89368ee10dae408e612fd29a60f500140ce8d315503dbb"
+    ]
 
     dataset_band_config = DatasetBandRegistry.PASTIS
 
@@ -112,6 +130,7 @@ class GeoBenchPASTIS(PASTIS, DataUtilsMixin):
         metadata: Sequence[str] | None = None,
         label_type: Literal["instance_seg", "semantic_seg"] = "semantic_seg",
         return_stacked_image: bool = False,
+        download: bool = False,
     ) -> None:
         """Initialize PASTIS Dataset.
 
@@ -133,60 +152,25 @@ class GeoBenchPASTIS(PASTIS, DataUtilsMixin):
                 __getitem__ method. If None, no metadata is returned.
             label_type: The type of label to return, either 'instance_seg' or 'semantic_seg'
             return_stacked_image: if true, returns a single image tensor with all modalities stacked in band_order
+            download: Whether to download the dataset
 
         Raises:
             AssertionError: If an invalid split is specified
         """
-        super().__init__(root=root)
-
-        if split == "validation":
-            split = "val"
-
-        assert split in self.valid_splits, (
-            f"Invalid split {split}. Must be one of {self.valid_splits}"
+        super().__init__(
+            root=root,
+            split=split,
+            band_order=band_order,
+            data_normalizer=data_normalizer,
+            transforms=transforms,
+            metadata=metadata,
+            download=download,
         )
-        self.split = split
-
-        self.band_order = self.validate_band_order(band_order)
-
-        self.transforms = transforms
-        self.num_time_steps = num_time_steps
 
         self.label_type = label_type
+        self.num_time_steps = num_time_steps
         self.return_stacked_image = return_stacked_image
 
-        if metadata is None:
-            self.metadata = []
-        else:
-            self.metadata = metadata
-
-        self.data_df = pd.read_parquet(os.path.join(root, "geobench_pastis.parquet"))
-        self.data_df = self.data_df[self.data_df["split"] == split].reset_index(
-            drop=True
-        )
-
-        if isinstance(data_normalizer, type):
-            print(f"Initializing normalizer from class: {data_normalizer.__name__}")
-            if issubclass(data_normalizer, DataNormalizer):
-                self.data_normalizer = data_normalizer(
-                    self.normalization_stats, self.band_order
-                )
-            else:
-                self.data_normalizer = data_normalizer()
-
-        elif callable(data_normalizer):
-            print(
-                f"Using provided pre-initialized normalizer instance: {data_normalizer.__class__.__name__}"
-            )
-            self.data_normalizer = data_normalizer
-        else:
-            raise TypeError(
-                f"data_normalizer must be a DataNormalizer subclass type or a callable instance. Got {type(data_normalizer)}"
-            )
-
-    def __len__(self) -> int:
-        """Return the length of the dataset."""
-        return len(self.data_df)
 
     def __getitem__(self, index: int) -> dict[str, Tensor]:
         """Return an index within the dataset.
@@ -198,13 +182,12 @@ class GeoBenchPASTIS(PASTIS, DataUtilsMixin):
             data and label at that index
         """
         sample: dict[str, Tensor] = {}
-        sample_row = self.data_df.iloc[index]
+        sample_row = self.data_df.read(index)
+
         data = {
-            "s2": self._load_image(os.path.join(self.root, sample_row["s2_path"])),
-            "s1_asc": self._load_image(os.path.join(self.root, sample_row["s1a_path"])),
-            "s1_desc": self._load_image(
-                os.path.join(self.root, sample_row["s1d_path"])
-            ),
+            "s2": self._load_image(sample_row.read(0)),
+            "s1_asc": self._load_image(sample_row.read(1)),
+            "s1_desc": self._load_image(sample_row.read(2))
         }
 
         img_dict = self.rearrange_bands(data, self.band_order)
@@ -214,18 +197,16 @@ class GeoBenchPASTIS(PASTIS, DataUtilsMixin):
         sample.update(img_dict)
 
         if self.label_type == "semantic_seg":
-            sample["mask"] = self._load_semantic_targets(
-                os.path.join(self.root, sample_row["semantic_path"])
-            )
+            sample["mask"] = self._load_semantic_targets(sample_row.read(3))
         elif self.label_type == "instance_seg":
             sample["mask"], sample["boxes"], sample["label"] = (
                 self._load_instance_targets(
-                    os.path.join(self.root, sample_row["semantic_path"]),
-                    os.path.join(sample_row["instance_path"]),
+                    sample_row.read(3),
+                    sample_row.read(4)
                 )
             )
 
-        dates = sample_row["dates-s2"]
+        dates = sample_row["dates"].iloc[0]
         if len(dates) < self.num_time_steps:
             sample_dates = [0] * (self.num_time_steps - len(dates)) + dates
         else:
@@ -243,13 +224,35 @@ class GeoBenchPASTIS(PASTIS, DataUtilsMixin):
             }
 
         if "lon" in self.metadata:
-            sample["lon"] = torch.tensor(sample_row["longitude"])
+            sample["lon"] = torch.Tensor([sample_row.lon.iloc[0]]).squeeze()
         if "lat" in self.metadata:
-            sample["lat"] = torch.tensor(sample_row["latitude"])
+            sample["lat"] = torch.Tensor([sample_row.lat.iloc[0]]).squeeze()
         if "dates" in self.metadata:
-            sample["dates"] = torch.tensor(sample_dates)
+            sample["dates"] = torch.from_numpy(sample_dates)
 
         return sample
+
+    def _return_byte_stream(self, path: str):
+        """Return a byte stream for a given path.
+
+        Args:
+            path: internal path to tortilla modality
+
+        Returns:
+            A byte stream of the data
+        """
+        pattern = r"(\d+)_(\d+),(.+)"
+        match = re.search(pattern, path)
+        offset = int(match.group(1))
+        size = int(match.group(2))
+        file_name = match.group(3)
+
+        with open(file_name, "rb") as f:
+            f.seek(offset)
+            data = f.read(size)
+        byte_stream = io.BytesIO(data)
+
+        return byte_stream
 
     def _load_image(self, path: str) -> Tensor:
         """Load a single time-series.
@@ -260,8 +263,9 @@ class GeoBenchPASTIS(PASTIS, DataUtilsMixin):
         Returns:
             the time-series
         """
-        tensor = torch.tensor(np.load(path).astype(np.float32))
-
+        with h5py.File(self._return_byte_stream(path), "r") as f:
+            tensor = torch.from_numpy(f["data"][:]).float()
+        
         if tensor.shape[0] < self.num_time_steps:
             padding = torch.zeros(
                 self.num_time_steps - tensor.shape[0], *tensor.shape[1:]
@@ -286,8 +290,8 @@ class GeoBenchPASTIS(PASTIS, DataUtilsMixin):
         """
         # See https://github.com/VSainteuf/pastis-benchmark/blob/main/code/dataloader.py#L201
         # even though the mask file is 3 bands, we just select the first band
-        array = np.load(path)[0].astype(np.uint8).copy()
-        tensor = torch.from_numpy(array).long()
+        with h5py.File(self._return_byte_stream(path), "r") as f:
+            tensor = torch.from_numpy(f["data"][:][0]).long()
         return tensor
 
     def _load_instance_targets(
@@ -302,11 +306,10 @@ class GeoBenchPASTIS(PASTIS, DataUtilsMixin):
         Returns:
             the instance segmentation mask, box, and label for each instance
         """
-        mask_array = np.load(sem_path)[0].copy()
-        instance_array = np.load(instance_path).copy()
+        mask_tensor = self._load_semantic_targets(sem_path)
 
-        mask_tensor = torch.from_numpy(mask_array)
-        instance_tensor = torch.from_numpy(instance_array)
+        with h5py.File(self._return_byte_stream(instance_path), "r") as f:
+            instance_tensor = torch.from_numpy(f["data"][:]).long()
 
         # Convert instance mask of N instances to N binary instance masks
         instance_ids = torch.unique(instance_tensor)

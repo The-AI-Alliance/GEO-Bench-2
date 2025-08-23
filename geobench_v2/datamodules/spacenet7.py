@@ -25,7 +25,7 @@ from .base import GeoBenchSegmentationDataModule
 class GeoBenchSpaceNet7DataModule(GeoBenchSegmentationDataModule):
     """GeoBench SpaceNet7 Data Module."""
 
-    #
+    has_extra_test_samples = True
 
     def __init__(
         self,

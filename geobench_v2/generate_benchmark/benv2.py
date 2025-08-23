@@ -160,6 +160,7 @@ def create_tortilla(root_dir, metadata_df, save_dir, tortilla_name):
                     "time_start": row["date"],
                     "time_end": row["date"],
                 },
+                add_test_split=row["is_additional_test"],
                 lon=row["lon"],
                 lat=row["lat"],
                 country=row["country"],
@@ -199,6 +200,7 @@ def create_tortilla(root_dir, metadata_df, save_dir, tortilla_name):
                 "time_end": sample_data["stac:time_end"],
             },
             data_split=sample_data["tortilla:data_split"],
+            add_test_split=sample_data["add_test_split"],
             lon=sample_data["lon"],
             lat=sample_data["lat"],
             country=sample_data["country"],
@@ -413,6 +415,7 @@ def create_geobench_version(
     n_train_samples: int,
     n_val_samples: int,
     n_test_samples: int,
+    n_additional_test_samples: int = 0,
 ) -> None:
     """Create a GeoBench version of the dataset.
 
@@ -421,6 +424,7 @@ def create_geobench_version(
         n_train_samples: Number of final training samples, -1 means all
         n_val_samples: Number of final validation samples, -1 means all
         n_test_samples: Number of final test samples, -1 means all
+        n_additional_test_samples: Number of additional test samples to create from training data
     """
     random_state = 24
     subset_df = create_subset_from_df(
@@ -428,6 +432,7 @@ def create_geobench_version(
         n_train_samples=n_train_samples,
         n_val_samples=n_val_samples,
         n_test_samples=n_test_samples,
+        n_additional_test_samples=n_additional_test_samples,
         random_state=random_state,
     )
 
@@ -502,19 +507,23 @@ def main():
         metadata_df = pd.read_parquet(new_metadata_path)
 
     result_df_path = os.path.join(args.save_dir, "geobench_benv2_optimized.parquet")
-    # if os.path.exists(result_df_path):
-    #     result_df = pd.read_parquet(result_df_path)
-    # else:
-    result_df = create_geobench_version(
-        metadata_df=metadata_df,
-        n_train_samples=20000,
-        n_val_samples=4000,
-        n_test_samples=4000,
-    )
-    result_df = create_optimized_geotiffs(
-        metadata_df=result_df, root_dir=args.root, save_dir=args.save_dir, num_workers=8
-    )
-    result_df.to_parquet(result_df_path)
+    if os.path.exists(result_df_path):
+        result_df = pd.read_parquet(result_df_path)
+    else:
+        result_df = create_geobench_version(
+            metadata_df=metadata_df,
+            n_train_samples=20000,
+            n_val_samples=4000,
+            n_test_samples=4000,
+            n_additional_test_samples=4000,
+        )
+        result_df = create_optimized_geotiffs(
+            metadata_df=result_df,
+            root_dir=args.root,
+            save_dir=args.save_dir,
+            num_workers=8,
+        )
+        result_df.to_parquet(result_df_path)
 
     tortilla_name = "geobench_benv2.tortilla"
     create_tortilla(
@@ -528,9 +537,9 @@ def main():
         n_train_samples=4,
         n_val_samples=2,
         n_test_samples=2,
+        n_additional_test_samples=1,
     )
 
 
 if __name__ == "__main__":
-    # command:
     main()

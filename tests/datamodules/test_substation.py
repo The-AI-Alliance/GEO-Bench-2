@@ -12,6 +12,7 @@ from pytest import MonkeyPatch
 from geobench_v2.datamodules import GeoBenchSubstationDataModule
 from geobench_v2.datasets import GeoBenchSubstation
 
+
 @pytest.fixture(params=[["B02", "B03", "B11", "B08", "B04"]])
 def band_order(request):
     """Parameterized band configuration with different configurations."""

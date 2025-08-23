@@ -4,11 +4,17 @@
 """PASTIS DataModule Tests."""
 
 import os
+from collections.abc import Sequence
 
 import matplotlib.pyplot as plt
 import pytest
+from pytest import MonkeyPatch
+from pathlib import Path
+
+from torchgeo.datasets import DatasetNotFoundError
 
 from geobench_v2.datamodules import GeoBenchPASTISDataModule
+from geobench_v2.datasets import GeoBenchPASTIS
 
 
 @pytest.fixture(
@@ -32,14 +38,33 @@ def invalid_mixed_band_order():
 
 
 @pytest.fixture
-def datamodule(band_order):
+def datamodule(
+    monkeypatch: MonkeyPatch,
+    tmp_path: Path,
+    band_order: dict[str, Sequence[str | float]],
+):
+    monkeypatch.setattr(GeoBenchPASTIS, "paths", ["pastis.tortilla"])
+    monkeypatch.setattr(
+        GeoBenchPASTIS,
+        "url",
+        os.path.join("tests", "data", "pastis", "{}"),
+    )
+    monkeypatch.setattr(
+        GeoBenchPASTIS,
+        "sha256str",
+        ["8ec713be2d99fe2785d902545642346759466fe4bfd85d7e45fe0cbb55f0a882"],
+    )
     datamodule = GeoBenchPASTISDataModule(
-        img_size=256,
-        batch_size=8,
+        img_size=74,
+        batch_size=2,
+        eval_batch_size=1,
         num_workers=0,
         band_order=band_order,
-        root="/mnt/rg_climate_benchmark/data/geobenchV2/pastis",
+        root=tmp_path,
+        num_time_steps=2,
         metadata=["lon", "lat"],
+        pin_memory=False,
+        download=True
     )
     datamodule.setup("fit")
     datamodule.setup("test")
@@ -48,6 +73,13 @@ def datamodule(band_order):
 
 class TestPASTISDataModule:
     """Test cases for PASTIS datamodule functionality."""
+
+    def test_loaders(self, datamodule):
+        """Test if dataloaders are created successfully."""
+        assert len(datamodule.train_dataloader()) > 0
+        assert len(datamodule.val_dataloader()) > 0
+        assert len(datamodule.test_dataloader()) > 0
+        assert len(datamodule.extra_test_dataloader()) > 0
 
     def test_multimodal_band_order(self, datamodule):
         """Test batch retrieval with modality-specific band sequences."""
@@ -61,22 +93,24 @@ class TestPASTISDataModule:
         assert "mask" in batch
 
         # TODO handle correctly both cases
-        # Check dimensions - these are time-series shapes [batch_size, bands, time_steps, H, W]
-        # or [batch_size, bands, H, W] depending on how they're processed
+        # Check dimensions - these are time-series shapes [batch_size, T, C, H, W]
         assert batch["image_s2"].shape[0] == datamodule.batch_size
-        assert batch["image_s2"].shape[1] == len(datamodule.band_order["s2"])
-        assert batch["image_s2"].shape[2] == datamodule.img_size
+        assert batch["image_s2"].shape[1] == 2 # num time steps
+        assert batch["image_s2"].shape[2] == len(datamodule.band_order["s2"])
         assert batch["image_s2"].shape[3] == datamodule.img_size
+        assert batch["image_s2"].shape[4] == datamodule.img_size
 
         assert batch["image_s1_asc"].shape[0] == datamodule.batch_size
-        assert batch["image_s1_asc"].shape[1] == len(datamodule.band_order["s1_asc"])
-        assert batch["image_s1_asc"].shape[2] == datamodule.img_size
+        assert batch["image_s1_asc"].shape[1] == 2
+        assert batch["image_s1_asc"].shape[2] == len(datamodule.band_order["s1_asc"])
         assert batch["image_s1_asc"].shape[3] == datamodule.img_size
+        assert batch["image_s1_asc"].shape[4] == datamodule.img_size
 
         assert batch["image_s1_desc"].shape[0] == datamodule.batch_size
-        assert batch["image_s1_desc"].shape[1] == len(datamodule.band_order["s1_desc"])
-        assert batch["image_s1_desc"].shape[2] == datamodule.img_size
+        assert batch["image_s1_desc"].shape[1] == 2
+        assert batch["image_s1_desc"].shape[2] == len(datamodule.band_order["s1_desc"])
         assert batch["image_s1_desc"].shape[3] == datamodule.img_size
+        assert batch["image_s1_desc"].shape[4] == datamodule.img_size
 
         assert "lon" in batch
         assert "lat" in batch
@@ -91,22 +125,6 @@ class TestPASTISDataModule:
 
         fig.savefig(os.path.join("tests", "data", "pastis", "test_batch.png"))
 
-    def test_time_series(self, band_order):
-        """Test batch retrieval with time series."""
-        num_time_steps = 3
-        datamodule = GeoBenchPASTISDataModule(
-            img_size=74,
-            batch_size=4,
-            num_time_steps=num_time_steps,
-            band_order=band_order,
-            root="/mnt/rg_climate_benchmark/data/geobenchV2/pastis",
-        )
-        datamodule.setup("fit")
-        batch = next(iter(datamodule.train_dataloader()))
-
-        # Check single tensor output - only S2 bands
-        assert batch["image_s2"].shape[0] == datamodule.batch_size
-        assert batch["image_s2"].shape[1] == num_time_steps
-        assert batch["image_s2"].shape[2] == len(datamodule.band_order["s2"])
-        assert batch["image_s2"].shape[3] == datamodule.img_size
-        assert batch["image_s2"].shape[4] == datamodule.img_size
+    def test_not_downloaded(self, tmp_path: Path) -> None:
+        with pytest.raises(DatasetNotFoundError, match="Dataset not found"):
+            GeoBenchPASTIS(tmp_path, split="train")

@@ -739,6 +739,7 @@ class DatasetBandRegistry:
                     ),
                 },
                 default_order=["VV_asc", "VH_asc", "VV_desc", "VH_desc"],
+                plot_bands=["VV_asc", "VH_asc"],
                 native_resolution=10,
             ),
             "s2": ModalityConfig(
@@ -759,6 +760,7 @@ class DatasetBandRegistry:
                     "B11",
                     "B12",
                 ],
+                plot_bands=["B04", "B03", "B02"],
                 native_resolution=10,
             ),
         },
@@ -925,6 +927,7 @@ class DatasetBandRegistry:
                 # https://github.com/aysim/dynnet/blob/1e7d90294b54f52744ae2b35db10b4d0a48d093d/data/utae_dynamicen.py#L105
                 # order of bands is BGRN,
                 default_order=["b", "g", "r", "nir"],
+                plot_bands=["r", "g", "b"],
             ),
             # except B9
             "s2": ModalityConfig(
@@ -947,6 +950,7 @@ class DatasetBandRegistry:
                     "B11",
                     "B12",
                 ],
+                plot_bands = ["B04", "B03", "B02"],
             ),
             # TODO wait for inof
             # "s1": ModalityConfig(
@@ -1080,9 +1084,7 @@ class DatasetBandRegistry:
         modalities={
             "optical": SensorBandRegistry.RGB,
             "sar": ModalityConfig(
-                bands={
-                    "vh": BandConfig("vh", ["VH"], wavelength=0.056),
-                },
+                bands={"vh": BandConfig("vh", ["VH"], wavelength=0.056)},
                 default_order=["vh"],
                 plot_bands=["vh"],
             ),

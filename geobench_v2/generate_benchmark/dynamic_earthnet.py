@@ -342,6 +342,7 @@ def create_tortilla(root_dir, df, save_dir, tortilla_name):
                             "raster_shape": (profile["height"], profile["width"]),
                             "time_start": row["planet_date"],
                         },
+                        add_test_split=row["is_additional_test"],
                         lon=row["lon"],
                         lat=row["lat"],
                         area_id=row["area_id"],
@@ -370,6 +371,7 @@ def create_tortilla(root_dir, df, save_dir, tortilla_name):
                         "raster_shape": (profile["height"], profile["width"]),
                         "time_start": row["planet_date"],
                     },
+                    add_test_split=row["is_additional_test"],
                     lon=row["lon"],
                     lat=row["lat"],
                     area_id=row["area_id"],
@@ -396,6 +398,7 @@ def create_tortilla(root_dir, df, save_dir, tortilla_name):
                         "raster_shape": (profile["height"], profile["width"]),
                         "time_start": row["planet_date"],
                     },
+                    add_test_split=row["is_additional_test"],
                     lon=row["lon"],
                     lat=row["lat"],
                     area_id=row["area_id"],
@@ -420,6 +423,7 @@ def create_tortilla(root_dir, df, save_dir, tortilla_name):
                         "raster_shape": (profile["height"], profile["width"]),
                         "time_start": row["planet_date"],
                     },
+                    add_test_split=row["is_additional_test"],
                     lon=row["lon"],
                     lat=row["lat"],
                     area_id=row["area_id"],
@@ -454,6 +458,7 @@ def create_tortilla(root_dir, df, save_dir, tortilla_name):
                 "raster_shape": sample_data["stac:raster_shape"],
                 "time_start": sample_data["stac:time_start"],
             },
+            add_test_split=sample_data["add_test_split"],
             data_split=sample_data["tortilla:data_split"],
             lon=sample_data["lon"],
             lat=sample_data["lat"],
@@ -734,6 +739,7 @@ def create_test_subset(
     num_train_samples: int = 2,
     num_val_samples: int = 1,
     num_test_samples: int = 1,
+    n_additional_test_samples: int = 1,
     target_size: int = 32,
 ) -> None:
     """Create a test subset of the DynamicEarthNet dataset with downsampled images.
@@ -745,32 +751,76 @@ def create_test_subset(
         num_train_samples: Number of training samples to include
         num_val_samples: Number of validation samples to include
         num_test_samples: Number of test samples to include
+        n_additional_test_samples: Number of additional test samples from train split
         target_size: Size of the downsampled images (target_size x target_size)
     """
     test_dir = os.path.join(save_dir, "unittest")
     os.makedirs(test_dir, exist_ok=True)
 
     df_unique = df.drop_duplicates(subset="patch_id", keep="first")
-    train_samples = df_unique[df_unique["split"] == "train"].sample(
-        num_train_samples, random_state=42
-    )
-    val_samples = df_unique[df_unique["split"] == "validation"].sample(
-        num_val_samples, random_state=42
-    )
-    test_samples = df_unique[df_unique["split"] == "test"].sample(
-        num_test_samples, random_state=42
-    )
 
-    selected_ids = (
-        list(train_samples["patch_id"])
-        + list(val_samples["patch_id"])
-        + list(test_samples["patch_id"])
-    )
+    # Get available samples by split
+    train_unique = df_unique[df_unique["split"] == "train"]
+    val_unique = df_unique[df_unique["split"] == "validation"]
+    test_unique = df_unique[df_unique["split"] == "test"]
+
+    # Validate we have enough training samples for both train and additional test
+    total_train_needed = num_train_samples + n_additional_test_samples
+    if n_additional_test_samples > 0 and total_train_needed > len(train_unique):
+        raise ValueError(
+            f"Not enough training samples available. Need {total_train_needed} "
+            f"({num_train_samples} train + {n_additional_test_samples} additional test) "
+            f"but only {len(train_unique)} available."
+        )
+
+    # Sample training data ensuring disjoint sets
+    if n_additional_test_samples > 0:
+        # Sample all needed training samples at once
+        total_train_sample = train_unique.sample(total_train_needed, random_state=42)
+
+        # Split into actual train and additional test
+        train_samples = total_train_sample.iloc[:num_train_samples]
+        additional_test_samples = total_train_sample.iloc[num_train_samples:]
+
+        # Mark additional test samples
+        additional_test_samples = additional_test_samples.copy()
+        additional_test_samples["split"] = "train"
+        additional_test_samples["is_additional_test"] = True
+    else:
+        train_samples = train_unique.sample(num_train_samples, random_state=42)
+        additional_test_samples = pd.DataFrame()
+
+    # Sample validation and test as usual
+    val_samples = val_unique.sample(num_val_samples, random_state=42)
+    test_samples = test_unique.sample(num_test_samples, random_state=42)
+
+    # Combine all selected samples
+    selected_samples = [train_samples, val_samples, test_samples]
+    if len(additional_test_samples) > 0:
+        selected_samples.append(additional_test_samples)
+
+    selected_df = pd.concat(selected_samples, ignore_index=True)
+    selected_ids = selected_df["patch_id"].tolist()
+
+    # Get all records for the selected patch IDs (including time series)
     subset_df = df[df["patch_id"].isin(selected_ids)].copy()
+
+    subset_df["is_additional_test"] = False
+
+    # Apply the split changes to the full subset
+    if len(additional_test_samples) > 0:
+        additional_test_ids = additional_test_samples["patch_id"].tolist()
+        subset_df.loc[
+            subset_df["patch_id"].isin(additional_test_ids), "is_additional_test"
+        ] = True
 
     print(
         f"Creating test subset with {len(subset_df)} images from {len(selected_ids)} unique time-series"
     )
+    print("Split distribution:")
+    split_counts = subset_df["split"].value_counts()
+    for split, count in split_counts.items():
+        print(f"  {split}: {count} samples")
 
     modalities = ["planet", "s1", "s2", "label"]
     modality_dirs = {
@@ -968,7 +1018,9 @@ def visualize_dynamic_earthnet_patches(
     print(f"Visualized {len(sample_ids)} samples")
 
 
-def create_geobench_subset(patches_df, train_series=10, val_series=5, test_series=5):
+def create_geobench_subset(
+    patches_df, train_series=10, val_series=5, test_series=5, additional_test_series=0
+):
     """Create a subset of the dataset with specified number of unique time-series per split.
 
     Args:
@@ -976,6 +1028,7 @@ def create_geobench_subset(patches_df, train_series=10, val_series=5, test_serie
         train_series: Number of unique time-series to select from training set
         val_series: Number of unique time-series to select from validation set
         test_series: Number of unique time-series to select from test set
+        additional_test_series: Number of additional test samples from train split
 
     Returns:
         DataFrame containing the selected subset
@@ -984,17 +1037,50 @@ def create_geobench_subset(patches_df, train_series=10, val_series=5, test_serie
     val_ids = patches_df[patches_df["split"] == "validation"]["patch_id"].unique()
     test_ids = patches_df[patches_df["split"] == "test"]["patch_id"].unique()
 
+    # Validate we have enough training samples for both train and additional test
+    total_train_needed = train_series + additional_test_series
+    if additional_test_series > 0 and total_train_needed > len(train_ids):
+        raise ValueError(
+            f"Not enough training samples available. Need {total_train_needed} "
+            f"({train_series} train + {additional_test_series} additional test) "
+            f"but only {len(train_ids)} available."
+        )
+
     # set a random generator to be reproducible
     rng = np.random.default_rng(42)
-    selected_train = rng.choice(
-        train_ids, min(train_series, len(train_ids)), replace=False
-    )
+
+    if additional_test_series > 0:
+        # Sample all needed training samples (train + additional test) at once
+        total_train_sample = rng.choice(train_ids, total_train_needed, replace=False)
+
+        # Split into actual train and additional test
+        selected_train = total_train_sample[:train_series]
+        selected_additional_test = total_train_sample[train_series:]
+    else:
+        selected_train = rng.choice(
+            train_ids, min(train_series, len(train_ids)), replace=False
+        )
+        selected_additional_test = np.array([])
+
     selected_val = rng.choice(val_ids, min(val_series, len(val_ids)), replace=False)
     selected_test = rng.choice(test_ids, min(test_series, len(test_ids)), replace=False)
 
-    selected_ids = np.concatenate([selected_train, selected_val, selected_test])
-
+    # Create subset with original splits
+    selected_ids = np.concatenate(
+        [selected_train, selected_val, selected_test, selected_additional_test]
+    )
     subset_df = patches_df[patches_df["patch_id"].isin(selected_ids)].copy()
+
+    subset_df["is_additional_test"] = False
+
+    # Mark additional test samples
+    if len(selected_additional_test) > 0:
+        subset_df.loc[subset_df["patch_id"].isin(selected_additional_test), "split"] = (
+            "train"
+        )
+        subset_df.loc[
+            subset_df["patch_id"].isin(selected_additional_test), "is_additional_test"
+        ] = True
 
     print("Selected subset contains:")
     print(
@@ -1006,6 +1092,11 @@ def create_geobench_subset(patches_df, train_series=10, val_series=5, test_serie
     print(
         f"- {len(selected_test)} test time-series with {len(subset_df[subset_df['split'] == 'test'])} total samples"
     )
+
+    if additional_test_series > 0:
+        print(
+            f"- {len(selected_additional_test)} additional test time-series with {len(subset_df[subset_df['is_additional_test'] == True])} total samples"
+        )
 
     return subset_df
 
@@ -1157,35 +1248,39 @@ def main():
     os.makedirs(args.save_dir, exist_ok=True)
 
     metadata_path = os.path.join(args.save_dir, "geobench_metadata.parquet")
-    if os.path.exists(metadata_path):
-        metadata_df = pd.read_parquet(metadata_path)
-    else:
-        metadata_df = generate_metadata_df(args.root)
-        metadata_df.to_parquet(metadata_path)
+    # if os.path.exists(metadata_path):
+    #     metadata_df = pd.read_parquet(metadata_path)
+    # else:
+    metadata_df = generate_metadata_df(args.root)
+    metadata_df.to_parquet(metadata_path)
 
     patches_path = os.path.join(
         args.save_dir, "geobench_dynamic_earthnet_patches.parquet"
     )
 
-    if os.path.exists(patches_path):
-        patches_df = pd.read_parquet(patches_path)
-        patches_df = add_coordinates_to_subset(patches_df, metadata_df)
-        patches_df.to_parquet(patches_path)
-    else:
-        patches_df = create_dynamic_earthnet_patches(
-            args.root, args.save_dir, metadata_df, num_workers=16
-        )
-        patches_df = add_coordinates_to_subset(patches_df, metadata_df)
-        patches_df.to_parquet(patches_path)
+    # if os.path.exists(patches_path):
+    #     patches_df = pd.read_parquet(patches_path)
+    #     patches_df = add_coordinates_to_subset(patches_df, metadata_df)
+    #     patches_df.to_parquet(patches_path)
+    # else:
+    patches_df = create_dynamic_earthnet_patches(
+        args.root, args.save_dir, metadata_df, num_workers=16
+    )
+    patches_df = add_coordinates_to_subset(patches_df, metadata_df)
+    patches_df.to_parquet(patches_path)
 
     subset_path = os.path.join(args.save_dir, "geobench_dynamic_earthnet.parquet")
-    if os.path.exists(subset_path):
-        subset_df = pd.read_parquet(subset_path)
-    else:
-        subset_df = create_geobench_subset(
-            patches_df, train_series=700, val_series=100, test_series=200
-        )
-        subset_df.to_parquet(subset_path)
+    # if os.path.exists(subset_path):
+    #     subset_df = pd.read_parquet(subset_path)
+    # else:
+    subset_df = create_geobench_subset(
+        patches_df,
+        train_series=700,
+        val_series=100,
+        test_series=200,
+        additional_test_series=100,
+    )
+    subset_df.to_parquet(subset_path)
 
     verify_split_disjointness(subset_df)
 
@@ -1199,6 +1294,7 @@ def main():
         num_train_samples=2,
         num_val_samples=1,
         num_test_samples=1,
+        n_additional_test_samples=1,
         target_size=16,
     )
 

@@ -324,6 +324,7 @@ def process_spacenet8_tile(args):
                     "mask_path": os.path.join("mask", mask_filename),
                     "region": row["region"] if "region" in row else None,
                     "split": row["split"] if "split" in row else "train",
+                    "is_additional_test": row["is_additional_test"]
                 }
 
                 result_metadata.append(patch_metadata)
@@ -527,6 +528,7 @@ def create_tortilla(root_dir, df, save_dir, tortilla_name):
                 path=path,
                 file_format="GTiff",
                 data_split=row["split"],
+                add_test_split=row["is_additional_test"],
                 stac_data={
                     "crs": "EPSG:" + str(profile["crs"].to_epsg()),
                     "geotransform": profile["transform"].to_gdal(),
@@ -571,6 +573,7 @@ def create_tortilla(root_dir, df, save_dir, tortilla_name):
                 "time_start": sample_data["stac:time_start"],
             },
             data_split=sample_data["tortilla:data_split"],
+            add_test_split=sample_data["add_test_split"],
             lon=sample_data["lon"],
             lat=sample_data["lat"],
             source_mask_file=sample_data["source_mask_file"],
@@ -593,6 +596,7 @@ def create_geobench_version(
     n_train_samples: int,
     n_val_samples: int,
     n_test_samples: int,
+    n_additional_test_samples: int,
     root_dir: str,
     save_dir: str,
 ) -> None:
@@ -603,13 +607,14 @@ def create_geobench_version(
         n_train_samples: Number of final training samples, -1 means all
         n_val_samples: Number of final validation samples, -1 means all
         n_test_samples: Number of final test samples, -1 means all
+        n_additional_test_samples: Number of additional test samples
         root_dir: Root directory for the dataset
         save_dir: Directory to save the GeoBench version
     """
     random_state = 24
 
     subset_df = create_subset_from_df(
-        metadata_df, n_train_samples, n_val_samples, n_test_samples, random_state
+        metadata_df, n_train_samples, n_val_samples, n_test_samples, n_additional_test_samples, random_state
     )
 
     patch_size = (512, 512)
@@ -672,9 +677,10 @@ def main():
     # else:
     result_df = create_geobench_version(
         df_with_assigned_split,
-        n_train_samples=-1,
-        n_val_samples=-1,
-        n_test_samples=-1,
+        n_train_samples=450,
+        n_val_samples=168,
+        n_test_samples=159,
+        n_additional_test_samples=24,
         root_dir=args.root,
         save_dir=args.save_dir,
     )
@@ -690,6 +696,7 @@ def main():
         n_train_samples=4,
         n_val_samples=2,
         n_test_samples=2,
+        n_additional_test_samples=1,
         random_state=23,
     )
 

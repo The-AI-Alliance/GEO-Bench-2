@@ -37,7 +37,7 @@ def datamodule(
     monkeypatch.setattr(
         GeoBenchSpaceNet7,
         "sha256str",
-        ["439036c43f30820859ee30291e953f349042ae120005ff618e5d87004bb3a2b0"],
+        ["db7a6eff549e72b99226af1d7adbc1ee6efb25858b4f3b39313c0299d2fa1640"],
     )
     dm = GeoBenchSpaceNet7DataModule(
         img_size=256,
@@ -64,6 +64,7 @@ class TestSpaceNet7DataModule:
         assert len(datamodule.train_dataloader()) > 0
         assert len(datamodule.val_dataloader()) > 0
         assert len(datamodule.test_dataloader()) > 0
+        assert len(datamodule.extra_test_dataloader()) > 0
 
     def test_load_batch_and_check_dims(self, datamodule):
         """Test loading a batch."""

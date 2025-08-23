@@ -46,7 +46,7 @@ class GeoBenchBaseDataset(NonGeoDataset, DataUtilsMixin):
 
         Args:
             root: Root directory where the dataset can be found
-            split: The dataset split, supports 'train', 'val', 'test'
+            split: The dataset split, supports 'train', 'val', 'test', 'extra_test
             band_order: List of bands to return
             data_normalizer: Normalization strategy. Can be:
                              - A class type inheriting from DataNormalizer (e.g., ZScoreNormalizer)
@@ -74,10 +74,23 @@ class GeoBenchBaseDataset(NonGeoDataset, DataUtilsMixin):
         self.dataset_verification()
 
         self.data_df = tacoreader.load([os.path.join(root, f) for f in self.paths])
-        effective_split = "validation" if split == "val" else split
-        self.data_df = self.data_df[
-            self.data_df["tortilla:data_split"] == effective_split
-        ].reset_index(drop=True)
+
+        if split in ['train', 'val', 'validation', 'test']:
+            effective_split = "validation" if split == "val" else split
+            self.data_df = self.data_df[
+                (self.data_df["tortilla:data_split"] == effective_split)
+            ].reset_index(drop=True)
+
+            if "add_test_split" in self.data_df.columns:
+                self.data_df = self.data_df[
+                    self.data_df["add_test_split"] == False
+                ].reset_index(drop=True)
+        else:
+            # extra test samples from the train set
+            if "add_test_split" in self.data_df.columns:
+                self.data_df = self.data_df[
+                    self.data_df["add_test_split"] == True
+                ].reset_index(drop=True)
 
         self.band_order = self.resolve_band_order(band_order)
 
@@ -186,5 +199,5 @@ class GeoBenchBaseDataset(NonGeoDataset, DataUtilsMixin):
                 sha256str_hash.update(chunk)
 
         calculated_hash = sha256str_hash.hexdigest()
-
+        print(calculated_hash)
         return calculated_hash == expected_sha256str

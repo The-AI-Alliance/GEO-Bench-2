@@ -516,7 +516,6 @@ def main():
         )
         patch_metadata_df.to_parquet(path)
 
-
     tortilla_name = "geobench_mmflood.tortilla"
     create_tortilla(
         os.path.join(args.save_dir, "patches"),

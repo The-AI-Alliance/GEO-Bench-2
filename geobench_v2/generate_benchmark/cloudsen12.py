@@ -98,16 +98,16 @@ def main():
     args = parser.parse_args()
 
     metadata_path = os.path.join(args.save_dir, "geobench_cloudsen12_metadata.parquet")
-    # if os.path.exists(metadata_path):
-    #     metadata_df = pd.read_parquet(metadata_path)
-    # else:
-    metadata_df = create_subset(args.root, save_dir=args.save_dir)
-    metadata_df.to_parquet(metadata_path)
+    if os.path.exists(metadata_path):
+        metadata_df = pd.read_parquet(metadata_path)
+    else:
+        metadata_df = create_subset(args.root, save_dir=args.save_dir)
+        metadata_df.to_parquet(metadata_path)
 
-    # plot_sample_locations(
-    #     metadata_df=metadata_df,
-    #     output_path=os.path.join(args.save_dir, "sample_locations.png"),
-    # )
+    plot_sample_locations(
+        metadata_df=metadata_df,
+        output_path=os.path.join(args.save_dir, "sample_locations.png"),
+    )
 
     l2a_taco = tacoreader.load(
         os.path.join(args.save_dir, "geobench_cloudsen12-l2a.taco")
@@ -118,8 +118,9 @@ def main():
         n_train_samples=4000,
         n_val_samples=1000,
         n_test_samples=2000,
+        n_additional_test_samples=1000,
         split_column="tortilla:data_split",
-        random_state=41,
+        random_state=42,
     )
 
     tacoreader.compile(
@@ -135,6 +136,7 @@ def main():
         n_train_samples=2,
         n_val_samples=1,
         n_test_samples=1,
+        n_additional_test_samples=1,
     )
 
 

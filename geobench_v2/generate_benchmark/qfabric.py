@@ -48,7 +48,6 @@ def parse_qfabric_annotation(json_path: str, sample_idx: int) -> pd.DataFrame:
 
     images_data = []
     for img_idx, img_info in enumerate(annotation_data.get("images", [])):
-        
         img_width = img_info.get("width", 0)
         img_height = img_info.get("height", 0)
         img_file = img_info.get("file_name", "")
@@ -109,7 +108,7 @@ def generate_metadata_df(root_dir: str) -> pd.DataFrame:
 
     n_train = int(len(unique_sample_idx) * 0.7)
     n_val = int(len(unique_sample_idx) * 0.1)
-    
+
     train_sample_idx = unique_sample_idx[:n_train]
     val_sample_idx = unique_sample_idx[n_train : n_train + n_val]
     test_sample_idx = unique_sample_idx[n_train + n_val :]
@@ -1899,7 +1898,6 @@ def main():
         n_val_samples=1,
         n_test_samples=1,
     )
-
 
 
 if __name__ == "__main__":

@@ -25,6 +25,8 @@ from .base import GeoBenchClassificationDataModule
 class GeoBenchBENV2DataModule(GeoBenchClassificationDataModule):
     """GeoBench BigEarthNetV2 Data Module."""
 
+    has_extra_test_samples = True
+
     def __init__(
         self,
         img_size: int = 120,
@@ -206,7 +208,7 @@ class GeoBenchBENV2DataModule(GeoBenchClassificationDataModule):
         s: float = 0.5,
     ) -> None:
         """Visualize the geospatial distribution of the dataset.
-        
+
         Args:
             output_path: Path to save the visualization
             split_column: Column name for the split

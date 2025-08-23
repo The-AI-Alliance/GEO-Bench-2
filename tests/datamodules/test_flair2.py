@@ -37,7 +37,7 @@ def datamodule(
     monkeypatch.setattr(
         GeoBenchFLAIR2,
         "sha256str",
-        ["98347cdf1d9597b843e225392126b98aa381a2201e38d83fdb720ea2c44d8df9"],
+        ["581c7a853a2b2acdca2b9d55d4a49fa6668cdb25d9b72198dc0933eb100d90fd"],
     )
     dm = GeoBenchFLAIR2DataModule(
         img_size=256,
@@ -64,6 +64,7 @@ class TestFlAIR2DataModule:
         assert len(datamodule.train_dataloader()) > 0
         assert len(datamodule.val_dataloader()) > 0
         assert len(datamodule.test_dataloader()) > 0
+        assert len(datamodule.extra_test_dataloader()) > 0
 
     def test_load_batch_and_check_dims(self, datamodule):
         """Test loading a batch."""

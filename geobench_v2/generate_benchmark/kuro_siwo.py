@@ -117,7 +117,7 @@ def create_split_mapper():
 
 def extract_grid_data(path: str):
     """Extract grid data from the Kuro Siwo dataset.
-    
+
     Args:
         path: Path to the gzipped pickle file containing grid data.
     """
@@ -374,6 +374,7 @@ def process_kurosiwo_sample(task):
             "event_id": task["event_id"],
             "aoi": task["aoi"],
             "flood_date": task["flood_date"],
+            "is_additional_test": task["is_additional_test"],
         }
 
         for modality, path in output_paths.items():
@@ -448,6 +449,7 @@ def reprocess_kurosiwo_dataset(
             "aoi": row["aoi"],
             "input_dir": input_dir,
             "output_dir": output_dir,
+            "is_additional_test": row["is_additional_test"],
         }
         tasks.append(task)
 
@@ -539,7 +541,7 @@ def generate_metadata_df(root_dir: str) -> pd.DataFrame:
 
 def create_tortilla(df: pd.DataFrame, root: str, save_dir: str, tortilla_name: str):
     """Create a Tortilla file from the Kuro Siwo dataset.
-    
+
     Args:
         df: DataFrame with metadata including geolocation for each patch
         root: Root directory for Kuro Siwo dataset
@@ -572,6 +574,7 @@ def create_tortilla(df: pd.DataFrame, root: str, save_dir: str, tortilla_name: s
                 path=modality_path,
                 file_format="GTiff",
                 data_split=row["data_split"],
+                add_test_split=row["is_additional_test"],
                 stac_data={
                     "crs": "EPSG:" + str(profile["crs"].to_epsg()),
                     "geotransform": profile["transform"].to_gdal(),
@@ -617,6 +620,7 @@ def create_tortilla(df: pd.DataFrame, root: str, save_dir: str, tortilla_name: s
                 "time_end": sample_data["stac:time_end"],
             },
             data_split=sample_data["tortilla:data_split"],
+            add_test_split=sample_data["add_test_split"],
             actid=sample_data["actid"],
             aoiid=sample_data["aoiid"],
             flood_date=sample_data["flood_date"],
@@ -638,6 +642,7 @@ def create_geobench_version(
     n_train_samples: int,
     n_val_samples: int,
     n_test_samples: int,
+    n_additional_test_samples: int = 0,
 ) -> pd.DataFrame:
     """Create a GeoBench version of the dataset.
 
@@ -646,19 +651,15 @@ def create_geobench_version(
         n_train_samples: Number of final training samples, -1 means all
         n_val_samples: Number of final validation samples, -1 means all
         n_test_samples: Number of final test samples, -1 means all
-        root_dir: Root directory for FLAIR2 dataset
-        save_dir: Directory to save the subset benchmark data
-        block_size: Size of blocks for optimized GeoTIFF writing
-        num_workers: Number of parallel workers
+        n_additional_test_samples: Number of additional test samples from train set
     """
-    random_state = 24
-
     subset_df = create_subset_from_df(
         metadata_df,
         n_train_samples=n_train_samples,
         n_val_samples=n_val_samples,
         n_test_samples=n_test_samples,
-        random_state=random_state,
+        n_additional_test_samples=n_additional_test_samples,
+        random_state=24,
     )
 
     return subset_df
@@ -688,17 +689,17 @@ def main():
 
     result_df_path = os.path.join(args.save_dir, "geobench_kuro_siwo.parquet")
 
-    # if os.path.exists(result_df_path):
-    #     result_df = pd.read_parquet(result_df_path)
-    # else:
-    subset_df = create_geobench_version(
-        metadata_df, n_train_samples=4000, n_val_samples=1000, n_test_samples=2000
-    )
+    if os.path.exists(result_df_path):
+        result_df = pd.read_parquet(result_df_path)
+    else:
+        subset_df = create_geobench_version(
+            metadata_df, n_train_samples=4000, n_val_samples=1000, n_test_samples=2000, n_additional_test_samples=1000
+        )
 
-    result_df = reprocess_kurosiwo_dataset(
-        subset_df, input_dir=args.root, output_dir=args.save_dir, num_workers=1
-    )
-    result_df.to_parquet(result_df_path)
+        result_df = reprocess_kurosiwo_dataset(
+            subset_df, input_dir=args.root, output_dir=args.save_dir, num_workers=1
+        )
+        result_df.to_parquet(result_df_path)
 
     # plot_sample_locations(
     #     result_df,
@@ -723,6 +724,7 @@ def main():
         n_train_samples=4,
         n_val_samples=2,
         n_test_samples=2,
+        n_additional_test_samples=1,
     )
 
 

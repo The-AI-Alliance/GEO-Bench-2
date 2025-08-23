@@ -25,6 +25,8 @@ from .base import GeoBenchSegmentationDataModule
 class GeoBenchSpaceNet2DataModule(GeoBenchSegmentationDataModule):
     """GeoBench SpaceNet2 Data Module."""
 
+    has_extra_test_samples = True
+
     def __init__(
         self,
         img_size: int = 512,

@@ -71,7 +71,7 @@ def process_spacenet7_row(args):
 
         with rasterio.open(img_path) as img_src:
             image = img_src.read()
-        
+
             src_height, src_width = img_src.height, img_src.width
             src_crs = img_src.crs
             src_transform = img_src.transform
@@ -526,7 +526,7 @@ def create_geographic_splits_spacenet7(
 
     target_test = int(total_samples * test_ratio)
     target_val = int(total_samples * val_ratio)
-    
+
     np.random.seed(random_state)
     aoi_counts = aoi_counts.sample(frac=1, random_state=random_state)
 
@@ -615,13 +615,13 @@ def generate_metadata_df(root: str) -> pd.DataFrame:
     full_df = pd.merge(df, metadata_df, on="image_path", how="left")
 
     # make all the paths relative
-    full_df["image_path"] = full_df["image_path"].str.replace(root, "")
-    full_df["image_masked_path"] = full_df["image_masked_path"].str.replace(root, "")
-    full_df["labels_path"] = full_df["labels_path"].str.replace(root, "")
-    full_df["labels_match_path"] = full_df["labels_match_path"].str.replace(root, "")
+    full_df["image_path"] = full_df["image_path"].str.replace(root, "").str.lstrip(os.sep)
+    full_df["image_masked_path"] = full_df["image_masked_path"].str.replace(root, "").str.lstrip(os.sep)
+    full_df["labels_path"] = full_df["labels_path"].str.replace(root, "").str.lstrip(os.sep)
+    full_df["labels_match_path"] = full_df["labels_match_path"].str.replace(root, "").str.lstrip(os.sep)
     full_df["labels_match_pix_path"] = full_df["labels_match_pix_path"].str.replace(
         root, ""
-    )
+    ).str.lstrip(os.sep)
 
     full_df["split"] = "train"
 
@@ -712,7 +712,7 @@ def create_tortilla(root_dir, df, save_dir, tortilla_name):
 
 def visualize_sample(row, root, output_path):
     """Visualize a sample from the dataset.
-    
+
     Args:
         row: DataFrame row with metadata
         root: Root directory of the dataset
@@ -770,6 +770,7 @@ def create_geobench_version(
     n_train_samples: int,
     n_val_samples: int,
     n_test_samples: int,
+    n_additional_test_samples: int,
     root_dir: str,
     save_dir: str,
 ) -> None:
@@ -797,6 +798,7 @@ def create_geobench_version(
         n_train_samples=n_train_samples,
         n_val_samples=n_val_samples,
         n_test_samples=n_test_samples,
+        n_additional_test_samples=n_additional_test_samples,
         random_state=random_state,
     )
 
@@ -822,14 +824,14 @@ def main():
         os.makedirs(args.save_dir)
 
     if os.path.exists(metadata_path):
-        metadata_df = pd.read_parquet(metadata_path)
+        metadata_df_with_split = pd.read_parquet(metadata_path)
     else:
         metadata_df = generate_metadata_df(args.root)
-        metadata_df.to_parquet(metadata_path)
 
-    metadata_df_with_split = create_geographic_splits_spacenet7(
-        metadata_df, train_ratio=0.7, val_ratio=0.1, test_ratio=0.2, random_state=0
-    )
+        metadata_df_with_split = create_geographic_splits_spacenet7(
+            metadata_df, train_ratio=0.7, val_ratio=0.1, test_ratio=0.2, random_state=0
+        )
+        metadata_df_with_split.to_parquet(metadata_path)
 
     plot_sample_locations(
         metadata_df_with_split,
@@ -846,21 +848,22 @@ def main():
     else:
         patches_df = create_geobench_version(
             metadata_df_with_split,
-            n_train_samples=4000,
+            n_train_samples=3500,
             n_val_samples=-1,
             n_test_samples=-1,
+            n_additional_test_samples=388,
             root_dir=args.root,
             save_dir=args.save_dir,
         )
         patches_df.to_parquet(geobench_df_path)
 
     tortilla_name = "geobench_spacenet7.tortilla"
-    # create_tortilla(
-    #     os.path.join(os.path.dirname(args.root), "patches"),
-    #     patches_df,
-    #     os.path.join(args.save_dir, "tortilla"),
-    #     tortilla_name=tortilla_name,
-    # )
+    create_tortilla(
+        os.path.join(args.root, "patches"),
+        patches_df,
+        args.save_dir,
+        tortilla_name=tortilla_name,
+    )
 
     create_unittest_subset(
         data_dir=args.save_dir,
@@ -869,6 +872,7 @@ def main():
         n_train_samples=2,
         n_val_samples=1,
         n_test_samples=1,
+        n_additional_test_samples=1,
     )
 
 

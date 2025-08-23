@@ -18,7 +18,7 @@ import pdb
 # Using Caleb Robinson's implementation: https://gist.github.com/calebrob6/1ef1e64bd62b1274adf2c6f91e20d215
 class ImageStatistics(torch.nn.Module):
     """Compute image statistics for a batch of images."""
-    
+
     valid_normalization_modes = ("none", "clip_only", "clip_rescale", "satmae")
 
     def __init__(
@@ -365,13 +365,12 @@ class DatasetStatistics(ABC):
         Args:
             batch: Batch of input data
         """
-        
+
         for key in self.running_stats:
             input_data = batch[key]
             if torch.is_tensor(input_data):
                 input_data = input_data.to(self.device)
                 self.running_stats[key](input_data)
-        
 
     @abstractmethod
     def compute_batch_target_statistics(

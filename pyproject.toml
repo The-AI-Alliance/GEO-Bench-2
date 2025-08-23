@@ -58,8 +58,7 @@ dependencies = [
     #"torchgeo @ git+https://github.com/microsoft/torchgeo.git"
     "torchgeo>=0.7",
     "geopandas>=1.1.0",
- #   "tacotoolbox", required for generate benchmark
-    "tacoreader>=0.5.6",
+    "h5py>=3.14.0",
 ]
 dynamic = ["version"]
 
@@ -76,7 +75,7 @@ tests = [
     "hydra-core>=1.3.2",
     ## Style
     # ruff 0.9+ required for 2025 style guide
-    "ruff>=0.9",
+    "ruff>=0.12.9",
 ]
 
 docs = [
@@ -101,8 +100,16 @@ docs = [
     "pandoc>=2.4",
 ]
 
+generate_benchmark = [
+    ### dependencies for generating the benchmark
+    "scikit-learn==1.7.1",
+    "tacotoolbox>=0.5.2",
+    "cartopy>=0.25.0",
+    "scikit-image>=0.25.2"
+]
+
 all = [
-    "geobench_v2[docs,tests]",
+    "geobench_v2[docs,tests,generate_benchmark]",
 ]
 
 [project.scripts]

@@ -20,30 +20,11 @@ from geobench_v2.datasets import GeoBenchPASTIS
 
 from .base import GeoBenchSegmentationDataModule
 
-# def pastis_collate_fn(batch: Sequence[dict[str, Any]]) -> dict[str, Tensor]:
-#     """Collate function for PASTIS dataset to deal with timeseries
 
-#     Args:
-#         batch: A list of samples from PASTIS dataset
-
-#     Returns:
-#         A dictionary containing the collated batch
-#     """
-#     collated_batch = {}
-#     # deal with various timeseries, collate to min-number of time steps
-#     min_time_steps = min([sample["image"].shape[0] for sample in batch])
-#     images = [sample["image"][:min_time_steps] for sample in batch]
-#     images = torch.stack(images, dim=0)
-#     collated_batch["image"] = images
-
-#     collate_batch["mask"] = torch.stack([sample["mask"] for sample in batch], dim=0)
-
-#     return collated_batch
-
-
-# TODO add timeseries argument
 class GeoBenchPASTISDataModule(GeoBenchSegmentationDataModule):
     """GeoBench PASIS Data Module."""
+
+    has_extra_test_samples = True
 
     def __init__(
         self,
@@ -128,7 +109,9 @@ class GeoBenchPASTISDataModule(GeoBenchSegmentationDataModule):
         n_samples = min(8, batch_size)
         indices = torch.randperm(batch_size)[:n_samples]
 
+        # Collect modality images and determine timesteps per modality
         modalities = {}
+        timesteps_per_mod: dict[str, int] = {}
 
         for mod in self.band_order.keys():
             mod_plot_bands = self.dataset_band_config.modalities[mod].plot_bands
@@ -144,20 +127,46 @@ class GeoBenchPASTISDataModule(GeoBenchSegmentationDataModule):
             mod_plot_indices = [
                 self.band_order[mod].index(band) for band in mod_plot_bands
             ]
-            mod_images = batch[f"image_{mod}"][:, mod_plot_indices, :, :][indices]
-            mod_images = rearrange(mod_images, "b c h w -> b h w c").cpu().numpy()
+
+            tensor = batch[f"image_{mod}"]
+            if tensor.ndim == 5:
+                # time series data [B, T, C, H, W] -> [b, t, h, w, c]
+                mod_images = tensor[indices][:, :, mod_plot_indices, :, :]
+                mod_images = rearrange(mod_images, "b t c h w -> b t h w c").cpu().numpy()
+                timesteps_per_mod[mod] = mod_images.shape[1]
+            else:
+                # single image data [B, C, H, W] -> [b, 1, h, w, c]
+                mod_images = tensor[indices][:, mod_plot_indices, :, :]
+                mod_images = rearrange(mod_images, "b c h w -> b 1 h w c").cpu().numpy()
+                timesteps_per_mod[mod] = 1
+
             modalities[mod] = mod_images
 
-        num_modalities = len(modalities) + 1
+        # Global layout: for each sample, stack timesteps vertically
+        t_max = max(timesteps_per_mod.values()) if timesteps_per_mod else 1
+        num_modalities = len(modalities) + 1  # +1 for mask column
+
         fig, axes = plt.subplots(
-            n_samples,
+            n_samples * t_max,
             num_modalities,
-            figsize=(num_modalities * 4, 3 * n_samples),
+            figsize=(num_modalities * 4, 3 * n_samples * t_max),
             gridspec_kw={"width_ratios": num_modalities * [1]},
         )
 
-        if n_samples == 1:
+        if axes.ndim == 1:
             axes = axes.reshape(1, -1)
+
+        # Add row labels for timesteps (t=0, t=1, ...)
+        for i in range(n_samples):
+            for t in range(t_max):
+                row_idx = i * t_max + t
+                ax_label = axes[row_idx, 0]
+                ax_label.text(
+                    -0.06, 0.5, f"t={t}",
+                    transform=ax_label.transAxes,
+                    va="center", ha="right",
+                    fontsize=10,
+                )
 
         masks = batch["mask"][indices]
         unique_classes = torch.unique(masks).cpu().numpy()
@@ -172,68 +181,85 @@ class GeoBenchPASTISDataModule(GeoBenchSegmentationDataModule):
         }
         class_cmap = plt.cm.colors.ListedColormap(colors.values())
 
+        # Build legend handles once
+        legend_elements = []
+        for cls in unique_classes:
+            if cls < len(self.class_names) and cls in colors:
+                legend_elements.append(
+                    plt.Rectangle(
+                        (0, 0), 1, 1, color=colors[cls], label=f"{self.class_names[cls]}"
+                    )
+                )
+
+        # Plot
+        modality_list = list(modalities.keys())
         for i in range(n_samples):
-            for j, (mod, modality_img) in enumerate(modalities.items()):
-                plot_img = modality_img[i]
+            for j, mod in enumerate(modality_list):
+                mod_images = modalities[mod]  # [b, t, h, w, c]
+                t_len = timesteps_per_mod[mod]
+                for t in range(t_max):
+                    row_idx = i * t_max + t
+                    ax = axes[row_idx, j]
 
-                if mod in ["s1_asc", "s1_desc"]:
-                    vv = plot_img[..., 0]
-                    vh = plot_img[..., 1]
+                    if t < t_len:
+                        plot_img = mod_images[i, t]
+                        # Special handling for SAR style if applicable
+                        if mod in ["s1_asc", "s1_desc"] and plot_img.shape[-1] >= 2:
+                            vv = plot_img[..., 0]
+                            vh = plot_img[..., 1]
 
-                    vv = percentile_normalization(vv, lower=2, upper=98)
-                    vh = percentile_normalization(vh, lower=2, upper=98)
+                            vv = percentile_normalization(vv, lower=2, upper=98)
+                            vh = percentile_normalization(vh, lower=2, upper=98)
+                            ratio = np.divide(vv, vh, out=np.zeros_like(vv), where=vh != 0)
 
-                    ratio = np.divide(vv, vh, out=np.zeros_like(vv), where=vh != 0)
+                            vv = np.clip(vv / 0.3, a_min=0, a_max=1)
+                            vh = np.clip(vh / 0.05, a_min=0, a_max=1)
+                            ratio = np.clip(ratio / 25, a_min=0, a_max=1)
+                            img = np.stack((vv, vh, ratio), axis=2)
+                        else:
+                            img = percentile_normalization(plot_img, lower=2, upper=98)
 
-                    vv = np.clip(vv / 0.3, a_min=0, a_max=1)
-                    vh = np.clip(vh / 0.05, a_min=0, a_max=1)
-                    ratio = np.clip(ratio / 25, a_min=0, a_max=1)
-                    img = np.stack((vv, vh, ratio), axis=2)
+                        ax.imshow(img)
+                        if i == 0 and t == 0:
+                            ax.set_title(f"{mod} image", fontsize=16)
+                    else:
+                        ax.axis("off")
+
+                    ax.axis("off")
+
+            # Mask column (last)
+            for t in range(t_max):
+                row_idx = i * t_max + t
+                ax = axes[row_idx, -1]
+                if t == 0:
+                    mask_img = masks[i].cpu().numpy()
+                    ax.imshow(mask_img, cmap=class_cmap, vmin=0, vmax=max(unique_classes) if unique_classes else 1)
+                    ax.set_title("Mask", fontsize=16)
                 else:
-                    img = percentile_normalization(plot_img, lower=2, upper=98)
-
-                ax = axes[i, j]
-
-                ax.imshow(img)
-                ax.set_title(f"{mod} image" if i == 0 else "", fontsize=20)
+                    ax.axis("off")
                 ax.axis("off")
-
-            ax = axes[i, -1]
-            mask_img = masks[i].cpu().numpy()
-            ax.imshow(mask_img, cmap=class_cmap, vmin=0, vmax=2)
-            ax.set_title("Building Mask" if i == 0 else "", fontsize=20)
-            ax.axis("off")
-
-            if i == 0:
-                legend_elements = []
-                for cls in unique_classes:
-                    if cls < len(self.class_names) and cls in colors:
-                        legend_elements.append(
-                            plt.Rectangle(
-                                (0, 0),
-                                1,
-                                1,
-                                color=colors[cls],
-                                label=f"{self.class_names[cls]}",
-                            )
-                        )
 
         plt.tight_layout()
 
-        fig.legend(
-            handles=legend_elements,
-            loc="lower center",
-            bbox_to_anchor=(0.5, 0.01),
-            ncol=3,
-            fontsize=15,
-            title="Classes",
-            title_fontsize=15,
-            columnspacing=100,
-            mode="expand",
-            borderaxespad=0.0,
-        )
-
-        plt.subplots_adjust(bottom=0.1)
+        if legend_elements:
+            n_classes = len(legend_elements)
+            ncols = min(6, max(1, n_classes))  # spread across up to 6 columns
+            fig.legend(
+                handles=legend_elements,
+                loc="lower center",
+                bbox_to_anchor=(0.5, 0.0),
+                ncol=ncols,
+                fontsize=11,
+                title="Classes",
+                title_fontsize=11,
+                columnspacing=1.5,
+                handlelength=1.0,
+                handletextpad=0.6,
+                borderaxespad=0.2,
+                frameon=False,
+            )
+            # Leave more space for the legend at the bottom and row labels at the left
+            plt.subplots_adjust(bottom=0.18, left=0.10)
 
         return fig, batch
 

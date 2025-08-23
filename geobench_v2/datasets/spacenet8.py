@@ -85,7 +85,7 @@ class GeoBenchSpaceNet8(GeoBenchBaseDataset):
                 __getitem__ method. If None, no metadata is returned.
             time_step: list of image time steps to include from the list ["pre", "post"]
             return_stacked_image: if true, returns a single image tensor with all modalities stacked in band_order
-            download: Whether to download the dataset 
+            download: Whether to download the dataset
         """
         super().__init__(
             root=root,

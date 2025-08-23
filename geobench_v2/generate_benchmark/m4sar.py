@@ -54,8 +54,12 @@ def generate_metadata_df(root_dir: str) -> pd.DataFrame:
 
     df["optical_path"] = df["optical_path"].str.replace(root_dir, "").str.lstrip("/")
     df["sar_path"] = df["sar_path"].str.replace(root_dir, "").str.lstrip("/")
-    df["optical_label_path"] = df["optical_label_path"].str.replace(root_dir, "").str.lstrip("/")
-    df["sar_label_path"] = df["sar_label_path"].str.replace(root_dir, "").str.lstrip("/")
+    df["optical_label_path"] = (
+        df["optical_label_path"].str.replace(root_dir, "").str.lstrip("/")
+    )
+    df["sar_label_path"] = (
+        df["sar_label_path"].str.replace(root_dir, "").str.lstrip("/")
+    )
 
     df["label_path"] = df["optical_label_path"]
 
@@ -63,12 +67,14 @@ def generate_metadata_df(root_dir: str) -> pd.DataFrame:
     # Files named 1.jpg to 56087.jpg have a resolution of 10 meters.
     # Files named 56088.jpg to 112174.jpg have a resolution of 60 meters.
     # only pick the high-resolution images
-    df["filename"] = df["optical_path"].apply(lambda x: os.path.basename(x).replace(".jpg", ""))
+    df["filename"] = df["optical_path"].apply(
+        lambda x: os.path.basename(x).replace(".jpg", "")
+    )
     df["file_number"] = df["filename"].astype(int)
-    
+
     # Filter for high-resolution images (1.jpg to 56087.jpg)
     df = df[df["file_number"] <= 56087].copy()
-    
+
     # Drop temporary columns
     df = df.drop(columns=["filename", "file_number"])
 
@@ -296,7 +302,6 @@ def main():
 
     path = os.path.join(args.root, "geobench_metadata_df.parquet")
     metadata_df.to_parquet(path)
-
 
     # create a subset
     subset_df = create_subset_from_df(

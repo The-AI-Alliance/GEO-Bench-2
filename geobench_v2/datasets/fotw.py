@@ -84,7 +84,7 @@ class GeoBenchFieldsOfTheWorld(GeoBenchBaseDataset):
             return_stacked_image: if true, returns a single image tensor with all modalities stacked in band_order
             metadata: metadata names to be returned under specified keys as part of the sample in the
                 __getitem__ method. If None, no metadata is returned.
-            download: Whether to download the dataset 
+            download: Whether to download the dataset
         """
         super().__init__(
             root=root,

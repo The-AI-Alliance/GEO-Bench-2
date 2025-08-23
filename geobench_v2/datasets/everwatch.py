@@ -75,7 +75,7 @@ class GeoBenchEverWatch(GeoBenchBaseDataset):
                 which applies z-score normalization to each band.
             transforms: The transforms to apply to the data, defaults to None.
             metadata: The metadata to return, defaults to None. If None, no metadata is returned.
-            download: Whether to download the dataset 
+            download: Whether to download the dataset
         """
         super().__init__(
             root=root,
@@ -154,4 +154,3 @@ class GeoBenchEverWatch(GeoBenchBaseDataset):
             [self.class2idx[label] for label in annot_df["label"].tolist()]
         ).long()
         return boxes, labels
-

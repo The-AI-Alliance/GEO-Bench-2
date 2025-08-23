@@ -446,9 +446,9 @@ def generate_metadata_df(root: str) -> pd.DataFrame:
     )
 
     # make path relative
-    df["mask_path"] = df["mask_path"].str.replace(root, "")
-    df["sar_intensity_path"] = df["sar_intensity_path"].str.replace(root, "")
-    df["ps_rgbnir_path"] = df["ps_rgbnir_path"].str.replace(root, "")
+    df["mask_path"] = df["mask_path"].str.replace(root, "").str.lstrip(os.sep)
+    df["sar_intensity_path"] = df["sar_intensity_path"].str.replace(root, "").str.lstrip(os.sep)
+    df["ps_rgbnir_path"] = df["ps_rgbnir_path"].str.replace(root, "").str.lstrip(os.sep)
 
     df["split"] = "train"
 
@@ -474,6 +474,7 @@ def create_tortilla(root_dir, df, save_dir, tortilla_name):
                 path=path,
                 file_format="GTiff",
                 data_split=row["split"],
+                add_test_split=row["is_additional_test"],
                 stac_data={
                     "crs": "EPSG:" + str(profile["crs"].to_epsg()),
                     "geotransform": profile["transform"].to_gdal(),
@@ -516,6 +517,7 @@ def create_tortilla(root_dir, df, save_dir, tortilla_name):
                 "time_start": sample_data["stac:time_start"],
             },
             data_split=sample_data["tortilla:data_split"],
+            add_test_split=sample_data["add_test_split"],
             lon=sample_data["lon"],
             lat=sample_data["lat"],
             source_img_file=sample_data["source_img_file"],
@@ -536,6 +538,7 @@ def create_geobench_version(
     n_train_samples: int,
     n_val_samples: int,
     n_test_samples: int,
+    n_additional_test_samples: int,
     root_dir: str,
     save_dir: str,
 ) -> None:
@@ -546,10 +549,10 @@ def create_geobench_version(
         n_train_samples: Number of final training samples, -1 means all
         n_val_samples: Number of final validation samples, -1 means all
         n_test_samples: Number of final test samples, -1 means all
+        n_additional_test_samples: Number of additional test samples
         root_dir: Root directory for the dataset
         save_dir: Directory to save the GeoBench version
     """
-    random_state = 24
 
     patch_size = (450, 450)
     stride = (449, 449)
@@ -567,6 +570,7 @@ def create_geobench_version(
             block_size=(448, 448),
             stride=stride,
         )
+        patches_df.to_parquet(results_path, index=False)
 
     patches_df = patches_df[patches_df["valid_ratio"] > 0.4].reset_index(drop=True)
 
@@ -575,7 +579,8 @@ def create_geobench_version(
         n_train_samples=n_train_samples,
         n_val_samples=n_val_samples,
         n_test_samples=n_test_samples,
-        random_state=random_state,
+        n_additional_test_samples=n_additional_test_samples,
+        random_state=24,
     )
 
     return subset_df
@@ -599,11 +604,11 @@ def main():
     if not os.path.exists(args.save_dir):
         os.makedirs(args.save_dir)
 
-    # if os.path.exists(metadata_path):
-    #     metadata_df = pd.read_parquet(metadata_path)
-    # else:
-    metadata_df = generate_metadata_df(args.root)
-    metadata_df.to_parquet(metadata_path)
+    if os.path.exists(metadata_path):
+        metadata_df = pd.read_parquet(metadata_path)
+    else:
+        metadata_df = generate_metadata_df(args.root)
+        metadata_df.to_parquet(metadata_path)
 
     checker_split_df = checkerboard_split(
         metadata_df,
@@ -634,8 +639,9 @@ def main():
         result_df = create_geobench_version(
             checker_split_df,
             n_train_samples=4000,
-            n_val_samples=-1,
-            n_test_samples=-1,
+            n_val_samples=990,
+            n_test_samples=1890,
+            n_additional_test_samples=1000,
             root_dir=args.root,
             save_dir=args.save_dir,
         )
@@ -653,6 +659,7 @@ def main():
         n_train_samples=2,
         n_val_samples=1,
         n_test_samples=1,
+        n_additional_test_samples=1,
     )
 
 

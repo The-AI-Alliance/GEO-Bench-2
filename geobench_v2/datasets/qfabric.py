@@ -96,7 +96,7 @@ class GeoBenchQFabric(GeoBenchBaseDataset):
                 will be returned in that order
             metadata: metadata names to be returned as part of the sample in the
                 __getitem__ method. If None, no metadata is returned.
-            download: Whether to download the dataset 
+            download: Whether to download the dataset
 
         Raises:
             AssertionError: If time steps are not in the range [0, 4], or invalid

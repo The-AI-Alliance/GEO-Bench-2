@@ -106,7 +106,7 @@ class GeoBenchSpaceNet6(GeoBenchBaseDataset):
             transforms: image transformations to apply to the data, defaults to None
             metadata: metadata names to be returned as part of the sample in the
             return_stacked_image: if true, returns a single image tensor with all modalities stacked in band_order
-            download: Whether to download the dataset 
+            download: Whether to download the dataset
         """
         super().__init__(
             root=root,
