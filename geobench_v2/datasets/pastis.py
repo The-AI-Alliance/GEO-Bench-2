@@ -207,6 +207,8 @@ class GeoBenchPASTIS(GeoBenchBaseDataset):
             )
 
         dates = sample_row["dates"].iloc[0]
+        import pdb
+        pdb.set_trace()
         if len(dates) < self.num_time_steps:
             sample_dates = [0] * (self.num_time_steps - len(dates)) + dates
         else:

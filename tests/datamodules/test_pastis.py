@@ -52,7 +52,7 @@ def datamodule(
     monkeypatch.setattr(
         GeoBenchPASTIS,
         "sha256str",
-        ["8ec713be2d99fe2785d902545642346759466fe4bfd85d7e45fe0cbb55f0a882"],
+        ["7e300572b7f770a64a76b5d33b113229ac4c5208cbd59afcf2425f44e078725e"],
     )
     datamodule = GeoBenchPASTISDataModule(
         img_size=74,
