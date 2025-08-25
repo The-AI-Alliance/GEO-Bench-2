@@ -85,7 +85,7 @@ class GeoBenchBENV2DataModule(GeoBenchClassificationDataModule):
         """Visualize a batch of data.
 
         Args:
-            split: One of 'train', 'val', 'test'
+            split: One of 'train', 'validation', 'test'
 
         Returns:
             The matplotlib figure and the batch of data
@@ -199,23 +199,28 @@ class GeoBenchBENV2DataModule(GeoBenchClassificationDataModule):
 
     def visualize_geospatial_distribution(
         self,
-        output_path: str = None,
-        split_column="tortilla:data_split",
+        split_column: str = "tortilla:data_split",
         buffer_degrees: float = 5.0,
-        sample_fraction: float = 1.0,
+        sample_fraction: float | None = None,
         scale: Literal["10m", "50m", "110m"] = "50m",
         alpha: float = 0.5,
         s: float = 0.5,
-    ) -> None:
-        """Visualize the geospatial distribution of the dataset.
+    ) -> plt.Figure:
+        """Visualize the geospatial distribution of dataset samples on a map.
 
         Args:
-            output_path: Path to save the visualization
-            split_column: Column name for the split
-            buffer_degrees: Buffer size in degrees
-            sample_fraction: Fraction of samples to visualize
-            scale: Scale of the map
-            alpha: Alpha value for the points
-            s: Size of the points
+            split_column: Column name in the metadata DataFrame that indicates the dataset split.
+            buffer_degrees: Buffer around the data extent in degrees.
+            sample_fraction: Optional fraction of samples to plot (0.0-1.0) for performance with large datasets.
+            scale: Scale of cartopy features (e.g., '10m', '50m', '110m').
+            alpha: Transparency of plotted points.
+            s: Size of plotted points.
         """
-        return super().visualize_geospatial_distribution(split_column=split_column)
+        return super().visualize_geospatial_distribution(
+            split_column=split_column,
+            buffer_degrees=buffer_degrees,
+            sample_fraction=sample_fraction,
+            scale=scale,
+            alpha=alpha,
+            s=s,
+        )

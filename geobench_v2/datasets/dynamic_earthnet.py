@@ -136,7 +136,7 @@ class GeoBenchDynamicEarthNet(GeoBenchBaseDataset):
 
         Args:
             root: Root directory where the dataset can be found
-            split: The dataset split, supports 'train', 'val', 'test'
+            split: The dataset split, supports 'train', 'validation', 'test'
             band_order: Band order for the dataset
             data_normalizer: Data normalizer
             transforms: A composition of transformations to apply to the data

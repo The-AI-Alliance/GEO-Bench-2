@@ -324,7 +324,7 @@ def process_spacenet8_tile(args):
                     "mask_path": os.path.join("mask", mask_filename),
                     "region": row["region"] if "region" in row else None,
                     "split": row["split"] if "split" in row else "train",
-                    "is_additional_test": row["is_additional_test"]
+                    "is_additional_test": row["is_additional_test"],
                 }
 
                 result_metadata.append(patch_metadata)
@@ -614,7 +614,12 @@ def create_geobench_version(
     random_state = 24
 
     subset_df = create_subset_from_df(
-        metadata_df, n_train_samples, n_val_samples, n_test_samples, n_additional_test_samples, random_state
+        metadata_df,
+        n_train_samples,
+        n_val_samples,
+        n_test_samples,
+        n_additional_test_samples,
+        random_state,
     )
 
     patch_size = (512, 512)

@@ -17,6 +17,8 @@ from matplotlib import pyplot as plt
 from matplotlib.lines import Line2D
 from torch import Tensor
 from torch.utils.data import DataLoader, Dataset
+from einops import rearrange
+from torchgeo.datasets.utils import percentile_normalization
 
 # TODO come up with an expected metadata file scheme
 # with common names etc. so a standardization
@@ -138,9 +140,9 @@ class GeoBenchDataModule(LightningDataModule, ABC):
 
     @abstractmethod
     def setup_image_size_transforms(self) -> tuple[nn.Module, nn.Module, nn.Module]:
-        """Setup image resizing transforms for train, val, test.
+        """Setup image resizing transforms for train, val, and test.
 
-        Image resizing and normalization happens on dataset level on individual data samples.
+        Image resizing and normalization happens on the dataset level on individual data samples.
         """
         pass
 
@@ -160,16 +162,16 @@ class GeoBenchDataModule(LightningDataModule, ABC):
         """Visualize a batch of data.
 
         Args:
-            split: One of 'train', 'val', 'test'
+            split: One of 'train', 'validation', 'test'.
 
         Returns:
-            The matplotlib figure and the batch of data
+            The matplotlib figure and the batch of data.
         """
         pass
 
     @abstractmethod
     def define_augmentations(self) -> None:
-        """Define augmentations for the dataset and task, that are applied on a batch of data.
+        """Define augmentations for the dataset and task, applied on a batch of data.
 
         Augmentations will be applied in `on_after_batch_transfer` in the LightningDataModule.
         """
@@ -177,8 +179,9 @@ class GeoBenchDataModule(LightningDataModule, ABC):
 
     def visualize_geospatial_distribution(
         self,
-        split_column="tortilla:data_split",
+        split_column: str = "tortilla:data_split",
         buffer_degrees: float = 5.0,
+        sample_fraction: float | None = None,
         scale: Literal["10m", "50m", "110m"] = "50m",
         alpha: float = 0.5,
         s: float = 0.5,
@@ -191,11 +194,11 @@ class GeoBenchDataModule(LightningDataModule, ABC):
 
         Args:
             split_column: Column name in the metadata DataFrame that indicates the dataset split.
-            buffer_degrees: Buffer around the data extent in degrees
-            sample_fraction: Fraction of samples to plot (0.0-1.0) for performance with large datasets
-            scale: Scale of cartopy features (e.g., '10m', '50m', '110m')
-            alpha: Transparency of plotted points
-            s: Size of plotted points
+            buffer_degrees: Buffer around the data extent in degrees.
+            sample_fraction: Optional fraction of samples to plot (0.0-1.0) for performance with large datasets.
+            scale: Scale of cartopy features (e.g., '10m', '50m', '110m').
+            alpha: Transparency of plotted points.
+            s: Size of plotted points.
         """
         if not hasattr(self, "data_df") or self.data_df is None:
             self.load_metadata()
@@ -212,6 +215,11 @@ class GeoBenchDataModule(LightningDataModule, ABC):
                     "Metadata is missing required latitude and longitude information"
                 )
 
+        # Optional sub-sampling for performance
+        if sample_fraction is not None and 0.0 < sample_fraction < 1.0:
+            sample_n = max(1, int(len(data_df) * sample_fraction))
+            data_df = data_df.sample(n=sample_n, random_state=0)
+
         dataset_name = self.__class__.__name__.replace("DataModule", "")
 
         min_lon = data_df["lon"].min() - buffer_degrees
@@ -223,11 +231,6 @@ class GeoBenchDataModule(LightningDataModule, ABC):
         max_lon = min(180, max_lon)
         min_lat = max(-90, min_lat)
         max_lat = min(90, max_lat)
-
-        print(
-            f"Map extent: Longitude [{min_lon:.2f}° to {max_lon:.2f}°], "
-            f"Latitude [{min_lat:.2f}° to {max_lat:.2f}°]"
-        )
 
         fig = plt.figure(figsize=(12, 10))
 
@@ -252,7 +255,6 @@ class GeoBenchDataModule(LightningDataModule, ABC):
         ax = plt.axes(projection=projection)
         ax.set_extent([min_lon, max_lon, min_lat, max_lat], crs=ccrs.PlateCarree())
 
-        scale = "50m"
         ax.add_feature(cfeature.LAND.with_scale(scale), facecolor="lightgray")
         ax.add_feature(cfeature.OCEAN.with_scale(scale), facecolor="lightblue")
         ax.add_feature(cfeature.COASTLINE.with_scale(scale), linewidth=0.8)
@@ -263,7 +265,6 @@ class GeoBenchDataModule(LightningDataModule, ABC):
             ax.add_feature(cfeature.LAKES, facecolor="lightblue", alpha=0.5)
 
         splits = data_df[split_column].unique()
-        print(f"Found {len(splits)} dataset splits: {', '.join(map(str, splits))}")
 
         split_colors = {
             "train": "blue",
@@ -277,7 +278,7 @@ class GeoBenchDataModule(LightningDataModule, ABC):
         for split in splits:
             split_data = data_df[data_df[split_column] == split]
             if len(split_data) > 0:
-                color = split_colors[split]
+                color = split_colors.get(split, "gray")
                 ax.scatter(
                     split_data["lon"],
                     split_data["lat"],
@@ -419,7 +420,7 @@ class GeoBenchDataModule(LightningDataModule, ABC):
         """Find a valid attribute with length > 0.
 
         Args:
-            args: One or more names of attributes to check.
+            args: One or more names of attributes to check (string or sequence of strings).
 
         Returns:
             The first valid attribute found.
@@ -427,20 +428,21 @@ class GeoBenchDataModule(LightningDataModule, ABC):
         Raises:
             RuntimeError: If no attribute is defined, or has length 0.
         """
-        for arg in args:
-            obj = getattr(self, arg)
+        names = args if isinstance(args, (list, tuple)) else [args]
+        for name in names:
+            obj = getattr(self, name, None)
 
             if obj is None:
                 continue
 
             if not obj:
-                msg = f"{self.__class__.__name__}.{arg} has length 0."
+                msg = f"{self.__class__.__name__}.{name} has length 0."
                 print(msg)
                 raise RuntimeError
 
             return obj
 
-        msg = f"{self.__class__.__name__}.setup must define one of {args}."
+        msg = f"{self.__class__.__name__}.setup must define one of {names}."
         print(msg)
         raise RuntimeError
 
@@ -552,7 +554,7 @@ class GeoBenchClassificationDataModule(GeoBenchDataModule):
         """Visualize a batch of data.
 
         Args:
-            split: One of 'train', 'val', 'test'
+            split: One of 'train', 'validation', 'test'
 
         Returns:
             The matplotlib figure and the batch of data
@@ -672,7 +674,7 @@ class GeoBenchSegmentationDataModule(GeoBenchDataModule):
         """Visualize a batch of data.
 
         Args:
-            split: One of 'train', 'val', 'test'
+            split: One of 'train', 'validation', 'test'
 
         Returns:
             The matplotlib figure and the batch of data
@@ -791,7 +793,7 @@ class GeoBenchObjectDetectionDataModule(GeoBenchDataModule):
         """Visualize a batch of data.
 
         Args:
-            split: One of 'train', 'val', 'test'
+            split: One of 'train', 'validation', 'test'
 
         Returns:
             The matplotlib figure and the batch of data

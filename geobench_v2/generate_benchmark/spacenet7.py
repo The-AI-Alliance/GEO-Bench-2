@@ -615,13 +615,21 @@ def generate_metadata_df(root: str) -> pd.DataFrame:
     full_df = pd.merge(df, metadata_df, on="image_path", how="left")
 
     # make all the paths relative
-    full_df["image_path"] = full_df["image_path"].str.replace(root, "").str.lstrip(os.sep)
-    full_df["image_masked_path"] = full_df["image_masked_path"].str.replace(root, "").str.lstrip(os.sep)
-    full_df["labels_path"] = full_df["labels_path"].str.replace(root, "").str.lstrip(os.sep)
-    full_df["labels_match_path"] = full_df["labels_match_path"].str.replace(root, "").str.lstrip(os.sep)
-    full_df["labels_match_pix_path"] = full_df["labels_match_pix_path"].str.replace(
-        root, ""
-    ).str.lstrip(os.sep)
+    full_df["image_path"] = (
+        full_df["image_path"].str.replace(root, "").str.lstrip(os.sep)
+    )
+    full_df["image_masked_path"] = (
+        full_df["image_masked_path"].str.replace(root, "").str.lstrip(os.sep)
+    )
+    full_df["labels_path"] = (
+        full_df["labels_path"].str.replace(root, "").str.lstrip(os.sep)
+    )
+    full_df["labels_match_path"] = (
+        full_df["labels_match_path"].str.replace(root, "").str.lstrip(os.sep)
+    )
+    full_df["labels_match_pix_path"] = (
+        full_df["labels_match_pix_path"].str.replace(root, "").str.lstrip(os.sep)
+    )
 
     full_df["split"] = "train"
 

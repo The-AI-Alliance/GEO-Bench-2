@@ -324,7 +324,7 @@ def process_biomassters_sample(args):
             "agbm_path": rel_agbm_path,
             "num_S1_images": len(s1_paths),
             "num_S2_images": len(s2_paths),
-            "is_additional_test": row["is_additional_test"]
+            "is_additional_test": row["is_additional_test"],
         }
 
     except Exception as e:
@@ -387,7 +387,7 @@ def create_test_subset(
     num_train_samples: int = 4,
     num_val_samples: int = 2,
     num_test_samples: int = 2,
-    n_additional_test_samples: int = 0
+    n_additional_test_samples: int = 0,
 ) -> None:
     """Create a test subset of the BioMassters dataset with downsampled 32x32 images.
 
@@ -448,7 +448,9 @@ def create_test_subset(
     val_df = val_pool.sample(num_val_samples, random_state=42).copy()
     test_df = test_pool.sample(num_test_samples, random_state=42).copy()
 
-    subset_df = pd.concat([train_df, val_df, test_df, additional_df]).reset_index(drop=True)
+    subset_df = pd.concat([train_df, val_df, test_df, additional_df]).reset_index(
+        drop=True
+    )
     subset_df["is_additional_test"] = subset_df.get("is_additional_test", False)
 
     print(
@@ -546,7 +548,7 @@ def create_test_subset(
                 "agbm_path": rel_agbm_path,
                 "num_S1_images": len(s1_paths),
                 "num_S2_images": len(s2_paths),
-                "is_additional_test": row["is_additional_test"]
+                "is_additional_test": row["is_additional_test"],
             }
         )
 
@@ -628,13 +630,16 @@ def main():
         metadata_df = generate_metadata_df(args.root)
         metadata_df.to_parquet(metadata_path)
 
-
     results_path = os.path.join(args.save_dir, "geobench_biomassters.parquet")
     # if os.path.exists(results_path):
     #     results_df = pd.read_parquet(results_path)
     # else:
     results_df = create_geobench_version(
-        metadata_df, n_train_samples=4000, n_val_samples=1000, n_test_samples=2000, n_additional_test_samples=1000,
+        metadata_df,
+        n_train_samples=4000,
+        n_val_samples=1000,
+        n_test_samples=2000,
+        n_additional_test_samples=1000,
     )
     results_df.to_parquet(results_path)
 
@@ -646,8 +651,6 @@ def main():
         results_df, args.root, args.save_dir, num_workers=8
     )
     optimized_df.to_parquet(optimized_path)
-
-    
 
     tortilla_name = "geobench_biomassters.tortilla"
     create_tortilla(args.save_dir, optimized_df, args.save_dir, tortilla_name)

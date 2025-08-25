@@ -693,7 +693,11 @@ def main():
         result_df = pd.read_parquet(result_df_path)
     else:
         subset_df = create_geobench_version(
-            metadata_df, n_train_samples=4000, n_val_samples=1000, n_test_samples=2000, n_additional_test_samples=1000
+            metadata_df,
+            n_train_samples=4000,
+            n_val_samples=1000,
+            n_test_samples=2000,
+            n_additional_test_samples=1000,
         )
 
         result_df = reprocess_kurosiwo_dataset(

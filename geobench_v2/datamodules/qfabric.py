@@ -85,7 +85,7 @@ class GeoBenchQFabricDataModule(GeoBenchSegmentationDataModule):
         """Visualize a batch of QFabric data with temporal dimension.
 
         Args:
-            split: One of 'train', 'val', 'test'
+            split: One of 'train', 'validation', 'test'
 
         Returns:
             The matplotlib figure and the batch of data
@@ -174,9 +174,7 @@ class GeoBenchQFabricDataModule(GeoBenchSegmentationDataModule):
 
             ax = axes[i * 2 + 1, T]
             type_mask = change_type_mask[i].cpu().numpy()
-            ax.imshow(
-                type_mask, cmap=cmap_change, vmin=0, vmax=n_change_classes - 1
-            )
+            ax.imshow(type_mask, cmap=cmap_change, vmin=0, vmax=n_change_classes - 1)
 
             if i == 0:
                 ax.set_title("Change Type")

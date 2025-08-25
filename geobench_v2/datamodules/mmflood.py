@@ -90,7 +90,7 @@ class GeoBenchMMFloodDataModule(GeoBenchSegmentationDataModule):
         """Visualize a batch of data.
 
         Args:
-            split: One of 'train', 'val', 'test'
+            split: One of 'train', 'validation', 'test'
 
         Returns:
             The matplotlib figure and the batch of data

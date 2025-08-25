@@ -88,7 +88,7 @@ class GeoBenchPASTISDataModule(GeoBenchSegmentationDataModule):
         """Visualize a batch of data.
 
         Args:
-            split: One of 'train', 'val', 'test'
+            split: One of 'train', 'validation', 'test'
 
         Returns:
             The matplotlib figure and the batch of data
@@ -132,7 +132,9 @@ class GeoBenchPASTISDataModule(GeoBenchSegmentationDataModule):
             if tensor.ndim == 5:
                 # time series data [B, T, C, H, W] -> [b, t, h, w, c]
                 mod_images = tensor[indices][:, :, mod_plot_indices, :, :]
-                mod_images = rearrange(mod_images, "b t c h w -> b t h w c").cpu().numpy()
+                mod_images = (
+                    rearrange(mod_images, "b t c h w -> b t h w c").cpu().numpy()
+                )
                 timesteps_per_mod[mod] = mod_images.shape[1]
             else:
                 # single image data [B, C, H, W] -> [b, 1, h, w, c]
@@ -162,9 +164,12 @@ class GeoBenchPASTISDataModule(GeoBenchSegmentationDataModule):
                 row_idx = i * t_max + t
                 ax_label = axes[row_idx, 0]
                 ax_label.text(
-                    -0.06, 0.5, f"t={t}",
+                    -0.06,
+                    0.5,
+                    f"t={t}",
                     transform=ax_label.transAxes,
-                    va="center", ha="right",
+                    va="center",
+                    ha="right",
                     fontsize=10,
                 )
 
@@ -187,7 +192,11 @@ class GeoBenchPASTISDataModule(GeoBenchSegmentationDataModule):
             if cls < len(self.class_names) and cls in colors:
                 legend_elements.append(
                     plt.Rectangle(
-                        (0, 0), 1, 1, color=colors[cls], label=f"{self.class_names[cls]}"
+                        (0, 0),
+                        1,
+                        1,
+                        color=colors[cls],
+                        label=f"{self.class_names[cls]}",
                     )
                 )
 
@@ -210,7 +219,9 @@ class GeoBenchPASTISDataModule(GeoBenchSegmentationDataModule):
 
                             vv = percentile_normalization(vv, lower=2, upper=98)
                             vh = percentile_normalization(vh, lower=2, upper=98)
-                            ratio = np.divide(vv, vh, out=np.zeros_like(vv), where=vh != 0)
+                            ratio = np.divide(
+                                vv, vh, out=np.zeros_like(vv), where=vh != 0
+                            )
 
                             vv = np.clip(vv / 0.3, a_min=0, a_max=1)
                             vh = np.clip(vh / 0.05, a_min=0, a_max=1)
@@ -233,7 +244,12 @@ class GeoBenchPASTISDataModule(GeoBenchSegmentationDataModule):
                 ax = axes[row_idx, -1]
                 if t == 0:
                     mask_img = masks[i].cpu().numpy()
-                    ax.imshow(mask_img, cmap=class_cmap, vmin=0, vmax=max(unique_classes) if unique_classes else 1)
+                    ax.imshow(
+                        mask_img,
+                        cmap=class_cmap,
+                        vmin=0,
+                        vmax=max(unique_classes) if unique_classes else 1,
+                    )
                     ax.set_title("Mask", fontsize=16)
                 else:
                     ax.axis("off")

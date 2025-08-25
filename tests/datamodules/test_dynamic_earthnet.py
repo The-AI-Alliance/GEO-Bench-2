@@ -17,7 +17,9 @@ from geobench_v2.datamodules import GeoBenchDynamicEarthNetDataModule
 from geobench_v2.datasets import GeoBenchDynamicEarthNet
 
 
-@pytest.fixture(params=[{"s2": ["B02", "B03", 0.0, "B04"], "planet": ["r", "b", 0.0, "g"]}])
+@pytest.fixture(
+    params=[{"s2": ["B02", "B03", 0.0, "B04"], "planet": ["r", "b", 0.0, "g"]}]
+)
 def band_order(request):
     """Parameterized band configuration with different configurations."""
     return request.param
@@ -75,7 +77,7 @@ class TestDynamicEarthNetDataModule:
         train_batch = next(iter(train_loader))
         assert isinstance(train_batch, dict)
 
-        num_time_steps = 6 # for weekly setting
+        num_time_steps = 6  # for weekly setting
         expected_dims = {}
         for modality, band_names in datamodule.band_order.items():
             if modality == "s2":

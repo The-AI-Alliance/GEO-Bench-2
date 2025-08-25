@@ -59,7 +59,6 @@ class GeoBenchSubstationDataModule(GeoBenchObjectDetectionDataModule):
         pin_memory: bool = False,
         **kwargs: Any,
     ) -> None:
-        
         """Initialize GeoBench Substation dataset module.
 
         Args:
@@ -95,7 +94,7 @@ class GeoBenchSubstationDataModule(GeoBenchObjectDetectionDataModule):
             pin_memory=pin_memory,
             **kwargs,
         )
-    
+
     def load_metadata(self) -> pd.DataFrame:
         """Load metadata file.
 
@@ -113,7 +112,7 @@ class GeoBenchSubstationDataModule(GeoBenchObjectDetectionDataModule):
         """Visualize a batch of data.
 
         Args:
-            split: One of 'train', 'val', 'test'
+            split: One of 'train', 'validation', 'test'
 
         Returns:
             The matplotlib figure and the batch of data
@@ -139,7 +138,7 @@ class GeoBenchSubstationDataModule(GeoBenchObjectDetectionDataModule):
         images = images[indices]
         boxes_batch = [boxes_batch[i] for i in indices]
         labels_batch = [labels_batch[i] for i in indices]
-        masks_batch =  [masks_batch[i] for i in indices]
+        masks_batch = [masks_batch[i] for i in indices]
 
         plot_bands = self.dataset_band_config.plot_bands
         rgb_indices = [
@@ -217,7 +216,7 @@ class GeoBenchSubstationDataModule(GeoBenchObjectDetectionDataModule):
                 for verts in contours:
                     verts = np.fliplr(verts)
                     p = patches.Polygon(
-                        verts, facecolor=color, alpha=0.4, edgecolor='white'
+                        verts, facecolor=color, alpha=0.4, edgecolor="white"
                     )
                     ax_img.add_patch(p)
 

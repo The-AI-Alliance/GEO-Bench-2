@@ -118,7 +118,7 @@ def generate_metadata_df(ds: PASTIS) -> pd.DataFrame:
 
 def _convert_pastis_row_to_h5(task):
     """Convert a single row of PASTIS DataFrame from .npy to .h5 format.
-    
+
     Args:
         task: Tuple containing:
             - idx: Index of the row in the DataFrame
@@ -129,7 +129,7 @@ def _convert_pastis_row_to_h5(task):
             - compression: Compression type for HDF5 files
             - compression_level: Compression level for HDF5 files
             - overwrite: Whether to overwrite existing HDF5 files
-    
+
     Returns:
         Tuple containing:
             - idx: Index of the row in the DataFrame
@@ -137,7 +137,16 @@ def _convert_pastis_row_to_h5(task):
             - If a modality file was successfully converted, the value is the new relative path.
             - If conversion failed, the value is None.
     """
-    idx, row, root_dir, save_dir, modalities, compression, compression_level, overwrite = task
+    (
+        idx,
+        row,
+        root_dir,
+        save_dir,
+        modalities,
+        compression,
+        compression_level,
+        overwrite,
+    ) = task
     updates = {}
     for modality in modalities:
         col = f"{modality}_path"
@@ -170,6 +179,7 @@ def _convert_pastis_row_to_h5(task):
 
     return idx, updates
 
+
 def convert_pastis_numpy_to_hdf5(
     df: pd.DataFrame,
     root_dir: str,
@@ -181,7 +191,7 @@ def convert_pastis_numpy_to_hdf5(
     num_workers: int = 8,
 ) -> pd.DataFrame:
     """Convert per-modality .npy arrays to per-modality HDF5 files and update paths (parallel).
-    
+
     Args:
         df: DataFrame with metadata including paths to .npy files.
         root_dir: Root directory of the PASTIS dataset.
@@ -214,7 +224,9 @@ def convert_pastis_numpy_to_hdf5(
 
     with ProcessPoolExecutor(max_workers=num_workers) as ex:
         futures = [ex.submit(_convert_pastis_row_to_h5, t) for t in tasks]
-        for fut in tqdm(as_completed(futures), total=len(futures), desc="Converting .npy -> .h5"):
+        for fut in tqdm(
+            as_completed(futures), total=len(futures), desc="Converting .npy -> .h5"
+        ):
             idx, updates = fut.result()
             for col, tgt_rel in updates.items():
                 if tgt_rel:
@@ -234,7 +246,7 @@ def create_tortilla(root_dir, df, save_dir, tortilla_name) -> None:
 
     #     for modality in modalities:
     #         path = os.path.join(root_dir, row[modality + "_path"])
-            
+
     #         sample = tacotoolbox.tortilla.datamodel.Sample(
     #             id=modality,
     #             path=path,
@@ -292,7 +304,7 @@ def create_geobench_version(
     n_train_samples: int,
     n_val_samples: int,
     n_test_samples: int,
-    n_additional_test_samples: int
+    n_additional_test_samples: int,
 ) -> pd.DataFrame:
     """Create a GeoBench version of the dataset.
 
@@ -348,7 +360,11 @@ def main():
         h5_df = pd.read_parquet(result_path)
     else:
         result_df = create_geobench_version(
-            metadata_df, n_train_samples=1200, n_val_samples=482, n_test_samples=496, n_additional_test_samples=255
+            metadata_df,
+            n_train_samples=1200,
+            n_val_samples=482,
+            n_test_samples=496,
+            n_additional_test_samples=255,
         )
 
         h5_df = convert_pastis_numpy_to_hdf5(

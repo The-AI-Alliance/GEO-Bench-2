@@ -414,7 +414,9 @@ def convert_annotations_to_geoparquet(annotations_df, save_dir, num_workers):
     return final_df
 
 
-def create_tortilla(annotations_df: pd.DataFrame, root_dir: str, save_dir: str, tortilla_name: str):
+def create_tortilla(
+    annotations_df: pd.DataFrame, root_dir: str, save_dir: str, tortilla_name: str
+):
     """Create a tortilla version of an object detection dataset.
 
     Args:

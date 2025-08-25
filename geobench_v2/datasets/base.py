@@ -46,7 +46,7 @@ class GeoBenchBaseDataset(NonGeoDataset, DataUtilsMixin):
 
         Args:
             root: Root directory where the dataset can be found
-            split: The dataset split, supports 'train', 'val', 'test', 'extra_test
+            split: The dataset split, supports 'train', 'validation', 'test', 'extra_test'. Also accepts 'val' as an alias for 'validation'.
             band_order: List of bands to return
             data_normalizer: Normalization strategy. Can be:
                              - A class type inheriting from DataNormalizer (e.g., ZScoreNormalizer)
@@ -75,7 +75,7 @@ class GeoBenchBaseDataset(NonGeoDataset, DataUtilsMixin):
 
         self.data_df = tacoreader.load([os.path.join(root, f) for f in self.paths])
 
-        if split in ['train', 'val', 'validation', 'test']:
+        if split in ["train", "val", "validation", "test"]:
             effective_split = "validation" if split == "val" else split
             self.data_df = self.data_df[
                 (self.data_df["tortilla:data_split"] == effective_split)

@@ -86,7 +86,7 @@ class GeoBenchBurnScarsDataModule(GeoBenchSegmentationDataModule):
 
         Args:
             batch: Batch of data to visualize
-            split: One of 'train', 'val', 'test'
+            split: One of 'train', 'validation', 'test'
 
         Returns:
             The matplotlib figure and the batch of data
@@ -136,7 +136,7 @@ class GeoBenchBurnScarsDataModule(GeoBenchSegmentationDataModule):
         for i in range(n_samples):
             ax = axes[i, 0]
             img = images[i].cpu().numpy()
-            img = percentile_normalization(img, lower=2, upper=98).transpose((1,2,0))
+            img = percentile_normalization(img, lower=2, upper=98).transpose((1, 2, 0))
             ax.imshow(img, cmap="gray")
             ax.set_title("HLS Image" if i == 0 else "")
             ax.axis("off")

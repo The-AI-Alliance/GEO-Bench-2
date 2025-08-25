@@ -45,7 +45,7 @@ class GeoBenchPASTIS(GeoBenchBaseDataset):
     sha256str = [
         "215f404a2444a4eb3d1ad173af102144f4a847d81d172f8835a4664c51813b73",
         "92b25a4220e35104ae2e79916d506c949da16dcba136d5f37452bafc0ca8ce13",
-        "f3038a4f7ced1c5faf89368ee10dae408e612fd29a60f500140ce8d315503dbb"
+        "f3038a4f7ced1c5faf89368ee10dae408e612fd29a60f500140ce8d315503dbb",
     ]
 
     dataset_band_config = DatasetBandRegistry.PASTIS
@@ -136,7 +136,7 @@ class GeoBenchPASTIS(GeoBenchBaseDataset):
 
         Args:
             root: Path to the dataset root directory
-            split: The dataset split, supports 'train', 'val', 'test'
+            split: The dataset split, supports 'train', 'validation', 'test'
             band_order: The order of bands to return, defaults to ['red', 'green', 'blue', 'nir'], if one would
                 specify ['red', 'green', 'blue', 'nir', 'nir'], the dataset would return images with 5 channels
                 in that order. This is useful for models that expect a certain band order, or
@@ -171,7 +171,6 @@ class GeoBenchPASTIS(GeoBenchBaseDataset):
         self.num_time_steps = num_time_steps
         self.return_stacked_image = return_stacked_image
 
-
     def __getitem__(self, index: int) -> dict[str, Tensor]:
         """Return an index within the dataset.
 
@@ -187,7 +186,7 @@ class GeoBenchPASTIS(GeoBenchBaseDataset):
         data = {
             "s2": self._load_image(sample_row.read(0)),
             "s1_asc": self._load_image(sample_row.read(1)),
-            "s1_desc": self._load_image(sample_row.read(2))
+            "s1_desc": self._load_image(sample_row.read(2)),
         }
 
         img_dict = self.rearrange_bands(data, self.band_order)
@@ -200,10 +199,7 @@ class GeoBenchPASTIS(GeoBenchBaseDataset):
             sample["mask"] = self._load_semantic_targets(sample_row.read(3))
         elif self.label_type == "instance_seg":
             sample["mask"], sample["boxes"], sample["label"] = (
-                self._load_instance_targets(
-                    sample_row.read(3),
-                    sample_row.read(4)
-                )
+                self._load_instance_targets(sample_row.read(3), sample_row.read(4))
             )
 
         dates = sample_row["dates"].iloc[0]
@@ -265,7 +261,7 @@ class GeoBenchPASTIS(GeoBenchBaseDataset):
         """
         with h5py.File(self._return_byte_stream(path), "r") as f:
             tensor = torch.from_numpy(f["data"][:]).float()
-        
+
         if tensor.shape[0] < self.num_time_steps:
             padding = torch.zeros(
                 self.num_time_steps - tensor.shape[0], *tensor.shape[1:]

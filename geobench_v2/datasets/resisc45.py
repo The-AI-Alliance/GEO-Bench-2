@@ -45,7 +45,7 @@ class GeoBenchRESISC45(RESISC45, DataUtilsMixin):
 
         Args:
             root: Path to the dataset root directory
-            split: The dataset split, supports 'train', 'val', 'test'
+            split: The dataset split, supports 'train', 'validation', 'test'
             band_order: The order of bands to return, defaults to ['r', 'g', 'b'], if one would
                 specify ['g', 'r', 'b', 'b], the dataset would return the green band first, then the red band,
                 and then the blue band twice. This is useful for models that expect a certain band order, or

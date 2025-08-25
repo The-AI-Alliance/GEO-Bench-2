@@ -365,6 +365,7 @@ def visualize_segmentation_target_statistics(
 
     return fig
 
+
 def compare_normalization_methods(
     batch, normalizer_modules, datamodule, figsize=(20, 8)
 ) -> tuple[plt.Figure, list[dict[str, Tensor]]]:
@@ -414,14 +415,21 @@ def compare_normalization_methods(
 
         band_names = []
         modality_config = None
-        
-        if hasattr(datamodule, "dataset_band_config") and hasattr(datamodule.dataset_band_config, "modalities"):
+
+        if hasattr(datamodule, "dataset_band_config") and hasattr(
+            datamodule.dataset_band_config, "modalities"
+        ):
             if modality_prefix in datamodule.dataset_band_config.modalities:
-                modality_config = datamodule.dataset_band_config.modalities[modality_prefix]
-            elif modality == "image" and len(datamodule.dataset_band_config.modalities) == 1:
+                modality_config = datamodule.dataset_band_config.modalities[
+                    modality_prefix
+                ]
+            elif (
+                modality == "image"
+                and len(datamodule.dataset_band_config.modalities) == 1
+            ):
                 config_key = next(iter(datamodule.dataset_band_config.modalities))
                 modality_config = datamodule.dataset_band_config.modalities[config_key]
-                
+
         band_names = modality_config.plot_bands
         if modality == "image":
             plot_title = "Single Modality"
@@ -433,14 +441,20 @@ def compare_normalization_methods(
             try:
                 if isinstance(datamodule.band_order, dict):
                     if modality_prefix in datamodule.band_order:
-                        band_indices.append(datamodule.band_order[modality_prefix].index(band))
+                        band_indices.append(
+                            datamodule.band_order[modality_prefix].index(band)
+                        )
                     elif modality == "image" and len(datamodule.band_order) == 1:
                         config_key = next(iter(datamodule.band_order))
-                        band_indices.append(datamodule.band_order[config_key].index(band))
+                        band_indices.append(
+                            datamodule.band_order[config_key].index(band)
+                        )
                 else:
                     band_indices.append(datamodule.band_order.index(band))
             except (ValueError, KeyError):
-                print(f"Warning: Band {band} not found in band_order for modality {modality}")
+                print(
+                    f"Warning: Band {band} not found in band_order for modality {modality}"
+                )
 
         if not band_indices and modality in batch:
             band_indices = list(range(batch[modality].shape[1]))
@@ -448,12 +462,12 @@ def compare_normalization_methods(
 
         all_data = {"raw": {}}
         normalizer_display_names = {}
-        
+
         for i, normalizer in enumerate(normalizer_modules):
             base_name = normalizer.__class__.__name__
             if hasattr(normalizer, "processing_mode"):
                 base_name = f"{base_name} ({normalizer.processing_mode})"
-                
+
             norm_key = base_name
             suffix = 1
             while norm_key in all_data:
@@ -465,39 +479,45 @@ def compare_normalization_methods(
 
         for i, band_idx in enumerate(band_indices):
             if band_idx < batch[modality].shape[1]:
-                band_label = band_names[i] if i < len(band_names) else f"Band {band_idx}"
-                all_data["raw"][band_label] = batch[modality][:, band_idx].flatten().numpy()
-                
+                band_label = (
+                    band_names[i] if i < len(band_names) else f"Band {band_idx}"
+                )
+                all_data["raw"][band_label] = (
+                    batch[modality][:, band_idx].flatten().numpy()
+                )
+
                 for j, norm_batch in enumerate(normalized_batches):
                     norm_key = normalizer_display_names[j]
-                    all_data[norm_key][band_label] = norm_batch[modality][:, band_idx].flatten().numpy()
+                    all_data[norm_key][band_label] = (
+                        norm_batch[modality][:, band_idx].flatten().numpy()
+                    )
 
         for col_idx in range(n_normalizers + 1):
             data_key = "raw" if col_idx == 0 else normalizer_display_names[col_idx - 1]
-            
+
             main_ax = fig.add_subplot(gs[row_idx * 2, col_idx])
             stats_ax = fig.add_subplot(gs[row_idx * 2 + 1, col_idx])
             stats_ax.axis("off")
-            
+
             bins = 100
             for band in all_data[data_key].keys():
                 hist, bin_edges = np.histogram(all_data[data_key][band], bins=bins)
                 bin_centers = (bin_edges[:-1] + bin_edges[1:]) / 2
                 main_ax.plot(bin_centers, hist, label=band, linewidth=2.5)
-            
+
             if row_idx == 0:
                 display_title = column_titles[col_idx]
                 main_ax.set_title(display_title, fontsize=16, pad=20)
-            
+
             main_ax.set_title(f"{plot_title}", fontsize=14, pad=5)
             main_ax.set_xlabel("Value")
             main_ax.set_ylabel("Frequency")
             main_ax.legend(loc="upper right")
-            
+
             main_ax.grid(True, alpha=0.3)
             main_ax.spines["top"].set_visible(False)
             main_ax.spines["right"].set_visible(False)
-            
+
             stats_text = f"Statistics for {plot_title} ({data_key}):\n"
             for band in all_data[data_key].keys():
                 data = all_data[data_key][band]
@@ -506,23 +526,31 @@ def compare_normalization_methods(
                 min_val = np.min(data)
                 max_val = np.max(data)
                 stats_text += f"{band}: Mean={mean_val:.3f}, Std={std_val:.3f}, Range=[{min_val:.3f}, {max_val:.3f}]\n"
-            
+
             stats_ax.text(
-                0.5, 0.5, stats_text,
-                ha="center", va="center", fontsize=10,
-                bbox=dict(boxstyle="round", facecolor="white", alpha=0.7)
+                0.5,
+                0.5,
+                stats_text,
+                ha="center",
+                va="center",
+                fontsize=10,
+                bbox=dict(boxstyle="round", facecolor="white", alpha=0.7),
             )
 
     normalizer_labels = []
     for norm in normalizer_modules:
         if hasattr(norm, "processing_mode"):
-            normalizer_labels.append(f"{norm.__class__.__name__} ({norm.processing_mode})")
+            normalizer_labels.append(
+                f"{norm.__class__.__name__} ({norm.processing_mode})"
+            )
         else:
             normalizer_labels.append(norm.__class__.__name__)
-            
+
     normalizer_names = ", ".join(normalizer_labels)
-    plt.suptitle(f"Comparison of Normalization Methods: {normalizer_names}", fontsize=18, y=0.995)
+    plt.suptitle(
+        f"Comparison of Normalization Methods: {normalizer_names}", fontsize=18, y=0.995
+    )
     plt.tight_layout()
     fig.subplots_adjust(top=0.95 if n_modalities == 1 else 0.97)
-    
+
     return fig, normalized_batches
