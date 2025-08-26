@@ -199,7 +199,7 @@ class GeoBenchKuroSiwo(GeoBenchBaseDataset):
 
         if self.return_stacked_image:
             modality_keys = {
-                "sar": ["image_sar_pre_1", "image_sar_pre_2", "image_sar_post"],
+                "sar": ["image_pre_1", "image_pre_2", "image_post"],
                 "dem": ["image_dem"],
             }
             stacked_images = [

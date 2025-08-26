@@ -94,19 +94,19 @@ class TestKuroSiwoDataModule:
 
         # Define expected dimensions for testing
         expected_dims = {
-            "image_sar_pre_1": (
+            "image_pre_1": (
                 datamodule.batch_size,
                 len(datamodule.band_order["sar"]),
                 datamodule.img_size,
                 datamodule.img_size,
             ),
-            "image_sar_pre_2": (
+            "image_pre_2": (
                 datamodule.batch_size,
                 len(datamodule.band_order["sar"]),
                 datamodule.img_size,
                 datamodule.img_size,
             ),
-            "image_sar_post": (
+            "image_post": (
                 datamodule.batch_size,
                 len(datamodule.band_order["sar"]),
                 datamodule.img_size,
@@ -137,15 +137,15 @@ class TestKuroSiwoDataModule:
             for i, band in enumerate(datamodule.band_order["sar"]):
                 if isinstance(band, (int | float)):
                     assert torch.isclose(
-                        train_batch["image_sar_pre_1"][:, i], torch.tensor(band)
+                        train_batch["image_pre_1"][:, i], torch.tensor(band)
                     ).all(), f"Constant value mismatch for image_pre_1 channel {i}"
 
                     assert torch.isclose(
-                        train_batch["image_sar_pre_2"][:, i], torch.tensor(band)
+                        train_batch["image_pre_2"][:, i], torch.tensor(band)
                     ).all(), f"Constant value mismatch for image_pre_2 channel {i}"
 
                     assert torch.isclose(
-                        train_batch["image_sar_post"][:, i], torch.tensor(band)
+                        train_batch["image_post"][:, i], torch.tensor(band)
                     ).all(), f"Constant value mismatch for image_post channel {i}"
 
         # Check constants in dem bands if present
