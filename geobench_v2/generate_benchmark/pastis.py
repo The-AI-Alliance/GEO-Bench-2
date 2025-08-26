@@ -250,7 +250,7 @@ def create_tortilla(root_dir, df, save_dir, tortilla_name) -> None:
 
         for modality in modalities:
             path = os.path.join(root_dir, row[modality + "_path"])
-            
+
             sample = tacotoolbox.tortilla.datamodel.Sample(
                 id=modality,
                 path=path,
@@ -272,8 +272,11 @@ def create_tortilla(root_dir, df, save_dir, tortilla_name) -> None:
 
     # # merge tortillas into a single dataset, sort this correctly in enumerate, with multiple digits
     all_tortilla_files = glob.glob(os.path.join(tortilla_dir, "*.tortilla"))
-    all_tortilla_files = sorted(all_tortilla_files, key=lambda x: int(re.search(r"sample_(\d+)\.tortilla", x).group(1)))
-    
+    all_tortilla_files = sorted(
+        all_tortilla_files,
+        key=lambda x: int(re.search(r"sample_(\d+)\.tortilla", x).group(1)),
+    )
+
     samples = []
 
     for idx, tortilla_file in tqdm(
@@ -284,7 +287,7 @@ def create_tortilla(root_dir, df, save_dir, tortilla_name) -> None:
         taco_df = tacoreader.load(tortilla_file)
         s2_dates = taco_df.loc[taco_df["tortilla:id"] == "s2", "dates"].iloc[0].tolist()
 
-        sample_data=taco_df.iloc[0]
+        sample_data = taco_df.iloc[0]
 
         sample_tortilla = tacotoolbox.tortilla.datamodel.Sample(
             id=os.path.basename(tortilla_file).split(".")[0],
@@ -338,7 +341,9 @@ def create_geobench_version(
 def create_unit_test_subset(data_dir, test_dir_name) -> None:
     """Create a compact unittest tortilla from the final tortilla by subsampling and shrinking arrays."""
     small_tortilla = create_compact_unittest_tortilla_from_final(
-        final_tortilla_path=sorted(glob.glob(os.path.join(data_dir, "*.part.tortilla"))),
+        final_tortilla_path=sorted(
+            glob.glob(os.path.join(data_dir, "*.part.tortilla"))
+        ),
         save_dir=data_dir,
         n_train_samples=4,
         n_val_samples=2,
@@ -361,7 +366,6 @@ def create_unit_test_subset(data_dir, test_dir_name) -> None:
     print(f"Filesize: {os.path.getsize(dst) / (1024 * 1024):.2f} MB")
 
 
-
 def _determine_layout(arr: np.ndarray, expected_t: int | None):
     """Return axes (t_axis, c_axis, h_axis, w_axis) under a simple assumption:
     - Time-series imagery is 4D with shape [T, C, H, W]
@@ -376,7 +380,9 @@ def _determine_layout(arr: np.ndarray, expected_t: int | None):
     if arr.ndim == 2:
         # [H, W]
         return (None, None, 0, 1)
-    raise ValueError(f"Unsupported array shape for visualization/processing: {arr.shape}")
+    raise ValueError(
+        f"Unsupported array shape for visualization/processing: {arr.shape}"
+    )
 
 
 def _process_modality_arr(
@@ -503,11 +509,12 @@ def create_compact_unittest_tortilla_from_final(
         return io.BytesIO(data)
 
     written_parts = []
-    for _, row in tqdm(subset_top.iterrows(), total=len(subset_top), desc="Building compact unittest"):
+    for _, row in tqdm(
+        subset_top.iterrows(), total=len(subset_top), desc="Building compact unittest"
+    ):
         sample_id = row["tortilla:id"]
         pos = id_to_pos[sample_id]
-        inner = taco.read(pos) 
-
+        inner = taco.read(pos)
 
         split = inner["tortilla:data_split"].iloc[0]
         add_test = bool(inner.get("add_test_split", pd.Series([False])).iloc[0])
@@ -523,7 +530,9 @@ def create_compact_unittest_tortilla_from_final(
             internal_subfile = mrow["internal:subfile"]
             dates = mrow.get("dates", [])
 
-            with h5py.File(_bytesio_from_internal_subfile(internal_subfile), "r") as hf_in:
+            with h5py.File(
+                _bytesio_from_internal_subfile(internal_subfile), "r"
+            ) as hf_in:
                 arr = hf_in["data"][...]
 
             # Expected timesteps from dates length if present
@@ -551,7 +560,11 @@ def create_compact_unittest_tortilla_from_final(
             os.makedirs(os.path.dirname(h5_abs), exist_ok=True)
             with h5py.File(h5_abs, "w") as hf_out:
                 dset = hf_out.create_dataset(
-                    "data", data=arr_small, compression="gzip", compression_opts=4, chunks=True
+                    "data",
+                    data=arr_small,
+                    compression="gzip",
+                    compression_opts=4,
+                    chunks=True,
                 )
                 dset.attrs["modality"] = modality
                 dset.attrs["source_patch_id"] = patch_id
@@ -634,7 +647,6 @@ def main():
             n_additional_test_samples=255,
         )
 
-
         h5_df = convert_pastis_numpy_to_hdf5(
             result_df, root_dir=args.root, save_dir=args.save_dir, overwrite=False
         )
@@ -643,10 +655,7 @@ def main():
     tortilla_name = "geobench_pastis.tortilla"
     create_tortilla(args.root, h5_df, args.save_dir, tortilla_name)
 
-    create_unit_test_subset(
-        data_dir=args.save_dir,
-        test_dir_name="pastis"
-    )
+    create_unit_test_subset(data_dir=args.save_dir, test_dir_name="pastis")
 
     plot_sample_locations(
         metadata_df,
