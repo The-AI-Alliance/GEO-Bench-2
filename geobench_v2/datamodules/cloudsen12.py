@@ -91,7 +91,7 @@ class GeoBenchCloudSen12DataModule(GeoBenchSegmentationDataModule):
 
         Args:
             batch: Batch of data to visualize
-            split: One of 'train', 'val', 'test'
+            split: One of 'train', 'validation', 'test'
 
         Returns:
             The matplotlib figure and the batch of data

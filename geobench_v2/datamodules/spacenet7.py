@@ -89,7 +89,7 @@ class GeoBenchSpaceNet7DataModule(GeoBenchSegmentationDataModule):
         """Visualize a batch of data.
 
         Args:
-            split: One of 'train', 'val', 'test'
+            split: One of 'train', 'validation', 'test'
 
         Returns:
             The matplotlib figure and the batch of data
@@ -123,7 +123,6 @@ class GeoBenchSpaceNet7DataModule(GeoBenchSegmentationDataModule):
             if band in self.band_order
         ]
         images = images[:, rgb_indices, :, :]
-
 
         unique_classes = torch.unique(masks).cpu().numpy()
         unique_classes = [

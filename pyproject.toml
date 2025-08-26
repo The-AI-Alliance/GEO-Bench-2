@@ -44,7 +44,7 @@ dependencies = [
     "numpy>=1.21.1",
     # omegaconf
     "omegaconf>=2.3.0",
-    #tacoreader
+    # tacoreader
     "tacoreader==0.5.6",
     # pandas 1.1.3+ required for Python 3.10 wheels
     "pandas>=1.1.3",
@@ -54,7 +54,7 @@ dependencies = [
     "torchmetrics>=1.2",
     # torchvision 0.13+ required for torchvision.models._api.WeightsEnum
     "torchvision>=0.16.1",
-    # torchgeo 
+    # torchgeo
     #"torchgeo @ git+https://github.com/microsoft/torchgeo.git"
     "torchgeo>=0.7",
     "geopandas>=1.1.0",
@@ -86,7 +86,7 @@ docs = [
     "ipywidgets>=7",
     # notebooks with sphinx
     "nbsphinx>=0.8.5",
-    # reat the docs theme
+    # read the docs theme
     "sphinx-book-theme>=1.0.1",
     # Extension for markdown
     "myst-parser>=2.0",
@@ -109,7 +109,8 @@ generate_benchmark = [
 ]
 
 all = [
-    "geobench_v2[docs,tests,generate_benchmark]",
+    # Convenience extra to install all optional dependencies
+    "GeoBenchV2[docs,tests,generate_benchmark]",
 ]
 
 [project.scripts]

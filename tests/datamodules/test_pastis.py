@@ -45,14 +45,12 @@ def datamodule(
 ):
     monkeypatch.setattr(GeoBenchPASTIS, "paths", ["pastis.tortilla"])
     monkeypatch.setattr(
-        GeoBenchPASTIS,
-        "url",
-        os.path.join("tests", "data", "pastis", "{}"),
+        GeoBenchPASTIS, "url", os.path.join("tests", "data", "pastis", "{}")
     )
     monkeypatch.setattr(
         GeoBenchPASTIS,
         "sha256str",
-        ["7e300572b7f770a64a76b5d33b113229ac4c5208cbd59afcf2425f44e078725e"],
+        ["c501d6cb8c5d4660dda125ff9c8d04cabaead3d660cebb7509dac38e025dad2d"],
     )
     datamodule = GeoBenchPASTISDataModule(
         img_size=74,
@@ -64,7 +62,7 @@ def datamodule(
         num_time_steps=2,
         metadata=["lon", "lat"],
         pin_memory=False,
-        download=True
+        download=True,
     )
     datamodule.setup("fit")
     datamodule.setup("test")
@@ -95,7 +93,7 @@ class TestPASTISDataModule:
         # TODO handle correctly both cases
         # Check dimensions - these are time-series shapes [batch_size, T, C, H, W]
         assert batch["image_s2"].shape[0] == datamodule.batch_size
-        assert batch["image_s2"].shape[1] == 2 # num time steps
+        assert batch["image_s2"].shape[1] == 2  # num time steps
         assert batch["image_s2"].shape[2] == len(datamodule.band_order["s2"])
         assert batch["image_s2"].shape[3] == datamodule.img_size
         assert batch["image_s2"].shape[4] == datamodule.img_size

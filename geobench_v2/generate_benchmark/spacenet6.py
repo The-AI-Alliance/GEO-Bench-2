@@ -447,7 +447,9 @@ def generate_metadata_df(root: str) -> pd.DataFrame:
 
     # make path relative
     df["mask_path"] = df["mask_path"].str.replace(root, "").str.lstrip(os.sep)
-    df["sar_intensity_path"] = df["sar_intensity_path"].str.replace(root, "").str.lstrip(os.sep)
+    df["sar_intensity_path"] = (
+        df["sar_intensity_path"].str.replace(root, "").str.lstrip(os.sep)
+    )
     df["ps_rgbnir_path"] = df["ps_rgbnir_path"].str.replace(root, "").str.lstrip(os.sep)
 
     df["split"] = "train"

@@ -50,7 +50,7 @@ __all__ = (
     "GeoBenchBRIGHT",
     "GeoBenchWindTurbine",
     "GeoBenchQFabric",
-    "GeoBenchBurnScars"
+    "GeoBenchBurnScars",
     "GeoBenchNZCattle",
-    "GeoBenchSubstation"
+    "GeoBenchSubstation",
 )

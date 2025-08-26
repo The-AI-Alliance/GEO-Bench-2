@@ -10,6 +10,7 @@ from typing import Any
 import matplotlib.pyplot as plt
 import pandas as pd
 import torch
+import numpy as np
 from einops import rearrange
 import torch.nn as nn
 from torch import Tensor
@@ -26,7 +27,7 @@ class GeoBenchDynamicEarthNetDataModule(GeoBenchSegmentationDataModule):
     """GeoBench DynamicEarthNet Data Module."""
 
     has_extra_test_samples = True
-    
+
     def __init__(
         self,
         img_size: int = 512,
@@ -89,7 +90,7 @@ class GeoBenchDynamicEarthNetDataModule(GeoBenchSegmentationDataModule):
         """Visualize a batch of data.
 
         Args:
-            split: One of 'train', 'val', 'test'
+            split: One of 'train', 'validation', 'test'
 
         Returns:
             The matplotlib figure and the batch of data
@@ -131,7 +132,9 @@ class GeoBenchDynamicEarthNetDataModule(GeoBenchSegmentationDataModule):
             if tensor.ndim == 5:
                 # time series data [B, T, C, H, W] -> [b, t, h, w, c]
                 mod_images = tensor[indices][:, :, mod_plot_indices, :, :]
-                mod_images = rearrange(mod_images, "b t c h w -> b t h w c").cpu().numpy()
+                mod_images = (
+                    rearrange(mod_images, "b t c h w -> b t h w c").cpu().numpy()
+                )
                 timesteps_per_mod[mod] = mod_images.shape[1]
             else:
                 # single image data [B, C, H, W] -> [b, 1, h, w, c]
@@ -160,9 +163,12 @@ class GeoBenchDynamicEarthNetDataModule(GeoBenchSegmentationDataModule):
                 row_idx = i * t_max + t
                 ax_label = axes[row_idx, 0]
                 ax_label.text(
-                    -0.06, 0.5, f"t={t}",
+                    -0.06,
+                    0.5,
+                    f"t={t}",
                     transform=ax_label.transAxes,
-                    va="center", ha="right",
+                    va="center",
+                    ha="right",
                     fontsize=10,
                 )
 
@@ -174,16 +180,28 @@ class GeoBenchDynamicEarthNetDataModule(GeoBenchSegmentationDataModule):
         class_names = getattr(self, "class_names", None)
         if not class_names or max(unique_classes, default=0) >= len(class_names):
             # Fallback numeric names
-            class_names = [f"class {i}" for i in range(max(unique_classes, default=-1) + 1)]
+            class_names = [
+                f"class {i}" for i in range(max(unique_classes, default=-1) + 1)
+            ]
 
         cmap = plt.cm.tab20
         colors = {i: cmap(i % 20) for i in unique_classes}
-        class_cmap = plt.cm.colors.ListedColormap([colors[i] for i in unique_classes] or [(0, 0, 0, 1)])
+        class_cmap = plt.cm.colors.ListedColormap(
+            [colors[i] for i in unique_classes] or [(0, 0, 0, 1)]
+        )
 
         legend_elements = []
         for cls_id in unique_classes:
             legend_elements.append(
-                plt.Rectangle((0, 0), 1, 1, color=colors[cls_id], label=class_names[cls_id] if cls_id < len(class_names) else f"class {cls_id}")
+                plt.Rectangle(
+                    (0, 0),
+                    1,
+                    1,
+                    color=colors[cls_id],
+                    label=class_names[cls_id]
+                    if cls_id < len(class_names)
+                    else f"class {cls_id}",
+                )
             )
 
         # Plot modalities
@@ -212,7 +230,12 @@ class GeoBenchDynamicEarthNetDataModule(GeoBenchSegmentationDataModule):
                 if t == 0:
                     mask_img = masks[i].squeeze(0).cpu().numpy()
                     vmax = max(unique_classes) if unique_classes else 1
-                    ax.imshow(mask_img, cmap=class_cmap, vmin=min(unique_classes) if unique_classes else 0, vmax=vmax)
+                    ax.imshow(
+                        mask_img,
+                        cmap=class_cmap,
+                        vmin=min(unique_classes) if unique_classes else 0,
+                        vmax=vmax,
+                    )
                     ax.set_title("Label", fontsize=14)
                 else:
                     ax.axis("off")

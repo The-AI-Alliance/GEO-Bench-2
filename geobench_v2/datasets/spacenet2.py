@@ -106,7 +106,7 @@ class GeoBenchSpaceNet2(GeoBenchBaseDataset):
 
         Args:
             root: Path to the dataset root directory
-            split: The dataset split, supports 'train', 'val', 'test'
+            split: The dataset split, supports 'train', 'validation', 'test'
             label_type: The type of label to return, supports 'instance_seg' or 'semantic_seg'
             band_order: The order of bands to return, defaults to ['red', 'green', 'blue'], if one would
                 specify ['red', 'green', 'blue', 'blue', 'blue'], the dataset would return images with 5 channels

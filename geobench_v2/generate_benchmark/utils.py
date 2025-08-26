@@ -420,11 +420,11 @@ def create_unittest_subset(
         random_state: Random seed for reproducibility
     """
     taco_glob = sorted(glob(os.path.join(data_dir, tortilla_pattern)))
-    taco_ben = tacoreader.load(taco_glob)
+    taco_subset = tacoreader.load(taco_glob)
 
     # create unit test subset
     unit_test_taco = create_subset_from_df(
-        taco_ben,
+        taco_subset,
         n_train_samples=n_train_samples,
         n_val_samples=n_val_samples,
         n_test_samples=n_test_samples,

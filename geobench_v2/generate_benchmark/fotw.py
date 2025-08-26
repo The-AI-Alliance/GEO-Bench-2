@@ -553,8 +553,17 @@ def create_tortilla(root_dir, df, save_dir, tortilla_name):
         modality_samples = []
 
         for modality in modalities:
-            path = os.path.join(root_dir, modality, row["country"] + "_" + os.path.basename(row[modality + "_path"]).replace(".tif", "") + "_" + modality + ".tif")
-            
+            path = os.path.join(
+                root_dir,
+                modality,
+                row["country"]
+                + "_"
+                + os.path.basename(row[modality + "_path"]).replace(".tif", "")
+                + "_"
+                + modality
+                + ".tif",
+            )
+
             with rasterio.open(path) as src:
                 profile = src.profile
 
@@ -690,11 +699,14 @@ def main():
         results_df = pd.read_parquet(results_df_path)
     else:
         results_df = create_geobench_version(
-            metadata_df, n_train_samples=4000, n_val_samples=1000, n_test_samples=2000, n_additional_test_samples=1000
+            metadata_df,
+            n_train_samples=4000,
+            n_val_samples=1000,
+            n_test_samples=2000,
+            n_additional_test_samples=1000,
         )
         results_df.to_parquet(results_df_path)
 
-    
     optimized_path = os.path.join(args.save_dir, "optimized.parquet")
     if os.path.exists(optimized_path):
         optimized_df = pd.read_parquet(optimized_path)
@@ -723,7 +735,7 @@ def main():
         n_train_samples=4,
         n_val_samples=2,
         n_test_samples=2,
-        n_additional_test_samples=1
+        n_additional_test_samples=1,
     )
 
 

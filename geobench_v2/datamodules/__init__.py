@@ -50,7 +50,6 @@ __all__ = (
     "GeoBenchClassificationDataModule",
     "GeoBenchSegmentationDataModule",
     "GeoBenchObjectDetectionDataModule",
-    "GeoBenchDataModuleGeoBenchFLOGADataModule",
     "GeoBenchKuroSiwoDataModule",
     "GeoBenchTreeSatAIDataModule",
     "GeoBenchBioMasstersDataModule",
@@ -63,6 +62,4 @@ __all__ = (
     "GeoBenchNZCattleDataModule",
     "GeoBenchSubstationDataModule",
     "GeoBenchBurnScarsDataModule",
-    "GeoBenchNZCattleDataModule"
-    "GeoBenchSubstationDataModule"
 )

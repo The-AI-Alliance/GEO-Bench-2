@@ -157,9 +157,7 @@ def generate_metadata_df(save_dir: str, root: str) -> pd.DataFrame:
     metadata_df["img_path_exists"] = metadata_df.apply(
         lambda x: os.path.exists(os.path.join(root, x["aerial_path"])), axis=1
     )
-    metadata_df = metadata_df[metadata_df["img_path_exists"]].reset_index(
-        drop=True
-    ) 
+    metadata_df = metadata_df[metadata_df["img_path_exists"]].reset_index(drop=True)
 
     return metadata_df
 
@@ -467,7 +465,11 @@ def main():
         result_df = pd.read_parquet(result_df_path)
     else:
         result_df = create_geobench_version(
-            metadata_df, n_train_samples=4000, n_val_samples=1000, n_test_samples=2000, n_additional_test_samples=1000
+            metadata_df,
+            n_train_samples=4000,
+            n_val_samples=1000,
+            n_test_samples=2000,
+            n_additional_test_samples=1000,
         )
         result_df.to_parquet(result_df_path)
 
@@ -483,7 +485,6 @@ def main():
             num_workers=8,
         )
         optimized_df.to_parquet(optimized_path)
-
 
     tortilla_name = "geobench_flair2.tortilla"
 

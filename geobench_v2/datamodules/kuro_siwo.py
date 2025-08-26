@@ -5,7 +5,7 @@
 
 import os
 from collections.abc import Callable, Sequence
-from typing import Any
+from typing import Any, Literal
 
 import matplotlib.pyplot as plt
 import pandas as pd
@@ -17,6 +17,7 @@ from torch import Tensor
 from torchgeo.datasets.utils import percentile_normalization
 
 from geobench_v2.datasets import GeoBenchKuroSiwo
+from matplotlib import pyplot as plt
 
 from .base import GeoBenchSegmentationDataModule
 
@@ -89,7 +90,7 @@ class GeoBenchKuroSiwoDataModule(GeoBenchSegmentationDataModule):
 
         Args:
             batch: Batch of data to visualize
-            split: One of 'train', 'val', 'test'
+                split: One of 'train', 'validation', 'test'
 
         Returns:
             The matplotlib figure and the batch of data
@@ -229,6 +230,18 @@ class GeoBenchKuroSiwoDataModule(GeoBenchSegmentationDataModule):
 
         return fig, batch
 
-    def visualize_geospatial_distribution(self) -> None:
-        """Visualize the geolocation distribution of the dataset."""
+    def visualize_geospatial_distribution(
+        self,
+        split_column: str = "tortilla:data_split",
+        buffer_degrees: float = 5.0,
+        sample_fraction: float | None = None,
+        scale: Literal["10m", "50m", "110m"] = "50m",
+        alpha: float = 0.5,
+        s: float = 0.5,
+    ) -> plt.Figure | None:
+        """Visualize the geospatial distribution of dataset samples on a map.
+
+        Note: This dataset does not provide geolocation information; returns None.
+        """
         print("Dataset does not have geolocation information.")
+        return None

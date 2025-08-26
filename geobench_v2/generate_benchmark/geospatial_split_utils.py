@@ -2155,7 +2155,7 @@ def create_bright_patches(
     metadata_df: pd.DataFrame, root_dir: str, output_dir: str, visualize=True
 ) -> pd.DataFrame:
     """Create patches from the original images and save them to the output directory.
-    
+
     Args:
         metadata_df: DataFrame containing metadata for the images
         root_dir: Directory containing the original images
@@ -2315,7 +2315,7 @@ def visualize_bright_patches(
     pre_data, post_data, target_data, patches_info, output_path=None, figsize=(22, 12)
 ):
     """Visualize the original images and their patches with one modality per row.
-    
+
     Args:
         pre_data: Pre-event image data
         post_data: Post-event image data

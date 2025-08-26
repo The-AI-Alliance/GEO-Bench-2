@@ -16,6 +16,7 @@ from .normalization import ZScoreNormalizer
 from .sensor_util import DatasetBandRegistry
 import pdb
 
+
 class GeoBenchBurnScars(GeoBenchBaseDataset):
     """GeoBench Burn Scars dataset."""
 
@@ -37,14 +38,7 @@ class GeoBenchBurnScars(GeoBenchBaseDataset):
             "B11": 0.0,
             "B12": 0.0,
         },
-        "stds": {
-            "B02": 1,
-            "B03": 1,
-            "B04": 1,
-            "B8A": 1,
-            "B11": 1,
-            "B12": 1,
-        },
+        "stds": {"B02": 1, "B03": 1, "B04": 1, "B8A": 1, "B11": 1, "B12": 1},
     }
 
     classes = ("Background", "Burn Scar")
@@ -65,7 +59,7 @@ class GeoBenchBurnScars(GeoBenchBaseDataset):
 
         Args:
             root: Path to the dataset root directory
-            split: The dataset split, supports 'train', 'val', 'test'
+            split: The dataset split, supports 'train', 'validation', 'test'
             band_order: The order of bands to return, defaults to ['gray'], if one would
                 specify ['gray', 'gray', 'gray], the dataset would return the gray band three times.
             data_normalizer: The data normalizer to apply to the data, defaults to :class:`data_util.ZScoreNormalizer`,

@@ -1,4 +1,3 @@
-
 # Copyright (c) 2025 GeoBenchV2. All rights reserved.
 # Licensed under the Apache License 2.0.
 
@@ -16,6 +15,7 @@ from torchgeo.datasets import DatasetNotFoundError
 from geobench_v2.datamodules import GeoBenchBurnScarsDataModule
 from geobench_v2.datasets.burn_scars import GeoBenchBurnScars
 import pdb
+
 
 @pytest.fixture
 def band_order():
@@ -87,7 +87,7 @@ class TestBurnScarsDataModule:
         """Test if band order is correctly resolved."""
         assert len(datamodule.band_order) == 3
         assert isinstance(datamodule.band_order[1], str)
-        assert datamodule.band_order[1] == 'B03'
+        assert datamodule.band_order[1] == "B03"
 
     def test_batch_visualization(self, datamodule):
         """Test batch visualization."""
