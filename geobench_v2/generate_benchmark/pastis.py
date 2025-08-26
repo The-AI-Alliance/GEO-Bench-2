@@ -243,43 +243,39 @@ def convert_pastis_numpy_to_hdf5(
 def create_tortilla(root_dir, df, save_dir, tortilla_name) -> None:
     """Create a subset of PASTIS dataset for Tortilla Benchmark."""
     tortilla_dir = os.path.join(save_dir, "tortilla")
-    # if os.path.exists(tortilla_dir):
-    #     shutil.rmtree(tortilla_dir)
-    # os.makedirs(tortilla_dir, exist_ok=True)
+    os.makedirs(tortilla_dir, exist_ok=True)
 
-    # for idx, row in tqdm(df.iterrows(), total=len(df), desc="Creating tortilla"):
-    #     modalities = ["s2", "s1a", "s1d", "semantic", "instance"]
-    #     modality_samples = []
+    for idx, row in tqdm(df.iterrows(), total=len(df), desc="Creating tortilla"):
+        modalities = ["s2", "s1a", "s1d", "semantic", "instance"]
+        modality_samples = []
 
-    #     for modality in modalities:
-    #         path = os.path.join(root_dir, row[modality + "_path"])
+        for modality in modalities:
+            path = os.path.join(root_dir, row[modality + "_path"])
             
-    #         sample = tacotoolbox.tortilla.datamodel.Sample(
-    #             id=modality,
-    #             path=path,
-    #             file_format="HDF5",
-    #             data_split=row["split"],
-    #             add_test_split=row["is_additional_test"],
-    #             dates=row[f"dates-{modality}"] if f"dates-{modality}" in row else [],
-    #             tile=row["TILE"],
-    #             lon=row["longitude"],
-    #             lat=row["latitude"],
-    #             patch_id=row["ID_PATCH"],
-    #         )
+            sample = tacotoolbox.tortilla.datamodel.Sample(
+                id=modality,
+                path=path,
+                file_format="HDF5",
+                data_split=row["split"],
+                add_test_split=row["is_additional_test"],
+                dates=row[f"dates-{modality}"] if f"dates-{modality}" in row else [],
+                tile=row["TILE"],
+                lon=row["longitude"],
+                lat=row["latitude"],
+                patch_id=row["ID_PATCH"],
+            )
 
-    #         modality_samples.append(sample)
+            modality_samples.append(sample)
 
-    #     taco_samples = tacotoolbox.tortilla.datamodel.Samples(samples=modality_samples)
-    #     samples_path = os.path.join(tortilla_dir, f"sample_{idx}.tortilla")
-    #     tacotoolbox.tortilla.create(taco_samples, samples_path, quiet=True, nworkers=4)
+        taco_samples = tacotoolbox.tortilla.datamodel.Samples(samples=modality_samples)
+        samples_path = os.path.join(tortilla_dir, f"sample_{idx}.tortilla")
+        tacotoolbox.tortilla.create(taco_samples, samples_path, quiet=True, nworkers=4)
 
     # # merge tortillas into a single dataset, sort this correctly in enumerate, with multiple digits
     all_tortilla_files = glob.glob(os.path.join(tortilla_dir, "*.tortilla"))
     all_tortilla_files = sorted(all_tortilla_files, key=lambda x: int(re.search(r"sample_(\d+)\.tortilla", x).group(1)))
     
     samples = []
-
-    # find why there are these extra samples
 
     for idx, tortilla_file in tqdm(
         enumerate(all_tortilla_files),
@@ -290,14 +286,6 @@ def create_tortilla(root_dir, df, save_dir, tortilla_name) -> None:
         s2_dates = taco_df.loc[taco_df["tortilla:id"] == "s2", "dates"].iloc[0].tolist()
 
         sample_data=taco_df.iloc[0]
-
-        if not s2_dates:
-            import pdb
-            pdb.set_trace()
-
-        if len(s2_dates) == 0:
-            import pdb
-            pdb.set_trace()
 
         sample_tortilla = tacotoolbox.tortilla.datamodel.Sample(
             id=os.path.basename(tortilla_file).split(".")[0],
@@ -350,7 +338,6 @@ def create_geobench_version(
 
 def create_unit_test_subset(data_dir, test_dir_name) -> None:
     """Create a compact unittest tortilla from the final tortilla by subsampling and shrinking arrays."""
-    # 2) Subsample + shrink + write new compact tortilla
     small_tortilla = create_compact_unittest_tortilla_from_final(
         final_tortilla_path=sorted(glob.glob(os.path.join(data_dir, "*.part.tortilla"))),
         save_dir=data_dir,
@@ -364,7 +351,6 @@ def create_unit_test_subset(data_dir, test_dir_name) -> None:
         out_name=f"{test_dir_name}_unittest_small.tortilla",
     )
 
-    # 3) Copy to tests/data/<test_dir_name>
     script_dir = os.path.dirname(os.path.abspath(__file__))
     repo_root = os.path.dirname(os.path.dirname(script_dir))
     test_data_dir = os.path.join(repo_root, "tests", "data", test_dir_name)
@@ -378,35 +364,20 @@ def create_unit_test_subset(data_dir, test_dir_name) -> None:
 
 
 def _determine_layout(arr: np.ndarray, expected_t: int | None):
-    """Infer axes (t_axis, c_axis, h_axis, w_axis); t_axis or c_axis may be None."""
-    if arr.ndim == 2:
-        return (None, None, 0, 1)
-    if arr.ndim == 3:
-        if expected_t and arr.shape[0] == expected_t:
-            return (0, None, 1, 2)  # (T,H,W)
-        if arr.shape[0] in (1, 2, 3, 4, 10, 12, 13):
-            return (None, 0, 1, 2)  # (C,H,W)
-        return (None, 2, 0, 1)      # (H,W,C)
+    """Return axes (t_axis, c_axis, h_axis, w_axis) under a simple assumption:
+    - Time-series imagery is 4D with shape [T, C, H, W]
+    - Masks are 2D [H, W] or 3D [C, H, W] (e.g., C=1)
+    """
     if arr.ndim == 4:
-        if expected_t and arr.shape[0] == expected_t:
-            return (0, 1, 2, 3)      # (T,C,H,W)
-        if expected_t and arr.shape[1] == expected_t:
-            return (1, 0, 2, 3)      # (C,T,H,W)
-        if expected_t and arr.shape[-1] == expected_t:
-            return (3, 2, 0, 1)      # (H,W,C,T)
-        return (0, 1, 2, 3)          # fallback (T,C,H,W)
-    return (None, None, arr.ndim - 2, arr.ndim - 1)
-
-
-def _resize_spatial(img2d: np.ndarray, order: int, out_dtype):
-    r = resize(
-        img2d,
-        (32, 32),  # will be overridden by caller via partial if needed
-        order=order,
-        preserve_range=True,
-        anti_aliasing=(order != 0),
-    )
-    return r.astype(out_dtype, copy=False)
+        # [T, C, H, W]
+        return (0, 1, 2, 3)
+    if arr.ndim == 3:
+        # [C, H, W] (e.g., mask with channel dim)
+        return (None, 0, 1, 2)
+    if arr.ndim == 2:
+        # [H, W]
+        return (None, None, 0, 1)
+    raise ValueError(f"Unsupported array shape for visualization/processing: {arr.shape}")
 
 
 def _process_modality_arr(
@@ -416,7 +387,15 @@ def _process_modality_arr(
     is_label: bool,
     expected_t: int | None,
 ) -> np.ndarray:
-    """Trim time and resize H,W. Returns standardized layout [T?][C?][H][W] or [H,W]."""
+    """Trim time and resize H,W.
+
+    Assumptions:
+    - Time-series imagery arrives as [T, C, H, W]
+    - Masks arrive as [H, W] or [C, H, W]
+
+    Returns:
+        Array with preserved leading dims (T and/or C if present) and resized spatial dims [H, W].
+    """
     out_dtype = arr.dtype
     t_axis, c_axis, h_axis, w_axis = _determine_layout(arr, expected_t)
     axes = list(range(arr.ndim))
@@ -476,11 +455,22 @@ def create_compact_unittest_tortilla_from_final(
     random_state: int = 42,
     out_name: str = "pastis_unittest_small.tortilla",
 ) -> str:
-    """Follow the required flow:
-    1) Load the final tortilla
-    2) Subsample by split
-    3) Shrink S2/S1A/S1D to max_timesteps and downscale H/W for all modalities
-    4) Write a compact merged tortilla
+    """Create unittest version with fewer time steps and smaller spatial size.
+
+    Args:
+        final_tortilla_path: Path to the final PASTIS Benchmark tortilla file
+        save_dir: Directory to save the compact unittest tortilla
+        n_train_samples: Number of training samples in the unittest subset
+        n_val_samples: Number of validation samples in the unittest subset
+        n_test_samples: Number of test samples in the unittest subset
+        n_additional_test_samples: Number of additional test samples from train set
+        target_size: Target spatial size (H, W) for all modalities
+        max_timesteps: Maximum number of time steps to keep for time-series modalities
+        random_state: Random state for reproducibility
+        out_name: Name of the output compact tortilla file
+
+    Returns:
+        Path to the created compact unittest tortilla file
     """
     os.makedirs(save_dir, exist_ok=True)
 
@@ -587,7 +577,6 @@ def create_compact_unittest_tortilla_from_final(
         tacotoolbox.tortilla.create(per_sample, part_path, quiet=True, nworkers=4)
         written_parts.append(part_path)
 
-    # 4) Merge compact tortillas to a single file
     merged_samples = []
     for tf in sorted(written_parts):
         row = tacoreader.load(tf).iloc[0]
@@ -653,7 +642,7 @@ def main():
         h5_df.to_parquet(result_path)
 
     tortilla_name = "geobench_pastis.tortilla"
-    # create_tortilla(args.root, h5_df, args.save_dir, tortilla_name)
+    create_tortilla(args.root, h5_df, args.save_dir, tortilla_name)
 
     create_unit_test_subset(
         data_dir=args.save_dir,
