@@ -1,0 +1,37 @@
+name: style
+on:
+  push:
+    branches:
+    - main
+    - release**
+  pull_request:
+    branches:
+    - main
+    - release**
+
+jobs:
+  ruff:
+    name: ruff
+    runs-on: ubuntu-latest
+    steps:
+    - name: Clone repo
+      uses: actions/checkout@v4
+    - name: Set up python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+    - name: Install pip dependencies
+      if: steps.cache.outputs.cache-hit != 'true'
+      run: |
+        pip install -r requirements/style.txt
+        pip cache purge
+    - name: List pip dependencies
+      run: pip list
+    - name: Run ruff checks
+      run: |
+        ruff check --output-format=github --no-fix .
+        ruff format --diff
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
