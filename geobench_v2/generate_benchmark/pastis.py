@@ -27,7 +27,6 @@ from skimage.transform import resize
 
 from geobench_v2.generate_benchmark.utils import (
     create_subset_from_df,
-    create_unittest_subset,
     plot_sample_locations,
 )
 
