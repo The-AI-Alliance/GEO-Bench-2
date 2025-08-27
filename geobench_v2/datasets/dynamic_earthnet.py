@@ -24,15 +24,15 @@ class GeoBenchDynamicEarthNet(GeoBenchBaseDataset):
     url = "https://hf.co/datasets/aialliance/dynamic_earthnet/resolve/main/{}"
 
     paths = [
-        "geobench_dynamic_earthnet.0000.part.tortilla",
-        "geobench_dynamic_earthnet.0001.part.tortilla",
-        "geobench_dynamic_earthnet.0002.part.tortilla",
+        "geobench_dynamic_earthnet.0000.part.tortilla"
+        # "geobench_dynamic_earthnet.0001.part.tortilla",
+        # "geobench_dynamic_earthnet.0002.part.tortilla",
     ]
 
     sha256str = [
-        "11204f926bfd89feeaa4c045a79a640137a21f7c038f71665583e7a35d6ab73f",
-        "b3444cab2ac66b2cb225bb1fc4c71c298b6e31a1a1c5eaea72df7d820bb640b7",
-        "3e11fdb9726c4448c07ca6b33f94dfb2c07deb3caed4721c47fae46018b3a011",
+        "ddc7848db890933337d494a3086a5179630132dd7d76cd92cf0ae98bec66c986"
+        # "de6b49c217f35f6f1c37fd7e889fc2c9db28f542207c797627de8fa3fd211b4f",
+        # "d08bceb12f4294d815dd9ea26f31d9ae6315d9afc816301863a08a65addd4e73",
     ]
 
     dataset_band_config = DatasetBandRegistry.DYNAMICEARTHNET

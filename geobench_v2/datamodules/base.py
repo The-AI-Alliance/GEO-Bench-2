@@ -189,7 +189,7 @@ class GeoBenchDataModule(LightningDataModule, ABC):
         """Visualize the geospatial distribution of dataset samples on a map.
 
         Creates a plot showing the geographic locations of samples, colored by dataset split
-        (train, validation, test). This helps to understand the spatial distribution
+        (train, validation, test, extra_test). This helps to understand the spatial distribution
         and potential geographic biases in the dataset.
 
         Args:
@@ -199,16 +199,17 @@ class GeoBenchDataModule(LightningDataModule, ABC):
             scale: Scale of cartopy features (e.g., '10m', '50m', '110m').
             alpha: Transparency of plotted points.
             s: Size of plotted points.
+
+        Returns:
+            A matplotlib Figure object with the geospatial distribution plot.
         """
-        if not hasattr(self, "data_df") or self.data_df is None:
-            self.load_metadata()
+        data_df = self.load_metadata()
 
-        data_df = self.data_df.copy()
-
+        # Standardize coordinate columns
         if "lat" not in data_df.columns or "lon" not in data_df.columns:
             if "latitude" in data_df.columns and "longitude" in data_df.columns:
-                data_df.rename(
-                    columns={"latitude": "lat", "longitude": "lon"}, inplace=True
+                data_df = data_df.rename(
+                    columns={"latitude": "lat", "longitude": "lon"}
                 )
             else:
                 raise ValueError(
@@ -217,32 +218,26 @@ class GeoBenchDataModule(LightningDataModule, ABC):
 
         # Optional sub-sampling for performance
         if sample_fraction is not None and 0.0 < sample_fraction < 1.0:
-            sample_n = max(1, int(len(data_df) * sample_fraction))
-            data_df = data_df.sample(n=sample_n, random_state=0)
+            data_df = data_df.sample(frac=sample_fraction, random_state=0)
 
         dataset_name = self.__class__.__name__.replace("DataModule", "")
 
-        min_lon = data_df["lon"].min() - buffer_degrees
-        max_lon = data_df["lon"].max() + buffer_degrees
-        min_lat = data_df["lat"].min() - buffer_degrees
-        max_lat = data_df["lat"].max() + buffer_degrees
+        # Compute extent with buffer and clamp to world bounds
+        min_lon = max(-180, data_df["lon"].min() - buffer_degrees)
+        max_lon = min(180, data_df["lon"].max() + buffer_degrees)
+        min_lat = max(-90, data_df["lat"].min() - buffer_degrees)
+        max_lat = min(90, data_df["lat"].max() + buffer_degrees)
 
-        min_lon = max(-180, min_lon)
-        max_lon = min(180, max_lon)
-        min_lat = max(-90, min_lat)
-        max_lat = min(90, max_lat)
-
-        fig = plt.figure(figsize=(12, 10))
-
+        fig = plt.figure(figsize=(20, 16))
         lon_extent = max_lon - min_lon
         lat_extent = max_lat - min_lat
 
+        # Choose projection based on extent
         if lon_extent > 180:
             projection = ccrs.Robinson()
         else:
             central_lon = (min_lon + max_lon) / 2
             central_lat = (min_lat + max_lat) / 2
-
             if lat_extent > 60:
                 projection = ccrs.AlbersEqualArea(
                     central_longitude=central_lon, central_latitude=central_lat
@@ -255,61 +250,74 @@ class GeoBenchDataModule(LightningDataModule, ABC):
         ax = plt.axes(projection=projection)
         ax.set_extent([min_lon, max_lon, min_lat, max_lat], crs=ccrs.PlateCarree())
 
+        # Base features
         ax.add_feature(cfeature.LAND.with_scale(scale), facecolor="lightgray")
         ax.add_feature(cfeature.OCEAN.with_scale(scale), facecolor="lightblue")
         ax.add_feature(cfeature.COASTLINE.with_scale(scale), linewidth=0.8)
         ax.add_feature(cfeature.BORDERS.with_scale(scale), linewidth=0.8, linestyle=":")
-
-        if max_lon - min_lon < 90:
+        if lon_extent < 90:
             ax.add_feature(cfeature.RIVERS, linewidth=0.2, alpha=0.5)
             ax.add_feature(cfeature.LAKES, facecolor="lightblue", alpha=0.5)
 
-        splits = data_df[split_column].unique()
+        # Normalize split names and incorporate extra test if available
+        plot_col = "plot_split"
+        data_df[plot_col] = (
+            data_df[split_column].astype(str).replace({"val": "validation"})
+        )
+        if "add_test_split" in data_df.columns:
+            data_df.loc[data_df["add_test_split"].astype(bool), plot_col] = "extra_test"
+
+        # Stable split order for legend
+        desired_order = ["train", "validation", "test", "extra_test"]
+        present = [sp for sp in desired_order if sp in set(data_df[plot_col].unique())]
+        others = [sp for sp in data_df[plot_col].unique() if sp not in present]
+        splits = present + others
 
         split_colors = {
             "train": "blue",
-            "val": "green",
             "validation": "green",
             "test": "red",
+            "extra_test": "orange",
         }
 
-        legend_elements = []
-
+        legend_elements: list[Line2D] = []
         for split in splits:
-            split_data = data_df[data_df[split_column] == split]
-            if len(split_data) > 0:
-                color = split_colors.get(split, "gray")
-                ax.scatter(
-                    split_data["lon"],
-                    split_data["lat"],
-                    transform=ccrs.PlateCarree(),
-                    c=color,
-                    s=s,
-                    alpha=alpha,
-                    label=split,
+            split_data = data_df[data_df[plot_col] == split]
+            if len(split_data) == 0:
+                continue
+            color = split_colors.get(split, "gray")
+            ax.scatter(
+                split_data["lon"],
+                split_data["lat"],
+                transform=ccrs.PlateCarree(),
+                c=color,
+                s=s,
+                alpha=alpha,
+                label=split,
+            )
+            legend_elements.append(
+                Line2D(
+                    [0],
+                    [0],
+                    marker="o",
+                    color="w",
+                    markerfacecolor=color,
+                    markersize=8,
+                    label=f"{split} (n={len(split_data)})",
                 )
-                legend_elements.append(
-                    Line2D(
-                        [0],
-                        [0],
-                        marker="o",
-                        color="w",
-                        markerfacecolor=color,
-                        markersize=8,
-                        label=f"{split} (n={len(split_data)})",
-                    )
-                )
+            )
 
         ax.legend(handles=legend_elements, loc="lower right", title="Dataset Splits")
-        title = f"Geographic Distribution of {dataset_name} Samples by Split"
 
+        # Gridlines and title
         gl = ax.gridlines(
             draw_labels=True, linewidth=0.5, color="gray", alpha=0.5, linestyle="--"
         )
         gl.top_labels = False
         gl.right_labels = False
-
-        plt.title(title, fontsize=14)
+        plt.title(
+            f"Geographic Distribution of {dataset_name} Samples by Split", fontsize=14
+        )
 
         return fig
 
