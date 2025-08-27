@@ -252,7 +252,6 @@ class GeoBenchDynamicEarthNetDataModule(GeoBenchSegmentationDataModule):
         # Compute legend layout
         n_classes = len(legend_elements)
         ncols = min(6, max(1, n_classes))
-        legend_rows = int(np.ceil(n_classes / ncols))
 
         legend = fig.legend(
             handles=legend_elements,

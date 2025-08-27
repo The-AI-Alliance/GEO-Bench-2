@@ -9,6 +9,7 @@ from typing import Any
 
 import matplotlib.pyplot as plt
 import numpy as np
+import tacoreader
 import pandas as pd
 import torch
 import torch.nn as nn
@@ -78,8 +79,8 @@ class GeoBenchPASTISDataModule(GeoBenchSegmentationDataModule):
         Returns:
             pandas DataFrame with metadata.
         """
-        return pd.read_parquet(
-            os.path.join(self.kwargs["root"], "geobench_pastis.parquet")
+        return tacoreader.load(
+            [os.path.join(self.kwargs["root"], f) for f in GeoBenchPASTIS.paths]
         )
 
     def visualize_batch(
@@ -103,7 +104,8 @@ class GeoBenchPASTISDataModule(GeoBenchSegmentationDataModule):
         else:
             batch = next(iter(self.test_dataloader()))
 
-        batch = self.data_normalizer.unnormalize(batch)
+        if hasattr(self.data_normalizer, "unnormalize"):
+            batch = self.data_normalizer.unnormalize(batch)
 
         batch_size = batch["mask"].shape[0]
         n_samples = min(8, batch_size)
@@ -255,27 +257,34 @@ class GeoBenchPASTISDataModule(GeoBenchSegmentationDataModule):
                     ax.axis("off")
                 ax.axis("off")
 
-        plt.tight_layout()
+        # Compute legend layout
+        n_classes = len(legend_elements)
+        ncols = min(6, max(1, n_classes))
 
-        if legend_elements:
-            n_classes = len(legend_elements)
-            ncols = min(6, max(1, n_classes))  # spread across up to 6 columns
-            fig.legend(
-                handles=legend_elements,
-                loc="lower center",
-                bbox_to_anchor=(0.5, 0.0),
-                ncol=ncols,
-                fontsize=11,
-                title="Classes",
-                title_fontsize=11,
-                columnspacing=1.5,
-                handlelength=1.0,
-                handletextpad=0.6,
-                borderaxespad=0.2,
-                frameon=False,
-            )
-            # Leave more space for the legend at the bottom and row labels at the left
-            plt.subplots_adjust(bottom=0.18, left=0.10)
+        legend = fig.legend(
+            handles=legend_elements,
+            loc="upper center",
+            bbox_to_anchor=(0.5, 1.0),
+            ncol=ncols,
+            fontsize=12.0,
+            title="Classes",
+            title_fontsize=14,
+            frameon=False,
+            # tighter legend paddings reduce vertical space
+            borderaxespad=0.0,
+            handlelength=0.9,
+            handletextpad=0.3,
+            columnspacing=0.8,
+            labelspacing=0.2,
+        )
+        # Render once to get accurate legend bbox
+        fig.canvas.draw()
+        renderer = fig.canvas.get_renderer()
+        bbox = legend.get_window_extent(renderer=renderer)
+        fig_w, fig_h = fig.get_size_inches()
+
+        legend_h_frac = (bbox.height / (fig_h * fig.dpi)) + 0.006
+        fig.subplots_adjust(left=0.02, right=0.98, bottom=0.02, top=1.0 - legend_h_frac)
 
         return fig, batch
 
