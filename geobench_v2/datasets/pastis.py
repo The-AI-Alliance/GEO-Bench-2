@@ -37,14 +37,14 @@ class GeoBenchPASTIS(GeoBenchBaseDataset):
     url = "https://hf.co/datasets/aialliance/pastis/resolve/main/{}"
 
     paths = [
-        "geobench_pastis.0000.part.tortilla"
-        # "geobench_pastis.0001.part.tortilla",
+        "geobench_pastis.0000.part.tortilla",
+        "geobench_pastis.0001.part.tortilla",
         # "geobench_pastis.0002.part.tortilla",
     ]
 
     sha256str = [
-        "7ab6748fe26c4d9ece6ccc2139d1e305505f3cb51e966024795b127d0b84bf35"
-        # "92b25a4220e35104ae2e79916d506c949da16dcba136d5f37452bafc0ca8ce13",
+        "7ab6748fe26c4d9ece6ccc2139d1e305505f3cb51e966024795b127d0b84bf35",
+        "92b25a4220e35104ae2e79916d506c949da16dcba136d5f37452bafc0ca8ce13",
         # "f3038a4f7ced1c5faf89368ee10dae408e612fd29a60f500140ce8d315503dbb",
     ]
 
