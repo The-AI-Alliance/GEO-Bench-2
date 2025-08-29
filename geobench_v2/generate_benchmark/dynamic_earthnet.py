@@ -1248,39 +1248,39 @@ def main():
     os.makedirs(args.save_dir, exist_ok=True)
 
     metadata_path = os.path.join(args.save_dir, "geobench_metadata.parquet")
-    # if os.path.exists(metadata_path):
-    #     metadata_df = pd.read_parquet(metadata_path)
-    # else:
-    metadata_df = generate_metadata_df(args.root)
-    metadata_df.to_parquet(metadata_path)
+    if os.path.exists(metadata_path):
+        metadata_df = pd.read_parquet(metadata_path)
+    else:
+        metadata_df = generate_metadata_df(args.root)
+        metadata_df.to_parquet(metadata_path)
 
     patches_path = os.path.join(
         args.save_dir, "geobench_dynamic_earthnet_patches.parquet"
     )
 
-    # if os.path.exists(patches_path):
-    #     patches_df = pd.read_parquet(patches_path)
-    #     patches_df = add_coordinates_to_subset(patches_df, metadata_df)
-    #     patches_df.to_parquet(patches_path)
-    # else:
-    patches_df = create_dynamic_earthnet_patches(
-        args.root, args.save_dir, metadata_df, num_workers=16
-    )
-    patches_df = add_coordinates_to_subset(patches_df, metadata_df)
-    patches_df.to_parquet(patches_path)
+    if os.path.exists(patches_path):
+        patches_df = pd.read_parquet(patches_path)
+        patches_df = add_coordinates_to_subset(patches_df, metadata_df)
+        patches_df.to_parquet(patches_path)
+    else:
+        patches_df = create_dynamic_earthnet_patches(
+            args.root, args.save_dir, metadata_df, num_workers=16
+        )
+        patches_df = add_coordinates_to_subset(patches_df, metadata_df)
+        patches_df.to_parquet(patches_path)
 
     subset_path = os.path.join(args.save_dir, "geobench_dynamic_earthnet.parquet")
-    # if os.path.exists(subset_path):
-    #     subset_df = pd.read_parquet(subset_path)
-    # else:
-    subset_df = create_geobench_subset(
-        patches_df,
-        train_series=700,
-        val_series=100,
-        test_series=200,
-        additional_test_series=100,
-    )
-    subset_df.to_parquet(subset_path)
+    if os.path.exists(subset_path):
+        subset_df = pd.read_parquet(subset_path)
+    else:
+        subset_df = create_geobench_subset(
+            patches_df,
+            train_series=700,
+            val_series=100,
+            test_series=200,
+            additional_test_series=100,
+        )
+        subset_df.to_parquet(subset_path)
 
     verify_split_disjointness(subset_df)
 

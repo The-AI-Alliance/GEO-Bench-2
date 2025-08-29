@@ -118,7 +118,6 @@ def calculate_patch_coordinates(
 
 def process_files_for_coordinates(
     files,
-    modality_dir,
     data_split_dir,
     patch_size,
     overlap,
@@ -129,7 +128,6 @@ def process_files_for_coordinates(
 
     Args:
         files: List of files to process
-        modality_dir: Directory containing the files
         data_split_dir: Directory for the data split (train/val/test)
         patch_size: Size of the patches
         overlap: Overlap between patches
@@ -497,7 +495,6 @@ def process_patches_parallel(
     metadata_df: pd.DataFrame,
     input_base_dir: str,
     output_base_dir: str,
-    patch_size: int = 512,
     num_workers: int = None,
 ) -> pd.DataFrame:
     """Process patches in parallel.
@@ -506,7 +503,6 @@ def process_patches_parallel(
         metadata_df: DataFrame with metadata
         input_base_dir: Base directory for input PNG files
         output_base_dir: Base directory for output GeoTIFF files
-        patch_size: Size of patch in pixels
         num_workers: Number of workers for parallel processing
 
     Returns:

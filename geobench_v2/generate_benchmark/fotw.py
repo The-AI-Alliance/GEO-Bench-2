@@ -28,8 +28,6 @@ from geobench_v2.generate_benchmark.utils import (
     create_unittest_subset,
 )
 
-TOTAL_N = 20000
-
 CC_BY_COUNTRIES = (
     "austria",
     "brazil",

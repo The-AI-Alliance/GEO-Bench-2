@@ -559,7 +559,7 @@ def main():
         final_df.to_parquet(final_path)
 
     tortilla_name = "geobench_everwatch.tortilla"
-    # create_tortilla(final_df, args.save_dir, args.save_dir, tortilla_name=tortilla_name)
+    create_tortilla(final_df, args.save_dir, args.save_dir, tortilla_name=tortilla_name)
 
     create_unittest_subset(
         data_dir=args.save_dir,

@@ -649,7 +649,7 @@ def create_geobench_version(
     Args:
         metadata_df: DataFrame with metadata including geolocation for each patch
         n_train_samples: Number of final training samples, -1 means all
-        n_val_samples: Number of final validation samples, -1 means all
+        n_val_samples: Number of final samples, -1 means all
         n_test_samples: Number of final test samples, -1 means all
         n_additional_test_samples: Number of additional test samples from train set
     """

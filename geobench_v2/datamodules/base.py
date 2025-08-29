@@ -184,7 +184,7 @@ class GeoBenchDataModule(LightningDataModule, ABC):
         sample_fraction: float | None = None,
         scale: Literal["10m", "50m", "110m"] = "50m",
         alpha: float = 0.5,
-        s: float = 0.5,
+        s: float = 10,
     ) -> plt.Figure:
         """Visualize the geospatial distribution of dataset samples on a map.
 

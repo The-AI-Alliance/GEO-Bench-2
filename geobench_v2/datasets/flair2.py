@@ -23,15 +23,6 @@ class GeoBenchFLAIR2(GeoBenchBaseDataset):
 
     sha256str = ["96d18b1e7673fa2233145d69fd67db530c53bf68027b30466f7c94fd456df689"]
 
-    # paths: Sequence[str] = (
-    #     "FullFlair2.0000.part.tortilla",
-    #     "FullFlair2.0001.part.tortilla",
-    #     "FullFlair2.0002.part.tortilla",
-    #     "FullFlair2.0003.part.tortilla",
-    #     "FullFlair2.0004.part.tortilla",
-    #     "FullFlair2.0005.part.tortilla",
-    # )
-
     paths: Sequence[str] = ["geobench_flair2.tortilla"]
 
     classes = (

@@ -100,8 +100,6 @@ def generate_metadata_df(root: str) -> pd.DataFrame:
 
 def create_tortilla(root_dir, df, save_dir, tortilla_name):
     """Create a tortilla version of the dataset."""
-    # filter by valid_ratio, which is the percent of valid number of pixels in an image
-    # df = df[df["valid_ratio"] > 0.4]
 
     tortilla_dir = os.path.join(save_dir, "tortilla")
     os.makedirs(tortilla_dir, exist_ok=True)
@@ -118,7 +116,7 @@ def create_tortilla(root_dir, df, save_dir, tortilla_name):
                     path=os.path.join(root_dir, path),
                     file_format="GTiff",
                     data_split=row["split"],
-                    add_test_split=row["is_additional_test"],
+                    add_test_split=row["add_test_split"],
                     month=month,
                     source_img_file=path,
                     modality=modality,
@@ -132,7 +130,7 @@ def create_tortilla(root_dir, df, save_dir, tortilla_name):
             path=os.path.join(root_dir, row["agbm_path"]),
             file_format="GTiff",
             data_split=row["split"],
-            add_test_split=row["is_additional_test"],
+            add_test_split=row["add_test_split"],
             modality="AGBM",
             source_img_file=row["agbm_path"],
         )
@@ -167,7 +165,7 @@ def create_tortilla(root_dir, df, save_dir, tortilla_name):
     # create final taco file
     final_samples = tacotoolbox.tortilla.datamodel.Samples(samples=samples)
     tacotoolbox.tortilla.create(
-        final_samples, os.path.join(save_dir, tortilla_name), quiet=True, nworkers=4
+        final_samples, os.path.join(save_dir, tortilla_name), quiet=True, nworkers=4, chunk_size = "48GB"
     )
 
 
@@ -324,7 +322,7 @@ def process_biomassters_sample(args):
             "agbm_path": rel_agbm_path,
             "num_S1_images": len(s1_paths),
             "num_S2_images": len(s2_paths),
-            "is_additional_test": row["is_additional_test"],
+            "add_test_split": row["add_test_split"],
         }
 
     except Exception as e:
@@ -440,7 +438,7 @@ def create_test_subset(
         selected = train_pool.sample(total_train_needed, random_state=42)
         train_df = selected.iloc[:num_train_samples].copy()
         additional_df = selected.iloc[num_train_samples:].copy()
-        additional_df["is_additional_test"] = True
+        additional_df["add_test_split"] = True
     else:
         train_df = train_pool.sample(num_train_samples, random_state=42).copy()
         additional_df = pd.DataFrame(columns=train_pool.columns)
@@ -451,7 +449,7 @@ def create_test_subset(
     subset_df = pd.concat([train_df, val_df, test_df, additional_df]).reset_index(
         drop=True
     )
-    subset_df["is_additional_test"] = subset_df.get("is_additional_test", False)
+    subset_df["add_test_split"] = subset_df.get("add_test_split", False)
 
     print(
         f"Created subset with {len(subset_df)} samples: "
@@ -548,7 +546,7 @@ def create_test_subset(
                 "agbm_path": rel_agbm_path,
                 "num_S1_images": len(s1_paths),
                 "num_S2_images": len(s2_paths),
-                "is_additional_test": row["is_additional_test"],
+                "add_test_split": row["add_test_split"],
             }
         )
 
@@ -631,26 +629,26 @@ def main():
         metadata_df.to_parquet(metadata_path)
 
     results_path = os.path.join(args.save_dir, "geobench_biomassters.parquet")
-    # if os.path.exists(results_path):
-    #     results_df = pd.read_parquet(results_path)
-    # else:
-    results_df = create_geobench_version(
-        metadata_df,
-        n_train_samples=4000,
-        n_val_samples=1000,
-        n_test_samples=2000,
-        n_additional_test_samples=1000,
-    )
-    results_df.to_parquet(results_path)
+    if os.path.exists(results_path):
+        results_df = pd.read_parquet(results_path)
+    else:
+        results_df = create_geobench_version(
+            metadata_df,
+            n_train_samples=4000,
+            n_val_samples=1000,
+            n_test_samples=2000,
+            n_additional_test_samples=1000,
+        )
+        results_df.to_parquet(results_path)
 
     optimized_path = os.path.join(args.save_dir, "biomassters_optimized.parquet")
-    # if os.path.exists(optimized_path):
-    #     optimized_df = pd.read_parquet(optimized_path)
-    # else:
-    optimized_df = optimize_biomassters_dataset(
-        results_df, args.root, args.save_dir, num_workers=8
-    )
-    optimized_df.to_parquet(optimized_path)
+    if os.path.exists(optimized_path):
+        optimized_df = pd.read_parquet(optimized_path)
+    else:
+        optimized_df = optimize_biomassters_dataset(
+            results_df, args.root, args.save_dir, num_workers=8
+        )
+        optimized_df.to_parquet(optimized_path)
 
     tortilla_name = "geobench_biomassters.tortilla"
     create_tortilla(args.save_dir, optimized_df, args.save_dir, tortilla_name)
