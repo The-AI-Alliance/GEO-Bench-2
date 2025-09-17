@@ -11,8 +11,8 @@ import torch
 from torch.utils.data import Dataset
 
 from geobench_v2.generate_benchmark.utils_dataset_statistics import (
-    ClassificationDatasetStatistics,
-    SegmentationDatasetStatistics,
+    ClassificationStatistics,
+    SegmentationStatistics,
 )
 
 
@@ -157,7 +157,7 @@ def test_classification_statistics_balanced(band_registry, temp_directory):
         size=dataset_size, num_classes=num_classes, class_weights=None
     )
 
-    stats_computer = ClassificationDatasetStatistics(
+    stats_computer = ClassificationStatistics(
         dataset=dataset,
         dataset_band_config=band_registry,
         num_classes=num_classes,
@@ -200,7 +200,7 @@ def test_classification_statistics_imbalanced(band_registry, temp_directory):
     expected_counts = dataset.expected_counts.numpy()
     expected_frequencies = expected_counts / dataset_size
 
-    stats_computer = ClassificationDatasetStatistics(
+    stats_computer = ClassificationStatistics(
         dataset=dataset,
         dataset_band_config=band_registry,
         num_classes=num_classes,
@@ -235,7 +235,7 @@ def test_segmentation_statistics_balanced(band_registry, temp_directory):
         class_weights=None,
     )
 
-    stats_computer = SegmentationDatasetStatistics(
+    stats_computer = SegmentationStatistics(
         dataset=dataset,
         dataset_band_config=band_registry,
         num_classes=num_classes,
