@@ -33,7 +33,7 @@ myst_enable_extensions = ["dollarmath", "colon_fence"]
 master_doc = "index"
 
 # List of source suffix to include .py for jupytext
-source_suffix = [".rst", ".md", ".py"]
+source_suffix = [".rst", ".md"]
 # Alternative format:
 # source_suffix = {".rst": "restructuredtext", ".md": "markdown"}
 

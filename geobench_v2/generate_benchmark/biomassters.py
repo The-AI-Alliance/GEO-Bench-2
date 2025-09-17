@@ -165,7 +165,11 @@ def create_tortilla(root_dir, df, save_dir, tortilla_name):
     # create final taco file
     final_samples = tacotoolbox.tortilla.datamodel.Samples(samples=samples)
     tacotoolbox.tortilla.create(
-        final_samples, os.path.join(save_dir, tortilla_name), quiet=True, nworkers=4, chunk_size = "48GB"
+        final_samples,
+        os.path.join(save_dir, tortilla_name),
+        quiet=True,
+        nworkers=4,
+        chunk_size="48GB",
     )
 
 

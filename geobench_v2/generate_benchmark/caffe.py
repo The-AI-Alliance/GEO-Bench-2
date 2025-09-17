@@ -117,12 +117,7 @@ def calculate_patch_coordinates(
 
 
 def process_files_for_coordinates(
-    files,
-    data_split_dir,
-    patch_size,
-    overlap,
-    metadata_df,
-    patch_metadata,
+    files, data_split_dir, patch_size, overlap, metadata_df, patch_metadata
 ):
     """Process files to extract patch coordinates and metadata.
 

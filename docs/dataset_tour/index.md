@@ -7,7 +7,6 @@ These additional data notebooks are intended as a introduction to the dataset th
 
 benv2
 biomassters
-burn_scars
 caffe
 cloudsen12
 dynamic_earthnet
@@ -15,7 +14,6 @@ everwatch
 flair2
 fotw
 kuro_siwo
-mmflood
 pastis
 spacenet2
 spacenet6

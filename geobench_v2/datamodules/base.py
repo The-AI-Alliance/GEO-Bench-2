@@ -488,10 +488,10 @@ class GeoBenchClassificationDataModule(GeoBenchDataModule):
             num_workers: Number of workers for dataloaders
             collate_fn: Collate function that can reformat samples to the needs of the model.
             train_augmentations: Transforms/Augmentations to apply during training, they will be applied
-                at the sample level and should include normalization. See :method:`define_augmentations`
+                at the sample level and should include normalization. See :meth:`define_augmentations`
                 for the default transformation.
             eval_augmentations: Transforms/Augmentations to apply during evaluation, they will be applied
-                at the sample level and should include normalization. See :method:`define_augmentations`
+                at the sample level and should include normalization. See :meth:`define_augmentations`
                 for the default transformation.
             pin_memory: whether to pin memory in dataloaders
             **kwargs: Additional keyword arguments passed to ``dataset_class``
@@ -607,10 +607,10 @@ class GeoBenchSegmentationDataModule(GeoBenchDataModule):
             num_workers: Number of workers for dataloaders
             collate_fn: Collate function that can reformat samples to the needs of the model.
             train_augmentations: Transforms/Augmentations to apply during training, they will be applied
-                at the sample level and should include normalization. See :method:`define_augmentations`
+                at the sample level and should include normalization. See :meth:`define_augmentations`
                 for the default transformation.
             eval_augmentations: Transforms/Augmentations to apply during evaluation, they will be applied
-                at the sample level and should include normalization. See :method:`define_augmentations`
+                at the sample level and should include normalization. See :meth:`define_augmentations`
                 for the default transformation.
             pin_memory: whether to pin memory in dataloaders
             **kwargs: Additional keyword arguments passed to ``dataset_class``
@@ -727,10 +727,10 @@ class GeoBenchObjectDetectionDataModule(GeoBenchDataModule):
             num_workers: Number of workers for dataloaders
             collate_fn: Collate function that can reformat samples to the needs of the model.
             train_augmentations: Transforms/Augmentations to apply during training, they will be applied
-                at the sample level and should include normalization. See :method:`define_augmentations`
+                at the sample level and should include normalization. See :meth:`define_augmentations`
                 for the default transformation.
             eval_augmentations: Transforms/Augmentations to apply during evaluation, they will be applied
-                at the sample level and should include normalization. See :method:`define_augmentations`
+                at the sample level and should include normalization. See :meth:`define_augmentations`
                 for the default transformation.
             pin_memory: whether to pin memory in dataloaders
             **kwargs: Additional keyword arguments passed to ``dataset_class``

@@ -70,10 +70,10 @@ class GeoBenchSubstationDataModule(GeoBenchObjectDetectionDataModule):
             num_workers: Number of workers
             collate_fn: Collate function
             train_augmentations: Transforms/Augmentations to apply during training, they will be applied
-                at the sample level and should include normalization. See :method:`define_augmentations`
+                at the sample level and should include normalization. See :meth:`define_augmentations`
                 for the default transformation.
             eval_augmentations: Transforms/Augmentations to apply during evaluation, they will be applied
-                at the sample level and should include normalization. See :method:`define_augmentations`
+                at the sample level and should include normalization. See :meth:`define_augmentations`
                 for the default transformation.
             pin_memory: Pin memory
             **kwargs: Additional keyword arguments for the dataset class
@@ -217,12 +217,7 @@ class GeoBenchSubstationDataModule(GeoBenchObjectDetectionDataModule):
                 rgba[..., 3] = (mask > 0.5) * 0.4
                 ax_img.imshow(rgba, interpolation="none")
 
-                ax_img.contour(
-                    mask,
-                    levels=[0.5],
-                    colors=["white"],
-                    linewidths=1,
-                )
+                ax_img.contour(mask, levels=[0.5], colors=["white"], linewidths=1)
 
             ax_img.set_title(f"Sample {i + 1}" if i == 0 else "")
             ax_img.set_xticks([])

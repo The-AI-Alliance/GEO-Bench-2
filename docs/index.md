@@ -32,6 +32,7 @@ pip install geobenchv2
 
 dataset_tour/index
 dataset_notebooks/index
+normalization/index
 api/index
 GitHub Repository <https://github.com/The-AI-Alliance/GEO-Bench-2>
 ```
