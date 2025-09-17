@@ -8,6 +8,7 @@ import tempfile
 import numpy as np
 import pytest
 import torch
+from lightning import LightningDataModule
 from torch.utils.data import Dataset
 
 from geobench_v2.generate_benchmark.utils_dataset_statistics import (
@@ -136,6 +137,36 @@ class MockSegmentationDataset(Dataset):
         return {"image": self.images[idx], "mask": self.masks[idx]}
 
 
+class MockDataModule(LightningDataModule):
+    """Mock DataModule for testing."""
+
+    dataset_band_config = MockBandRegistry()
+
+    band_order = ["red", "green", "blue"]
+
+    def __init__(self, dataset):
+        super().__init__()
+        self.dataset = dataset
+
+        self.num_classes = self.dataset.num_classes
+
+        self.class_names = [f"class_{i}" for i in range(self.num_classes)]
+
+    def setup(self, stage=None):
+        self.train_dataset = self.dataset
+        self.val_dataset = self.dataset
+        self.test_dataset = self.dataset
+
+    def train_dataloader(self):
+        return torch.utils.data.DataLoader(self.train_dataset, batch_size=10)
+
+    def val_dataloader(self):
+        return torch.utils.data.DataLoader(self.val_dataset, batch_size=10)
+
+    def test_dataloader(self):
+        return torch.utils.data.DataLoader(self.test_dataset, batch_size=10)
+
+
 @pytest.fixture
 def band_registry():
     """Create a mock band registry."""
@@ -149,7 +180,7 @@ def temp_directory():
         yield tmpdirname
 
 
-def test_classification_statistics_balanced(band_registry, temp_directory):
+def test_classification_statistics_balanced(temp_directory):
     """Test classification statistics with a balanced dataset."""
     num_classes = 4
     dataset_size = 100
@@ -157,13 +188,12 @@ def test_classification_statistics_balanced(band_registry, temp_directory):
         size=dataset_size, num_classes=num_classes, class_weights=None
     )
 
+    datamodule = MockDataModule(dataset)
+
     stats_computer = ClassificationStatistics(
-        dataset=dataset,
-        dataset_band_config=band_registry,
-        num_classes=num_classes,
+        datamodule=datamodule,
         target_key="label",
         input_keys=["image"],
-        batch_size=10,
         device="cpu",
         save_dir=temp_directory,
     )
@@ -197,16 +227,15 @@ def test_classification_statistics_imbalanced(band_registry, temp_directory):
         size=dataset_size, num_classes=num_classes, class_weights=class_weights
     )
 
+    datamodule = MockDataModule(dataset)
+
     expected_counts = dataset.expected_counts.numpy()
     expected_frequencies = expected_counts / dataset_size
 
     stats_computer = ClassificationStatistics(
-        dataset=dataset,
-        dataset_band_config=band_registry,
-        num_classes=num_classes,
+        datamodule=datamodule,
         target_key="label",
         input_keys=["image"],
-        batch_size=10,
         device="cpu",
         save_dir=temp_directory,
     )
@@ -235,13 +264,12 @@ def test_segmentation_statistics_balanced(band_registry, temp_directory):
         class_weights=None,
     )
 
+    datamodule = MockDataModule(dataset)
+
     stats_computer = SegmentationStatistics(
-        dataset=dataset,
-        dataset_band_config=band_registry,
-        num_classes=num_classes,
+        datamodule=datamodule,
         target_key="mask",
         input_keys=["image"],
-        batch_size=5,
         device="cpu",
         save_dir=temp_directory,
     )
