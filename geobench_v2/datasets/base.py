@@ -5,7 +5,6 @@
 
 import hashlib
 import os
-import urllib.request
 from collections.abc import Callable, Sequence
 from typing import Literal
 
