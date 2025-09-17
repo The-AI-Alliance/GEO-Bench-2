@@ -13,5 +13,5 @@ torchvision>=0.16.1
 tacoreader==0.5.6
 geopandas>=1.1.0
 h5py>=3.14.0
-torchgeo @ git+https://github.com/microsoft/torchgeo.git
+torchgeo>=0.7.1
 cartopy>=0.25.0
