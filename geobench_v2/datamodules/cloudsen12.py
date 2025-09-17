@@ -79,10 +79,9 @@ class GeoBenchCloudSen12DataModule(GeoBenchSegmentationDataModule):
         Returns:
             pandas DataFrame with metadata.
         """
-        self.data_df = tacoreader.load(
+        return tacoreader.load(
             [os.path.join(self.kwargs["root"], f) for f in GeoBenchCloudSen12.paths]
         )
-        return self.data_df
 
     def visualize_batch(
         self, batch: dict[str, Tensor] | None = None, split: str = "train"

@@ -86,7 +86,7 @@ def compute_batch_histograms(
     """Compute channel-wise histograms for image modalities in a batch.
 
     Args:
-        batch: Dictionary with keys like 'image_s1', 'image_s2' containing tensors [B, C, H, W]
+        batch: Dictionary with keys like 'image_s1', 'image_s2' containing tensors [B, C, H, W], or [B, T, C, H, W]
         n_bins: Number of bins for histogram
         hist_range: Optional range for all histograms (min, max)
 
@@ -96,7 +96,7 @@ def compute_batch_histograms(
     batch_stats = {}
 
     for key, tensor in batch.items():
-        if key.startswith("image") and isinstance(tensor, Tensor) and tensor.ndim == 4:
+        if key.startswith("image") and isinstance(tensor, Tensor) and tensor.ndim >= 4:
             modality = key
 
             num_channels = tensor.shape[1]

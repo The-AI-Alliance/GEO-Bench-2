@@ -859,7 +859,7 @@ def main():
             n_train_samples=3500,
             n_val_samples=-1,
             n_test_samples=-1,
-            n_additional_test_samples=388,
+            n_additional_test_samples=0,
             root_dir=args.root,
             save_dir=args.save_dir,
         )
@@ -880,7 +880,7 @@ def main():
         n_train_samples=2,
         n_val_samples=1,
         n_test_samples=1,
-        n_additional_test_samples=1,
+        n_additional_test_samples=0,
     )
 
 

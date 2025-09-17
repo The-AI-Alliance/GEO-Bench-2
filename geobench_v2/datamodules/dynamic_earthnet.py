@@ -5,10 +5,11 @@
 
 import os
 from collections.abc import Callable, Sequence
-from typing import Any
+from typing import Any, Literal
 
 import matplotlib.pyplot as plt
 import pandas as pd
+import tacoreader
 import torch
 import numpy as np
 from einops import rearrange
@@ -80,8 +81,11 @@ class GeoBenchDynamicEarthNetDataModule(GeoBenchSegmentationDataModule):
         Returns:
             pandas DataFrame with metadata.
         """
-        return pd.read_parquet(
-            os.path.join(self.kwargs["root"], "geobench_dynamic_earthnet.parquet")
+        return tacoreader.load(
+            [
+                os.path.join(self.kwargs["root"], f)
+                for f in GeoBenchDynamicEarthNet.paths
+            ]
         )
 
     def visualize_batch(
@@ -102,8 +106,8 @@ class GeoBenchDynamicEarthNetDataModule(GeoBenchSegmentationDataModule):
         else:
             batch = next(iter(self.test_dataloader()))
 
-        # Unnormalize for plotting
-        batch = self.data_normalizer.unnormalize(batch)
+        if hasattr(self.data_normalizer, "unnormalize"):
+            batch = self.data_normalizer.unnormalize(batch)
 
         batch_size = batch["mask"].shape[0]
         n_samples = min(4, batch_size)
@@ -151,8 +155,12 @@ class GeoBenchDynamicEarthNetDataModule(GeoBenchSegmentationDataModule):
         fig, axes = plt.subplots(
             n_samples * t_max,
             num_columns,
-            figsize=(num_columns * 4.2, 3.0 * n_samples * t_max),
-            gridspec_kw={"width_ratios": num_columns * [1]},
+            figsize=(num_columns * 4.0, 2.6 * n_samples * t_max),  # slightly tighter
+            gridspec_kw={
+                "width_ratios": num_columns * [1],
+                "wspace": 0.02,
+                "hspace": 0.02,
+            },
         )
         if axes.ndim == 1:
             axes = axes.reshape(1, -1)
@@ -218,7 +226,7 @@ class GeoBenchDynamicEarthNetDataModule(GeoBenchSegmentationDataModule):
                         ax.imshow(percentile_normalization(img, lower=2, upper=98))
 
                         if i == 0 and t == 0:
-                            ax.set_title(f"{mod.upper()}", fontsize=14)
+                            ax.set_title(f"{mod.upper()}", fontsize=13)
                     else:
                         ax.axis("off")
                     ax.axis("off")
@@ -236,37 +244,76 @@ class GeoBenchDynamicEarthNetDataModule(GeoBenchSegmentationDataModule):
                         vmin=min(unique_classes) if unique_classes else 0,
                         vmax=vmax,
                     )
-                    ax.set_title("Label", fontsize=14)
+                    ax.set_title("Label", fontsize=13)
                 else:
                     ax.axis("off")
                 ax.axis("off")
 
-        plt.tight_layout()
+        # Compute legend layout
+        n_classes = len(legend_elements)
+        ncols = min(6, max(1, n_classes))
 
-        if legend_elements:
-            n_classes = len(legend_elements)
-            ncols = min(6, max(1, n_classes))
-            fig.legend(
-                handles=legend_elements,
-                loc="lower center",
-                bbox_to_anchor=(0.5, 0.0),
-                ncol=ncols,
-                fontsize=10.5,
-                title="Classes",
-                title_fontsize=11,
-                columnspacing=1.8,
-                handlelength=1.0,
-                handletextpad=0.6,
-                borderaxespad=0.2,
-                frameon=False,
-            )
-            plt.subplots_adjust(bottom=0.18, left=0.10)
+        legend = fig.legend(
+            handles=legend_elements,
+            loc="upper center",
+            bbox_to_anchor=(0.5, 1.0),
+            ncol=ncols,
+            fontsize=12.0,
+            title="Classes",
+            title_fontsize=14,
+            frameon=False,
+            # tighter legend paddings reduce vertical space
+            borderaxespad=0.0,
+            handlelength=0.9,
+            handletextpad=0.3,
+            columnspacing=0.8,
+            labelspacing=0.2,
+        )
+        # Render once to get accurate legend bbox
+        fig.canvas.draw()
+        renderer = fig.canvas.get_renderer()
+        bbox = legend.get_window_extent(renderer=renderer)
+        fig_w, fig_h = fig.get_size_inches()
+
+        legend_h_frac = (bbox.height / (fig_h * fig.dpi)) + 0.006
+        fig.subplots_adjust(left=0.02, right=0.98, bottom=0.02, top=1.0 - legend_h_frac)
 
         return fig, batch
 
-    def visualize_geolocation_distribution(self) -> None:
-        """Visualize the geolocation distribution of the dataset."""
-        pass
+    def visualize_geospatial_distribution(
+        self,
+        split_column: str = "tortilla:data_split",
+        buffer_degrees: float = 5.0,
+        sample_fraction: float | None = None,
+        scale: Literal["10m", "50m", "110m"] = "50m",
+        alpha: float = 0.8,
+        s: float = 10,
+    ) -> plt.Figure:
+        """Visualize the geospatial distribution of dataset samples on a map.
+
+        Creates a plot showing the geographic locations of samples, colored by dataset split
+        (train, validation, test, extra_test). This helps to understand the spatial distribution
+        and potential geographic biases in the dataset.
+
+        Args:
+            split_column: Column name in the metadata DataFrame that indicates the dataset split.
+            buffer_degrees: Buffer around the data extent in degrees.
+            sample_fraction: Optional fraction of samples to plot (0.0-1.0) for performance with large datasets.
+            scale: Scale of cartopy features (e.g., '10m', '50m', '110m').
+            alpha: Transparency of plotted points
+            s: Size of plotted points.
+
+        Returns:
+            A matplotlib Figure object with the geospatial distribution plot.
+        """
+        return super().visualize_geospatial_distribution(
+            split_column=split_column,
+            buffer_degrees=buffer_degrees,
+            sample_fraction=sample_fraction,
+            scale=scale,
+            alpha=alpha,
+            s=s,
+        )
 
     def setup_image_size_transforms(self) -> tuple[nn.Module, nn.Module, nn.Module]:
         """Setup image resizing transforms for train, val, test.

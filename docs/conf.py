@@ -93,5 +93,5 @@ intersphinx_mapping = {
     "torch": ("https://pytorch.org/docs/stable", None),
 }
 
-# Some notebooks require GPU
+# Do not execute notebooks during the build
 nbsphinx_execute = "never"

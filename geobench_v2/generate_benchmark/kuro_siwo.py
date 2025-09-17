@@ -649,7 +649,7 @@ def create_geobench_version(
     Args:
         metadata_df: DataFrame with metadata including geolocation for each patch
         n_train_samples: Number of final training samples, -1 means all
-        n_val_samples: Number of final validation samples, -1 means all
+        n_val_samples: Number of final samples, -1 means all
         n_test_samples: Number of final test samples, -1 means all
         n_additional_test_samples: Number of additional test samples from train set
     """
@@ -697,7 +697,7 @@ def main():
             n_train_samples=4000,
             n_val_samples=1000,
             n_test_samples=2000,
-            n_additional_test_samples=1000,
+            n_additional_test_samples=0,
         )
 
         result_df = reprocess_kurosiwo_dataset(
@@ -728,7 +728,7 @@ def main():
         n_train_samples=4,
         n_val_samples=2,
         n_test_samples=2,
-        n_additional_test_samples=1,
+        n_additional_test_samples=0,
     )
 
 

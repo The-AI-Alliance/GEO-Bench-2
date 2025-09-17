@@ -10,6 +10,7 @@ from typing import Any
 import matplotlib.pyplot as plt
 import pandas as pd
 import torch
+import tacoreader
 from einops import rearrange
 import numpy as np
 import torch.nn as nn
@@ -73,8 +74,8 @@ class GeoBenchBioMasstersDataModule(GeoBenchSegmentationDataModule):
         Returns:
             pandas DataFrame with metadata.
         """
-        return pd.read_parquet(
-            os.path.join(self.kwargs["root"], "geobench_biomassters.parquet")
+        return tacoreader.load(
+            [os.path.join(self.kwargs["root"], f) for f in GeoBenchBioMassters.paths]
         )
 
     def visualize_batch(
@@ -95,8 +96,8 @@ class GeoBenchBioMasstersDataModule(GeoBenchSegmentationDataModule):
         else:
             batch = next(iter(self.test_dataloader()))
 
-        # Unnormalize for plotting
-        batch = self.data_normalizer.unnormalize(batch)
+        if hasattr(self.data_normalizer, "unnormalize"):
+            batch = self.data_normalizer.unnormalize(batch)
 
         batch_size = batch["mask"].shape[0]
         n_samples = min(4, batch_size)
@@ -165,39 +166,15 @@ class GeoBenchBioMasstersDataModule(GeoBenchSegmentationDataModule):
                     fontsize=10,
                 )
 
-        # Prepare mask and legend
         masks = batch["mask"][indices]
-        unique_classes = torch.unique(masks).cpu().numpy()
-        unique_classes = sorted({int(c) for c in unique_classes if int(c) >= 0})
+        # Squeeze channel if present (B, 1, H, W) -> (B, H, W)
+        if masks.ndim == 4 and masks.shape[1] == 1:
+            masks = masks.squeeze(1)
+        masks_np = masks.cpu().numpy()
+        vmin = float(np.nanmin(masks_np))
+        vmax = float(np.nanmax(masks_np))
 
-        class_names = getattr(self, "class_names", None)
-        if not class_names or max(unique_classes, default=0) >= len(class_names):
-            # Fallback numeric names
-            class_names = [
-                f"class {i}" for i in range(max(unique_classes, default=-1) + 1)
-            ]
-
-        cmap = plt.cm.tab20
-        colors = {i: cmap(i % 20) for i in unique_classes}
-        class_cmap = plt.cm.colors.ListedColormap(
-            [colors[i] for i in unique_classes] or [(0, 0, 0, 1)]
-        )
-
-        legend_elements = []
-        for cls_id in unique_classes:
-            legend_elements.append(
-                plt.Rectangle(
-                    (0, 0),
-                    1,
-                    1,
-                    color=colors[cls_id],
-                    label=class_names[cls_id]
-                    if cls_id < len(class_names)
-                    else f"class {cls_id}",
-                )
-            )
-
-        # Plot modalities
+        # Plot modalities and regression mask with per-sample colorbar
         for i in range(n_samples):
             for j, mod in enumerate(modalities.keys()):
                 mod_images = modalities[mod]  # [b, t, h, w, c]
@@ -240,40 +217,17 @@ class GeoBenchBioMasstersDataModule(GeoBenchSegmentationDataModule):
                 row_idx = i * t_max + t
                 ax = axes[row_idx, -1]
                 if t == 0:
-                    mask_img = masks[i].squeeze(0).cpu().numpy()
-                    vmax = max(unique_classes) if unique_classes else 1
-                    ax.imshow(
-                        mask_img,
-                        cmap=class_cmap,
-                        vmin=min(unique_classes) if unique_classes else 0,
-                        vmax=vmax,
-                    )
-                    ax.set_title("Label", fontsize=14)
+                    mask_img = masks_np[i]
+                    im = ax.imshow(mask_img, cmap="viridis", vmin=vmin, vmax=vmax)
+                    ax.set_title("Target", fontsize=14)
+                    # Add per-sample colorbar
+                    cbar = plt.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
+                    cbar.ax.tick_params(labelsize=8)
                 else:
                     ax.axis("off")
                 ax.axis("off")
 
         plt.tight_layout()
-
-        if legend_elements:
-            n_classes = len(legend_elements)
-            ncols = min(6, max(1, n_classes))
-            fig.legend(
-                handles=legend_elements,
-                loc="lower center",
-                bbox_to_anchor=(0.5, 0.0),
-                ncol=ncols,
-                fontsize=10.5,
-                title="Classes",
-                title_fontsize=11,
-                columnspacing=1.8,
-                handlelength=1.0,
-                handletextpad=0.6,
-                borderaxespad=0.2,
-                frameon=False,
-            )
-            plt.subplots_adjust(bottom=0.18, left=0.10)
-
         return fig, batch
 
     def visualize_geolocation_distribution(self) -> None:

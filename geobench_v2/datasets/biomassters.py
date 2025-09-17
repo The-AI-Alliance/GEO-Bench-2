@@ -26,36 +26,20 @@ class GeoBenchBioMassters(GeoBenchBaseDataset):
     """
 
     url = "https://hf.co/datasets/aialliance/biomassters/resolve/main/{}"
-    # paths = [
-    #     "BioMassters.0000.part.tortilla",
-    #     "BioMassters.0001.part.tortilla",
-    #     "BioMassters.0002.part.tortilla",
-    #     "BioMassters.0003.part.tortilla",
-    #     "BioMassters.0004.part.tortilla",
-    #     "BioMassters.0005.part.tortilla",
-    #     "BioMassters.0006.part.tortilla",
-    #     "BioMassters.0007.part.tortilla",
-    #     "BioMassters.0008.part.tortilla",
-    #     "BioMassters.0009.part.tortilla",
-    #     "BioMassters.0010.part.tortilla",
-    #     "BioMassters.0011.part.tortilla",
-    #     "BioMassters.0012.part.tortilla",
-    #     "BioMassters.0013.part.tortilla",
-    #     "BioMassters.0014.part.tortilla",
-    #     "BioMassters.0015.part.tortilla",
-    # ]
 
     paths = [
-        "geobench_biomassters.0000.part.tortilla",
-        "geobench_biomassters.0001.part.tortilla",
-        "geobench_biomassters.0002.part.tortilla",
-        "geobench_biomassters.0003.part.tortilla",
-        "geobench_biomassters.0004.part.tortilla",
-        "geobench_biomassters.0005.part.tortilla",
-        "geobench_biomassters.0006.part.tortilla",
+        "geobench_biomassters.0000.part.tortilla"
+        # "geobench_biomassters.0001.part.tortilla",
+        # "geobench_biomassters.0002.part.tortilla",
+        # "geobench_biomassters.0003.part.tortilla",
+        # "geobench_biomassters.0004.part.tortilla",
+        # "geobench_biomassters.0005.part.tortilla",
+        # "geobench_biomassters.0006.part.tortilla",
     ]
 
-    sha256str: Sequence[str] = [""]
+    sha256str: Sequence[str] = [
+        "77682ec73a9d496eb694b6a6e65c2ee793ed9f326e6b37a9dea1b065177334ff"
+    ]
 
     dataset_band_config = DatasetBandRegistry.BIOMASSTERS
 
