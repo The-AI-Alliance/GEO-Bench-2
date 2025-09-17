@@ -515,7 +515,7 @@ def main():
             n_train_samples=20000,
             n_val_samples=4000,
             n_test_samples=4000,
-            n_additional_test_samples=4000,
+            n_additional_test_samples=0,
         )
         result_df = create_optimized_geotiffs(
             metadata_df=result_df,
@@ -537,7 +537,7 @@ def main():
         n_train_samples=4,
         n_val_samples=2,
         n_test_samples=2,
-        n_additional_test_samples=1,
+        n_additional_test_samples=0,
     )
 
 

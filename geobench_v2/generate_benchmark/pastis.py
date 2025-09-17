@@ -348,7 +348,7 @@ def create_unit_test_subset(data_dir, test_dir_name) -> None:
         n_train_samples=4,
         n_val_samples=2,
         n_test_samples=2,
-        n_additional_test_samples=1,
+        n_additional_test_samples=0,
         target_size=32,
         max_timesteps=3,
         random_state=42,
@@ -644,7 +644,7 @@ def main():
             n_train_samples=1200,
             n_val_samples=482,
             n_test_samples=496,
-            n_additional_test_samples=255,
+            n_additional_test_samples=0,
         )
 
         h5_df = convert_pastis_numpy_to_hdf5(

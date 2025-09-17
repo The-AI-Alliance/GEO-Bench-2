@@ -744,7 +744,7 @@ def main():
             n_train_samples=4000,
             n_val_samples=1000,
             n_test_samples=2000,
-            n_additional_test_samples=1000,
+            n_additional_test_samples=0,
         )
         patches_df.to_parquet(patches_path)
 
@@ -758,7 +758,7 @@ def main():
         n_train_samples=4,
         n_val_samples=2,
         n_test_samples=2,
-        n_additional_test_samples=1,
+        n_additional_test_samples=0,
     )
 
 
