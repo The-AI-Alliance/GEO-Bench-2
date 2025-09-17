@@ -81,7 +81,7 @@ tests = [
 docs = [
     ### Docs ###
     # sphinx
-    "sphinx>=4,<7",
+    "sphinx>=4",
     # ipywidgets 7+ required by nbsphinx
     "ipywidgets>=7",
     # notebooks with sphinx
