@@ -485,7 +485,7 @@ def main():
         test_dir_name="wind_turbine",
         n_train_samples=2,
         n_val_samples=1,
-        n_test_samples=1,
+        n_test_samples=0,
     )
 
 

@@ -643,7 +643,7 @@ def main():
             n_train_samples=1200,
             n_val_samples=482,
             n_test_samples=496,
-            n_additional_test_samples=255,
+            n_additional_test_samples=0,
         )
 
 

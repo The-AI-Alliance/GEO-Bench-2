@@ -597,6 +597,8 @@ def generate_metadata_df(root: str) -> pd.DataFrame:
 
     df = df[df["file_exists"]]
 
+    df = df[df["quality_factor"] == "1"].reset_index(drop=True)
+
     return df
 
 
@@ -604,6 +606,9 @@ def create_tortilla(root_dir, df, save_dir, tortilla_name):
     """Create a tortilla version of the dataset."""
     tortilla_dir = os.path.join(save_dir, "tortilla")
     os.makedirs(tortilla_dir, exist_ok=True)
+
+
+    all_tortilla_files : list[str] = []
 
     for idx, row in tqdm(df.iterrows(), total=len(df), desc="Creating tortilla"):
         modalities = ["img", "mask"]
@@ -628,7 +633,7 @@ def create_tortilla(root_dir, df, save_dir, tortilla_name):
                 path=path,
                 file_format="GTiff",
                 data_split=row["split"],
-                add_test_split=row["is_additional_test"],
+                add_test_split=row["add_test_split"],
                 stac_data=stac_data,
                 lat=row["latitude"],
                 lon=row["longitude"],
@@ -642,8 +647,7 @@ def create_tortilla(root_dir, df, save_dir, tortilla_name):
         samples_path = os.path.join(tortilla_dir, f"sample_{idx}.tortilla")
         tacotoolbox.tortilla.create(taco_samples, samples_path, quiet=True)
 
-    # merge tortillas into a single dataset
-    all_tortilla_files = sorted(glob.glob(os.path.join(tortilla_dir, "*.tortilla")))
+        all_tortilla_files.append(samples_path)
 
     samples = []
 
@@ -726,31 +730,31 @@ def main():
 
     os.makedirs(args.save_dir, exist_ok=True)
 
-    if os.path.exists(new_metadata_path):
-        metadata_df = pd.read_parquet(new_metadata_path)
-    else:
-        metadata_df = generate_metadata_df(args.root)
-        metadata_df.to_parquet(new_metadata_path)
+    # if os.path.exists(new_metadata_path):
+    #     metadata_df = pd.read_parquet(new_metadata_path)
+    # else:
+    metadata_df = generate_metadata_df(args.root)
+    metadata_df.to_parquet(new_metadata_path)
 
     patches_path = os.path.join(args.save_dir, "geobench_caffe.parquet")
 
-    if os.path.exists(patches_path):
-        patches_df = pd.read_parquet(patches_path)
-    else:
-        patches_df = process_patches_parallel(
-            metadata_df,
-            os.path.join(args.root, "caffe_processed"),
-            args.save_dir,
-            num_workers=8,
-        )
-        patches_df = create_geobench_version(
-            patches_df,
-            n_train_samples=4000,
-            n_val_samples=1000,
-            n_test_samples=2000,
-            n_additional_test_samples=1000,
-        )
-        patches_df.to_parquet(patches_path)
+    # if os.path.exists(patches_path):
+    #     patches_df = pd.read_parquet(patches_path)
+    # else:
+    patches_df = process_patches_parallel(
+        metadata_df,
+        os.path.join(args.root, "caffe_processed"),
+        args.save_dir,
+        num_workers=8,
+    )
+    patches_df = create_geobench_version(
+        patches_df,
+        n_train_samples=4000,
+        n_val_samples=1000,
+        n_test_samples=2000,
+        n_additional_test_samples=0,
+    )
+    patches_df.to_parquet(patches_path)
 
     tortilla_name = "geobench_caffe.tortilla"
     create_tortilla(args.save_dir, patches_df, args.save_dir, tortilla_name)
@@ -762,7 +766,7 @@ def main():
         n_train_samples=4,
         n_val_samples=2,
         n_test_samples=2,
-        n_additional_test_samples=1,
+        n_additional_test_samples=0,
     )
 
 

@@ -10,11 +10,18 @@ import numpy as np
 import pandas as pd
 import tacoreader
 from huggingface_hub import snapshot_download
+import geopandas as gpd
+import matplotlib.pyplot as plt
+import cartopy.crs as ccrs
+import pyproj
+from shapely.geometry import Point
 
 from geobench_v2.generate_benchmark.utils import (
     create_subset_from_df,
     create_unittest_subset,
+    plot_sample_locations
 )
+
 
 
 def create_subset(root: str, save_dir: str) -> None:
@@ -70,6 +77,10 @@ def create_subset(root: str, save_dir: str) -> None:
             & (metadata_df["label_type"] == "high")
         ].reset_index(drop=True)
 
+        metadata_df[["lon", "lat"]] = metadata_df["stac:centroid"].str.extract(
+            r"POINT \(([-\d\.]+) ([-\d\.]+)\)"
+        ).astype(float)
+
         tacoreader.compile(
             dataframe=metadata_df,
             output=os.path.join(save_dir, f"geobench_cloudsen12-{key}.taco"),
@@ -98,15 +109,16 @@ def main():
     args = parser.parse_args()
 
     metadata_path = os.path.join(args.save_dir, "geobench_cloudsen12_metadata.parquet")
-    if os.path.exists(metadata_path):
-        metadata_df = pd.read_parquet(metadata_path)
-    else:
-        metadata_df = create_subset(args.root, save_dir=args.save_dir)
-        metadata_df.to_parquet(metadata_path)
+    # if os.path.exists(metadata_path):
+    #     metadata_df = pd.read_parquet(metadata_path)
+    # else:
+    metadata_df = create_subset(args.root, save_dir=args.save_dir)
+    metadata_df.to_parquet(metadata_path)
 
     plot_sample_locations(
         metadata_df=metadata_df,
         output_path=os.path.join(args.save_dir, "sample_locations.png"),
+        split_column="tortilla:data_split",
     )
 
     l2a_taco = tacoreader.load(
@@ -118,7 +130,7 @@ def main():
         n_train_samples=4000,
         n_val_samples=1000,
         n_test_samples=2000,
-        n_additional_test_samples=1000,
+        n_additional_test_samples=0,
         split_column="tortilla:data_split",
         random_state=42,
     )
@@ -136,7 +148,7 @@ def main():
         n_train_samples=2,
         n_val_samples=1,
         n_test_samples=1,
-        n_additional_test_samples=1,
+        n_additional_test_samples=0,
     )
 
 

@@ -59,10 +59,10 @@ def generate_metadata_df(root: str) -> pd.DataFrame:
     df["lon"], df["lat"] = zip(*df["pan_path"].apply(extract_lng_lat))
 
     # make path relative
-    df["label_path"] = df["label_path"].str.replace(root, "")
-    df["ps-ms_path"] = df["ps-ms_path"].str.replace(root, "")
-    df["pan_path"] = df["pan_path"].str.replace(root, "")
-    df["ps-rgb_path"] = df["ps-rgb_path"].str.replace(root, "")
+    df["label_path"] = df["label_path"].str.replace(root, "").str.lstrip(os.sep)
+    df["ps-ms_path"] = df["ps-ms_path"].str.replace(root, "").str.lstrip(os.sep)
+    df["pan_path"] = df["pan_path"].str.replace(root, "").str.lstrip(os.sep)
+    df["ps-rgb_path"] = df["ps-rgb_path"].str.replace(root, "").str.lstrip(os.sep)
 
     df["area"] = df["pan_path"].str.split("_").str[2]
 
@@ -579,7 +579,7 @@ def create_tortilla(root_dir, df, save_dir, tortilla_name):
     # create final taco file
     final_samples = tacotoolbox.tortilla.datamodel.Samples(samples=samples)
     tacotoolbox.tortilla.create(
-        final_samples, os.path.join(save_dir, tortilla_name), quiet=True
+        final_samples, os.path.join(save_dir, tortilla_name), quiet=True, chunk_size = "48GB"
     )
 
 
@@ -588,6 +588,7 @@ def create_geobench_version(
     n_train_samples: int,
     n_val_samples: int,
     n_test_samples: int,
+    n_additional_test_samples: int,
     root_dir: str,
     save_dir: str,
 ) -> None:
@@ -598,6 +599,7 @@ def create_geobench_version(
         n_train_samples: Number of final training samples, -1 means all
         n_val_samples: Number of final validation samples, -1 means all
         n_test_samples: Number of final test samples, -1 means all
+        n_additional_test_samples: Number of additional test samples to add from the train split
         root_dir: Root directory for the dataset
         save_dir: Directory to save the GeoBench version
     """
@@ -608,6 +610,7 @@ def create_geobench_version(
         n_train_samples=n_train_samples,
         n_val_samples=n_val_samples,
         n_test_samples=n_test_samples,
+        n_additional_test_samples=n_additional_test_samples,
         random_state=random_state,
     )
 
@@ -644,17 +647,17 @@ def main():
     else:
         metadata_df = generate_metadata_df(args.root)
 
-    full_df = create_city_based_checkerboard_splits(metadata_df)
-
     result_path = os.path.join(args.save_dir, "geobench_spacenet2.parquet")
     if os.path.exists(result_path):
         result_df = pd.read_parquet(result_path)
     else:
+        full_df = create_city_based_checkerboard_splits(metadata_df)
         result_df = create_geobench_version(
             full_df,
             n_train_samples=4000,
             n_val_samples=-1,
             n_test_samples=-1,
+            n_additional_test_samples=0,
             root_dir=args.root,
             save_dir=args.save_dir,
         )
@@ -674,19 +677,8 @@ def main():
         n_train_samples=2,
         n_val_samples=1,
         n_test_samples=1,
+        n_additional_test_samples=0,
     )
-
-    # for city in full_df["area"].unique():
-    #     plot_sample_locations(
-    #         full_df[full_df["area"] == city],
-    #         os.path.join(args.save_dir, f"sample_locations_{city.lower()}.png"),
-    #         buffer_degrees=0.2,
-    #         dataset_name=f"SpaceNet2 {city}",
-    #     )
-
-    # visualize_samples(full_df, args.root)
-
-    # full_df.to_parquet(metadata_path)
 
 
 if __name__ == "__main__":

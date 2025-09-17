@@ -1278,7 +1278,7 @@ def main():
         train_series=700,
         val_series=100,
         test_series=200,
-        additional_test_series=100,
+        additional_test_series=0,
     )
     subset_df.to_parquet(subset_path)
 
@@ -1294,7 +1294,7 @@ def main():
         num_train_samples=2,
         num_val_samples=1,
         num_test_samples=1,
-        n_additional_test_samples=1,
+        n_additional_test_samples=0,
         target_size=16,
     )
 
