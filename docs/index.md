@@ -10,33 +10,20 @@ pip install geobenchv2
 
 ## Dataset Overview
 
-| Dataset Name      | Task Type                | Modalities                                      |
-|-------------------|-------------------------|-------------------------------------------------|
-| BigEarthNetV2     | Multi-label Classification | Sentinel-1 SAR, Sentinel-2 Optical              |
-| BioMassters       | Regression (Biomass Est.) | Sentinel-1 SAR, Sentinel-2 Optical              |
-| CaFFe             | Segmentation             | Sentinel-1 SAR, Sentinel-2 Optical              |
-| CloudSen12        | Segmentation             | Sentinel-2 Optical                              |
-| FLAIR2            | Segmentation             | Aerial RGB+NIR, DEM, Sentinel-2 Optical         |
-| Fields of The World (FoTW) | Segmentation    | Sentinel-2 Optical, Sentinel-1 SAR              |
-| Dynamic EarthNet  | Spatio-temporal Forecasting | Sentinel-1 SAR, Sentinel-2 Optical, PlanetScope|
-| EverWatch         | Object Detection         | Drone RGB                                       |
-| KuroSiwo          | Segmentation             | Sentinel-1 SAR, DEM, Slope                      |
-| M4SAR             | Classification           | Sentinel-1 SAR                                  |
-| MMFlood           | Segmentation             | Sentinel-1 SAR, Sentinel-2 Optical              |
-| PASTIS            | Segmentation             | Sentinel-1 SAR, Sentinel-2 Optical              |
-| SpaceNet2         | Segmentation             | WorldView-3 Optical                             |
-| SpaceNet6         | Segmentation             | SAR, WorldView-3 Optical                        |
-| SpaceNet7         | Segmentation             | PlanetScope Optical                             |
-| SpaceNet8         | Segmentation             | SAR, WorldView-3 Optical                        |
-| Substation        | Object Detection         | Aerial RGB                                      |
-| TreeSatAI         | Multi-label Classification          | Sentinel-2 Optical, Multi-temporal              |
-| Wind Turbine      | Object Detection         | Aerial RGB                                      |
-| BRIGHT            | Classification           | Sentinel-2 Optical                              |
-| DOTAV2            | Object Detection         | Aerial RGB                                      |
-| Burn Scars        | Segmentation             | Sentinel-2 Optical                              |
-| NZCattle          | Object Detection         | Aerial RGB                                      |
-| QFabric           | Classification           | Sentinel-2 Optical    
-
+| Dataset                | Task                                 | Modalities                                   | Train/Val/Test Samples | # Classes         | License        | Citation                  |
+|------------------------|--------------------------------------|----------------------------------------------|-----------------------|-------------------|-----------------|---------------------------|
+| BigEarthNetV2          | Multi-label land cover classification| Sentinel-1 SAR (VV,VH) + Sentinel-2 Optical  | 20000 / 4000 / 4000   | 19 (multi-label)  | Not specified   | Clasen et al. 2025        |
+| BioMassters            | Biomass regression                   | Sentinel-1 SAR (VV,VH) + Sentinel-2 Optical  | 4000 / 1000 / 2000    | Continuous        | Not specified   | Nascetti et al. 2023      |
+| CaFFe                  | Glacier zone segmentation            | Sentinel-1 SAR (1 ch)                        | 4000 / 1000 / 2000    | 4                 | Not specified   | Gourmelon et al. 2022     |
+| Dynamic EarthNet       | Land cover semantic segmentation     | Sentinel-2 (10 bands) + Planet (4 bands)     | 4000 / 1000 / 2000    | 7                 | Not specified   | Toker et al. 2022         |
+| EverWatch              | Bird object detection                | Aerial RGB                                   | N/A                   | 7                 | Not specified   | Garner et al. 2024        |
+| FLAIR2                 | Land cover semantic segmentation     | Aerial RGB+NIR + DEM                         | 4000 / 1000 / 2000    | 13                | Not specified   | Garioud et al. 2023       |
+| Fields of the World    | Field boundary segmentation          | Multi-temporal Sentinel-2 (10 bands)         | 4000 / 1000 / 2000    | 2 (binary)        | CC-BY (subset)  | Kerner et al. 2025        |
+| KuroSiwo               | Flood segmentation                   | Sentinel-1 SAR (VV,VH) + DEM + Slope         | 4000 / 1000 / 2000    | 4                 | Not specified   | Bountos et al. 2024       |
+| PASTIS (R)             | Crop type + parcel segmentation      | Sentinel-1 (asc/desc) + Sentinel-2 time series| 1200 / 482 / 496      | 19 (18 crops + bg)| Not specified   | Garnot et al. 2022        |
+| SpaceNet2              | Building footprint segmentation      | VHR Optical RGB                              | 4000 / 1000 / 2000    | 2 (binary)        | Not specified   | Van Etten et al. 2018     |
+| SpaceNet7              | Building segmentation/tracking       | Planet RGB time series                       | N/A                   | 2 (binary)        | Not specified   | Van Etten et al. 2021     |
+| TreeSatAI Time Series  | Tree species classification          | Multi-temporal Sentinel-2 (10 bands)         | N/A                   | 13                | Not specified   | Ahlswede et al. 2023      |
 
 
 
