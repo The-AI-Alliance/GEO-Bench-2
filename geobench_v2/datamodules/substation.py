@@ -19,8 +19,6 @@ import tacoreader
 from geobench_v2.datasets import GeoBenchSubstation
 
 from .base import GeoBenchObjectDetectionDataModule
-import skimage
-from matplotlib import patches
 
 
 def substation_collate_fn(batch: Sequence[dict[str, Any]]) -> dict[str, Any]:
@@ -218,7 +216,7 @@ class GeoBenchSubstationDataModule(GeoBenchObjectDetectionDataModule):
                 rgba[..., :3] = color[:3]
                 rgba[..., 3] = (mask > 0.5) * 0.4
                 ax_img.imshow(rgba, interpolation="none")
-                
+
                 ax_img.contour(
                     mask,
                     levels=[0.5],
