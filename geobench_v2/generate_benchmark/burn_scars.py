@@ -1,26 +1,16 @@
 import argparse
-import os
-
-import pandas as pd
-
-from tqdm import tqdm
-import numpy as np
-import os
-import rasterio
-from tqdm import tqdm
-
-from geobench_v2.generate_benchmark.utils import create_unittest_subset
-
-import os
 import glob
+import os
+
+import numpy as np
+import pandas as pd
 import rasterio
 import tacoreader
 import tacotoolbox
-import pdb
-import glob
+from pyproj import CRS, Transformer
+from tqdm import tqdm
 
-from affine import Affine
-from pyproj import Transformer, CRS
+from geobench_v2.generate_benchmark.utils import create_unittest_subset
 
 
 def generate_metadata_df(root_dir: str) -> pd.DataFrame:
@@ -59,7 +49,6 @@ def create_tortilla(dataset_dir, save_dir, tortilla_name):
         save_dir: Directory to save the tortilla files
         tortilla_name: Name of the final tortilla file
     """
-
     tortilla_dir = os.path.join(save_dir, "tortilla")
     os.makedirs(tortilla_dir, exist_ok=True)
 

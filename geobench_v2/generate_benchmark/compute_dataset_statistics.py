@@ -22,7 +22,6 @@ from geobench_v2.generate_benchmark.utils_dataset_statistics import (
 )
 
 
-
 def _determine_task_type(stats_computer):
     """Determine the task type from target statistics."""
     if isinstance(stats_computer, PxRegressionStatistics):

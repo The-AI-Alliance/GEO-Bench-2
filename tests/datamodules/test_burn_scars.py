@@ -14,7 +14,6 @@ from torchgeo.datasets import DatasetNotFoundError
 
 from geobench_v2.datamodules import GeoBenchBurnScarsDataModule
 from geobench_v2.datasets.burn_scars import GeoBenchBurnScars
-import pdb
 
 
 @pytest.fixture

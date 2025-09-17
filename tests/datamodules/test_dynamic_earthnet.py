@@ -7,8 +7,8 @@ import os
 from collections.abc import Sequence
 from pathlib import Path
 
-import pytest
 import matplotlib.pyplot as plt
+import pytest
 import torch
 from pytest import MonkeyPatch
 from torchgeo.datasets import DatasetNotFoundError

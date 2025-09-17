@@ -17,8 +17,6 @@ from matplotlib import pyplot as plt
 from matplotlib.lines import Line2D
 from torch import Tensor
 from torch.utils.data import DataLoader, Dataset
-from einops import rearrange
-from torchgeo.datasets.utils import percentile_normalization
 
 # TODO come up with an expected metadata file scheme
 # with common names etc. so a standardization

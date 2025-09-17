@@ -7,9 +7,9 @@ import os
 from collections.abc import Sequence
 from pathlib import Path
 
+import matplotlib.pyplot as plt
 import pytest
 from pytest import MonkeyPatch
-import matplotlib.pyplot as plt
 
 from geobench_v2.datamodules import GeoBenchBioMasstersDataModule
 from geobench_v2.datasets import GeoBenchBioMassters

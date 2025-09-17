@@ -3,13 +3,11 @@
 
 """GeoBench NZCattle DataModule."""
 
-import os
 from collections.abc import Callable, Sequence
 from typing import Any
 
 import matplotlib.pyplot as plt
 import numpy as np
-import pandas as pd
 import torch
 import torch.nn as nn
 from einops import rearrange

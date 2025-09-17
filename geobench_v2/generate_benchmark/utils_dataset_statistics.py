@@ -12,7 +12,6 @@ import torch
 from lightning import LightningDataModule
 from torch import Tensor
 from tqdm.auto import tqdm
-import pdb
 
 
 # Using Caleb Robinson's implementation: https://gist.github.com/calebrob6/1ef1e64bd62b1274adf2c6f91e20d215
@@ -365,7 +364,6 @@ class DatasetStatistics(ABC):
         Args:
             batch: Batch of input data
         """
-
         for key in self.running_stats:
             input_data = batch[key]
             if torch.is_tensor(input_data):

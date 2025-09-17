@@ -1,39 +1,24 @@
 import argparse
+import glob
+import json
 import os
+import pdb
 
+import h5py
 import numpy as np
 import pandas as pd
-
-import json
-from tqdm import tqdm
-from shapely.geometry import shape
-
-import os
-import numpy as np
-import rasterio
-from rasterio.transform import from_origin
-from tqdm import tqdm
-import h5py
-
-
-import os
-import json
-import glob
 import rasterio
 import tacoreader
 import tacotoolbox
-import pdb
-import json
-
-from pyproj import CRS
-from pyproj import Transformer
+from pyproj import CRS, Transformer
 from rasterio.transform import Affine
+from tqdm import tqdm
 
 from geobench_v2.generate_benchmark.utils import create_unittest_subset
 
 
 def generate_metadata_df(root_dir: str) -> pd.DataFrame:
-    with open(root_dir + "annotations.json", "r") as f:
+    with open(root_dir + "annotations.json") as f:
         d = json.load(f)
 
     # load images meta
@@ -87,10 +72,8 @@ def generate_random_subsample(metadata_df, n_splits):
 
 
 def download(root):
+    """Download the substation dataset
     """
-    Download the substation dataset
-    """
-
     # To be implemented. Use the download method from https://github.com/IBM/terratorch/blob/main/terratorch/datasets/substation.py
     return
 
@@ -143,7 +126,6 @@ def create_tortilla(metadata_df, save_dir, tortilla_name):
         save_dir: Directory to save the tortilla files
         tortilla_name: Name of the final tortilla file
     """
-
     tortilla_dir = os.path.join(save_dir, "tortilla/")
     os.makedirs(tortilla_dir, exist_ok=True)
 

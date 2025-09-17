@@ -5,12 +5,11 @@
 
 import os
 from collections.abc import Sequence
+from pathlib import Path
 
 import matplotlib.pyplot as plt
 import pytest
 from pytest import MonkeyPatch
-from pathlib import Path
-
 from torchgeo.datasets import DatasetNotFoundError
 
 from geobench_v2.datamodules import GeoBenchPASTISDataModule

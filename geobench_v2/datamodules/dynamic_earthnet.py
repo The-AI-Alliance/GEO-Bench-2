@@ -8,12 +8,12 @@ from collections.abc import Callable, Sequence
 from typing import Any, Literal
 
 import matplotlib.pyplot as plt
+import numpy as np
 import pandas as pd
 import tacoreader
 import torch
-import numpy as np
-from einops import rearrange
 import torch.nn as nn
+from einops import rearrange
 from torch import Tensor
 from torchgeo.datasets.utils import percentile_normalization
 

@@ -9,8 +9,8 @@ from typing import Any
 
 import matplotlib.pyplot as plt
 import numpy as np
-import tacoreader
 import pandas as pd
+import tacoreader
 import torch
 import torch.nn as nn
 from einops import rearrange

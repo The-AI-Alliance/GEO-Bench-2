@@ -17,7 +17,6 @@ from torch import Tensor
 from torchgeo.datasets.utils import percentile_normalization
 
 from geobench_v2.datasets import GeoBenchKuroSiwo
-from matplotlib import pyplot as plt
 
 from .base import GeoBenchSegmentationDataModule
 

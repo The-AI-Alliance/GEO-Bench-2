@@ -1,30 +1,15 @@
 import argparse
-import os
-
-import numpy as np
-import pandas as pd
-
-import json
-from tqdm import tqdm
-from shapely.geometry import shape
-
-import os
-import numpy as np
-import rasterio
-from rasterio.transform import from_origin
-from PIL import Image
-from tqdm import tqdm
-from functools import partial
-import h5py
-
-
-import os
-import json
 import glob
+import json
+import os
+import pdb
+
+import h5py
+import pandas as pd
 import rasterio
 import tacoreader
 import tacotoolbox
-import pdb
+from tqdm import tqdm
 
 from geobench_v2.generate_benchmark.utils import create_unittest_subset
 
@@ -38,7 +23,6 @@ def create_tortilla(annotations_df, image_dir, save_dir, tortilla_name):
         save_dir: Directory to save the tortilla files
         tortilla_name: Name of the final tortilla file
     """
-
     tortilla_dir = os.path.join(save_dir, "tortilla")
     os.makedirs(tortilla_dir, exist_ok=True)
 

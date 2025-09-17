@@ -5,25 +5,22 @@
 
 import argparse
 import glob
+import io
 import json
 import os
+import re
+import shutil
+import tempfile
 
 import geopandas as gpd
+import h5py
+import numpy as np
 import pandas as pd
 import tacoreader
 import tacotoolbox
+from skimage.transform import resize
 from torchgeo.datasets import PASTIS
 from tqdm import tqdm
-
-import os
-import numpy as np
-import h5py
-from tqdm import tqdm
-import shutil
-import tempfile
-import re
-import io
-from skimage.transform import resize
 
 from geobench_v2.generate_benchmark.utils import (
     create_subset_from_df,

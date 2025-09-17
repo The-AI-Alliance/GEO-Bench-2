@@ -100,7 +100,6 @@ def generate_metadata_df(root: str) -> pd.DataFrame:
 
 def create_tortilla(root_dir, df, save_dir, tortilla_name):
     """Create a tortilla version of the dataset."""
-
     tortilla_dir = os.path.join(save_dir, "tortilla")
     os.makedirs(tortilla_dir, exist_ok=True)
 
