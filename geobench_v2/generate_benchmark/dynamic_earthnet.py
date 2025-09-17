@@ -1095,7 +1095,7 @@ def create_geobench_subset(
 
     if additional_test_series > 0:
         print(
-            f"- {len(selected_additional_test)} additional test time-series with {len(subset_df[subset_df['is_additional_test'] == True])} total samples"
+            f"- {len(selected_additional_test)} additional test time-series with {len(subset_df[subset_df['is_additional_test']])} total samples"
         )
 
     return subset_df

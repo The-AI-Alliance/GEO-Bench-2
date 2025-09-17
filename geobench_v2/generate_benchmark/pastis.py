@@ -363,10 +363,11 @@ def create_unit_test_subset(data_dir, test_dir_name) -> None:
     print(f"Filesize: {os.path.getsize(dst) / (1024 * 1024):.2f} MB")
 
 
-def _determine_layout(arr: np.ndarray, expected_t: int | None):
-    """Return axes (t_axis, c_axis, h_axis, w_axis) under a simple assumption:
-    - Time-series imagery is 4D with shape [T, C, H, W]
-    - Masks are 2D [H, W] or 3D [C, H, W] (e.g., C=1)
+def _determine_layout(arr: np.ndarray):
+    """Return axes (t_axis, c_axis, h_axis, w_axis).
+
+    Args:
+        arr: array to check
     """
     if arr.ndim == 4:
         # [T, C, H, W]
@@ -399,7 +400,7 @@ def _process_modality_arr(
         Array with preserved leading dims (T and/or C if present) and resized spatial dims [H, W].
     """
     out_dtype = arr.dtype
-    t_axis, c_axis, h_axis, w_axis = _determine_layout(arr, expected_t)
+    t_axis, c_axis, h_axis, w_axis = _determine_layout(arr)
     axes = list(range(arr.ndim))
     perm = []
     if t_axis is not None:

@@ -148,18 +148,8 @@ def process_files_for_coordinates(
         bbox_top = img_metadata["top"]
         coord_system = img_metadata["Coordinate system"]
 
-        try:
-            image = Image.open(file.__str__())
-            if image is not None:
-                orig_height, orig_width = image.shape
-            else:
-                resolution_m = float(img_metadata["resolution (m)"])
-                orig_width = int((bbox_right - bbox_left) / resolution_m)
-                orig_height = int((bbox_top - bbox_bottom) / resolution_m)
-        except:
-            resolution_m = float(img_metadata["resolution (m)"])
-            orig_width = int((bbox_right - bbox_left) / resolution_m)
-            orig_height = int((bbox_top - bbox_bottom) / resolution_m)
+        image = Image.open(file.__str__())
+        orig_height, orig_width = image.shape
 
         bottom = patch_size - (orig_height % patch_size)
         bottom = bottom % patch_size

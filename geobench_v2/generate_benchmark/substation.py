@@ -94,13 +94,6 @@ def generate_random_subsample(metadata_df, n_splits):
     return metadata_sub_df
 
 
-def download(root):
-    """Download the substation dataset
-    """
-    # To be implemented. Use the download method from https://github.com/IBM/terratorch/blob/main/terratorch/datasets/substation.py
-    return
-
-
 def save_image_tiff(image_path, lat, lon, output_folder):
     """Save image as GeoTIFF file.
 
@@ -156,7 +149,7 @@ def create_tortilla(metadata_df, save_dir, tortilla_name):
     """Create a tortilla version of an object detection dataset.
 
     Args:
-        annotations_df: DataFrame with annotations including image_path, label, bbox coordinates
+        metadata_df: DataFrame with annotations including image_path, label, bbox coordinates
         save_dir: Directory to save the tortilla files
         tortilla_name: Name of the final tortilla file
     """
@@ -285,8 +278,6 @@ if __name__ == "__main__":
     )
 
     args = parser.parse_args()
-
-    # download(args.root)
 
     metadata_df = generate_metadata_df(args.root)
 

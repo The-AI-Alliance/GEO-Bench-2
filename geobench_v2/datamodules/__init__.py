@@ -35,6 +35,7 @@ from .treesatai import GeoBenchTreeSatAIDataModule
 from .wind_turbine import GeoBenchWindTurbineDataModule
 
 __all__ = (
+    "GeoBenchDataModule",
     "GeoBenchCaFFeDataModule",
     "GeoBenchFieldsOfTheWorldDataModule",
     "GeoBenchPASTISDataModule",

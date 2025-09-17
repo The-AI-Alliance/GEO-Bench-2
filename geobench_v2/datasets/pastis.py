@@ -293,7 +293,7 @@ class GeoBenchPASTIS(GeoBenchBaseDataset):
         """Load the instance segmentation targets for a single sample.
 
         Args:
-            path: path to the label
+            sem_path: path to the label
             instance_path: path to the instance segmentation mask
 
         Returns:
