@@ -1,3 +1,9 @@
+"""Generation script for Substation GeoBench subset.
+
+Provides utilities to process raw substation annotations and imagery into the
+standard GeoBench format.
+"""
+
 import argparse
 import glob
 import json
@@ -18,6 +24,14 @@ from geobench_v2.generate_benchmark.utils import create_unittest_subset
 
 
 def generate_metadata_df(root_dir: str) -> pd.DataFrame:
+    """Generate a DataFrame containing metadata for the substation dataset.
+
+    Args:
+        root_dir: Root directory of the dataset.
+
+    Returns:
+        A DataFrame containing metadata information for images and annotations.
+    """
     with open(root_dir + "annotations.json") as f:
         d = json.load(f)
 
@@ -46,6 +60,15 @@ def generate_metadata_df(root_dir: str) -> pd.DataFrame:
 
 
 def generate_random_subsample(metadata_df, n_splits):
+    """Generate a random subsample of the metadata DataFrame.
+
+    Args:
+        metadata_df: DataFrame containing metadata for the entire dataset.
+        n_splits: List containing the number of samples for each split.
+
+    Returns:
+        A subsampled DataFrame containing a random selection of images and annotations.
+    """
     splits = ["train", "val", "test"]
 
     metadata_sub_df = pd.DataFrame()
@@ -79,6 +102,17 @@ def download(root):
 
 
 def save_image_tiff(image_path, lat, lon, output_folder):
+    """Save image as GeoTIFF file.
+
+    Args:
+        image_path: Path to the input image file.
+        lat: Latitude of the image centroid.
+        lon: Longitude of the image centroid.
+        output_folder: Directory to save the output GeoTIFF file.
+
+    Returns:
+        A tuple containing the TIFF profile and the path to the saved GeoTIFF file.
+    """
     image_data = np.load(image_path)["arr_0"]
     image_data = np.mean(image_data, axis=0)
     utm_zone = int((lon + 180) / 6) + 1

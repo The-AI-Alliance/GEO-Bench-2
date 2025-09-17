@@ -24,8 +24,6 @@ from .base import GeoBenchSegmentationDataModule
 class GeoBenchFieldsOfTheWorldDataModule(GeoBenchSegmentationDataModule):
     """GeoBench Fields of the World Data Module."""
 
-    has_extra_test_samples = True
-
     def __init__(
         self,
         img_size: int = 256,

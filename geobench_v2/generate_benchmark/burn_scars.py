@@ -1,3 +1,5 @@
+"""Benchmark generation utilities for Burn Scars dataset."""
+
 import argparse
 import glob
 import os
@@ -14,6 +16,15 @@ from geobench_v2.generate_benchmark.utils import create_unittest_subset
 
 
 def generate_metadata_df(root_dir: str) -> pd.DataFrame:
+    """Generate metadata DataFrame from the dataset directory.
+
+    Args:
+        root_dir: Root directory of the dataset.
+
+    Returns:
+        A DataFrame containing image metadata, including file paths, image keys,
+        data splits, and label file paths.
+    """
     # generate df with split info and keys
     splits = glob.glob(root_dir + "splits/*")
     splits_df = [

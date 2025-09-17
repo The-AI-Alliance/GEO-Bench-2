@@ -25,7 +25,6 @@ from .base import GeoBenchSegmentationDataModule
 class GeoBenchPASTISDataModule(GeoBenchSegmentationDataModule):
     """GeoBench PASIS Data Module."""
 
-    has_extra_test_samples = True
 
     def __init__(
         self,

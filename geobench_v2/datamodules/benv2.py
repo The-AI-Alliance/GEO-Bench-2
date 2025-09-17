@@ -25,8 +25,6 @@ from .base import GeoBenchClassificationDataModule
 class GeoBenchBENV2DataModule(GeoBenchClassificationDataModule):
     """GeoBench BigEarthNetV2 Data Module."""
 
-    has_extra_test_samples = True
-
     def __init__(
         self,
         img_size: int = 120,

@@ -303,6 +303,7 @@ def create_geobench_version(
         n_train_samples: Number of final training samples, -1 means all
         n_val_samples: Number of final validation samples, -1 means all
         n_test_samples: Number of final test samples, -1 means all
+        n_additional_test_samples: Number of extra test samples to append.
     """
     subset_df = create_subset_from_df(
         metadata_df,

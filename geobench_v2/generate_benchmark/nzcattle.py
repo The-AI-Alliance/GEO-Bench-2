@@ -1,3 +1,5 @@
+"""Benchmark generation utilities for NZ Cattle dataset."""
+
 import argparse
 import glob
 import json

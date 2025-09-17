@@ -23,8 +23,6 @@ from .base import GeoBenchSegmentationDataModule
 class GeoBenchCaFFeDataModule(GeoBenchSegmentationDataModule):
     """GeoBench CaFFe Data Module."""
 
-    has_extra_test_samples = True
-
     def __init__(
         self,
         img_size: int = 512,

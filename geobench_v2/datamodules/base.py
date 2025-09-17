@@ -29,8 +29,6 @@ from torch.utils.data import DataLoader, Dataset
 class GeoBenchDataModule(LightningDataModule, ABC):
     """GeoBench DataModule."""
 
-    has_extra_test_samples = False
-
     def __init__(
         self,
         dataset_class: Dataset,
@@ -262,8 +260,6 @@ class GeoBenchDataModule(LightningDataModule, ABC):
         data_df[plot_col] = (
             data_df[split_column].astype(str).replace({"val": "validation"})
         )
-        if "add_test_split" in data_df.columns:
-            data_df.loc[data_df["add_test_split"].astype(bool), plot_col] = "extra_test"
 
         # Stable split order for legend
         desired_order = ["train", "validation", "test", "extra_test"]
@@ -275,7 +271,6 @@ class GeoBenchDataModule(LightningDataModule, ABC):
             "train": "blue",
             "validation": "green",
             "test": "red",
-            "extra_test": "orange",
         }
 
         legend_elements: list[Line2D] = []
@@ -373,30 +368,6 @@ class GeoBenchDataModule(LightningDataModule, ABC):
             drop_last=False,
         )
 
-    def extra_test_dataloader(self) -> DataLoader:
-        """Return extra test dataloader.
-
-        Returns:
-            Test Dataloader with kept out samples from train partition
-        """
-        if self.has_extra_test_samples:
-            extra_dataset = self.dataset_class(
-                split="extra_test",
-                band_order=self.band_order,
-                transforms=self.val_transform,
-                **self.kwargs,
-            )
-            return DataLoader(
-                extra_dataset,
-                batch_size=self.eval_batch_size,
-                num_workers=self.num_workers,
-                collate_fn=self.collate_fn,
-                pin_memory=self.pin_memory,
-                shuffle=False,
-                drop_last=False,
-            )
-        else:
-            raise RuntimeError("This dataset does not have extra test samples")
 
     def on_after_batch_transfer(
         self, batch: dict[str, Tensor], dataloader_idx: int

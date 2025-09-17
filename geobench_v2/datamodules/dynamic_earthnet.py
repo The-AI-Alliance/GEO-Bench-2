@@ -23,11 +23,9 @@ from .base import GeoBenchSegmentationDataModule
 from .utils import TimeSeriesResize
 
 
-# TODO add timeseries argument
 class GeoBenchDynamicEarthNetDataModule(GeoBenchSegmentationDataModule):
     """GeoBench DynamicEarthNet Data Module."""
 
-    has_extra_test_samples = True
 
     def __init__(
         self,

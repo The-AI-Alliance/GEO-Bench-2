@@ -242,18 +242,12 @@ class GeoBenchTreeSatAI(GeoBenchBaseDataset):
                 sen_1_asc_data = h5file["sen-1-asc-data"][
                     :
                 ]  # Tx2x6x6, Channels: VV, VH
-                sen_1_asc_products = h5file["sen-1-asc-products"][:]
                 sen_1_des_data = h5file["sen-1-des-data"][
                     :
                 ]  # Tx2x6x6, Channels: VV, VH
-                sen_1_des_products = h5file["sen-1-des-products"][:]
                 sen_2_data = h5file["sen-2-data"][
                     :
                 ]  # Tx10x6x6 B02,B03,B04,B05,B06,B07,B08,B8A,B11,B12
-                sen_2_products = h5file["sen-2-products"][:]
-                sen_2_masks = h5file["sen-2-masks"][
-                    :
-                ]  # (Tx2x6x6), Channels: snow probability, cloud probability
 
             if "s1" in self.band_order:
                 sample["image_s1_asc_ts"] = torch.from_numpy(sen_1_asc_data)[

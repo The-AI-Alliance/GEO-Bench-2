@@ -23,7 +23,6 @@ from .base import GeoBenchSegmentationDataModule
 class GeoBenchCloudSen12DataModule(GeoBenchSegmentationDataModule):
     """GeoBench CloudSen12 Data Module."""
 
-    has_extra_test_samples = True
 
     def __init__(
         self,

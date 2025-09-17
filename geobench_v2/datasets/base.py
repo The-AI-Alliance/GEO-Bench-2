@@ -75,22 +75,24 @@ class GeoBenchBaseDataset(NonGeoDataset, DataUtilsMixin):
 
         self.data_df = tacoreader.load([os.path.join(root, f) for f in self.paths])
 
-        if split in ["train", "val", "validation", "test"]:
-            effective_split = "validation" if split == "val" else split
-            self.data_df = self.data_df[
-                (self.data_df["tortilla:data_split"] == effective_split)
-            ].reset_index(drop=True)
+        # if split in ["train", "val", "validation", "test"]:
+        effective_split = "validation" if split == "val" else split
+        self.data_df = self.data_df[
+            (self.data_df["tortilla:data_split"] == effective_split)
+        ].reset_index(drop=True)
 
-            if "add_test_split" in self.data_df.columns:
-                self.data_df = self.data_df[
-                    self.data_df["add_test_split"] == False
-                ].reset_index(drop=True)
-        else:
-            # extra test samples from the train set
-            if "add_test_split" in self.data_df.columns:
-                self.data_df = self.data_df[
-                    self.data_df["add_test_split"] == True
-                ].reset_index(drop=True)
+        #     if "add_test_split" in self.data_df.columns:
+        #         if not self.data_df["add_test_split"].any():
+        #             # extra test samples from the train set
+        #             self.data_df = self.data_df[
+        #                 self.data_df["add_test_split"] == False
+        #             ].reset_index(drop=True)
+        # else:
+        #     if "add_test_split" in self.data_df.columns:
+        #         if self.data_df["add_test_split"].any():
+        #             self.data_df = self.data_df[
+        #                 self.data_df["add_test_split"] == True
+        #             ].reset_index(drop=True)
 
         self.band_order = self.resolve_band_order(band_order)
 

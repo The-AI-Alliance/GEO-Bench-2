@@ -25,7 +25,6 @@ from .base import GeoBenchClassificationDataModule
 class GeoBenchTreeSatAIDataModule(GeoBenchClassificationDataModule):
     """GeoBench TreeSatAI Data Module."""
 
-    has_extra_test_samples = True
 
     def __init__(
         self,
