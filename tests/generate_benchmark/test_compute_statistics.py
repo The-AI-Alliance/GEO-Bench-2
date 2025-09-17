@@ -10,7 +10,7 @@ import pytest
 import torch
 from torch.utils.data import Dataset
 
-from geobench_v2.generate_benchmark.compute_statistics import (
+from geobench_v2.generate_benchmark.compute_dataset_statistics import (
     ClassificationDatasetStatistics,
     SegmentationDatasetStatistics,
 )
