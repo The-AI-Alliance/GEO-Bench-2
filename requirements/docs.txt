@@ -1,4 +1,4 @@
-sphinx>=4,<7
+sphinx>=4,<8
 ipywidgets>=7
 nbsphinx>=0.8.5
 sphinx-book-theme>=1.0.1
