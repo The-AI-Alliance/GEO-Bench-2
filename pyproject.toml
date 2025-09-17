@@ -60,6 +60,7 @@ dependencies = [
     "geopandas>=1.1.0",
     "h5py>=3.14.0",
     "cartopy>=0.25.0",
+    "scikit-image>=0.25.2"
 ]
 dynamic = ["version"]
 
