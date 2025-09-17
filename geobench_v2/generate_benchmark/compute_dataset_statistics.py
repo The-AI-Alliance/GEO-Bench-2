@@ -10,7 +10,6 @@ from typing import Any
 
 import matplotlib.pyplot as plt
 import numpy as np
-import seaborn as sns
 import torch
 from hydra.utils import instantiate
 from omegaconf import OmegaConf
@@ -21,8 +20,6 @@ from geobench_v2.generate_benchmark.utils_dataset_statistics import (
     PxRegressionStatistics,
     SegmentationStatistics,
 )
-
-sns.set(style="whitegrid")
 
 
 def _determine_task_type(stats_computer):

@@ -17,8 +17,6 @@ from matplotlib import pyplot as plt
 from matplotlib.lines import Line2D
 from torch import Tensor
 from torch.utils.data import DataLoader, Dataset
-from einops import rearrange
-from torchgeo.datasets.utils import percentile_normalization
 
 # TODO come up with an expected metadata file scheme
 # with common names etc. so a standardization
@@ -30,8 +28,6 @@ from torchgeo.datasets.utils import percentile_normalization
 
 class GeoBenchDataModule(LightningDataModule, ABC):
     """GeoBench DataModule."""
-
-    has_extra_test_samples = False
 
     def __init__(
         self,
@@ -264,8 +260,6 @@ class GeoBenchDataModule(LightningDataModule, ABC):
         data_df[plot_col] = (
             data_df[split_column].astype(str).replace({"val": "validation"})
         )
-        if "add_test_split" in data_df.columns:
-            data_df.loc[data_df["add_test_split"].astype(bool), plot_col] = "extra_test"
 
         # Stable split order for legend
         desired_order = ["train", "validation", "test", "extra_test"]
@@ -273,12 +267,7 @@ class GeoBenchDataModule(LightningDataModule, ABC):
         others = [sp for sp in data_df[plot_col].unique() if sp not in present]
         splits = present + others
 
-        split_colors = {
-            "train": "blue",
-            "validation": "green",
-            "test": "red",
-            "extra_test": "orange",
-        }
+        split_colors = {"train": "blue", "validation": "green", "test": "red"}
 
         legend_elements: list[Line2D] = []
         for split in splits:
@@ -375,31 +364,6 @@ class GeoBenchDataModule(LightningDataModule, ABC):
             drop_last=False,
         )
 
-    def extra_test_dataloader(self) -> DataLoader:
-        """Return extra test dataloader.
-
-        Returns:
-            Test Dataloader with kept out samples from train partition
-        """
-        if self.has_extra_test_samples:
-            extra_dataset = self.dataset_class(
-                split="extra_test",
-                band_order=self.band_order,
-                transforms=self.val_transform,
-                **self.kwargs,
-            )
-            return DataLoader(
-                extra_dataset,
-                batch_size=self.eval_batch_size,
-                num_workers=self.num_workers,
-                collate_fn=self.collate_fn,
-                pin_memory=self.pin_memory,
-                shuffle=False,
-                drop_last=False,
-            )
-        else:
-            raise RuntimeError("This dataset does not have extra test samples")
-
     def on_after_batch_transfer(
         self, batch: dict[str, Tensor], dataloader_idx: int
     ) -> dict[str, Tensor]:
@@ -488,10 +452,10 @@ class GeoBenchClassificationDataModule(GeoBenchDataModule):
             num_workers: Number of workers for dataloaders
             collate_fn: Collate function that can reformat samples to the needs of the model.
             train_augmentations: Transforms/Augmentations to apply during training, they will be applied
-                at the sample level and should include normalization. See :method:`define_augmentations`
+                at the sample level and should include normalization. See :meth:`define_augmentations`
                 for the default transformation.
             eval_augmentations: Transforms/Augmentations to apply during evaluation, they will be applied
-                at the sample level and should include normalization. See :method:`define_augmentations`
+                at the sample level and should include normalization. See :meth:`define_augmentations`
                 for the default transformation.
             pin_memory: whether to pin memory in dataloaders
             **kwargs: Additional keyword arguments passed to ``dataset_class``
@@ -607,10 +571,10 @@ class GeoBenchSegmentationDataModule(GeoBenchDataModule):
             num_workers: Number of workers for dataloaders
             collate_fn: Collate function that can reformat samples to the needs of the model.
             train_augmentations: Transforms/Augmentations to apply during training, they will be applied
-                at the sample level and should include normalization. See :method:`define_augmentations`
+                at the sample level and should include normalization. See :meth:`define_augmentations`
                 for the default transformation.
             eval_augmentations: Transforms/Augmentations to apply during evaluation, they will be applied
-                at the sample level and should include normalization. See :method:`define_augmentations`
+                at the sample level and should include normalization. See :meth:`define_augmentations`
                 for the default transformation.
             pin_memory: whether to pin memory in dataloaders
             **kwargs: Additional keyword arguments passed to ``dataset_class``
@@ -727,10 +691,10 @@ class GeoBenchObjectDetectionDataModule(GeoBenchDataModule):
             num_workers: Number of workers for dataloaders
             collate_fn: Collate function that can reformat samples to the needs of the model.
             train_augmentations: Transforms/Augmentations to apply during training, they will be applied
-                at the sample level and should include normalization. See :method:`define_augmentations`
+                at the sample level and should include normalization. See :meth:`define_augmentations`
                 for the default transformation.
             eval_augmentations: Transforms/Augmentations to apply during evaluation, they will be applied
-                at the sample level and should include normalization. See :method:`define_augmentations`
+                at the sample level and should include normalization. See :meth:`define_augmentations`
                 for the default transformation.
             pin_memory: whether to pin memory in dataloaders
             **kwargs: Additional keyword arguments passed to ``dataset_class``

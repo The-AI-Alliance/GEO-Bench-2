@@ -5,12 +5,11 @@
 
 import os
 from collections.abc import Sequence
+from pathlib import Path
 
 import matplotlib.pyplot as plt
 import pytest
 from pytest import MonkeyPatch
-from pathlib import Path
-
 from torchgeo.datasets import DatasetNotFoundError
 
 from geobench_v2.datamodules import GeoBenchPASTISDataModule
@@ -77,7 +76,6 @@ class TestPASTISDataModule:
         assert len(datamodule.train_dataloader()) > 0
         assert len(datamodule.val_dataloader()) > 0
         assert len(datamodule.test_dataloader()) > 0
-        assert len(datamodule.extra_test_dataloader()) > 0
 
     def test_multimodal_band_order(self, datamodule):
         """Test batch retrieval with modality-specific band sequences."""
@@ -122,6 +120,7 @@ class TestPASTISDataModule:
         assert isinstance(batch, dict)
 
         fig.savefig(os.path.join("tests", "data", "pastis", "test_batch.png"))
+        plt.close(fig)
 
     def test_not_downloaded(self, tmp_path: Path) -> None:
         with pytest.raises(DatasetNotFoundError, match="Dataset not found"):

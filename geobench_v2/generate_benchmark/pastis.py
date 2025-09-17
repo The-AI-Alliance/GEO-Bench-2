@@ -5,25 +5,22 @@
 
 import argparse
 import glob
+import io
 import json
 import os
+import re
+import shutil
+import tempfile
 
 import geopandas as gpd
+import h5py
+import numpy as np
 import pandas as pd
 import tacoreader
 import tacotoolbox
+from skimage.transform import resize
 from torchgeo.datasets import PASTIS
 from tqdm import tqdm
-
-import os
-import numpy as np
-import h5py
-from tqdm import tqdm
-import shutil
-import tempfile
-import re
-import io
-from skimage.transform import resize
 
 from geobench_v2.generate_benchmark.utils import (
     create_subset_from_df,
@@ -366,10 +363,11 @@ def create_unit_test_subset(data_dir, test_dir_name) -> None:
     print(f"Filesize: {os.path.getsize(dst) / (1024 * 1024):.2f} MB")
 
 
-def _determine_layout(arr: np.ndarray, expected_t: int | None):
-    """Return axes (t_axis, c_axis, h_axis, w_axis) under a simple assumption:
-    - Time-series imagery is 4D with shape [T, C, H, W]
-    - Masks are 2D [H, W] or 3D [C, H, W] (e.g., C=1)
+def _determine_layout(arr: np.ndarray):
+    """Return axes (t_axis, c_axis, h_axis, w_axis).
+
+    Args:
+        arr: array to check
     """
     if arr.ndim == 4:
         # [T, C, H, W]
@@ -402,7 +400,7 @@ def _process_modality_arr(
         Array with preserved leading dims (T and/or C if present) and resized spatial dims [H, W].
     """
     out_dtype = arr.dtype
-    t_axis, c_axis, h_axis, w_axis = _determine_layout(arr, expected_t)
+    t_axis, c_axis, h_axis, w_axis = _determine_layout(arr)
     axes = list(range(arr.ndim))
     perm = []
     if t_axis is not None:

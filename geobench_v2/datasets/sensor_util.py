@@ -528,10 +528,6 @@ class DatasetBandRegistry:
 
     FOTW = SensorBandRegistry.RGBN
 
-    RESISC45 = ModalityConfig(
-        bands=SensorBandRegistry.RGB.bands, default_order=["r", "g", "b"]
-    )
-
     SPACENET2 = MultiModalConfig(
         modalities={
             "worldview": ModalityConfig(

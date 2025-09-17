@@ -85,7 +85,6 @@ class TestKuroSiwoDataModule:
         assert len(datamodule.train_dataloader()) > 0
         assert len(datamodule.val_dataloader()) > 0
         assert len(datamodule.test_dataloader()) > 0
-        assert len(datamodule.extra_test_dataloader()) > 0
 
     def test_load_batch_and_check_dims(self, datamodule):
         """Test loading a batch."""
@@ -185,6 +184,7 @@ class TestKuroSiwoDataModule:
         assert isinstance(batch, dict)
 
         fig.savefig(os.path.join("tests", "data", "kuro_siwo", "test_batch.png"))
+        plt.close(fig)
 
     def test_not_downloaded(self, tmp_path: Path) -> None:
         with pytest.raises(DatasetNotFoundError, match="Dataset not found"):

@@ -1,29 +1,30 @@
+"""Benchmark generation utilities for Burn Scars dataset."""
+
 import argparse
+import glob
 import os
 
-import pandas as pd
-
-from tqdm import tqdm
 import numpy as np
-import os
+import pandas as pd
 import rasterio
+import tacoreader
+import tacotoolbox
+from pyproj import CRS, Transformer
 from tqdm import tqdm
 
 from geobench_v2.generate_benchmark.utils import create_unittest_subset
 
-import os
-import glob
-import rasterio
-import tacoreader
-import tacotoolbox
-import pdb
-import glob
-
-from affine import Affine
-from pyproj import Transformer, CRS
-
 
 def generate_metadata_df(root_dir: str) -> pd.DataFrame:
+    """Generate metadata DataFrame from the dataset directory.
+
+    Args:
+        root_dir: Root directory of the dataset.
+
+    Returns:
+        A DataFrame containing image metadata, including file paths, image keys,
+        data splits, and label file paths.
+    """
     # generate df with split info and keys
     splits = glob.glob(root_dir + "splits/*")
     splits_df = [
@@ -59,7 +60,6 @@ def create_tortilla(dataset_dir, save_dir, tortilla_name):
         save_dir: Directory to save the tortilla files
         tortilla_name: Name of the final tortilla file
     """
-
     tortilla_dir = os.path.join(save_dir, "tortilla")
     os.makedirs(tortilla_dir, exist_ok=True)
 

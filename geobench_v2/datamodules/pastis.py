@@ -9,8 +9,8 @@ from typing import Any
 
 import matplotlib.pyplot as plt
 import numpy as np
-import tacoreader
 import pandas as pd
+import tacoreader
 import torch
 import torch.nn as nn
 from einops import rearrange
@@ -24,8 +24,6 @@ from .base import GeoBenchSegmentationDataModule
 
 class GeoBenchPASTISDataModule(GeoBenchSegmentationDataModule):
     """GeoBench PASIS Data Module."""
-
-    has_extra_test_samples = True
 
     def __init__(
         self,
@@ -50,10 +48,10 @@ class GeoBenchPASTISDataModule(GeoBenchSegmentationDataModule):
             num_workers: Number of workers
             collate_fn: Collate function
             train_augmentations: Transforms/Augmentations to apply during training, they will be applied
-                at the sample level and should include normalization. See :method:`define_augmentations`
+                at the sample level and should include normalization. See :meth:`define_augmentations`
                 for the default transformation.
             eval_augmentations: Transforms/Augmentations to apply during evaluation, they will be applied
-                at the sample level and should include normalization. See :method:`define_augmentations`
+                at the sample level and should include normalization. See :meth:`define_augmentations`
                 for the default transformation.
             pin_memory: Pin memory
             **kwargs: Additional keyword arguments to

@@ -15,7 +15,6 @@ everwatch
 flair2
 fotw
 kuro_siwo
-mmflood
 pastis
 spacenet2
 spacenet6

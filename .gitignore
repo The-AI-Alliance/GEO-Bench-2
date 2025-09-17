@@ -3,6 +3,8 @@ __pycache__/
 *.py[cod]
 *$py.class
 
+tests/data/**/*.png
+
 #
 # geobench_v2/generate_benchmark/**/*.png
 

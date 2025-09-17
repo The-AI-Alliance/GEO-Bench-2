@@ -8,12 +8,12 @@ from collections.abc import Callable, Sequence
 from typing import Any, Literal
 
 import matplotlib.pyplot as plt
+import numpy as np
 import pandas as pd
 import tacoreader
 import torch
-import numpy as np
-from einops import rearrange
 import torch.nn as nn
+from einops import rearrange
 from torch import Tensor
 from torchgeo.datasets.utils import percentile_normalization
 
@@ -23,11 +23,8 @@ from .base import GeoBenchSegmentationDataModule
 from .utils import TimeSeriesResize
 
 
-# TODO add timeseries argument
 class GeoBenchDynamicEarthNetDataModule(GeoBenchSegmentationDataModule):
     """GeoBench DynamicEarthNet Data Module."""
-
-    has_extra_test_samples = True
 
     def __init__(
         self,
@@ -52,10 +49,10 @@ class GeoBenchDynamicEarthNetDataModule(GeoBenchSegmentationDataModule):
             num_workers: Number of workers
             collate_fn: Collate function
             train_augmentations: Transforms/Augmentations to apply during training, they will be applied
-                at the sample level and should include normalization. See :method:`define_augmentations`
+                at the sample level and should include normalization. See :meth:`define_augmentations`
                 for the default transformation.
             eval_augmentations: Transforms/Augmentations to apply during evaluation, they will be applied
-                at the sample level and should include normalization. See :method:`define_augmentations`
+                at the sample level and should include normalization. See :meth:`define_augmentations`
                 for the default transformation.
             pin_memory: Pin memory
             **kwargs: Additional keyword arguments to

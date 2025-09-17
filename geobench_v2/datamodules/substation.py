@@ -10,17 +10,16 @@ from typing import Any
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+import tacoreader
 import torch
 import torch.nn as nn
 from einops import rearrange
 from torch import Tensor
 from torchgeo.datasets.utils import percentile_normalization
-import tacoreader
+
 from geobench_v2.datasets import GeoBenchSubstation
 
 from .base import GeoBenchObjectDetectionDataModule
-import skimage
-from matplotlib import patches
 
 
 def substation_collate_fn(batch: Sequence[dict[str, Any]]) -> dict[str, Any]:
@@ -72,10 +71,10 @@ class GeoBenchSubstationDataModule(GeoBenchObjectDetectionDataModule):
             num_workers: Number of workers
             collate_fn: Collate function
             train_augmentations: Transforms/Augmentations to apply during training, they will be applied
-                at the sample level and should include normalization. See :method:`define_augmentations`
+                at the sample level and should include normalization. See :meth:`define_augmentations`
                 for the default transformation.
             eval_augmentations: Transforms/Augmentations to apply during evaluation, they will be applied
-                at the sample level and should include normalization. See :method:`define_augmentations`
+                at the sample level and should include normalization. See :meth:`define_augmentations`
                 for the default transformation.
             pin_memory: Pin memory
             **kwargs: Additional keyword arguments for the dataset class
@@ -212,13 +211,14 @@ class GeoBenchSubstationDataModule(GeoBenchObjectDetectionDataModule):
                     facecolor="none",
                 )
                 ax_img.add_patch(rect)
-                contours = skimage.measure.find_contours(mask, 0.5)
-                for verts in contours:
-                    verts = np.fliplr(verts)
-                    p = patches.Polygon(
-                        verts, facecolor=color, alpha=0.4, edgecolor="white"
-                    )
-                    ax_img.add_patch(p)
+
+                h, w = mask.shape
+                rgba = np.zeros((h, w, 4), dtype=float)
+                rgba[..., :3] = color[:3]
+                rgba[..., 3] = (mask > 0.5) * 0.4
+                ax_img.imshow(rgba, interpolation="none")
+
+                ax_img.contour(mask, levels=[0.5], colors=["white"], linewidths=1)
 
             ax_img.set_title(f"Sample {i + 1}" if i == 0 else "")
             ax_img.set_xticks([])

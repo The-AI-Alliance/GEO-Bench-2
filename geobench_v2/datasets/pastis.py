@@ -3,24 +3,20 @@
 
 """PASTIS Dataset."""
 
-import os
+import io
+import re
 from collections.abc import Sequence
 from pathlib import Path
 from typing import Literal
-import re
-import io
+
 import h5py
-
-
-import numpy as np
-import pandas as pd
 import torch
 import torch.nn as nn
 from torch import Tensor
 from torchgeo.datasets import PASTIS
 
 from .base import GeoBenchBaseDataset
-from .normalization import DataNormalizer, ZScoreNormalizer
+from .normalization import ZScoreNormalizer
 from .sensor_util import DatasetBandRegistry
 
 
@@ -297,7 +293,7 @@ class GeoBenchPASTIS(GeoBenchBaseDataset):
         """Load the instance segmentation targets for a single sample.
 
         Args:
-            path: path to the label
+            sem_path: path to the label
             instance_path: path to the instance segmentation mask
 
         Returns:

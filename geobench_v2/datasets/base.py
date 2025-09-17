@@ -5,7 +5,6 @@
 
 import hashlib
 import os
-import urllib.request
 from collections.abc import Callable, Sequence
 from typing import Literal
 
@@ -75,22 +74,10 @@ class GeoBenchBaseDataset(NonGeoDataset, DataUtilsMixin):
 
         self.data_df = tacoreader.load([os.path.join(root, f) for f in self.paths])
 
-        if split in ["train", "val", "validation", "test"]:
-            effective_split = "validation" if split == "val" else split
-            self.data_df = self.data_df[
-                (self.data_df["tortilla:data_split"] == effective_split)
-            ].reset_index(drop=True)
-
-            if "add_test_split" in self.data_df.columns:
-                self.data_df = self.data_df[
-                    self.data_df["add_test_split"] == False
-                ].reset_index(drop=True)
-        else:
-            # extra test samples from the train set
-            if "add_test_split" in self.data_df.columns:
-                self.data_df = self.data_df[
-                    self.data_df["add_test_split"] == True
-                ].reset_index(drop=True)
+        effective_split = "validation" if split == "val" else split
+        self.data_df = self.data_df[
+            (self.data_df["tortilla:data_split"] == effective_split)
+        ].reset_index(drop=True)
 
         self.band_order = self.resolve_band_order(band_order)
 
@@ -156,20 +143,6 @@ class GeoBenchBaseDataset(NonGeoDataset, DataUtilsMixin):
         if not self.download:
             raise DatasetNotFoundError(self)
 
-        # Get Hugging Face token from environment variable
-        hf_token = os.environ.get("HF_TOKEN")
-        if not hf_token:
-            raise ValueError(
-                "HF_TOKEN environment variable not set. "
-                "Please set it to download from private repositories."
-            )
-
-        # Create a custom opener with authentication
-        opener = urllib.request.build_opener()
-        opener.addheaders = [("Authorization", f"Bearer {hf_token}")]
-        # Install our custom opener
-        urllib.request.install_opener(opener)
-
         for path, sha256str in zip(self.paths, self.sha256str):
             if not os.path.exists(os.path.join(self.root, path)):
                 download_url(self.url.format(path), self.root, filename=path)
@@ -179,7 +152,7 @@ class GeoBenchBaseDataset(NonGeoDataset, DataUtilsMixin):
                         "The file may be corrupted or incomplete."
                     )
 
-        # TODO maybe check for other band stats etc files
+        # TODO check for other band stats etc files
 
     def verify_sha256str(self, file_path, expected_sha256str):
         """Verify file integrity using sha256str hash.

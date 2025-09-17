@@ -3,21 +3,21 @@
 
 """NZCattle dataset."""
 
-import os
-from pathlib import Path
-import re
 import io
+import json
+import re
+from pathlib import Path
+
+import h5py
+import rasterio
 import torch
 import torch.nn as nn
 from torch import Tensor
-import tacoreader
+
 from geobench_v2.datasets.sensor_util import DatasetBandRegistry
-import pdb
-import rasterio
-import h5py
-import json
-from .normalization import ZScoreNormalizer, DataNormalizer
+
 from .base import GeoBenchBaseDataset
+from .normalization import ZScoreNormalizer
 
 
 class GeoBenchNZCattle(GeoBenchBaseDataset):
@@ -64,7 +64,6 @@ class GeoBenchNZCattle(GeoBenchBaseDataset):
             transforms: image transformations to apply to the data, defaults to None
             download: Whether to download the dataset
         """
-
         super().__init__(
             root=root,
             split=split,
@@ -84,7 +83,6 @@ class GeoBenchNZCattle(GeoBenchBaseDataset):
         Returns:
             data and label at that index
         """
-
         sample_row = self.data_df.read(index)
 
         image_path = sample_row["internal:subfile"].values[0]
@@ -136,7 +134,6 @@ class GeoBenchNZCattle(GeoBenchBaseDataset):
             boxes: bounding boxes tensor in xyxy format
             labels: labels tensor
         """
-
         pattern = r"(\d+)_(\d+),(.+)"
         match = re.search(pattern, path)
         offset = int(match.group(1))

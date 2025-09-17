@@ -7,8 +7,8 @@ import os
 from collections.abc import Sequence
 from pathlib import Path
 
-import pytest
 import matplotlib.pyplot as plt
+import pytest
 import torch
 from pytest import MonkeyPatch
 from torchgeo.datasets import DatasetNotFoundError
@@ -64,7 +64,6 @@ class TestFieldsOfTheWorldDataModule:
         assert len(datamodule.train_dataloader()) > 0
         assert len(datamodule.val_dataloader()) > 0
         assert len(datamodule.test_dataloader()) > 0
-        assert len(datamodule.extra_test_dataloader()) > 0
 
     def test_load_batch_and_check_dims(self, datamodule):
         """Test loading a batch."""
@@ -106,6 +105,7 @@ class TestFieldsOfTheWorldDataModule:
         assert isinstance(batch, dict)
 
         fig.savefig(os.path.join("tests", "data", "fotw", "test_batch.png"))
+        plt.close(fig)
 
     def test_not_downloaded(self, tmp_path: Path) -> None:
         with pytest.raises(DatasetNotFoundError, match="Dataset not found"):

@@ -14,7 +14,6 @@ from torch import Tensor
 from .base import GeoBenchBaseDataset
 from .normalization import ZScoreNormalizer
 from .sensor_util import DatasetBandRegistry
-import pdb
 
 
 class GeoBenchBurnScars(GeoBenchBaseDataset):

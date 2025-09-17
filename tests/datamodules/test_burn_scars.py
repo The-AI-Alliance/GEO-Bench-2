@@ -14,7 +14,6 @@ from torchgeo.datasets import DatasetNotFoundError
 
 from geobench_v2.datamodules import GeoBenchBurnScarsDataModule
 from geobench_v2.datasets.burn_scars import GeoBenchBurnScars
-import pdb
 
 
 @pytest.fixture
@@ -96,6 +95,7 @@ class TestBurnScarsDataModule:
         assert isinstance(batch, dict)
 
         fig.savefig(os.path.join("tests", "data", "burn_scars", "test_batch.png"))
+        plt.close(fig)
 
     def test_not_downloaded(self, tmp_path: Path) -> None:
         with pytest.raises(DatasetNotFoundError, match="Dataset not found"):

@@ -93,7 +93,6 @@ class TestTreeSatAIDataModule:
         assert len(datamodule.train_dataloader()) > 0
         assert len(datamodule.val_dataloader()) > 0
         assert len(datamodule.test_dataloader()) > 0
-        assert len(datamodule.extra_test_dataloader()) > 0
 
     def test_load_batch_and_check_dims(self, datamodule):
         """Test loading a batch."""
@@ -137,6 +136,7 @@ class TestTreeSatAIDataModule:
         assert isinstance(batch, dict)
 
         fig.savefig(os.path.join("tests", "data", "treesatai", "test_batch.png"))
+        plt.close(fig)
 
     # def test_time_series_output(self, ts_datamodule):
     #     """Test time series output dimensions."""

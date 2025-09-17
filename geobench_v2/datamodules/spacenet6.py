@@ -27,8 +27,6 @@ from .base import GeoBenchSegmentationDataModule
 class GeoBenchSpaceNet6DataModule(GeoBenchSegmentationDataModule):
     """GeoBench SpaceNet6 Data Module."""
 
-    has_extra_test_samples = True
-
     def __init__(
         self,
         img_size: int = 450,
@@ -52,10 +50,10 @@ class GeoBenchSpaceNet6DataModule(GeoBenchSegmentationDataModule):
             num_workers: Number of workers
             collate_fn: Collate function
             train_augmentations: Transforms/Augmentations to apply during training, they will be applied
-                at the sample level and should include normalization. See :method:`define_augmentations`
+                at the sample level and should include normalization. See :meth:`define_augmentations`
                 for the default transformation.
             eval_augmentations: Transforms/Augmentations to apply during evaluation, they will be applied
-                at the sample level and should include normalization. See :method:`define_augmentations`
+                at the sample level and should include normalization. See :meth:`define_augmentations`
                 for the default transformation.
             pin_memory: Pin memory
             **kwargs: Additional keyword arguments for the dataset class

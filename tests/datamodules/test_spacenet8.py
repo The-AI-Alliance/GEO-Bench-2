@@ -92,6 +92,7 @@ class TestSpaceNet8DataModule:
         assert isinstance(batch, dict)
 
         fig.savefig(os.path.join("tests", "data", "spacenet8", "test_batch.png"))
+        plt.close(fig)
 
     def test_not_downloaded(self, tmp_path: Path) -> None:
         with pytest.raises(DatasetNotFoundError, match="Dataset not found"):

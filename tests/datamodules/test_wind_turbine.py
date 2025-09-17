@@ -77,3 +77,4 @@ class TestWindTurbineDataModule:
         assert isinstance(batch, dict)
 
         fig.savefig(os.path.join("tests", "data", "wind_turbine", "test_batch.png"))
+        plt.close(fig)

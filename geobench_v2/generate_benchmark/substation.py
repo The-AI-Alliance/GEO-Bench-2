@@ -1,39 +1,38 @@
-import argparse
-import os
+"""Generation script for Substation GeoBench subset.
 
+Provides utilities to process raw substation annotations and imagery into the
+standard GeoBench format.
+"""
+
+import argparse
+import glob
+import json
+import os
+import pdb
+
+import h5py
 import numpy as np
 import pandas as pd
-
-import json
-from tqdm import tqdm
-from shapely.geometry import shape
-
-import os
-import numpy as np
-import rasterio
-from rasterio.transform import from_origin
-from tqdm import tqdm
-import h5py
-
-
-import os
-import json
-import glob
 import rasterio
 import tacoreader
 import tacotoolbox
-import pdb
-import json
-
-from pyproj import CRS
-from pyproj import Transformer
+from pyproj import CRS, Transformer
 from rasterio.transform import Affine
+from tqdm import tqdm
 
 from geobench_v2.generate_benchmark.utils import create_unittest_subset
 
 
 def generate_metadata_df(root_dir: str) -> pd.DataFrame:
-    with open(root_dir + "annotations.json", "r") as f:
+    """Generate a DataFrame containing metadata for the substation dataset.
+
+    Args:
+        root_dir: Root directory of the dataset.
+
+    Returns:
+        A DataFrame containing metadata information for images and annotations.
+    """
+    with open(root_dir + "annotations.json") as f:
         d = json.load(f)
 
     # load images meta
@@ -61,6 +60,15 @@ def generate_metadata_df(root_dir: str) -> pd.DataFrame:
 
 
 def generate_random_subsample(metadata_df, n_splits):
+    """Generate a random subsample of the metadata DataFrame.
+
+    Args:
+        metadata_df: DataFrame containing metadata for the entire dataset.
+        n_splits: List containing the number of samples for each split.
+
+    Returns:
+        A subsampled DataFrame containing a random selection of images and annotations.
+    """
     splits = ["train", "val", "test"]
 
     metadata_sub_df = pd.DataFrame()
@@ -86,16 +94,18 @@ def generate_random_subsample(metadata_df, n_splits):
     return metadata_sub_df
 
 
-def download(root):
-    """
-    Download the substation dataset
-    """
-
-    # To be implemented. Use the download method from https://github.com/IBM/terratorch/blob/main/terratorch/datasets/substation.py
-    return
-
-
 def save_image_tiff(image_path, lat, lon, output_folder):
+    """Save image as GeoTIFF file.
+
+    Args:
+        image_path: Path to the input image file.
+        lat: Latitude of the image centroid.
+        lon: Longitude of the image centroid.
+        output_folder: Directory to save the output GeoTIFF file.
+
+    Returns:
+        A tuple containing the TIFF profile and the path to the saved GeoTIFF file.
+    """
     image_data = np.load(image_path)["arr_0"]
     image_data = np.mean(image_data, axis=0)
     utm_zone = int((lon + 180) / 6) + 1
@@ -139,11 +149,10 @@ def create_tortilla(metadata_df, save_dir, tortilla_name):
     """Create a tortilla version of an object detection dataset.
 
     Args:
-        annotations_df: DataFrame with annotations including image_path, label, bbox coordinates
+        metadata_df: DataFrame with annotations including image_path, label, bbox coordinates
         save_dir: Directory to save the tortilla files
         tortilla_name: Name of the final tortilla file
     """
-
     tortilla_dir = os.path.join(save_dir, "tortilla/")
     os.makedirs(tortilla_dir, exist_ok=True)
 
@@ -269,8 +278,6 @@ if __name__ == "__main__":
     )
 
     args = parser.parse_args()
-
-    # download(args.root)
 
     metadata_df = generate_metadata_df(args.root)
 

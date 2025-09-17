@@ -555,7 +555,6 @@ def create_geobench_version(
         root_dir: Root directory for the dataset
         save_dir: Directory to save the GeoBench version
     """
-
     patch_size = (450, 450)
     stride = (449, 449)
 

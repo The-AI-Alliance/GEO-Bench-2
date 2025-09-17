@@ -12,7 +12,6 @@ import torch
 from lightning import LightningDataModule
 from torch import Tensor
 from tqdm.auto import tqdm
-import pdb
 
 
 # Using Caleb Robinson's implementation: https://gist.github.com/calebrob6/1ef1e64bd62b1274adf2c6f91e20d215
@@ -365,7 +364,6 @@ class DatasetStatistics(ABC):
         Args:
             batch: Batch of input data
         """
-
         for key in self.running_stats:
             input_data = batch[key]
             if torch.is_tensor(input_data):
@@ -503,17 +501,40 @@ class DatasetStatistics(ABC):
                     shape = (1,)
                     dims = [0]
 
+            if isinstance(self.range_vals, dict):
+                if key not in self.range_vals:
+                    raise KeyError(
+                        f"range_vals provided as dict but missing key '{key}'. "
+                        f"Available keys: {list(self.range_vals.keys())}"
+                    )
+                range_vals_key = self.range_vals[key]
+            else:
+                range_vals_key = self.range_vals  # same tuple for all inputs
+
+            if self.clip_min_vals is not None:
+                if isinstance(self.clip_min_vals, dict):
+                    clip_min_val_key = self.clip_min_vals.get(key, None)
+                else:
+                    # single scalar / sequence applied to all (rare)
+                    clip_min_val_key = self.clip_min_vals
+            else:
+                clip_min_val_key = None
+
+            if self.clip_max_vals is not None:
+                if isinstance(self.clip_max_vals, dict):
+                    clip_max_val_key = self.clip_max_vals.get(key, None)
+                else:
+                    clip_max_val_key = self.clip_max_vals
+            else:
+                clip_max_val_key = None
+
             self.running_stats[key] = ImageStatistics(
                 shape,
                 dims,
                 bins=self.bins,
-                range_vals=self.range_vals[key],
-                clip_min_val=self.clip_min_vals[key]
-                if self.clip_min_vals is not None
-                else None,
-                clip_max_val=self.clip_max_vals[key]
-                if self.clip_max_vals is not None
-                else None,
+                range_vals=range_vals_key,
+                clip_min_val=clip_min_val_key,
+                clip_max_val=clip_max_val_key,
                 normalization_mode=self.normalization_mode,
                 compute_quantiles=True,
             ).to(self.device)

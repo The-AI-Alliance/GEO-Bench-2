@@ -11,7 +11,6 @@ from pytest import MonkeyPatch
 
 from geobench_v2.datamodules import GeoBenchNZCattleDataModule
 from geobench_v2.datasets import GeoBenchNZCattle
-import pdb
 
 
 @pytest.fixture(params=[["red", "green", 0, "blue"]])
@@ -79,3 +78,4 @@ class TestNZCattleDataModule:
         assert isinstance(batch, dict)
 
         fig.savefig(os.path.join("tests", "data", "nzcattle", "test_batch.png"))
+        plt.close(fig)
