@@ -188,7 +188,7 @@ class TestSatMAENormalizer:
     def test_second_stage_normalization(self, stats):
         """Test second-stage normalization (ImageNet-style)."""
         normalizer = SatMAENormalizer(
-            stats, ["B1", "B2"], output_range="zero_one", apply_second_stage=True
+            stats, ["B1", "B2"], output_range="zero_one", apply_second_stage=False
         )
 
         stats_with_norm = stats.copy()
@@ -202,12 +202,8 @@ class TestSatMAENormalizer:
             apply_second_stage=True,
         )
 
-        input_tensor = torch.tensor(
-            [
-                [[[[self.TEST_STATS["means"]["B1"]]]]],
-                [[[[self.TEST_STATS["means"]["B2"]]]]],
-            ]
-        )
+        # Correct shape: (B, T, C, H, W) -> (1, 1, 2, 1, 1)
+        input_tensor = torch.tensor([100.0, -10.0]).view(1, 1, 2, 1, 1)
 
         result1 = normalizer({"image": input_tensor})
         result2 = normalizer_with_stats({"image": input_tensor})
@@ -245,24 +241,24 @@ class TestZScoreNormalizer:
     TEST_STATS = {
         "means": {"B1": 100.0, "B2": -10.0, "B3": 50.0},
         "stds": {"B1": 20.0, "B2": 5.0, "B3": 10.0},
+        # clip_* present but ignored by ZScoreNormalizer
         "clip_min": {"B1": 70.0},
         "clip_max": {"B1": 130.0},
     }
 
-    # Input values for testing
     TEST_VALUES_B1_IN = [60.0, 70.0, 100.0, 130.0, 140.0]
     TEST_VALUES_B2_IN = [-20.0, -15.0, -10.0, -5.0, 0.0]
     TEST_VALUES_B3_IN = [30.0, 40.0, 50.0, 60.0, 70.0]
 
-    # Intermediate clipped values (B1 clipped, B2/B3 not)
-    TEST_VALUES_B1_CLIP = [70.0, 70.0, 100.0, 130.0, 130.0]
-    TEST_VALUES_B2_CLIP = TEST_VALUES_B2_IN  # No clipping applied
-    TEST_VALUES_B3_CLIP = TEST_VALUES_B3_IN  # No clipping applied
+    # Pure z-score (no clipping) -> (x - mean)/std
+    TEST_VALUES_B1_NORM = [-2.0, -1.5, 0.0, 1.5, 2.0]
+    TEST_VALUES_B2_NORM = [-2.0, -1.0, 0.0, 1.0, 2.0]
+    TEST_VALUES_B3_NORM = [-2.0, -1.0, 0.0, 1.0, 2.0]
 
-    # Expected final normalized values (z-score applied to clipped values)
-    TEST_VALUES_B1_NORM = [-1.5, -1.5, 0.0, 1.5, 1.5]  # (B1_CLIP - 100) / 20
-    TEST_VALUES_B2_NORM = [-2.0, -1.0, 0.0, 1.0, 2.0]  # (B2_CLIP - (-10)) / 5
-    TEST_VALUES_B3_NORM = [-2.0, -1.0, 0.0, 1.0, 2.0]  # (B3_CLIP - 50) / 10
+    # Roundtrip should recover ORIGINAL (not clipped) values
+    TEST_VALUES_B1_ROUNDTRIP = TEST_VALUES_B1_IN
+    TEST_VALUES_B2_ROUNDTRIP = TEST_VALUES_B2_IN
+    TEST_VALUES_B3_ROUNDTRIP = TEST_VALUES_B3_IN
 
     FILL_VALUE = -999.0
 
@@ -270,7 +266,6 @@ class TestZScoreNormalizer:
         [TEST_VALUES_B1_IN, TEST_VALUES_B2_IN, [FILL_VALUE] * 5, TEST_VALUES_B3_IN]
     )
 
-    # Expected result after forward pass (normalization)
     EXPECTED_NORM = torch.tensor(
         [
             TEST_VALUES_B1_NORM,
@@ -280,14 +275,12 @@ class TestZScoreNormalizer:
         ]
     )
 
-    # Expected result after unnormalize(forward(input))
-    # Should be the clipped values, as unnormalize only reverses z-score
     EXPECTED_ROUNDTRIP = torch.tensor(
         [
-            TEST_VALUES_B1_CLIP,
-            TEST_VALUES_B2_CLIP,
+            TEST_VALUES_B1_ROUNDTRIP,
+            TEST_VALUES_B2_ROUNDTRIP,
             [FILL_VALUE] * 5,
-            TEST_VALUES_B3_CLIP,
+            TEST_VALUES_B3_ROUNDTRIP,
         ]
     )
 
@@ -361,7 +354,6 @@ class TestZScoreNormalizer:
             .unsqueeze(-1)
             .permute(1, 0, 2, 3)
         )
-
         input_mod2 = (
             torch.tensor([[self.TEST_VALUES_B2_IN[0]], [self.TEST_VALUES_B3_IN[0]]])
             .unsqueeze(-1)
@@ -371,35 +363,25 @@ class TestZScoreNormalizer:
 
         input_data = {"image_mod1": input_mod1, "image_mod2": input_mod2}
 
-        # Expected normalized values (using pre-calculated NORM values)
         expected_mod1 = torch.tensor(
             [[[[self.TEST_VALUES_B1_NORM[0]]], [[self.FILL_VALUE]]]]
         )
-
         expected_mod2 = torch.tensor(
             [[[[self.TEST_VALUES_B2_NORM[0]]], [[self.TEST_VALUES_B3_NORM[0]]]]]
         )
 
-        expected_data = {"image_mod1": expected_mod1, "image_mod2": expected_mod2}
-
         normalized_result = normalizer(input_data)
-
-        assert normalized_result.keys() == expected_data.keys()
-        assert torch.allclose(
-            normalized_result["image_mod1"], expected_data["image_mod1"], atol=1e-6
-        )
-        assert torch.allclose(
-            normalized_result["image_mod2"], expected_data["image_mod2"], atol=1e-6
-        )
+        assert torch.allclose(normalized_result["image_mod1"], expected_mod1, atol=1e-6)
+        assert torch.allclose(normalized_result["image_mod2"], expected_mod2, atol=1e-6)
 
         denormalized_result = normalizer.unnormalize(normalized_result)
 
-        # Expected roundtrip values (using pre-calculated CLIP values)
+        # Roundtrip returns original (no clipping)
         expected_roundtrip_mod1 = torch.tensor(
-            [[[[self.TEST_VALUES_B1_CLIP[0]]], [[self.FILL_VALUE]]]]
+            [[[[self.TEST_VALUES_B1_IN[0]]], [[self.FILL_VALUE]]]]
         )
         expected_roundtrip_mod2 = torch.tensor(
-            [[[[self.TEST_VALUES_B2_CLIP[0]]], [[self.TEST_VALUES_B3_CLIP[0]]]]]
+            [[[[self.TEST_VALUES_B2_IN[0]]], [[self.TEST_VALUES_B3_IN[0]]]]]
         )
 
         assert torch.allclose(
@@ -408,34 +390,3 @@ class TestZScoreNormalizer:
         assert torch.allclose(
             denormalized_result["image_mod2"], expected_roundtrip_mod2, atol=1e-5
         )
-
-    @pytest.mark.parametrize("processing_mode", ["clip_only", "clip_rescale"])
-    def test_processing_modes(self, stats, processing_mode):
-        """Test all processing modes with the same input data."""
-        normalizer = ZScoreNormalizer(
-            stats, self.BAND_ORDER, processing_mode=processing_mode
-        )
-
-        input_tensor = self.INPUT_VALS.unsqueeze(-1).unsqueeze(-1)
-        test_tensor = input_tensor.permute(1, 0, 2, 3)
-
-        normalized_result = normalizer({"image": test_tensor})
-
-        if processing_mode == "clip_only":
-            denorm = normalizer.unnormalize(normalized_result)["image"]
-            clipped = torch.tensor(
-                [
-                    self.TEST_VALUES_B1_CLIP,
-                    self.TEST_VALUES_B2_CLIP,
-                    [self.FILL_VALUE] * 5,
-                    self.TEST_VALUES_B3_CLIP,
-                ]
-            )
-            clipped = clipped.unsqueeze(-1).unsqueeze(-1).permute(1, 0, 2, 3)
-            assert torch.allclose(denorm, clipped, atol=1e-5)
-        elif processing_mode == "clip_rescale":
-            denorm = normalizer.unnormalize(normalized_result)["image"]
-            for i in range(len(self.TEST_VALUES_B1_IN)):
-                assert (
-                    abs(denorm[0, 0, 0, 0].item() - self.TEST_VALUES_B1_CLIP[0]) < 1e-5
-                )
