@@ -36,6 +36,6 @@ jobs:
       run: |
         python -m pytest tests --cov=geobench_v2 --cov-report=xml
     - name: Report coverage
-      uses: codecov/codecov-action@v5.1.2
+      uses: codecov/codecov-action@v5.5.1
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
