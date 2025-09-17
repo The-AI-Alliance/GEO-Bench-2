@@ -25,7 +25,6 @@ from .base import GeoBenchSegmentationDataModule
 class GeoBenchBioMasstersDataModule(GeoBenchSegmentationDataModule):
     """GeoBench BioMassters Data Module."""
 
-
     def __init__(
         self,
         img_size: int = 256,

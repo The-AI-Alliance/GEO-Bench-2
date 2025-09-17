@@ -25,7 +25,6 @@ from .base import GeoBenchClassificationDataModule
 class GeoBenchTreeSatAIDataModule(GeoBenchClassificationDataModule):
     """GeoBench TreeSatAI Data Module."""
 
-
     def __init__(
         self,
         img_size: int = 304,

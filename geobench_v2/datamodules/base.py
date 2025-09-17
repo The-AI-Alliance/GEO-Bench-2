@@ -267,11 +267,7 @@ class GeoBenchDataModule(LightningDataModule, ABC):
         others = [sp for sp in data_df[plot_col].unique() if sp not in present]
         splits = present + others
 
-        split_colors = {
-            "train": "blue",
-            "validation": "green",
-            "test": "red",
-        }
+        split_colors = {"train": "blue", "validation": "green", "test": "red"}
 
         legend_elements: list[Line2D] = []
         for split in splits:
@@ -367,7 +363,6 @@ class GeoBenchDataModule(LightningDataModule, ABC):
             shuffle=False,
             drop_last=False,
         )
-
 
     def on_after_batch_transfer(
         self, batch: dict[str, Tensor], dataloader_idx: int
