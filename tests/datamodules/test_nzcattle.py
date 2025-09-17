@@ -78,3 +78,4 @@ class TestNZCattleDataModule:
         assert isinstance(batch, dict)
 
         fig.savefig(os.path.join("tests", "data", "nzcattle", "test_batch.png"))
+        plt.close(fig)

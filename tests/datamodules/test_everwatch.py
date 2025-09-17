@@ -78,3 +78,4 @@ class TestEverWatchDataModule:
         assert isinstance(batch, dict)
 
         fig.savefig(os.path.join("tests", "data", "everwatch", "test_batch.png"))
+        plt.close(fig)

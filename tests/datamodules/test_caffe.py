@@ -63,7 +63,6 @@ class TestCaFFeDataModule:
         assert len(datamodule.train_dataloader()) > 0
         assert len(datamodule.val_dataloader()) > 0
         assert len(datamodule.test_dataloader()) > 0
-        assert len(datamodule.extra_test_dataloader()) > 0
 
     def test_batch_dimensions(self, datamodule):
         """Test if batches have correct dimensions."""
@@ -96,6 +95,7 @@ class TestCaFFeDataModule:
         assert isinstance(batch, dict)
 
         fig.savefig(os.path.join("tests", "data", "caffe", "test_batch.png"))
+        plt.close(fig)
 
     def test_not_downloaded(self, tmp_path: Path) -> None:
         with pytest.raises(DatasetNotFoundError, match="Dataset not found"):

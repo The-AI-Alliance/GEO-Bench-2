@@ -79,3 +79,4 @@ class TestSubstationDataModule:
         assert isinstance(batch, dict)
 
         fig.savefig(os.path.join("tests", "data", "substation", "test_batch.png"))
+        plt.close(fig)

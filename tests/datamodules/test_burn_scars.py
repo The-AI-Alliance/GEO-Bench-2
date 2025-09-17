@@ -95,6 +95,7 @@ class TestBurnScarsDataModule:
         assert isinstance(batch, dict)
 
         fig.savefig(os.path.join("tests", "data", "burn_scars", "test_batch.png"))
+        plt.close(fig)
 
     def test_not_downloaded(self, tmp_path: Path) -> None:
         with pytest.raises(DatasetNotFoundError, match="Dataset not found"):

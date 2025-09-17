@@ -144,20 +144,6 @@ class GeoBenchBaseDataset(NonGeoDataset, DataUtilsMixin):
         if not self.download:
             raise DatasetNotFoundError(self)
 
-        # # Get Hugging Face token from environment variable
-        # hf_token = os.environ.get("HF_TOKEN")
-        # if not hf_token:
-        #     raise ValueError(
-        #         "HF_TOKEN environment variable not set. "
-        #         "Please set it to download from private repositories."
-        #     )
-
-        # # Create a custom opener with authentication
-        # opener = urllib.request.build_opener()
-        # opener.addheaders = [("Authorization", f"Bearer {hf_token}")]
-        # # Install our custom opener
-        # urllib.request.install_opener(opener)
-
         for path, sha256str in zip(self.paths, self.sha256str):
             if not os.path.exists(os.path.join(self.root, path)):
                 download_url(self.url.format(path), self.root, filename=path)
