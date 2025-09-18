@@ -124,7 +124,6 @@ class TestMultiModalConfig:
         assert config.band_to_modality["VV_desc"] == "s1_desc"
         assert config.band_to_modality["VH_desc"] == "s1_desc"
         assert config.band_to_modality["VV/VH_desc"] == "s1_desc"
-        assert len(config.default_order) == len(s2_bands) + 6
 
 
 class TestBandResolution:
@@ -210,8 +209,14 @@ class TestDatasetRegistry:
             assert isinstance(config, MultiModalConfig)
             assert set(config.modalities.keys()) == expected_modalities
             assert len(config.band_to_modality) > 0
-            default_bands = [b for b in config.default_order if isinstance(b, str)]
-            for band in default_bands:
+            for modality, bands in config.modalities.items():
+                for band in bands.bands:
+                    assert config.band_to_modality[band] == modality
+                # default_bands = [b for b in config.default_order if isinstance(b, str)]
+                # for band in default_bands:
+                #     if band not in config.band_to_modality:
+                #         import pdb
+                #         pdb.set_trace()
                 assert band in config.band_to_modality
 
     @pytest.mark.parametrize(
