@@ -1,4 +1,4 @@
-# Dataset Notebooks
+# Dataset Tour
 
 These additional data notebooks are intended as a introduction to the dataset through different visualizations and outlining the processing steps from the original dataset version to the GeoBenchV2 version.
 

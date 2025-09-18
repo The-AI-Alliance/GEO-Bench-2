@@ -51,7 +51,7 @@ class GeoBenchCloudSen12(GeoBenchBaseDataset):
 
     band_default_order = DatasetBandRegistry.CLOUDSEN12.default_order
 
-    normalization_stats = {
+    normalization_stats: dict[str, dict[str, float]] = {
         "means": {
             "B01": 0.0,
             "B02": 0.0,
@@ -88,7 +88,7 @@ class GeoBenchCloudSen12(GeoBenchBaseDataset):
         self,
         root,
         split: Literal["train", "validation", "test"] = "train",
-        band_order: Sequence[float | str] = ["B04", "B03", "B02"],
+        band_order: list[float | str] = ["B04", "B03", "B02"],
         data_normalizer: type[nn.Module] = ZScoreNormalizer,
         transforms: nn.Module | None = None,
         metadata: Sequence[str] | None = None,
@@ -137,11 +137,9 @@ class GeoBenchCloudSen12(GeoBenchBaseDataset):
         image_path: str = l2a_row.read(0)
         target_path: str = l2a_row.read(1)
 
-        with (
-            rasterio.open(image_path) as image_src,
-            rasterio.open(target_path) as target_src,
-        ):
+        with rasterio.open(image_path) as image_src:
             image_data: np.ndarray = image_src.read(out_dtype="float32")
+        with rasterio.open(target_path) as target_src:
             target_data: np.ndarray = target_src.read()
 
         image = torch.from_numpy(image_data).float()

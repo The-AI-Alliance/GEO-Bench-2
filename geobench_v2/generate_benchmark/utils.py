@@ -19,7 +19,7 @@ def plot_sample_locations(
     output_path: str = None,
     buffer_degrees: float = 5.0,
     split_column: str = "split",
-    sample_fraction: float = 1.0,  # Reduced default to 10%
+    sample_fraction: float = 1.0,
     alpha: float = 0.5,
     s: float = 0.5,
     dataset_name: str = "BigEarthNetV2",
@@ -67,7 +67,6 @@ def plot_sample_locations(
     lat_extent = max_lat - min_lat
 
     if lon_extent > 180:
-        # Global extent, Robinson is a good choice
         projection = ccrs.Robinson()
     else:
         central_lon = (min_lon + max_lon) / 2
@@ -108,7 +107,6 @@ def plot_sample_locations(
 
     legend_elements = []
 
-    # scatter plot for each split
     for split in splits:
         split_data = metadata_df[metadata_df[split_column] == split]
         if len(split_data) > 0:
@@ -267,7 +265,6 @@ def _plot_region(ax, df, split_column, split_colors, buffer_degrees, s, alpha, t
         ax.add_feature(cfeature.RIVERS, linewidth=0.2, alpha=0.5)
         ax.add_feature(cfeature.LAKES, facecolor="lightblue", alpha=0.5)
 
-    # Plot each split
     legend_elements = []
     for split in df[split_column].unique():
         split_data = df[df[split_column] == split]
@@ -422,7 +419,6 @@ def create_unittest_subset(
     taco_glob = sorted(glob(os.path.join(data_dir, tortilla_pattern)))
     taco_subset = tacoreader.load(taco_glob)
 
-    # create unit test subset
     unit_test_taco = create_subset_from_df(
         taco_subset,
         n_train_samples=n_train_samples,
@@ -438,6 +434,6 @@ def create_unittest_subset(
     os.makedirs(test_data_dir, exist_ok=True)
     tortilla_path = os.path.join(test_data_dir, f"{test_dir_name}.tortilla")
     tacoreader.compile(dataframe=unit_test_taco, output=tortilla_path)
-    # print filesize in MB
+
     print(f"Unit test subset saved to {tortilla_path}")
     print(f"Filesize: {os.path.getsize(tortilla_path) / (1024 * 1024):.2f} MB")

@@ -78,13 +78,11 @@ def create_tortilla(dataset_dir, save_dir, tortilla_name):
         tile = metadata_df["image_key"].values[idx].split(".")[0]
         time = metadata_df["image_key"].values[idx].split(".")[1].split(".")[0]
 
-        # calculate lat/lon
         centroid_x = transform[0] + (width / 2 * transform[1])
         centroid_y = transform[3] + (height / 2 * transform[5])
         transformer = Transformer.from_crs(crs, "EPSG:4326", always_xy=True)
         lon, lat = transformer.transform(centroid_x, centroid_y)
 
-        # create image
         image_sample = tacotoolbox.tortilla.datamodel.Sample(
             id="image",
             path=geotiff_path,

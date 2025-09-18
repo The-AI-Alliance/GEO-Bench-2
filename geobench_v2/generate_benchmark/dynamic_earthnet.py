@@ -23,8 +23,6 @@ from rasterio.windows import Window
 from skimage.transform import resize
 from tqdm import tqdm
 
-# TODO add automatic download of dataset to have a starting point for benchmark generation
-
 
 def create_geospatial_temporal_split(
     metadata_df, train_ratio=0.7, val_ratio=0.1, test_ratio=0.2, random_seed=42
@@ -309,7 +307,6 @@ def create_tortilla(root_dir, df, save_dir, tortilla_name):
 
     unique_ts_samples = df["sample_idx"].unique()
 
-    # rename val to validation
     df["split"] = df["split"].replace("val", "validation")
 
     for idx, row in tqdm(
@@ -324,7 +321,6 @@ def create_tortilla(root_dir, df, save_dir, tortilla_name):
 
         for modality in modalities:
             if modality == "planet":
-                # process the entire month time-series
                 for planet_id, row in modality_df.iterrows():
                     path = os.path.join(root_dir, row[modality + "_path"])
 
@@ -353,7 +349,6 @@ def create_tortilla(root_dir, df, save_dir, tortilla_name):
                     modality_samples.append(sample)
 
             elif modality == "s1":
-                # check for missing
                 row = modality_df.iloc[0]
                 path = os.path.join(root_dir, row[modality + "_path"])
 
@@ -381,7 +376,6 @@ def create_tortilla(root_dir, df, save_dir, tortilla_name):
                 modality_samples.append(sample)
 
             elif modality == "s2":
-                # check for missing
                 row = modality_df.iloc[0]
                 path = os.path.join(root_dir, row[modality + "_path"])
                 with rasterio.open(path) as src:
@@ -488,12 +482,7 @@ def process_dynamic_earthnet(metadata_df, input_root, output_root, num_workers=8
     for directory in modality_dirs.values():
         os.makedirs(directory, exist_ok=True)
 
-    patch_positions = [
-        (0, 0),  # top-left
-        (0, 512),  # top-right
-        (512, 0),  # bottom-left
-        (512, 512),  # bottom-right
-    ]
+    patch_positions = [(0, 0), (0, 512), (512, 0), (512, 512)]
 
     unique_ids = metadata_df.drop_duplicates(subset=["new_id"]).reset_index(drop=True)
     print(f"Found {len(unique_ids)} unique location-month combinations")
@@ -759,7 +748,6 @@ def create_test_subset(
 
     df_unique = df.drop_duplicates(subset="patch_id", keep="first")
 
-    # Get available samples by split
     train_unique = df_unique[df_unique["split"] == "train"]
     val_unique = df_unique[df_unique["split"] == "validation"]
     test_unique = df_unique[df_unique["split"] == "test"]
@@ -1177,9 +1165,7 @@ def verify_split_disjointness(metadata_df):
             "SUCCESS: Space-time disjointness verified! Each location's time series is in only one split."
         )
     else:
-        print(
-            "FAILURE: Space-time disjointness violated. This can lead to data leakage."
-        )
+        print("FAILURE: Space-time disjointness violated.")
 
     loc_counts = {split: len(locs) for split, locs in split_locations.items()}
     print("\nSplit distribution summary:")

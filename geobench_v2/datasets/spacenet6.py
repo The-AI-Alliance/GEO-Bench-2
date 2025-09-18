@@ -3,8 +3,9 @@
 
 """SpaceNet6 dataset."""
 
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from pathlib import Path
+from typing import Literal, cast
 
 import numpy as np
 import rasterio
@@ -33,11 +34,7 @@ class GeoBenchSpaceNet6(GeoBenchBaseDataset):
     """
 
     url = "https://hf.co/datasets/aialliance/spacenet6/resolve/main/{}"
-    # paths = [
-    #     "SpaceNet6.0000.part.tortilla",
-    #     "SpaceNet6.0001.part.tortilla",
-    #     "SpaceNet6.0002.part.tortilla",
-    # ]
+
     paths = [
         "geobench_spacenet6.0000.part.tortilla",
         "geobench_spacenet6.0001.part.tortilla",
@@ -48,11 +45,11 @@ class GeoBenchSpaceNet6(GeoBenchBaseDataset):
     dataset_band_config = DatasetBandRegistry.SPACENET6
 
     band_default_order = {
-        "rgbn": ("red", "green", "blue", "nir"),
-        "sar": ("hh", "hv", "vv", "vh"),
+        "rgbn": ["red", "green", "blue", "nir"],
+        "sar": ["hh", "hv", "vv", "vh"],
     }
 
-    normalization_stats = {
+    normalization_stats: dict[str, dict[str, float]] = {
         "means": {
             "red": 0.0,
             "green": 0.0,
@@ -84,8 +81,8 @@ class GeoBenchSpaceNet6(GeoBenchBaseDataset):
     def __init__(
         self,
         root: Path,
-        split: str,
-        band_order: Sequence[str] = band_default_order,
+        split: Literal["train", "val", "validation", "test"],
+        band_order: Mapping[str, list[str]] = band_default_order,
         data_normalizer: type[nn.Module] = ZScoreNormalizer,
         transforms: nn.Module | None = None,
         return_stacked_image: bool = False,
@@ -108,9 +105,14 @@ class GeoBenchSpaceNet6(GeoBenchBaseDataset):
             return_stacked_image: if true, returns a single image tensor with all modalities stacked in band_order
             download: Whether to download the dataset
         """
+        split_norm: Literal["train", "validation", "test"]
+        if split == "val":
+            split_norm = "validation"
+        else:
+            split_norm = cast(Literal["train", "validation", "test"], split)
         super().__init__(
             root=root,
-            split=split,
+            split=split_norm,
             band_order=band_order,
             data_normalizer=data_normalizer,
             transforms=transforms,

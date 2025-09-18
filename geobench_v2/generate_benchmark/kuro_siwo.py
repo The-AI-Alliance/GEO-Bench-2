@@ -28,7 +28,7 @@ from geobench_v2.generate_benchmark.utils import (
     create_unittest_subset,
 )
 
-# Configuration mappings
+# name mappings
 modality_mapper = {
     "MK0_DEM": "aux_dem",
     "MK0_SLOPE": "aux_slope",
@@ -179,12 +179,9 @@ def visualize_complete_sample(sample, output_path=None):
         else "Unknown"
     )
 
-    # Process and plot each modality
     for i, (modality_id, title) in enumerate(modalities):
         if i >= len(axes):
             break
-
-        # Find the corresponding row in the sample dataframe
         modality_row = sample[sample["tortilla:id"] == modality_id]
 
         if len(modality_row) == 0:
@@ -207,7 +204,6 @@ def visualize_complete_sample(sample, output_path=None):
                 bounds = [-0.5, 0.5, 1.5, 2.5, 3.5]
                 norm = plt.cm.colors.BoundaryNorm(bounds, cmap.N)
 
-                # Compute some class statistics and add to plot
                 class_0_count = np.sum(data == 0)
                 class_1_count = np.sum(data == 1)
                 class_2_count = np.sum(data == 2)
@@ -313,15 +309,12 @@ def process_kurosiwo_sample(task):
         sample_height = None
         sample_width = None
 
-        # Process each modality
         for modality_name, config in modality_configs.items():
             input_paths = [os.path.join(input_dir, path) for path in config["inputs"]]
 
-            # Read all input files
             data_arrays = []
             for in_path in input_paths:
                 with rasterio.open(in_path) as src:
-                    # Store metadata from first valid source
                     if profile_template is None:
                         profile_template = src.profile.copy()
                         sample_crs = src.crs
@@ -331,7 +324,6 @@ def process_kurosiwo_sample(task):
 
                     data_arrays.append(src.read())
 
-            # Stack data arrays if we need to combine them
             if config["combine"] and len(data_arrays) > 1:
                 combined_data = np.vstack(data_arrays)
             else:
@@ -592,7 +584,6 @@ def create_tortilla(df: pd.DataFrame, root: str, save_dir: str, tortilla_name: s
 
             modality_samples.append(sample)
 
-        # Create and save TACO samples
         taco_samples = tacotoolbox.tortilla.datamodel.Samples(samples=modality_samples)
         samples_path = os.path.join(tortilla_dir, (f"{idx}.tortilla"))
         tacotoolbox.tortilla.create(taco_samples, samples_path, quiet=True)
@@ -607,7 +598,6 @@ def create_tortilla(df: pd.DataFrame, root: str, save_dir: str, tortilla_name: s
     ):
         sample_data = tacoreader.load(tortilla_file).iloc[0]
 
-        # Create sample
         sample_tortilla = tacotoolbox.tortilla.datamodel.Sample(
             id=str(idx),
             path=tortilla_file,
@@ -630,7 +620,6 @@ def create_tortilla(df: pd.DataFrame, root: str, save_dir: str, tortilla_name: s
         )
         samples.append(sample_tortilla)
 
-    # Create the final TACO file
     samples = tacotoolbox.tortilla.datamodel.Samples(samples=samples)
     tacotoolbox.tortilla.create(
         samples, os.path.join(save_dir, tortilla_name), quiet=True
@@ -704,13 +693,6 @@ def main():
             subset_df, input_dir=args.root, output_dir=args.save_dir, num_workers=1
         )
         result_df.to_parquet(result_df_path)
-
-    # plot_sample_locations(
-    #     result_df,
-    #     os.path.join(args.save_dir, "sample_locations.png"),
-    #     split_column="tortilla:data_split",
-    #     dataset_name="Kuro Siwo",
-    # )
 
     tortilla_name = "geobench_kuro_siwo.tortilla"
 

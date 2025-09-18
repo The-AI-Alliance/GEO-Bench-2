@@ -14,7 +14,6 @@ import tacoreader
 import torch
 import torch.nn as nn
 from einops import rearrange
-from torch import Tensor
 from torchgeo.datasets.utils import percentile_normalization
 
 from geobench_v2.datasets import GeoBenchFLAIR2
@@ -83,11 +82,12 @@ class GeoBenchFLAIR2DataModule(GeoBenchSegmentationDataModule):
         return self.data_df
 
     def visualize_batch(
-        self, split: str = "train"
-    ) -> tuple[plt.Figure, dict[str, Tensor]]:
+        self, batch: dict[str, Any] | None = None, split: str = "train"
+    ) -> tuple[Any, dict[str, Any]]:
         """Visualize a batch of data.
 
         Args:
+            batch: A batch of data
             split: One of 'train', 'validation', 'test'
 
         Returns:

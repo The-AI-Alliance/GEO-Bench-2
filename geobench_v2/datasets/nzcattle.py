@@ -6,7 +6,9 @@
 import io
 import json
 import re
+from collections.abc import Sequence
 from pathlib import Path
+from typing import Literal, cast
 
 import h5py
 import rasterio
@@ -30,9 +32,9 @@ class GeoBenchNZCattle(GeoBenchBaseDataset):
     sha256str = ["70ca3b78af3f5b17868dd856b8e31b102a03e74439d58960a69c77b1efcd31c1"]
 
     dataset_band_config = DatasetBandRegistry.NZCATTLE
-    band_default_order = ("red", "green", "blue")
+    band_default_order = ["red", "green", "blue"]
 
-    normalization_stats = {
+    normalization_stats: dict[str, dict[str, float]] = {
         "means": {"red": 0.0, "green": 0.0, "blue": 0.0},
         "stds": {"red": 255.0, "green": 255.0, "blue": 255.0},
     }
@@ -44,8 +46,8 @@ class GeoBenchNZCattle(GeoBenchBaseDataset):
     def __init__(
         self,
         root: Path,
-        split: str,
-        band_order: list[str] = band_default_order,
+        split: Literal["train", "val", "validation", "test"],
+        band_order: Sequence[str] = band_default_order,
         data_normalizer: type[nn.Module] = ZScoreNormalizer,
         transforms: nn.Module | None = None,
         download: bool = False,
@@ -64,9 +66,14 @@ class GeoBenchNZCattle(GeoBenchBaseDataset):
             transforms: image transformations to apply to the data, defaults to None
             download: Whether to download the dataset
         """
+        split_norm: Literal["train", "validation", "test"]
+        if split == "val":
+            split_norm = "validation"
+        else:
+            split_norm = cast(Literal["train", "validation", "test"], split)
         super().__init__(
             root=root,
-            split=split,
+            split=split_norm,
             band_order=band_order,
             data_normalizer=data_normalizer,
             transforms=transforms,
@@ -90,14 +97,11 @@ class GeoBenchNZCattle(GeoBenchBaseDataset):
 
         sample: dict[str, Tensor] = {}
 
-        ## load image
         image = self._load_image(image_path)
 
         image_dict = self.rearrange_bands(image, self.band_order)
         image_dict = self.data_normalizer(image_dict)
         sample.update(image_dict)
-
-        ## load annotations
 
         boxes, labels = self._load_target(anno_path)
 
@@ -118,7 +122,6 @@ class GeoBenchNZCattle(GeoBenchBaseDataset):
         Returns:
             image tensor
         """
-        ## load image
         with rasterio.open(path) as src:
             image = src.read(out_dtype="float32")
 
@@ -136,9 +139,10 @@ class GeoBenchNZCattle(GeoBenchBaseDataset):
         """
         pattern = r"(\d+)_(\d+),(.+)"
         match = re.search(pattern, path)
-        offset = int(match.group(1))
-        size = int(match.group(2))
-        file_name = match.group(3)
+        if match:
+            offset = int(match.group(1))
+            size = int(match.group(2))
+            file_name = match.group(3)
 
         with open(file_name, "rb") as f:
             f.seek(offset)

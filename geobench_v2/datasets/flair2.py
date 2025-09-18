@@ -3,7 +3,9 @@
 
 """Flair 2 Aerial Dataset."""
 
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
+from pathlib import Path
+from typing import Literal, cast
 
 import rasterio
 import torch
@@ -45,7 +47,7 @@ class GeoBenchFLAIR2(GeoBenchBaseDataset):
 
     dataset_band_config = DatasetBandRegistry.FLAIR2
 
-    normalization_stats = {
+    normalization_stats: dict[str, dict[str, float]] = {
         "means": {"red": 0.0, "green": 0.0, "blue": 0.0, "nir": 0.0, "elevation": 0.0},
         "stds": {
             "red": 255.0,
@@ -57,22 +59,22 @@ class GeoBenchFLAIR2(GeoBenchBaseDataset):
     }
 
     band_default_order = {
-        "aerial": ("red", "green", "blue", "nir"),
-        "elevation": ("elevation",),
+        "aerial": ["red", "green", "blue", "nir"],
+        "elevation": ["elevation"],
     }
 
     valid_metadata = ("lat", "lon")
 
     def __init__(
         self,
-        root,
-        split="train",
-        band_order: dict[str, Sequence[float | str]] = band_default_order,
+        root: Path,
+        split: Literal["train", "val", "validation", "test"],
+        band_order: Mapping[str, list[str]] = band_default_order,
         data_normalizer: type[nn.Module] = ZScoreNormalizer,
         transforms: nn.Module | None = None,
         metadata: Sequence[str] | None = None,
         download: bool = False,
-    ):
+    ) -> None:
         """Initialize FLAIR 2 dataset.
 
         Args:
@@ -90,9 +92,14 @@ class GeoBenchFLAIR2(GeoBenchBaseDataset):
         Raises:
             AssertionError: If split is not in the splits
         """
+        split_norm: Literal["train", "validation", "test"]
+        if split == "val":
+            split_norm = "validation"
+        else:
+            split_norm = cast(Literal["train", "validation", "test"], split)
         super().__init__(
             root=root,
-            split=split,
+            split=split_norm,
             band_order=band_order,
             data_normalizer=data_normalizer,
             transforms=transforms,
@@ -118,12 +125,10 @@ class GeoBenchFLAIR2(GeoBenchBaseDataset):
 
         data_dict = {}
         with rasterio.open(aerial_path) as f:
-            # read aerial bands
             data = f.read()
             image = data[:-1, :, :]
             data_dict["aerial"] = torch.from_numpy(image).float()
             if "elevation" in self.band_order:
-                # read elevation band
                 elevation = data[-1, :, :]
                 data_dict["elevation"] = (
                     torch.from_numpy(elevation).unsqueeze(0).float()

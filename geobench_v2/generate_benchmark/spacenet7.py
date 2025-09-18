@@ -107,18 +107,18 @@ def process_spacenet7_row(args):
         patch_info_list = []
         for i in range(num_patches_h):
             for j in range(num_patches_w):
-                # Calculate window position with possible overlap for odd-sized images
+                # window position with possible overlap for odd-sized images
                 row_start = i * (src_height // num_patches_h)
                 if i == 1 and src_height < num_patches_h * patch_size[0]:
-                    # Ensure the second patch gets full size by overlapping
+                    # second patch gets full size by overlapping
                     row_start = src_height - patch_size[0]
 
                 col_start = j * (src_width // num_patches_w)
                 if j == 1 and src_width < num_patches_w * patch_size[1]:
-                    # Ensure the second patch gets full size by overlapping
+                    # second patch gets full size by overlapping
                     col_start = src_width - patch_size[1]
 
-                # Ensure window is within bounds
+                # window is within bounds
                 row_end = min(row_start + patch_size[0], src_height)
                 col_end = min(col_start + patch_size[1], src_width)
 
@@ -738,7 +738,6 @@ def visualize_sample(row, root, output_path):
     with rasterio.open(os.path.join(root, image_masked_path)) as src:
         image_masked = src.read()
 
-    # labels need to be read with geopandas geojson
     labels = gpd.read_file(os.path.join(root, labels_path))
 
     if labels.crs != src_crs:
@@ -749,7 +748,7 @@ def visualize_sample(row, root, output_path):
     label_mask = rasterize(
         label_shapes,
         out_shape=(image.shape[1], image.shape[2]),
-        fill=0,  # nodata value
+        fill=0,
         transform=tfm,
         all_touched=False,
         dtype=np.int64,

@@ -125,7 +125,6 @@ def generate_metadata_df(ds: FieldsOfTheWorld) -> pd.DataFrame:
         & (overall_df["win_b_exists"])
     ]
 
-    # Drop the existence check columns after filtering
     overall_df = overall_df.drop(
         columns=[
             "win_a_exists",
@@ -445,7 +444,6 @@ def process_fotw_sample(args):
         country = row["country"]
         aoi_id = row["aoi_id"]
 
-        # Create output directories
         for subdir in ["win_a", "win_b", "instance_mask", "semantic_3class_mask"]:
             os.makedirs(os.path.join(save_dir, subdir), exist_ok=True)
 
@@ -468,7 +466,6 @@ def process_fotw_sample(args):
             with rasterio.open(src_path) as src:
                 data = src.read()
 
-                # instance mask as int 8
                 if modality == "instance_mask" and data.dtype not in [
                     np.uint8,
                     np.int8,
@@ -682,7 +679,6 @@ def main():
         metadata_df = generate_metadata_df(orig_dataset)
         metadata_df.to_parquet(metadata_path)
 
-    # assert that only CC_BY_COUNTRIES are present
     assert set(metadata_df["country"].unique()) == set(CC_BY_COUNTRIES)
 
     plot_country_distribution(
@@ -691,7 +687,6 @@ def main():
         title="Fields of the World Dataset - Geographic Distribution",
     )
 
-    # create geobench subset
     results_df_path = os.path.join(args.save_dir, "geobench_fotw.parquet")
     if os.path.exists(results_df_path):
         results_df = pd.read_parquet(results_df_path)
@@ -717,7 +712,6 @@ def main():
         )
         optimized_df.to_parquet(optimized_path)
 
-    # create tortilla
     tortilla_name = "geobench_fotw.tortilla"
     create_tortilla(
         root_dir=os.path.join(args.save_dir, "optimized"),

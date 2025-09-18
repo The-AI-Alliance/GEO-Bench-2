@@ -13,7 +13,6 @@ import tacoreader
 import torch
 import torch.nn as nn
 from matplotlib.colors import ListedColormap
-from torch import Tensor
 from torchgeo.datasets.utils import percentile_normalization
 
 from geobench_v2.datasets import GeoBenchFieldsOfTheWorld
@@ -85,11 +84,12 @@ class GeoBenchFieldsOfTheWorldDataModule(GeoBenchSegmentationDataModule):
         return self.data_df
 
     def visualize_batch(
-        self, split: str = "train"
-    ) -> tuple[plt.Figure, dict[str, Tensor]]:
+        self, batch: dict[str, Any] | None = None, split: str = "train"
+    ) -> tuple[Any, dict[str, Any]]:
         """Visualize a batch of data from the Fields of the World dataset.
 
         Args:
+            batch: Optional batch of data. If not provided, a batch will be fetched from the dataloader.
             split: One of 'train', 'validation', 'test'
 
         Returns:

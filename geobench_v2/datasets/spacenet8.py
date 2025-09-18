@@ -5,6 +5,7 @@
 
 from collections.abc import Sequence
 from pathlib import Path
+from typing import Literal, cast
 
 import numpy as np
 import rasterio
@@ -40,12 +41,12 @@ class GeoBenchSpaceNet8(GeoBenchBaseDataset):
 
     dataset_band_config = DatasetBandRegistry.SPACENET8
 
-    normalization_stats = {
+    normalization_stats: dict[str, dict[str, float]] = {
         "means": {"red": 0.0, "green": 0.0, "blue": 0.0},
         "stds": {"red": 255.0, "green": 255.0, "blue": 255.0},
     }
 
-    band_default_order = ("red", "green", "blue")
+    band_default_order = ["red", "green", "blue"]
 
     classes = (
         "background",
@@ -61,10 +62,10 @@ class GeoBenchSpaceNet8(GeoBenchBaseDataset):
     def __init__(
         self,
         root: Path,
-        split: str,
-        band_order: list[str] = band_default_order,
+        split: Literal["train", "val", "validation", "test"],
+        band_order: Sequence[str] = band_default_order,
         data_normalizer: type[nn.Module] = ZScoreNormalizer,
-        transforms: nn.Module = None,
+        transforms: nn.Module | None = None,
         metadata: Sequence[str] | None = None,
         return_stacked_image: bool = False,
         time_step: Sequence[str] = ["pre", "post"],
@@ -87,9 +88,14 @@ class GeoBenchSpaceNet8(GeoBenchBaseDataset):
             return_stacked_image: if true, returns a single image tensor with all modalities stacked in band_order
             download: Whether to download the dataset
         """
+        split_norm: Literal["train", "validation", "test"]
+        if split == "val":
+            split_norm = "validation"
+        else:
+            split_norm = cast(Literal["train", "validation", "test"], split)
         super().__init__(
             root=root,
-            split=split,
+            split=split_norm,
             band_order=band_order,
             data_normalizer=data_normalizer,
             transforms=transforms,
@@ -125,13 +131,11 @@ class GeoBenchSpaceNet8(GeoBenchBaseDataset):
         post_event_path = sample_row.read(1)
         mask_path = sample_row.read(2)
 
-        with (
-            rasterio.open(pre_event_path) as pre_src,
-            rasterio.open(post_event_path) as post_src,
-            rasterio.open(mask_path) as mask_src,
-        ):
+        with rasterio.open(pre_event_path) as pre_src:
             pre_image: np.ndarray = pre_src.read(out_dtype="float32")
+        with rasterio.open(post_event_path) as post_src:
             post_image: np.ndarray = post_src.read(out_dtype="float32")
+        with rasterio.open(mask_path) as mask_src:
             mask: np.ndarray = mask_src.read()
 
         image_pre = torch.from_numpy(pre_image).float()

@@ -40,12 +40,9 @@ class GeoBenchFieldsOfTheWorld(GeoBenchBaseDataset):
 
     dataset_band_config = DatasetBandRegistry.FOTW
 
-    # keys should be specified according to the sensor default values
-    # defined in sensor_util.py
     band_default_order = ("red", "green", "blue", "nir")
 
-    # Define normalization stats using canonical names
-    normalization_stats = {
+    normalization_stats: dict[str, dict[str, float]] = {
         "means": {"red": 0.0, "green": 0.0, "blue": 0.0, "nir": 0.0},
         "stds": {"red": 3000.0, "green": 3000.0, "blue": 3000.0, "nir": 3000.0},
     }
@@ -55,7 +52,6 @@ class GeoBenchFieldsOfTheWorld(GeoBenchBaseDataset):
 
     valid_metadata = ("lat", "lon")
 
-    # TODO maybe add country argument?
     def __init__(
         self,
         root: Path,
@@ -110,8 +106,6 @@ class GeoBenchFieldsOfTheWorld(GeoBenchBaseDataset):
         """
         sample: dict[str, Tensor] = {}
 
-        sample: dict[str, Tensor] = {}
-
         sample_row = self.data_df.read(idx)
 
         win_a_path = sample_row.read(0)
@@ -123,13 +117,11 @@ class GeoBenchFieldsOfTheWorld(GeoBenchBaseDataset):
             else sample_row.read(3)
         )
 
-        with (
-            rasterio.open(win_a_path) as win_a_src,
-            rasterio.open(win_b_path) as win_b_src,
-            rasterio.open(mask_path) as mask_src,
-        ):
+        with rasterio.open(win_a_path) as win_a_src:
             win_a = win_a_src.read()
+        with rasterio.open(win_b_path) as win_b_src:
             win_b = win_b_src.read()
+        with rasterio.open(mask_path) as mask_src:
             mask = mask_src.read(1)
 
         win_a = torch.from_numpy(win_a).float()

@@ -7,42 +7,58 @@ import json
 from abc import ABC, abstractmethod
 from collections.abc import Sequence
 from pathlib import Path
+from typing import Any, cast
 
 import torch
 import torch.nn as nn
 from torch import Tensor
 
 
-def _load_stats_from_path_or_dict(stats_path: str):
-    """Load statistics from a path to a JSON file or use provided dict directly."""
-    stats_path = Path(stats_path)
-    if not stats_path.exists():
-        raise FileNotFoundError(f"Statistics file not found: {stats_path}")
+def _load_stats_from_path_or_dict(
+    stats_source: str | Path,
+) -> dict[str, dict[str, float]]:
+    """Load statistics from a path to a JSON file.
 
-    with open(stats_path) as f:
-        stats_dict = json.load(f)
+    Returns a processed stats dictionary with keys like 'means', 'stds',
+    and optional 'norm_mean', 'norm_std', 'shift_offsets', 'clip_min', 'clip_max'.
+    """
+    path = Path(stats_source)
+    if not path.exists():
+        raise FileNotFoundError(f"Statistics file not found: {path}")
 
-    processed_stats = {"means": {}, "stds": {}}
+    with open(path) as f:
+        stats_dict: dict[str, Any] = json.load(f)
+
+    processed_stats: dict[str, dict[str, float]] = {"means": {}, "stds": {}}
 
     for modality_key, modality_stats in stats_dict["input_stats"].items():
-        for i, band_name in enumerate(modality_stats["band_names"]):
-            processed_stats["means"][band_name] = modality_stats["mean"][i]
-            processed_stats["stds"][band_name] = modality_stats["std"][i]
+        band_names: list[str] = modality_stats["band_names"]
+        means: list[float] = modality_stats["mean"]
+        stds: list[float] = modality_stats["std"]
+        for i, band_name in enumerate(band_names):
+            processed_stats["means"][band_name] = float(means[i])
+            processed_stats["stds"][band_name] = float(stds[i])
 
             for stat_key in ["norm_mean", "norm_std", "shift_offsets"]:
                 if stat_key in modality_stats:
                     if stat_key not in processed_stats:
                         processed_stats[stat_key] = {}
-                    processed_stats[stat_key][band_name] = modality_stats[stat_key][i]
+                    processed_stats[stat_key][band_name] = float(
+                        modality_stats[stat_key][i]
+                    )
         if "clip_min_used" in modality_stats:
             if "clip_min" not in processed_stats:
                 processed_stats["clip_min"] = {}
-            processed_stats["clip_min"][modality_key] = modality_stats["clip_min_used"]
+            processed_stats["clip_min"][modality_key] = float(
+                modality_stats["clip_min_used"]
+            )  # type: ignore[index]
 
         if "clip_max_used" in modality_stats:
             if "clip_max" not in processed_stats:
                 processed_stats["clip_max"] = {}
-            processed_stats["clip_max"][modality_key] = modality_stats["clip_max_used"]
+            processed_stats["clip_max"][modality_key] = float(
+                modality_stats["clip_max_used"]
+            )  # type: ignore[index]
 
     return processed_stats
 
@@ -52,7 +68,7 @@ class DataNormalizer(nn.Module, ABC):
 
     def __init__(
         self,
-        stats: dict[str, dict[str, float]] | str,
+        stats: dict[str, dict[str, float]] | Path,
         band_order: list[str | float] | dict[str, list[str | float]],
         image_keys: Sequence[str] | None = None,
     ) -> None:
@@ -64,18 +80,20 @@ class DataNormalizer(nn.Module, ABC):
             image_keys: Keys in the data dictionary to normalize (default: ["image"])
         """
         super().__init__()
-        if isinstance(stats, str | Path):
-            stats = _load_stats_from_path_or_dict(stats)
+        if isinstance(stats, (str, Path)):
+            stats_dict = _load_stats_from_path_or_dict(stats)
+        else:
+            stats_dict = stats
 
-        self.stats = stats
-        self.band_order = band_order
+        self.stats: dict[str, dict[str, float]] = stats_dict
+        self.band_order: list[str | float] | dict[str, list[str | float]] = band_order
         self.image_keys = image_keys or ["image"]
 
         self._validate_required_stats()
 
-        self.means = {}
-        self.stds = {}
-        self.is_fill_value = {}
+        self.means: dict[str, Tensor] = {}
+        self.stds: dict[str, Tensor] = {}
+        self.is_fill_value: dict[str, Tensor] = {}
 
         self._initialize_statistics()
 
@@ -122,18 +140,16 @@ class DataNormalizer(nn.Module, ABC):
                 if key == "image":
                     continue
 
-                modality_key = f"{key}_{base_key.split('_')[1]}"
+                modality = base_key.split("_")[1]
+                modality_key = f"{key}_{modality}"
 
                 self.means[modality_key] = means
                 self.stds[modality_key] = stds
                 self.is_fill_value[modality_key] = is_fill
 
+                bands_map = cast(dict[str, list[str | float]], self.band_order)
                 self._set_additional_stats_for_key(
-                    modality_key,
-                    self.band_order[base_key.split("_")[1]],
-                    means,
-                    stds,
-                    is_fill,
+                    modality_key, bands_map[modality], means, stds, is_fill
                 )
 
     def _set_additional_stats_for_key(
@@ -156,7 +172,7 @@ class DataNormalizer(nn.Module, ABC):
         """Extract mean, std tensors and a boolean mask identifying fill value channels."""
         means, stds, is_fill = [], [], []
         for band in bands:
-            if isinstance(band, (int | float)):
+            if isinstance(band, (int, float)):
                 means.append(0.0)
                 stds.append(1.0)
                 is_fill.append(True)
@@ -268,23 +284,25 @@ class ClipZScoreNormalizer(DataNormalizer):
 
     def __init__(
         self,
-        stats: dict[str, dict[str, float]] | str,
+        stats: dict[str, dict[str, float]] | Path,
         band_order: list[str | float] | dict[str, list[str | float]],
         image_keys: Sequence[str] | None = None,
     ) -> None:
         """Initialize normalizer applying clip then z-score."""
-        self.clip_mins = {}
-        self.clip_maxs = {}
+        self.clip_mins: dict[str, Tensor] = {}
+        self.clip_maxs: dict[str, Tensor] = {}
 
-        self.rescale_shifts = {}
-        self.rescale_scales = {}
+        self.rescale_shifts: dict[str, Tensor] = {}
+        self.rescale_scales: dict[str, Tensor] = {}
 
-        self.norm_means = {}
-        self.norm_stds = {}
+        self.norm_means: dict[str, Tensor] = {}
+        self.norm_stds: dict[str, Tensor] = {}
 
         super().__init__(stats, band_order, image_keys)
 
-    def _compute_rescale_stats(self, clip_means, clip_stds, shifts, scales):
+    def _compute_rescale_stats(
+        self, clip_means: float, clip_stds: float, shifts: float, scales: float
+    ) -> tuple[float, float]:
         """Compute rescale norm statistics from clip statistics."""
         rescale_means = (clip_means + shifts) / scales
         rescale_stds = clip_stds / scales
@@ -318,22 +336,22 @@ class ClipZScoreNormalizer(DataNormalizer):
         norm_stds = []
 
         for i, band in enumerate(bands):
-            if isinstance(band, (int | float)):
+            if isinstance(band, (int, float)):
                 norm_means.append(0.0)
                 norm_stds.append(1.0)
             else:
                 if "norm_mean" in self.stats and band in self.stats["norm_mean"]:
-                    mean = self.stats["norm_mean"][band]
-                    std = self.stats["norm_std"][band]
+                    mean = float(self.stats["norm_mean"][band])
+                    std = float(self.stats["norm_std"][band])
                     norm_means.append(mean)
                     norm_stds.append(std)
                 else:
-                    mean = self.stats["means"][band]
-                    std = self.stats["stds"][band]
-                    shift = self.rescale_shifts[key][i]
-                    scale = self.rescale_scales[key][i]
+                    mean_f = float(self.stats["means"][band])
+                    std_f = float(self.stats["stds"][band])
+                    shift = float(self.rescale_shifts[key][i].item())
+                    scale = float(self.rescale_scales[key][i].item())
                     norm_mean, norm_std = self._compute_rescale_stats(
-                        mean, std, shift, scale
+                        mean_f, std_f, shift, scale
                     )
                     norm_means.append(norm_mean)
                     norm_stds.append(norm_std)
@@ -498,7 +516,7 @@ class ZScoreNormalizer(DataNormalizer):
 
     def __init__(
         self,
-        stats: dict[str, dict[str, float]] | str,
+        stats: dict[str, dict[str, float]] | Path,
         band_order: list[str | float] | dict[str, list[str | float]],
         image_keys: Sequence[str] | None = None,
     ) -> None:
@@ -581,7 +599,7 @@ class RescaleNormalizer(DataNormalizer):
 
     def __init__(
         self,
-        stats: dict[str, dict[str, float]] | str,
+        stats: dict[str, dict[str, float]] | Path,
         band_order: list[str | float] | dict[str, list[str | float]],
         image_keys: Sequence[str] | None = None,
         output_range: str = "zero_one",
@@ -599,10 +617,10 @@ class RescaleNormalizer(DataNormalizer):
         )
 
         self.output_range = output_range
-        self.clip_mins = {}
-        self.clip_maxs = {}
-        self.shifts = {}
-        self.scales = {}
+        self.clip_mins: dict[str, Tensor] = {}
+        self.clip_maxs: dict[str, Tensor] = {}
+        self.shifts: dict[str, Tensor] = {}
+        self.scales: dict[str, Tensor] = {}
 
         if output_range == "zero_255":
             self.range_scale, self.range_shift = 255.0, 0.0
@@ -687,7 +705,6 @@ class RescaleNormalizer(DataNormalizer):
             shifted = clipped + shifts_r
 
             rescaled = shifted / scales_r
-            # rescaled = torch.clamp(rescaled, min=0.0, max=1.0)
 
             if self.output_range != "zero_one":
                 rescaled = rescaled * self.range_scale + self.range_shift
@@ -783,7 +800,7 @@ class SatMAENormalizer(DataNormalizer):
 
     def __init__(
         self,
-        stats: dict[str, dict[str, float]] | str,
+        stats: dict[str, dict[str, float]] | Path,
         band_order: list[str | float] | dict[str, list[str | float]],
         image_keys: Sequence[str] | None = None,
         output_range: str = "zero_one",
@@ -811,13 +828,13 @@ class SatMAENormalizer(DataNormalizer):
         else:  # zero_one
             self.scale_factor, self.shift_factor = 1.0, 0.0
 
-        self.raw_min_values = {}
-        self.raw_max_values = {}
-        self.offsets = {}
-        self.min_values = {}
-        self.max_values = {}
-        self.norm_means = {}
-        self.norm_stds = {}
+        self.raw_min_values: dict[str, Tensor] = {}
+        self.raw_max_values: dict[str, Tensor] = {}
+        self.offsets: dict[str, Tensor] = {}
+        self.min_values: dict[str, Tensor] = {}
+        self.max_values: dict[str, Tensor] = {}
+        self.norm_means: dict[str, Tensor] = {}
+        self.norm_stds: dict[str, Tensor] = {}
 
         super().__init__(stats, band_order, image_keys)
 
@@ -1029,7 +1046,7 @@ class ClipOnlyNormalizer(DataNormalizer):
 
     def __init__(
         self,
-        stats: dict[str, dict[str, float]] | str,
+        stats: dict[str, dict[str, float]] | Path,
         band_order: list[str | float] | dict[str, list[str | float]],
         image_keys: Sequence[str] | None = None,
     ) -> None:
@@ -1040,8 +1057,8 @@ class ClipOnlyNormalizer(DataNormalizer):
             band_order: Sequence or dict of band names/fill values
             image_keys: Keys to normalize in data dict
         """
-        self.clip_mins = {}
-        self.clip_maxs = {}
+        self.clip_mins: dict[str, Tensor] = {}
+        self.clip_maxs: dict[str, Tensor] = {}
         super().__init__(stats, band_order, image_keys)
 
     def _set_additional_stats_for_key(
@@ -1113,7 +1130,6 @@ class ClipOnlyNormalizer(DataNormalizer):
 
     def unnormalize(self, data: dict[str, Tensor]) -> dict[str, Tensor]:
         """Passthrough since clipping cannot be undone."""
-        # Clipping is a lossy operation that cannot be reversed
         return data.copy()
 
     def _get_required_stats(self) -> dict[str, str]:

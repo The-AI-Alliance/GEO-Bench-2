@@ -35,7 +35,6 @@ def create_tortilla(annotations_df, image_dir, save_dir, tortilla_name):
 
         geotiff_path = os.path.join(save_dir, img_name)
 
-        # Create annotations dictionary in COCO-like format
         boxes = []
         for _, ann in img_annotations.iterrows():
             boxes.append(
@@ -65,12 +64,10 @@ def create_tortilla(annotations_df, image_dir, save_dir, tortilla_name):
         )
 
         with h5py.File(annotations_file, "w") as f:
-            # Store the entire dictionary as a JSON string attribute
             f.attrs["annotation"] = json.dumps(
                 {"boxes": boxes, "image_size": (height, width)}
             )
 
-        # create image
         image_sample = tacotoolbox.tortilla.datamodel.Sample(
             id="image",
             path=geotiff_path,
@@ -86,7 +83,6 @@ def create_tortilla(annotations_df, image_dir, save_dir, tortilla_name):
             lat=lat,
         )
 
-        # Create annotation part
         annotations_sample = tacotoolbox.tortilla.datamodel.Sample(
             id="annotations",
             path=annotations_file,

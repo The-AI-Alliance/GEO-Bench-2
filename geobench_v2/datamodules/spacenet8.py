@@ -14,7 +14,6 @@ import torch
 import torch.nn as nn
 from einops import rearrange
 from matplotlib.colors import ListedColormap
-from torch import Tensor
 from torchgeo.datasets.utils import percentile_normalization
 
 from geobench_v2.datasets import GeoBenchSpaceNet8
@@ -82,22 +81,24 @@ class GeoBenchSpaceNet8DataModule(GeoBenchSegmentationDataModule):
         return self.data_df
 
     def visualize_batch(
-        self, split: str = "train"
-    ) -> tuple[plt.Figure, dict[str, Tensor]]:
+        self, batch: dict[str, Any] | None = None, split: str = "train"
+    ) -> tuple[Any, dict[str, Any]]:
         """Visualize a batch of data.
 
         Args:
+            batch: Optional batch of data. If not provided, a batch will be fetched from the dataloader.
             split: One of 'train', 'validation', 'test'
 
         Returns:
             The matplotlib figure and the batch of data
         """
-        if split == "train":
-            batch = next(iter(self.train_dataloader()))
-        elif split == "validation":
-            batch = next(iter(self.val_dataloader()))
-        else:
-            batch = next(iter(self.test_dataloader()))
+        if batch is None:
+            if split == "train":
+                batch = next(iter(self.train_dataloader()))
+            elif split == "validation":
+                batch = next(iter(self.val_dataloader()))
+            else:
+                batch = next(iter(self.test_dataloader()))
 
         if hasattr(self.data_normalizer, "unnormalize"):
             batch = self.data_normalizer.unnormalize(batch)

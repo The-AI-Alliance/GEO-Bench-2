@@ -28,16 +28,6 @@ CloudSen12
 
 .. autoclass:: GeoBenchCloudSen12
 
-BRIGHT
-------
-
-.. autoclass:: GeoBenchBRIGHT
-
-DOTAV2
-------
-
-.. autoclass:: GeoBenchDOTAV2
-
 Dynamic EarthNet
 ----------------
 
@@ -58,25 +48,11 @@ KuroSiwo
 
 .. autoclass:: GeoBenchKuroSiwo
 
-M4SAR
------
-
-.. autoclass:: GeoBenchM4SAR
-
-MMFlood
--------
-
-.. autoclass:: GeoBenchMMFlood
 
 PASTIS
 ------
 
 .. autoclass:: GeoBenchPASTIS
-
-QFabric
--------
-
-.. autoclass:: GeoBenchQFabric
 
 SpaceNet2
 ---------

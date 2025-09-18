@@ -93,7 +93,7 @@ def create_tortilla(root_dir, df, save_dir, tortilla_name):
     os.makedirs(tortilla_dir, exist_ok=True)
 
     for idx, row in tqdm(df.iterrows(), total=len(df), desc="Creating tortilla"):
-        modalities = ["aerial", "s1", "s2"]  # "sentinel-ts"]
+        modalities = ["aerial", "s1", "s2"]
         modality_samples = []
 
         for modality in modalities:
@@ -103,7 +103,6 @@ def create_tortilla(root_dir, df, save_dir, tortilla_name):
                 with rasterio.open(os.path.join(root_dir, row["aerial_path"])) as src:
                     profile = src.profile
 
-                # # create samples for sen1_acs_data, sen1_des_data, sen2_data
                 sample = tacotoolbox.tortilla.datamodel.Sample(
                     id=modality,
                     path=path,
@@ -213,11 +212,9 @@ def process_treesatai_sample(args):
             if not os.path.exists(src_path):
                 continue
 
-            # Create output directory
             modality_dir = os.path.join(save_dir, modality)
             os.makedirs(modality_dir, exist_ok=True)
 
-            # Create output filename
             dst_filename = f"{row['IMG_ID']}_{modality}.tif"
             dst_path = os.path.join(modality_dir, dst_filename)
 
@@ -380,15 +377,14 @@ def main():
         )
         optimized_df.to_parquet(optimized_path)
 
-    # Create a tortilla version of the dataset
     tortilla_name = "geobench_treesatai.tortilla"
 
-    # create_tortilla(
-    #     root_dir=args.save_dir,
-    #     df=optimized_df,
-    #     save_dir=args.save_dir,
-    #     tortilla_name=tortilla_name,
-    # )
+    create_tortilla(
+        root_dir=args.save_dir,
+        df=optimized_df,
+        save_dir=args.save_dir,
+        tortilla_name=tortilla_name,
+    )
 
     create_unittest_subset(
         data_dir=args.save_dir,

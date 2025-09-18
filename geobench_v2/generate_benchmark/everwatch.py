@@ -263,10 +263,8 @@ def process_everwatch_dataset(
 
     unique_images = annotations_df["image_path"].unique()
 
-    # Create task arguments for parallel processing
     tasks = []
     for img_name in unique_images:
-        # Extract annotations for this image
         img_annotations = annotations_df[annotations_df["image_path"] == img_name]
         tasks.append((img_name, image_dir, output_dir, target_size, img_annotations))
 
@@ -455,7 +453,6 @@ def create_tortilla(
         lon = row["lon"] if not pd.isna(row["lon"]) else None
         lat = row["lat"] if not pd.isna(row["lat"]) else None
 
-        # create image
         image_sample = tacotoolbox.tortilla.datamodel.Sample(
             id="image",
             path=geotiff_path,
@@ -471,7 +468,6 @@ def create_tortilla(
             lat=lat,
         )
 
-        # Create annotation part
         annotations_sample = tacotoolbox.tortilla.datamodel.Sample(
             id="annotations",
             path=annotation_path,
@@ -532,7 +528,6 @@ def main():
     path = os.path.join(args.root, "geobench_metadata_df.parquet")
     metadata_df.to_parquet(path)
 
-    # metadata_df = metadata_df.iloc[:10]
     resized_path = os.path.join(args.save_dir, "geobench_everwatch_resized.parquet")
     if os.path.exists(resized_path):
         resized_df = pd.read_parquet(resized_path)

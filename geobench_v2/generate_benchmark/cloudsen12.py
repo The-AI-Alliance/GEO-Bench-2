@@ -25,9 +25,6 @@ def create_subset(root: str, save_dir: str) -> None:
         root: Root directory for CloudSen12 dataset.
         save_dir: Directory to save the subset.
     """
-    # based on the metadata_df create a subset of the dataset and copy it
-    # with the same structure to the save_dir
-    # basically create mini tacos based on the metadata_df
     meta_dfs = []
     taco_files: dict[str, list[str]] = {
         "l1c": [

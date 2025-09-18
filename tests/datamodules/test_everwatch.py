@@ -15,7 +15,7 @@ from geobench_v2.datamodules import GeoBenchEverWatchDataModule
 from geobench_v2.datasets import GeoBenchEverWatch
 
 
-@pytest.fixture(params=[["red", "green", "blue", 0, "green"]])
+@pytest.fixture(params=[["red", "green", "blue", 0.0, "green"]])
 def band_order(request):
     """Parameterized band configuration with different configurations."""
     return request.param
@@ -68,8 +68,8 @@ class TestEverWatchDataModule:
     def test_band_order_resolution(self, datamodule):
         """Test if band order is correctly resolved."""
         assert len(datamodule.band_order) == 5
-        assert isinstance(datamodule.band_order[3], int)
-        assert datamodule.band_order[3] == 0
+        assert isinstance(datamodule.band_order[3], float)
+        assert datamodule.band_order[3] == 0.0
 
     def test_batch_visualization(self, datamodule):
         """Test batch visualization."""

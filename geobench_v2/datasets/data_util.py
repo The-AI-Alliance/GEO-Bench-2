@@ -15,10 +15,10 @@ from .sensor_util import ModalityConfig, MultiModalConfig
 class DataUtilsMixin(ABC):
     """Mixin for datasets that require band manipulation and normalization."""
 
-    @property
-    def normalization_stats(self) -> dict[str, dict[str, dict[str, float]]]:
-        """Per-modality normalization statistics."""
-        pass
+    # Declared attribute provided by datasets using this mixin
+    dataset_band_config: ModalityConfig | MultiModalConfig
+
+    normalization_stats: dict[str, dict[str, float]]
 
     def get_source_order(self) -> list[str] | dict[str, list[str]]:
         """Derive source order from dataset configuration."""
@@ -45,7 +45,7 @@ class DataUtilsMixin(ABC):
                 if modality not in self.dataset_band_config.modalities:
                     raise ValueError(f"Unknown modality: {modality}")
 
-                resolved_bands = []
+                resolved_bands: list[str] = []
                 mod_config = self.dataset_band_config.modalities[modality]
 
                 for band_spec in bands:

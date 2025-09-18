@@ -33,7 +33,7 @@ class GeoBenchDataModule(LightningDataModule, ABC):
         self,
         dataset_class: Dataset,
         img_size: int,
-        band_order: Sequence[float | str],
+        band_order: dict[str, Sequence[float | str]],
         batch_size: int = 32,
         eval_batch_size: int = 64,
         num_workers: int = 0,
@@ -140,7 +140,7 @@ class GeoBenchDataModule(LightningDataModule, ABC):
 
         Image resizing and normalization happens on the dataset level on individual data samples.
         """
-        pass
+        raise NotImplementedError
 
     @abstractmethod
     def load_metadata(self) -> pd.DataFrame:
@@ -149,21 +149,22 @@ class GeoBenchDataModule(LightningDataModule, ABC):
         Returns:
             pandas DataFrame with metadata.
         """
-        pass
+        raise NotImplementedError
 
     @abstractmethod
     def visualize_batch(
-        self, split: str = "train"
-    ) -> tuple[plt.Figure, dict[str, Tensor]]:
+        self, batch: dict[str, Any] | None = None, split: str = "train"
+    ) -> tuple[Any, dict[str, Any]]:
         """Visualize a batch of data.
 
         Args:
+            batch: batch of data to visualize, if None a batch will be fetched from the dataloader
             split: One of 'train', 'validation', 'test'.
 
         Returns:
             The matplotlib figure and the batch of data.
         """
-        pass
+        raise NotImplementedError
 
     @abstractmethod
     def define_augmentations(self) -> None:
@@ -171,7 +172,7 @@ class GeoBenchDataModule(LightningDataModule, ABC):
 
         Augmentations will be applied in `on_after_batch_transfer` in the LightningDataModule.
         """
-        pass
+        raise NotImplementedError
 
     def visualize_geospatial_distribution(
         self,
@@ -430,7 +431,7 @@ class GeoBenchClassificationDataModule(GeoBenchDataModule):
         self,
         dataset_class: Dataset,
         img_size: int,
-        band_order: Sequence[float | str],
+        band_order: dict[str, Sequence[float | str]],
         batch_size: int = 32,
         eval_batch_size: int = 64,
         num_workers: int = 0,
@@ -518,24 +519,25 @@ class GeoBenchClassificationDataModule(GeoBenchDataModule):
         Returns:
             pandas DataFrame with metadata.
         """
-        pass
+        raise NotImplementedError
 
     def visualize_batch(
-        self, split: str = "train"
-    ) -> tuple[plt.Figure, dict[str, Tensor]]:
+        self, batch: dict[str, Any] | None = None, split: str = "train"
+    ) -> tuple[Any, dict[str, Any]]:
         """Visualize a batch of data.
 
         Args:
+            batch: batch of data to visualize, if None a batch will be fetched from the dataloader
             split: One of 'train', 'validation', 'test'
 
         Returns:
             The matplotlib figure and the batch of data
         """
-        pass
+        raise NotImplementedError
 
     def visualize_geolocation_distribution(self) -> None:
         """Visualize the geolocation distribution of the dataset."""
-        pass
+        raise NotImplementedError
 
 
 class GeoBenchSegmentationDataModule(GeoBenchDataModule):
@@ -549,7 +551,7 @@ class GeoBenchSegmentationDataModule(GeoBenchDataModule):
         self,
         dataset_class: Dataset,
         img_size: int,
-        band_order: Sequence[float | str],
+        band_order: dict[str, Sequence[float | str]],
         batch_size: int = 32,
         eval_batch_size: int = 64,
         num_workers: int = 0,
@@ -638,24 +640,25 @@ class GeoBenchSegmentationDataModule(GeoBenchDataModule):
         Returns:
             pandas DataFrame with metadata.
         """
-        pass
+        raise NotImplementedError
 
     def visualize_batch(
-        self, split: str = "train"
-    ) -> tuple[plt.Figure, dict[str, Tensor]]:
+        self, batch: dict[str, Any] | None = None, split: str = "train"
+    ) -> tuple[Any, dict[str, Any]]:
         """Visualize a batch of data.
 
         Args:
+            batch: batch of data to visualize, if None a batch will be fetched from the dataloader
             split: One of 'train', 'validation', 'test'
 
         Returns:
             The matplotlib figure and the batch of data
         """
-        pass
+        raise NotImplementedError
 
     def visualize_geolocation_distribution(self) -> None:
         """Visualize the geolocation distribution of the dataset."""
-        pass
+        raise NotImplementedError
 
 
 class GeoBenchObjectDetectionDataModule(GeoBenchDataModule):
@@ -669,7 +672,7 @@ class GeoBenchObjectDetectionDataModule(GeoBenchDataModule):
         self,
         dataset_class: Dataset,
         img_size: int,
-        band_order: Sequence[float | str],
+        band_order: dict[str, Sequence[float | str]],
         batch_size: int = 32,
         eval_batch_size: int = 64,
         num_workers: int = 0,
@@ -757,21 +760,22 @@ class GeoBenchObjectDetectionDataModule(GeoBenchDataModule):
         Returns:
             pandas DataFrame with metadata.
         """
-        pass
+        raise NotImplementedError
 
     def visualize_batch(
-        self, split: str = "train"
-    ) -> tuple[plt.Figure, dict[str, Tensor]]:
+        self, batch: dict[str, Any] | None = None, split: str = "train"
+    ) -> tuple[Any, dict[str, Any]]:
         """Visualize a batch of data.
 
         Args:
+            batch: batch of data to visualize, if None a batch will be fetched from the dataloader
             split: One of 'train', 'validation', 'test'
 
         Returns:
             The matplotlib figure and the batch of data
         """
-        pass
+        raise NotImplementedError
 
     def visualize_geolocation_distribution(self) -> None:
         """Visualize the geolocation distribution of the dataset."""
-        pass
+        raise NotImplementedError

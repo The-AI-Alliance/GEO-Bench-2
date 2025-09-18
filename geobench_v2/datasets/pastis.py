@@ -63,14 +63,14 @@ class GeoBenchPASTIS(GeoBenchBaseDataset):
     )
 
     band_default_order = {
-        "s2": ("B02", "B03", "B04", "B05", "B06", "B07", "B08", "B8A", "B11", "B12"),
-        "s1_asc": ("VV_asc", "VH_asc", "VV/VH_asc"),
-        "s1_desc": ("VV_desc", "VH_desc", "VV/VH_desc"),
+        "s2": ["B02", "B03", "B04", "B05", "B06", "B07", "B08", "B8A", "B11", "B12"],
+        "s1_asc": ["VV_asc", "VH_asc", "VV/VH_asc"],
+        "s1_desc": ["VV_desc", "VH_desc", "VV/VH_desc"],
     }
 
     valid_splits = ("train", "val", "test")
 
-    normalization_stats = {
+    normalization_stats: dict[str, dict[str, float]] = {
         "means": {
             "B02": 0.0,
             "B03": 0.0,
@@ -119,7 +119,7 @@ class GeoBenchPASTIS(GeoBenchBaseDataset):
         self,
         root: Path,
         split: str,
-        band_order: dict[str, Sequence[float | str]] = {"s2": ["B04", "B03", "B02"]},
+        band_order: dict[str, list[float | str]] = {"s2": ["B04", "B03", "B02"]},
         data_normalizer: type[nn.Module] = ZScoreNormalizer,
         num_time_steps: int = 1,
         transforms: nn.Module | None = None,
@@ -236,9 +236,10 @@ class GeoBenchPASTIS(GeoBenchBaseDataset):
         """
         pattern = r"(\d+)_(\d+),(.+)"
         match = re.search(pattern, path)
-        offset = int(match.group(1))
-        size = int(match.group(2))
-        file_name = match.group(3)
+        if match:
+            offset = int(match.group(1))
+            size = int(match.group(2))
+            file_name = match.group(3)
 
         with open(file_name, "rb") as f:
             f.seek(offset)

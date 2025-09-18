@@ -36,15 +36,6 @@ CloudSen12
 
 .. autoclass:: GeoBenchCloudSen12DataModule
 
-BRIGHT
-------
-
-.. autoclass:: GeoBenchBRIGHTDataModule
-
-DOTAV2
-------
-
-.. autoclass:: GeoBenchDOTAV2DataModule
 
 Dynamic EarthNet
 ----------------
@@ -66,25 +57,11 @@ KuroSiwo
 
 .. autoclass:: GeoBenchKuroSiwoDataModule
 
-M4SAR
------
-
-.. autoclass:: GeoBenchM4SARDataModule
-
-MMFlood
--------
-
-.. autoclass:: GeoBenchMMFloodDataModule
-
 PASTIS
 ------
 
 .. autoclass:: GeoBenchPASTISDataModule
 
-QFabric
--------
-
-.. autoclass:: GeoBenchQFabricDataModule
 
 SpaceNet2
 ---------

@@ -6,17 +6,16 @@
 import os
 import re
 
+import cartopy.crs as ccrs
+import cartopy.feature as cfeature
 import geopandas as gpd
-import matplotlib.colors as mcolors
-import matplotlib.gridspec as gridspec
-import matplotlib.patches as mpatches
+import matplotlib.cm as cm
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import rasterio
 from matplotlib.colors import ListedColormap
 from matplotlib.lines import Line2D
-from matplotlib.patches import Rectangle
 from rasterio.enums import Compression
 from rasterio.features import rasterize
 from rasterio.windows import Window
@@ -185,10 +184,10 @@ def checkerboard_split(
     pattern: str = "checkerboard",
     test_blocks_ratio: float = 0.2,
     val_blocks_ratio: float = 0.1,
-    target_test_ratio: float = 0.2,  # Target sample ratio for test set
-    target_val_ratio: float = 0.1,  # Target sample ratio for validation set
-    max_iterations: int = 50,  # Maximum iterations for ratio optimization
-    ratio_tolerance: float = 0.02,  # Acceptable deviation from target ratios
+    target_test_ratio: float = 0.2,
+    target_val_ratio: float = 0.1,
+    max_iterations: int = 50,
+    ratio_tolerance: float = 0.02,
     crs: str = "EPSG:4326",
     random_state: int = 42,
 ) -> pd.DataFrame:
@@ -453,19 +452,11 @@ def visualize_geospatial_split(
     buffer_degrees: float = 1.0,
 ) -> None:
     """Visualize the spatial distribution of data splits using Cartopy features."""
-    import cartopy.crs as ccrs
-    import cartopy.feature as cfeature
-    from matplotlib.lines import Line2D
-
     split_markers = {"train": "o", "validation": "^", "test": "x"}
 
     unfilled_markers = ["x", "+", "|", "_"]
 
-    split_colors = {
-        "train": "#1f77b4",  # Blue
-        "validation": "#ff7f0e",  # Orange
-        "test": "#2ca02c",  # Green
-    }
+    split_colors = {"train": "#1f77b4", "validation": "#ff7f0e", "test": "#2ca02c"}
 
     min_lon = df[lon_col].min() - buffer_degrees
     max_lon = df[lon_col].max() + buffer_degrees
@@ -499,8 +490,6 @@ def visualize_geospatial_split(
     splits = df[split_col].unique()
     if cluster_col and cluster_col in df.columns:
         unique_clusters = df[cluster_col].unique()
-
-        import matplotlib.cm as cm
 
         cluster_cmap = cm.get_cmap("tab20", len(unique_clusters))
         cluster_colors = {
@@ -648,15 +637,6 @@ def visualize_distance_clusters(
     buffer_degrees: float = 1.0,
 ) -> None:
     """Visualize the distance-based clustering and splits using Cartopy features."""
-    if cluster_col not in df.columns or split_col not in df.columns:
-        raise ValueError(
-            f"DataFrame must contain {cluster_col} and {split_col} columns"
-        )
-
-    import cartopy.crs as ccrs
-    import cartopy.feature as cfeature
-    from matplotlib.lines import Line2D
-
     min_lon = df[lon_col].min() - buffer_degrees
     max_lon = df[lon_col].max() + buffer_degrees
     min_lat = df[lat_col].min() - buffer_degrees
@@ -915,12 +895,7 @@ def visualize_checkerboard_pattern(
 
     fig, ax = plt.subplots(figsize=figsize)
 
-    colors = [
-        "#d62728",
-        "#1f77b4",
-        "#ff7f0e",
-        "#2ca02c",
-    ]  # No data (red), Train (blue), Val (orange), Test (green)
+    colors = ["#1f77b4", "#ff7f0e", "#2ca02c"]
     cmap = ListedColormap(colors)
 
     ax.imshow(grid_numerical, cmap=cmap, interpolation="nearest")
@@ -1333,7 +1308,7 @@ def split_geospatial_tiles_into_patches(
                         try:
                             if modality == mask_modality:
                                 patch_data = mask_data
-                                # Set standard profile based on requirements
+
                                 patch_meta = {
                                     "driver": "GTiff",
                                     "compress": Compression.lzw,
@@ -1358,7 +1333,6 @@ def split_geospatial_tiles_into_patches(
                                         col_start : col_start + patch_size[1],
                                     ]
 
-                                    # Set standard profile based on requirements
                                     patch_meta = {
                                         "driver": "GTiff",
                                         "compress": Compression.lzw,
@@ -1379,7 +1353,6 @@ def split_geospatial_tiles_into_patches(
                                     with rasterio.open(modality_path) as src:
                                         patch_data = src.read(window=window)
 
-                                        # Set standard profile based on requirements
                                         patch_meta = {
                                             "driver": "GTiff",
                                             "compress": Compression.lzw,
@@ -1472,28 +1445,6 @@ def split_geospatial_tiles_into_patches(
                     all_patch_metadata.append(patch_metadata)
                     patches_created += 1
 
-            # if patches_created > 0:
-            #     visualize_dir = os.path.join(output_dir, "visualizations")
-            #     os.makedirs(visualize_dir, exist_ok=True)
-            #     vis_output_path = os.path.join(
-            #         visualize_dir, f"{img_basename}_patches.png"
-            #     )
-
-            #     visualize_current_patches(
-            #         modality_tiles=modality_tiles,
-            #         modality_patches=modality_patches,
-            #         output_path=vis_output_path,
-            #         buffer_top=buffer_top,
-            #         buffer_left=buffer_left,
-            #         buffer_bottom=buffer_bottom,
-            #         buffer_right=buffer_right
-            #     )
-
-            #     import pdb; pdb.set_trace()
-            # print(
-            #     f"Created {patches_created}/{total_patches} patches for {img_filename}"
-            # )
-
     patches_df = pd.DataFrame(all_patch_metadata)
 
     if len(patches_df) > 0:
@@ -1520,379 +1471,6 @@ def split_geospatial_tiles_into_patches(
         print("No patches were created. Check filtering criteria and input data.")
 
     return patches_df
-
-
-def visualize_current_patches(
-    modality_tiles,
-    modality_patches,
-    output_path=None,
-    buffer_top=0,
-    buffer_left=0,
-    buffer_bottom=0,
-    buffer_right=0,
-):
-    """Visualize the original images and their patches with one modality per row.
-
-    Args:
-        modality_tiles: Dictionary of full-sized tiles for each modality
-        modality_patches: Dictionary of patches for each modality
-        output_path: Path to save the visualization (optional)
-        buffer_top: Top buffer offset (pixels to skip from top edge)
-        buffer_left: Left buffer offset (pixels to skip from left edge)
-        buffer_bottom: Bottom buffer offset (pixels to skip from bottom edge)
-        buffer_right: Right buffer offset (pixels to skip from right edge)
-    """
-    import matplotlib.patches as mpatches
-    from matplotlib.colors import ListedColormap
-
-    modalities = list(modality_patches.keys())
-    n_rows = len(modalities)
-    n_cols = 5
-
-    fig = plt.figure(figsize=(22, 4 * n_rows))
-    gs = gridspec.GridSpec(n_rows, n_cols, figure=fig, wspace=0.05, hspace=0.2)
-
-    colors = ["r", "g", "b", "y"]
-    drawn_rectangles = {}
-
-    # Custom colormap for mask visualization - black, blue, red for background, non-flooded, flooded
-    mask_cmap = ListedColormap(["black", "blue", "red"])
-    first_col_axes = {}
-
-    for row_idx, modality in enumerate(modalities):
-        patches = modality_patches[modality]
-        tile = modality_tiles.get(modality)
-
-        if tile is not None:
-            if isinstance(tile, np.ndarray):
-                if modality == "mask":
-                    orig_data = tile[0] if tile.shape[0] == 1 else tile
-                    cmap = mask_cmap
-                elif tile.ndim == 3 and tile.shape[0] <= 3:
-                    if tile.shape[0] >= 3:
-                        orig_data = np.stack([tile[i] for i in range(3)], axis=2)
-                        cmap = None
-                    else:
-                        orig_data = tile[0]
-                        cmap = None
-                elif tile.ndim == 2:
-                    orig_data = tile
-                    cmap = None
-                else:
-                    orig_data = tile
-                    cmap = None
-            elif hasattr(tile, "read"):
-                original_img = tile.read()
-                if modality == "mask":
-                    orig_data = original_img[0]
-                    cmap = mask_cmap
-                elif original_img.shape[0] >= 3:
-                    orig_data = np.stack([original_img[i] for i in range(3)], axis=2)
-                    cmap = None
-                else:
-                    orig_data = original_img[0]
-                    cmap = None
-            else:
-                if len(patches) > 0:
-                    with rasterio.open(patches[0][0]) as src:
-                        orig_data = np.zeros((src.height * 2, src.width * 2))
-                        cmap = mask_cmap if modality == "mask" else "gray"
-                else:
-                    orig_data = np.zeros((100, 100))
-                    cmap = mask_cmap if modality == "mask" else "gray"
-        else:
-            if len(patches) > 0:
-                with rasterio.open(patches[0][0]) as src:
-                    orig_data = np.zeros((src.height * 2, src.width * 2))
-                    cmap = mask_cmap if modality == "mask" else "gray"
-            else:
-                orig_data = np.zeros((100, 100))
-                cmap = mask_cmap if modality == "mask" else "gray"
-
-        if modality != "mask" and orig_data.dtype != np.uint8:
-            orig_data = np.clip(
-                orig_data / np.percentile(orig_data, 99)
-                if np.percentile(orig_data, 99) > 0
-                else 1,
-                0,
-                1,
-            )
-        ax_orig = fig.add_subplot(gs[row_idx, 0])
-        ax_orig.imshow(orig_data, cmap=cmap)
-
-        if modality == "mask":
-            if isinstance(orig_data, np.ndarray):
-                if orig_data.ndim == 3 and orig_data.shape[0] == 1:
-                    mask_data = orig_data[0]
-                elif orig_data.ndim == 2:
-                    mask_data = orig_data
-                else:
-                    mask_data = orig_data
-
-                background_count = np.sum(mask_data == 0)
-                non_flooded_building = np.sum(mask_data == 1)
-                flooded_building = np.sum(mask_data == 2)
-                non_flooded_street = np.sum(mask_data == 3)
-                flooded_street = np.sum(mask_data == 4)
-                total_pixels = mask_data.size
-
-                legend_patches = [
-                    mpatches.Patch(
-                        color="black",
-                        label=f"Background: {background_count} px ({100 * background_count / total_pixels:.1f}%)",
-                    ),
-                    mpatches.Patch(
-                        color="blue",
-                        label=f"Non-flooded Street: {non_flooded_street} px ({100 * non_flooded_street / total_pixels:.1f}%)",
-                    ),
-                    mpatches.Patch(
-                        color="red",
-                        label=f"Flooded Street: {flooded_street} px ({100 * flooded_street / total_pixels:.1f}%)",
-                    ),
-                    mpatches.Patch(
-                        color="green",
-                        label=f"Non-flooded Building: {non_flooded_building} px ({100 * non_flooded_building / total_pixels:.1f}%)",
-                    ),
-                    mpatches.Patch(
-                        color="yellow",
-                        label=f"Flooded Building: {flooded_building} px ({100 * flooded_building / total_pixels:.1f}%)",
-                    ),
-                ]
-
-                mask_legend = ax_orig.legend(
-                    handles=legend_patches,
-                    loc="lower right",
-                    fontsize=8,
-                    framealpha=0.7,
-                )
-                ax_orig.add_artist(mask_legend)
-
-        if buffer_top > 0 or buffer_left > 0 or buffer_bottom > 0 or buffer_right > 0:
-            img_height, img_width = (
-                orig_data.shape[:2]
-                if len(orig_data.shape) >= 2
-                else (orig_data.shape[0], orig_data.shape[0])
-            )
-
-            if buffer_top > 0:
-                ax_orig.add_patch(
-                    Rectangle(
-                        (0, 0),
-                        img_width,
-                        buffer_top,
-                        facecolor="gray",
-                        alpha=0.3,
-                        edgecolor=None,
-                    )
-                )
-            if buffer_left > 0:
-                ax_orig.add_patch(
-                    Rectangle(
-                        (0, 0),
-                        buffer_left,
-                        img_height,
-                        facecolor="gray",
-                        alpha=0.3,
-                        edgecolor=None,
-                    )
-                )
-            if buffer_bottom > 0:
-                ax_orig.add_patch(
-                    Rectangle(
-                        (0, img_height - buffer_bottom),
-                        img_width,
-                        buffer_bottom,
-                        facecolor="gray",
-                        alpha=0.3,
-                        edgecolor=None,
-                    )
-                )
-            if buffer_right > 0:
-                ax_orig.add_patch(
-                    Rectangle(
-                        (img_width - buffer_right, 0),
-                        buffer_right,
-                        img_height,
-                        facecolor="gray",
-                        alpha=0.3,
-                        edgecolor=None,
-                    )
-                )
-            ax_orig.set_title(
-                f"Original {modality}\nBuffer: T{buffer_top}, L{buffer_left}, B{buffer_bottom}, R{buffer_right}"
-            )
-        else:
-            ax_orig.set_title(f"Original {modality}")
-
-        ax_orig.axis("off")
-
-        first_col_axes[modality] = {
-            "ax": ax_orig,
-            "data": orig_data,
-            "height": orig_data.shape[0]
-            if hasattr(orig_data, "shape") and len(orig_data.shape) >= 2
-            else 0,
-            "width": orig_data.shape[1]
-            if hasattr(orig_data, "shape") and len(orig_data.shape) >= 2
-            else 0,
-        }
-
-        for i, (patch_path, patch_id, row, col) in enumerate(patches[:4]):
-            if i >= 4:
-                break
-
-            with rasterio.open(patch_path) as patch_src:
-                patch_img = patch_src.read()
-
-                if modality == "mask":
-                    patch_vis = patch_img[0]
-                    patch_cmap = mask_cmap
-                elif patch_img.shape[0] >= 3:
-                    patch_vis = np.stack([patch_img[i] for i in range(3)], axis=2)
-                    patch_cmap = None
-                else:
-                    patch_vis = patch_img[0]
-                    patch_cmap = None
-
-                if patch_vis.size > 0 and modality != "mask":
-                    patch_vis = np.clip(
-                        patch_vis / np.percentile(patch_vis, 99)
-                        if np.percentile(patch_vis, 99) > 0
-                        else 1,
-                        0,
-                        1,
-                    )
-
-                ax = fig.add_subplot(gs[row_idx, i + 1])
-                ax.imshow(patch_vis, cmap=patch_cmap)
-
-                if modality == "mask":
-                    background_count = np.sum(patch_vis == 0)
-                    non_flooded_street = np.sum(patch_vis == 1)
-                    flooded_street = np.sum(patch_vis == 2)
-                    non_flooded_building = np.sum(patch_vis == 3)
-                    flooded_building = np.sum(patch_vis == 4)
-                    total_pixels = patch_vis.size
-
-                    ratio_text = f"BG: {100 * background_count / total_pixels:.1f}%\n"
-                    ratio_text += (
-                        f"NF Street: {100 * non_flooded_street / total_pixels:.1f}%\n"
-                    )
-                    ratio_text += (
-                        f"F Street: {100 * flooded_street / total_pixels:.1f}%\n"
-                    )
-                    ratio_text += f"NF Building: {100 * non_flooded_building / total_pixels:.1f}%\n"
-                    ratio_text += (
-                        f"F Building: {100 * flooded_building / total_pixels:.1f}%"
-                    )
-
-                    ax.text(
-                        0.98,
-                        0.02,
-                        ratio_text,
-                        transform=ax.transAxes,
-                        ha="right",
-                        va="bottom",
-                        fontsize=8,
-                        color="white",
-                        bbox=dict(
-                            facecolor="black", alpha=0.7, boxstyle="round,pad=0.3"
-                        ),
-                    )
-
-                ax.set_title(f"{modality} ({row},{col})", color=colors[i % len(colors)])
-                for spine in ax.spines.values():
-                    spine.set_color(colors[i % len(colors)])
-                    spine.set_linewidth(3)
-                ax.axis("off")
-
-    for row_idx, modality in enumerate(modalities):
-        patches = modality_patches[modality]
-
-        ax_orig = first_col_axes[modality]["ax"]
-
-        for i, (patch_path, patch_id, row, col) in enumerate(patches[:4]):
-            if i >= 4:
-                break
-
-            with rasterio.open(patch_path) as patch_src:
-                rect_key = f"{modality}_{row}_{col}"
-
-                if rect_key not in drawn_rectangles:
-                    x = buffer_left + col * patch_src.width
-                    y = buffer_top + row * patch_src.height
-                    width = patch_src.width
-                    height = patch_src.height
-
-                    rect = Rectangle(
-                        (x, y),
-                        width,
-                        height,
-                        linewidth=2,
-                        edgecolor=colors[i % len(colors)],
-                        facecolor="none",
-                        alpha=0.8,
-                    )
-                    ax_orig.add_patch(rect)
-
-                    ax_orig.text(
-                        x + width // 2,
-                        y + height // 2,
-                        f"{row},{col}",
-                        color="white",
-                        ha="center",
-                        va="center",
-                        fontsize=10,
-                        fontweight="bold",
-                        bbox=dict(
-                            facecolor="black", alpha=0.5, pad=0.5, boxstyle="round"
-                        ),
-                    )
-                    drawn_rectangles[rect_key] = True
-
-    if "mask" in modality_tiles:
-        mask_data = modality_tiles["mask"]
-        if isinstance(mask_data, np.ndarray):
-            if mask_data.ndim == 3 and mask_data.shape[0] == 1:
-                mask_flat = mask_data[0].flatten()
-            elif mask_data.ndim == 2:
-                mask_flat = mask_data.flatten()
-            else:
-                mask_flat = mask_data.flatten()
-
-            background_count = np.sum(patch_vis == 0)
-            non_flooded_street = np.sum(patch_vis == 1)
-            flooded_street = np.sum(patch_vis == 2)
-            non_flooded_building = np.sum(patch_vis == 3)
-            flooded_building = np.sum(patch_vis == 4)
-            total_pixels = patch_vis.size
-            total = mask_flat.size
-
-            class_info = (
-                f"Overall Class Distribution:\n"
-                f"BG: {100 * background_count / total:.1f}%\n"
-                f"NF Street: {100 * non_flooded_street / total:.1f}%\n"
-                f"F Street: {100 * flooded_street / total:.1f}%\n"
-                f"NF Building: {100 * non_flooded_building / total:.1f}%\n"
-                f"F Building: {100 * flooded_building / total:.1f}%"
-            )
-
-            fig.text(
-                0.01,
-                0.01,
-                class_info,
-                fontsize=10,
-                bbox=dict(facecolor="white", alpha=0.8, boxstyle="round"),
-            )
-
-    plt.tight_layout()
-
-    if output_path:
-        plt.savefig(output_path, dpi=150)
-    else:
-        plt.show()
-
-    plt.close()
 
 
 def show_samples_per_valid_ratio(
@@ -2149,384 +1727,3 @@ def create_geospatial_temporal_split(
             print(f"  {areas}")
 
     return df
-
-
-def create_bright_patches(
-    metadata_df: pd.DataFrame, root_dir: str, output_dir: str, visualize=True
-) -> pd.DataFrame:
-    """Create patches from the original images and save them to the output directory.
-
-    Args:
-        metadata_df: DataFrame containing metadata for the images
-        root_dir: Directory containing the original images
-        output_dir: Directory to save the patches
-        visualize: Whether to create visualizations of the patches (default: True)
-
-    Returns:
-        DataFrame containing metadata for the created patches
-    """
-    modalities = ["pre-event", "post-event", "target"]
-    for modality in modalities:
-        os.makedirs(os.path.join(output_dir, modality), exist_ok=True)
-
-    if visualize:
-        vis_dir = os.path.join(output_dir, "visualizations")
-        os.makedirs(vis_dir, exist_ok=True)
-
-    patches_metadata = []
-
-    patch_positions = [(0, 0, 0), (0, 512, 1), (512, 0, 2), (512, 512, 3)]
-
-    for idx, row in tqdm(
-        metadata_df.iterrows(), total=len(metadata_df), desc="Creating patches"
-    ):
-        target_path = os.path.join(root_dir, row["target_path"].lstrip("/"))
-        pre_event_path = os.path.join(root_dir, row["pre_event_path"].lstrip("/"))
-        post_event_path = os.path.join(root_dir, row["post_event_path"].lstrip("/"))
-
-        event_id = row["event_id"]
-        split = row["split"]
-
-        with rasterio.open(pre_event_path) as src:
-            orig_transform = src.transform
-            orig_profile = src.profile.copy()
-
-        if visualize:
-            with rasterio.open(pre_event_path) as src:
-                pre_full_data = src.read()
-
-            with rasterio.open(post_event_path) as src:
-                post_full_data = src.read()
-
-            with rasterio.open(target_path) as src:
-                target_full_data = src.read()
-
-            patch_viz_data = []
-
-        for row_start, col_start, patch_idx in patch_positions:
-            patch_id = f"{event_id}_{patch_idx}"
-
-            new_transform = rasterio.transform.from_origin(
-                orig_transform.c + col_start * orig_transform.a,
-                orig_transform.f + row_start * orig_transform.e,
-                orig_transform.a,
-                orig_transform.e,
-            )
-
-            patch_profile = orig_profile.copy()
-            patch_profile.update(
-                {"height": 512, "width": 512, "transform": new_transform}
-            )
-
-            patch_target_path = os.path.join(
-                output_dir, "target", f"{patch_id}_building_damage.tif"
-            )
-            patch_pre_event_path = os.path.join(
-                output_dir, "pre-event", f"{patch_id}_pre_disaster.tif"
-            )
-            patch_post_event_path = os.path.join(
-                output_dir, "post-event", f"{patch_id}_post_disaster.tif"
-            )
-
-            window = Window(col_start, row_start, 512, 512)
-
-            with rasterio.open(target_path) as src:
-                target_data = src.read(window=window)
-
-                target_profile = patch_profile.copy()
-                target_profile["count"] = target_data.shape[0]
-                with rasterio.open(patch_target_path, "w", **target_profile) as dst:
-                    dst.write(target_data)
-
-            with rasterio.open(pre_event_path) as src:
-                pre_event_data = src.read(window=window)
-                pre_profile = patch_profile.copy()
-                pre_profile["count"] = pre_event_data.shape[0]
-                with rasterio.open(patch_pre_event_path, "w", **pre_profile) as dst:
-                    dst.write(pre_event_data)
-
-            with rasterio.open(post_event_path) as src:
-                post_event_data = src.read(window=window)
-                post_profile = patch_profile.copy()
-                post_profile["count"] = post_event_data.shape[0]
-                with rasterio.open(patch_post_event_path, "w", **post_profile) as dst:
-                    dst.write(post_event_data)
-
-            bounds = rasterio.transform.array_bounds(512, 512, new_transform)
-            west, south, east, north = bounds
-            center_lon = (west + east) / 2
-            center_lat = (north + south) / 2
-
-            if visualize:
-                patch_viz_data.append(
-                    (
-                        (pre_event_data, post_event_data, target_data),
-                        patch_idx,
-                        row_start,
-                        col_start,
-                    )
-                )
-
-            patches_metadata.append(
-                {
-                    "target_path": os.path.relpath(patch_target_path, output_dir),
-                    "pre_event_path": os.path.relpath(patch_pre_event_path, output_dir),
-                    "post_event_path": os.path.relpath(
-                        patch_post_event_path, output_dir
-                    ),
-                    "original_target_path": row["target_path"],
-                    "original_pre_event_path": row["pre_event_path"],
-                    "original_post_event_path": row["post_event_path"],
-                    "lon": center_lon,
-                    "lat": center_lat,
-                    "height_px": 512,
-                    "width_px": 512,
-                    "event_id": event_id,
-                    "patch_id": patch_id,
-                    "patch_idx": patch_idx,
-                    "row_start": row_start,
-                    "col_start": col_start,
-                    "split": split,
-                }
-            )
-
-        if visualize and patch_viz_data:
-            viz_path = os.path.join(vis_dir, f"{event_id}_patches.png")
-            visualize_bright_patches(
-                pre_full_data,
-                post_full_data,
-                target_full_data,
-                patch_viz_data,
-                output_path=viz_path,
-            )
-
-    patches_df = pd.DataFrame(patches_metadata)
-    metadata_path = os.path.join(output_dir, "patches_metadata.parquet")
-    patches_df.to_parquet(metadata_path)
-
-    print(f"Created {len(patches_df)} patches from {len(metadata_df)} original images")
-    print("Patches distribution by split:")
-    print(patches_df["split"].value_counts())
-
-    return patches_df
-
-
-def visualize_bright_patches(
-    pre_data, post_data, target_data, patches_info, output_path=None, figsize=(22, 12)
-):
-    """Visualize the original images and their patches with one modality per row.
-
-    Args:
-        pre_data: Pre-event image data
-        post_data: Post-event image data
-        target_data: Target image data (building damage mask)
-        patches_info: List of tuples containing patch data and indices
-        output_path: Path to save the visualization (optional)
-        figsize: Size of the figure (default: (22, 12))
-    """
-    if output_path:
-        os.makedirs(os.path.dirname(output_path), exist_ok=True)
-
-    fig = plt.figure(figsize=figsize)
-    gs = gridspec.GridSpec(3, 5, figure=fig, wspace=0.05, hspace=0.2)
-
-    patch_colors = ["r", "g", "b", "y"]
-
-    ax_pre = fig.add_subplot(gs[0, 0])
-    if pre_data.shape[0] >= 3:
-        pre_display = np.stack([pre_data[i] for i in range(3)], axis=2)
-        if pre_display.dtype != np.uint8:
-            pre_display = np.clip(pre_display / np.percentile(pre_display, 99), 0, 1)
-    else:
-        pre_display = pre_data[0]
-        if pre_display.dtype != np.uint8:
-            pre_display = np.clip(pre_display / np.percentile(pre_display, 99), 0, 1)
-
-    ax_pre.imshow(pre_display)
-    ax_pre.set_title("Pre-event Image")
-    ax_pre.axis("off")
-
-    ax_post = fig.add_subplot(gs[1, 0])
-    if post_data.shape[0] >= 3:
-        post_display = np.stack([post_data[i] for i in range(3)], axis=2)
-        if post_display.dtype != np.uint8:
-            post_display = np.clip(post_display / np.percentile(post_display, 99), 0, 1)
-    else:
-        post_display = post_data[0]
-        if post_display.dtype != np.uint8:
-            post_display = np.clip(post_display / np.percentile(post_display, 99), 0, 1)
-
-    ax_post.imshow(post_display)
-    ax_post.set_title("Post-event Image")
-    ax_post.axis("off")
-
-    ax_target = fig.add_subplot(gs[2, 0])
-    if target_data.ndim > 2:
-        target_display = target_data[0] if target_data.shape[0] == 1 else target_data
-    else:
-        target_display = target_data
-
-    damage_classes = {0: "background", 1: "intact", 2: "damaged", 3: "destroyed"}
-
-    damage_colors = {0: "black", 1: "green", 2: "yellow", 3: "red"}
-
-    cmap = mcolors.ListedColormap([damage_colors[i] for i in range(len(damage_colors))])
-
-    ax_target.imshow(target_display, cmap=cmap, vmin=0, vmax=len(damage_colors) - 1)
-    ax_target.set_title("Building Damage Mask")
-    ax_target.axis("off")
-
-    damage_legend = []
-    for class_id, class_name in damage_classes.items():
-        if class_id < len(damage_colors):
-            class_pixels = np.sum(target_display == class_id)
-            class_pct = 100 * class_pixels / target_display.size
-            damage_legend.append(
-                mpatches.Patch(
-                    color=damage_colors[class_id],
-                    label=f"{class_name}: {class_pixels} px ({class_pct:.1f}%)",
-                )
-            )
-
-    ax_target.legend(
-        handles=damage_legend, loc="lower right", fontsize=8, framealpha=0.7
-    )
-
-    for i, (patch_data, patch_idx, row_start, col_start) in enumerate(patches_info[:4]):
-        if i >= 4:
-            break
-
-        pre_patch, post_patch, target_patch = patch_data
-        patch_height, patch_width = 512, 512
-
-        ax_pre_patch = fig.add_subplot(gs[0, i + 1])
-        if pre_patch.shape[0] >= 3:
-            pre_patch_display = np.stack([pre_patch[j] for j in range(3)], axis=2)
-            if pre_patch_display.dtype != np.uint8:
-                pre_patch_display = np.clip(
-                    pre_patch_display / np.percentile(pre_patch_display, 99), 0, 1
-                )
-        else:
-            pre_patch_display = pre_patch[0]
-            if pre_patch_display.dtype != np.uint8:
-                pre_patch_display = np.clip(
-                    pre_patch_display / np.percentile(pre_patch_display, 99), 0, 1
-                )
-
-        ax_pre_patch.imshow(pre_patch_display)
-        ax_pre_patch.set_title(
-            f"Pre-event (Patch {patch_idx})", color=patch_colors[i % len(patch_colors)]
-        )
-        for spine in ax_pre_patch.spines.values():
-            spine.set_color(patch_colors[i % len(patch_colors)])
-            spine.set_linewidth(3)
-        ax_pre_patch.axis("off")
-
-        ax_post_patch = fig.add_subplot(gs[1, i + 1])
-        if post_patch.shape[0] >= 3:
-            post_patch_display = np.stack([post_patch[j] for j in range(3)], axis=2)
-            if post_patch_display.dtype != np.uint8:
-                post_patch_display = np.clip(
-                    post_patch_display / np.percentile(post_patch_display, 99), 0, 1
-                )
-        else:
-            post_patch_display = post_patch[0]
-            if post_patch_display.dtype != np.uint8:
-                post_patch_display = np.clip(
-                    post_patch_display / np.percentile(post_patch_display, 99), 0, 1
-                )
-
-        ax_post_patch.imshow(post_patch_display)
-        ax_post_patch.set_title(
-            f"Post-event (Patch {patch_idx})", color=patch_colors[i % len(patch_colors)]
-        )
-        for spine in ax_post_patch.spines.values():
-            spine.set_color(patch_colors[i % len(patch_colors)])
-            spine.set_linewidth(3)
-        ax_post_patch.axis("off")
-
-        ax_target_patch = fig.add_subplot(gs[2, i + 1])
-        if target_patch.ndim > 2:
-            target_patch_display = (
-                target_patch[0] if target_patch.shape[0] == 1 else target_patch
-            )
-        else:
-            target_patch_display = target_patch
-
-        ax_target_patch.imshow(
-            target_patch_display, cmap=cmap, vmin=0, vmax=len(damage_colors) - 1
-        )
-        ax_target_patch.set_title(
-            f"Damage Mask (Patch {patch_idx})",
-            color=patch_colors[i % len(patch_colors)],
-        )
-        for spine in ax_target_patch.spines.values():
-            spine.set_color(patch_colors[i % len(patch_colors)])
-            spine.set_linewidth(3)
-        ax_target_patch.axis("off")
-
-        class_counts = {}
-        for class_id in damage_classes.keys():
-            if class_id < len(damage_colors):
-                class_counts[class_id] = np.sum(target_patch_display == class_id)
-
-        damage_buildings = sum(class_counts.get(i, 0) for i in [2, 3])
-        intact_buildings = class_counts.get(1, 0)
-        all_buildings = damage_buildings + intact_buildings
-        damage_pct = 100 * damage_buildings / all_buildings if all_buildings > 0 else 0
-
-        stat_text = f"Damage: {damage_pct:.1f}%"
-        ax_target_patch.text(
-            0.98,
-            0.02,
-            stat_text,
-            transform=ax_target_patch.transAxes,
-            ha="right",
-            va="bottom",
-            fontsize=8,
-            color="white",
-            bbox=dict(facecolor="black", alpha=0.7, boxstyle="round,pad=0.3"),
-        )
-
-        for ax in [ax_pre, ax_post, ax_target]:
-            rect = Rectangle(
-                (col_start, row_start),
-                patch_width,
-                patch_height,
-                linewidth=2,
-                edgecolor=patch_colors[i % len(patch_colors)],
-                facecolor="none",
-                alpha=0.8,
-            )
-            ax.add_patch(rect)
-
-            ax.text(
-                col_start + patch_width // 2,
-                row_start + patch_height // 2,
-                str(patch_idx),
-                color="white",
-                ha="center",
-                va="center",
-                fontsize=10,
-                fontweight="bold",
-                bbox=dict(facecolor="black", alpha=0.5, pad=0.5, boxstyle="round"),
-            )
-
-    event_id = os.path.basename(output_path).split("_")[0] if output_path else "Unknown"
-    fig.text(
-        0.01,
-        0.01,
-        f"Total Patches: {len(patches_info)}\n" + f"Event ID: {event_id}",
-        fontsize=10,
-        bbox=dict(facecolor="white", alpha=0.8, boxstyle="round"),
-    )
-
-    plt.tight_layout()
-
-    if output_path:
-        plt.savefig(output_path, dpi=150, bbox_inches="tight")
-        print(f"Visualization saved to {output_path}")
-    else:
-        plt.show()
-
-    plt.close(fig)

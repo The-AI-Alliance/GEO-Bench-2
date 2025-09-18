@@ -7,6 +7,7 @@ import argparse
 import concurrent.futures
 import glob
 import os
+import random
 from typing import Any
 
 import numpy as np
@@ -42,7 +43,6 @@ def extract_date_from_patch_id(patch_id: str) -> str:
     if len(timestamp) < 8 or not timestamp[:8].isdigit():
         return None
 
-    # Convert YYYYMMDD to YYYY-MM-DD
     year = timestamp[:4]
     month = timestamp[4:6]
     day = timestamp[6:8]
@@ -64,7 +64,6 @@ def process_row(args: tuple) -> dict[str, Any]:
     date = extract_date_from_patch_id(patch_id)
     patch_dir = "_".join(patch_id.split("_")[0:-2])
 
-    # Find the first TIF file in the patch directory
     path_pattern = os.path.join(root, dir_name, patch_dir, patch_id, "*.tif")
     paths = glob.glob(path_pattern)
 
@@ -106,15 +105,12 @@ def generate_metadata_df(root_dir: str, num_workers: int = 8) -> pd.DataFrame:
         f"Generating metadata for {len(full_metadata_df)} patches using {num_workers} workers..."
     )
 
-    # Prepare arguments for parallel processing
     args_list = [
         (row, root_dir, "BigEarthNet-S2") for _, row in full_metadata_df.iterrows()
     ]
 
-    # Process in parallel with progress bar
     metadata = []
     with concurrent.futures.ProcessPoolExecutor(max_workers=num_workers) as executor:
-        # Use tqdm to show progress
         for result in tqdm(
             executor.map(process_row, args_list),
             total=len(args_list),
@@ -122,7 +118,6 @@ def generate_metadata_df(root_dir: str, num_workers: int = 8) -> pd.DataFrame:
         ):
             metadata.append(result)
 
-    # Create DataFrame from results
     metadata_df = pd.DataFrame(metadata)
 
     metadata_df = pd.merge(full_metadata_df, metadata_df, how="left", on="patch_id")
@@ -176,7 +171,6 @@ def create_tortilla(root_dir, metadata_df, save_dir, tortilla_name):
         samples_path = os.path.join(tortilla_dir, f"sample_{idx}.tortilla")
         tacotoolbox.tortilla.create(taco_samples, samples_path, quiet=True)
 
-    # merge tortillas into a single dataset
     all_tortilla_files = sorted(glob.glob(os.path.join(tortilla_dir, "*.tortilla")))
 
     samples = []
@@ -211,7 +205,6 @@ def create_tortilla(root_dir, metadata_df, save_dir, tortilla_name):
         )
         samples.append(sample_tortilla)
 
-    # create final taco file
     final_samples = tacotoolbox.tortilla.datamodel.Samples(samples=samples)
     tacotoolbox.tortilla.create(
         final_samples, os.path.join(save_dir, tortilla_name), quiet=True
@@ -450,19 +443,11 @@ def load_random_s1_image(metadata_df, root_dir):
     Returns:
         tuple: (vh_array, vv_array, row_info) - VH and VV polarization arrays and metadata row
     """
-    # Filter for rows that have S1 data
     valid_rows = metadata_df[metadata_df["s1_name"].notna()]
-
-    if valid_rows.empty:
-        raise ValueError("No valid S1 samples found in the metadata.")
-
-    # Pick a random row
-    import random
 
     random_idx = random.randint(0, len(valid_rows) - 1)
     row = valid_rows.iloc[random_idx]
 
-    # Get paths to S1 images
     s1_patch_id = row["s1_name"]
     s1_patch_dir = "_".join(s1_patch_id.split("_")[0:-3])
     s1_dir = os.path.join(root_dir, "BigEarthNet-S1", s1_patch_dir, s1_patch_id)
@@ -470,11 +455,7 @@ def load_random_s1_image(metadata_df, root_dir):
     vh_path = os.path.join(s1_dir, f"{s1_patch_id}_VH.tif")
     vv_path = os.path.join(s1_dir, f"{s1_patch_id}_VV.tif")
 
-    # Read the data
     with rasterio.open(vh_path) as src:
-        import pdb
-
-        pdb.set_trace()
         vh_array = src.read(1)
 
     with rasterio.open(vv_path) as src:

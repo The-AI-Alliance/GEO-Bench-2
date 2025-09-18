@@ -7,6 +7,7 @@ import argparse
 import glob
 import os
 import shutil
+import warnings
 from concurrent.futures import ProcessPoolExecutor
 
 import numpy as np
@@ -14,6 +15,7 @@ import pandas as pd
 import rasterio
 import tacoreader
 import tacotoolbox
+from rasterio.errors import NotGeoreferencedWarning
 from skimage.transform import resize
 from sklearn.model_selection import train_test_split
 from tqdm import tqdm
@@ -32,7 +34,6 @@ def consolidate_bio_meta_df(df: pd.DataFrame) -> pd.DataFrame:
     Returns:
         Consolidated DataFrame with one row per chip_id
     """
-    # Create an empty list to store new records
     consolidated_records = []
 
     unique_chip_ids = df["chip_id"].unique()
@@ -84,8 +85,6 @@ def generate_metadata_df(root: str) -> pd.DataFrame:
     feature_df = pd.read_csv(os.path.join(root, "biomassters_features_metadata.csv"))
     consolidated_df = consolidate_bio_meta_df(feature_df)
 
-    # there is no geospatial metadata included, also not in the tif files
-
     # create random train/val split from train entries
     train_df = consolidated_df[consolidated_df["split"] == "train"]
 
@@ -122,7 +121,6 @@ def create_tortilla(root_dir, df, save_dir, tortilla_name):
                 )
 
                 modality_samples.append(sample)
-        # add AGBM
 
         sample = tacotoolbox.tortilla.datamodel.Sample(
             id=f"{row['chip_id']}_AGBM",
@@ -140,7 +138,6 @@ def create_tortilla(root_dir, df, save_dir, tortilla_name):
         samples_path = os.path.join(tortilla_dir, f"sample_{idx}.tortilla")
         tacotoolbox.tortilla.create(taco_samples, samples_path, quiet=True, nworkers=4)
 
-    # merge tortillas into a single dataset
     all_tortilla_files = sorted(glob.glob(os.path.join(tortilla_dir, "*.tortilla")))
 
     samples = []
@@ -161,7 +158,6 @@ def create_tortilla(root_dir, df, save_dir, tortilla_name):
         )
         samples.append(sample_tortilla)
 
-    # create final taco file
     final_samples = tacotoolbox.tortilla.datamodel.Samples(samples=samples)
     tacotoolbox.tortilla.create(
         final_samples,
@@ -185,10 +181,6 @@ def process_biomassters_sample(args):
     Returns:
         Dict with updated paths or None if processing failed
     """
-    import warnings
-
-    from rasterio.errors import NotGeoreferencedWarning
-
     warnings.filterwarnings("ignore", category=NotGeoreferencedWarning)
     idx, row, root_dir, output_dir = args
 
@@ -330,9 +322,6 @@ def process_biomassters_sample(args):
 
     except Exception as e:
         print(f"Error processing sample {idx}: {str(e)}")
-        import traceback
-
-        traceback.print_exc()
         return None
 
 
@@ -371,7 +360,6 @@ def optimize_biomassters_dataset(metadata_df, root_dir, output_dir, num_workers=
 
     updated_df = pd.DataFrame(processed_samples)
 
-    # Save updated metadata
     metadata_path = os.path.join(output_dir, "biomassters_optimized.parquet")
     updated_df.to_parquet(metadata_path)
 
@@ -427,7 +415,6 @@ def create_test_subset(
     val_pool = df[df["split"] == "validation"]
     test_pool = df[df["split"] == "test"]
 
-    # Validate availability
     total_train_needed = num_train_samples + n_additional_test_samples
     if total_train_needed > len(train_pool):
         raise ValueError(
@@ -619,8 +606,6 @@ def main():
     args = parser.parse_args()
 
     metadata_path = os.path.join(args.save_dir, "geobench_metadata.parquet")
-
-    # orig_dataset = BioMassters(root=args.root)
 
     if not os.path.exists(args.save_dir):
         os.makedirs(args.save_dir)

@@ -33,7 +33,6 @@ def generate_metadata_df(ds: PASTIS) -> pd.DataFrame:
     geojson_path = f"{ds.root}/PASTIS-R/metadata.geojson"
     print(f"Loading metadata from {geojson_path}")
 
-    # Load the GeoJSON file
     gdf = gpd.read_file(geojson_path)
     print(f"Loaded {len(gdf)} patches")
 
@@ -42,18 +41,15 @@ def generate_metadata_df(ds: PASTIS) -> pd.DataFrame:
     # Map fold to split
     gdf["split"] = gdf["Fold"].map(fold_to_split)
 
-    # Reproject to WGS84 (lat/lon)
     gdf_wgs84 = gdf.to_crs(epsg=4326)
 
     gdf_projected = gdf_wgs84.to_crs(epsg=3857)
     centroids_projected = gdf_projected.geometry.centroid
     centroids_wgs84 = gpd.GeoSeries(centroids_projected, crs=3857).to_crs(4326)
 
-    # Extract lat/lon from properly calculated centroids
     gdf["longitude"] = centroids_wgs84.x
     gdf["latitude"] = centroids_wgs84.y
 
-    # Now gdf has the lat/lon coordinates you need
     print(
         f"Coordinate range: lon [{gdf['longitude'].min():.6f}, {gdf['longitude'].max():.6f}], "
         f"lat [{gdf['latitude'].min():.6f}, {gdf['latitude'].max():.6f}]"
@@ -85,7 +81,6 @@ def generate_metadata_df(ds: PASTIS) -> pd.DataFrame:
         lambda x: x.replace(ds.root + "/", "")
     )
 
-    # rename those columns to append _path
     new_df.rename(
         columns={
             "s2": "s2_path",
@@ -111,7 +106,6 @@ def generate_metadata_df(ds: PASTIS) -> pd.DataFrame:
 
     new_df["split"] = new_df["split"].replace("val", "validation")
 
-    # conve
     final_gdf = gpd.GeoDataFrame(new_df, geometry=geometry)
 
     return final_gdf
@@ -267,7 +261,6 @@ def create_tortilla(root_dir, df, save_dir, tortilla_name) -> None:
         samples_path = os.path.join(tortilla_dir, f"sample_{idx}.tortilla")
         tacotoolbox.tortilla.create(taco_samples, samples_path, quiet=True, nworkers=4)
 
-    # # merge tortillas into a single dataset, sort this correctly in enumerate, with multiple digits
     all_tortilla_files = glob.glob(os.path.join(tortilla_dir, "*.tortilla"))
     all_tortilla_files = sorted(
         all_tortilla_files,
@@ -416,7 +409,6 @@ def _process_modality_arr(
         t_len = arr_std.shape[0]
         arr_std = arr_std[: min(keep_t, t_len)]
 
-    # Resize last two dims to target_size
     if arr_std.ndim == 2:
         arr_std = resize(
             arr_std,
@@ -517,14 +509,14 @@ def create_compact_unittest_tortilla_from_final(
         split = inner["tortilla:data_split"].iloc[0]
         add_test = bool(inner.get("add_test_split", pd.Series([False])).iloc[0])
         patch_id = str(inner.get("patch_id", pd.Series([sample_id])).iloc[0])
-        dates = inner["dates"].iloc[0]  # dates from S2 of the sample
+        dates = inner["dates"].iloc[0]
         tile = inner.get("tile", pd.Series([""])).iloc[0]
         lon = float(inner.get("lon", pd.Series([np.nan])).iloc[0])
         lat = float(inner.get("lat", pd.Series([np.nan])).iloc[0])
 
         modality_samples = []
         for _, mrow in inner.iterrows():
-            modality = mrow["tortilla:id"]  # 's2','s1a','s1d','semantic','instance'
+            modality = mrow["tortilla:id"]
             internal_subfile = mrow["internal:subfile"]
             dates = mrow.get("dates", [])
 
@@ -533,7 +525,6 @@ def create_compact_unittest_tortilla_from_final(
             ) as hf_in:
                 arr = hf_in["data"][...]
 
-            # Expected timesteps from dates length if present
             expected_t = len(dates) if isinstance(dates, (list, tuple)) else None
             is_ts = modality in ("s2", "s1a", "s1d")
             is_label = modality in ("semantic", "instance")
@@ -551,7 +542,6 @@ def create_compact_unittest_tortilla_from_final(
             else:
                 dates_small = []
 
-            # Write compact HDF5
             h5_name = f"{patch_id}_{modality}.h5"
             h5_rel = os.path.join("hdf5", str(tile), str(patch_id), h5_name)
             h5_abs = os.path.join(small_root, h5_rel)
@@ -581,7 +571,6 @@ def create_compact_unittest_tortilla_from_final(
             )
             modality_samples.append(sample)
 
-        # Write per-sample tortilla
         per_sample = tacotoolbox.tortilla.datamodel.Samples(samples=modality_samples)
         part_path = os.path.join(out_tortilla_dir, f"{sample_id}.tortilla")
         tacotoolbox.tortilla.create(per_sample, part_path, quiet=True, nworkers=4)

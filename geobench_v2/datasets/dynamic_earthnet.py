@@ -37,9 +37,9 @@ class GeoBenchDynamicEarthNet(GeoBenchBaseDataset):
 
     dataset_band_config = DatasetBandRegistry.DYNAMICEARTHNET
 
-    band_default_order = {
-        "planet": ("b", "g", "r", "nir"),
-        "s2": (
+    band_default_order: dict[str, list[str]] = {
+        "planet": ["b", "g", "r", "nir"],
+        "s2": [
             "B01",
             "B02",
             "B03",
@@ -52,7 +52,7 @@ class GeoBenchDynamicEarthNet(GeoBenchBaseDataset):
             "B10",
             "B11",
             "B12",
-        ),
+        ],
     }
 
     # Appendix C normalization stats for planet
@@ -60,7 +60,7 @@ class GeoBenchDynamicEarthNet(GeoBenchBaseDataset):
     # std = [957.96, 715.55, 596.94, 1059.90],
     # https://github.com/aysim/dynnet/blob/1e7d90294b54f52744ae2b35db10b4d0a48d093d/data/utae_dynamicen.py#L13
     # TODO check
-    normalization_stats = {
+    normalization_stats: dict[str, dict[str, float]] = {
         "means": {
             "r": 0.0,
             "g": 0.0,
@@ -179,14 +179,14 @@ class GeoBenchDynamicEarthNet(GeoBenchBaseDataset):
             indices = [0, 4, 9, 14, 19, 24]
 
         img_dict: dict[str, Tensor] = {}
-        planet_imgs: list[Tensor] = []
+        planet_img_ls: list[Tensor] = []
         for i in indices:
             with rasterio.open(sample_row.read(i)) as src:
                 img = src.read()
-                planet_imgs.append(torch.from_numpy(img))
+                planet_img_ls.append(torch.from_numpy(img))
 
         # [T, C, H, W]
-        planet_imgs = torch.stack(planet_imgs, dim=0).float()
+        planet_imgs: Tensor = torch.stack(planet_img_ls, dim=0).float()
 
         img_dict["planet"] = planet_imgs
         # [C, T, H, W]
