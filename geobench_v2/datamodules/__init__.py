@@ -11,7 +11,6 @@ from .base import (
 )
 from .benv2 import GeoBenchBENV2DataModule
 from .biomassters import GeoBenchBioMasstersDataModule
-from .bright import GeoBenchBRIGHTDataModule
 from .burn_scars import GeoBenchBurnScarsDataModule
 from .caffe import GeoBenchCaFFeDataModule
 from .cloudsen12 import GeoBenchCloudSen12DataModule
@@ -21,11 +20,9 @@ from .everwatch import GeoBenchEverWatchDataModule
 from .flair2 import GeoBenchFLAIR2DataModule
 from .fotw import GeoBenchFieldsOfTheWorldDataModule
 from .kuro_siwo import GeoBenchKuroSiwoDataModule
-from .m4sar import GeoBenchM4SARDataModule
 from .mmflood import GeoBenchMMFloodDataModule
 from .nzcattle import GeoBenchNZCattleDataModule
 from .pastis import GeoBenchPASTISDataModule
-from .qfabric import GeoBenchQFabricDataModule
 from .spacenet2 import GeoBenchSpaceNet2DataModule
 from .spacenet6 import GeoBenchSpaceNet6DataModule
 from .spacenet7 import GeoBenchSpaceNet7DataModule
@@ -56,9 +53,6 @@ __all__ = (
     "GeoBenchBioMasstersDataModule",
     "GeoBenchDynamicEarthNetDataModule",
     "GeoBenchMMFloodDataModule",
-    "GeoBenchM4SARDataModule",
-    "GeoBenchBRIGHTDataModule",
-    "GeoBenchQFabricDataModule",
     "GeoBenchWindTurbineDataModule",
     "GeoBenchNZCattleDataModule",
     "GeoBenchSubstationDataModule",

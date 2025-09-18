@@ -43,7 +43,7 @@ class GeoBenchBioMassters(GeoBenchBaseDataset):
 
     dataset_band_config = DatasetBandRegistry.BIOMASSTERS
 
-    normalization_stats = {
+    normalization_stats: dict[str, dict[str, float]] = {
         "means": {
             "VV_asc": 0.0,
             "VH_asc": 0.0,

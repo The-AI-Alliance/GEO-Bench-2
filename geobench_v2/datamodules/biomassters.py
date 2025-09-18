@@ -28,7 +28,9 @@ class GeoBenchBioMasstersDataModule(GeoBenchSegmentationDataModule):
     def __init__(
         self,
         img_size: int = 256,
-        band_order: dict[str, Sequence[float | str]] = GeoBenchBioMassters.band_default_order,
+        band_order: dict[
+            str, Sequence[float | str]
+        ] = GeoBenchBioMassters.band_default_order,
         batch_size: int = 32,
         eval_batch_size: int = 64,
         num_workers: int = 0,

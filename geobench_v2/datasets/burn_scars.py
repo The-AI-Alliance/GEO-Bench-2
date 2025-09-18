@@ -28,7 +28,7 @@ class GeoBenchBurnScars(GeoBenchBaseDataset):
 
     band_default_order = dataset_band_config.default_order
 
-    normalization_stats = {
+    normalization_stats: dict[str, dict[str, float]] = {
         "means": {
             "B02": 0.0,
             "B03": 0.0,

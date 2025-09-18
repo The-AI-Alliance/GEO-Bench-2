@@ -5,6 +5,7 @@
 
 from collections.abc import Sequence
 from pathlib import Path
+from typing import Optional, Mapping, Literal, Sequence, cast
 
 import rasterio
 import torch
@@ -40,9 +41,9 @@ class GeoBenchMMFlood(GeoBenchBaseDataset):
 
     dataset_band_config = DatasetBandRegistry.MMFLOOD
 
-    band_default_order = {"s1": ("vv", "vh"), "dem": ("dem",), "hydro": ("hydro",)}
+    band_default_order = {"s1": ["vv", "vh"], "dem": ["dem"], "hydro": ["hydro"]}
 
-    normalization_stats = {
+    normalization_stats: dict[str, dict[str, float]] = {
         "means": {"vv": 0.0, "vh": 0.0, "dem": 0.0, "hydro": 0.0},
         "stds": {"vv": 1.0, "vh": 1.0, "hydro": 1.0, "dem": 100.0},
     }
@@ -56,10 +57,10 @@ class GeoBenchMMFlood(GeoBenchBaseDataset):
     def __init__(
         self,
         root: Path,
-        split: str,
-        band_order: dict[str, Sequence[str]] = band_default_order,
+        split: Literal["train", "val", "validation", "test"],
+        band_order: Mapping[str, list[str]] = band_default_order,
         data_normalizer: type[nn.Module] = ZScoreNormalizer,
-        transforms: nn.Module | None = None,
+        transforms: Optional[nn.Module] = None,
         metadata: Sequence[str] | None = None,
         return_stacked_image: bool = False,
         download: bool = False,
@@ -81,9 +82,15 @@ class GeoBenchMMFlood(GeoBenchBaseDataset):
             return_stacked_image: If True, return the stacked modalities across channel dimension instead of the individual modalities.
             download: Whether to download the dataset
         """
+        split_norm: Literal["train", "validation", "test"]
+        if split == "val":
+            split_norm = "validation"
+        else:
+            split_norm = cast(Literal["train", "validation", "test"], split)
+
         super().__init__(
             root=root,
-            split=split,
+            split=split_norm,
             band_order=band_order,
             data_normalizer=data_normalizer,
             transforms=transforms,
@@ -130,7 +137,8 @@ class GeoBenchMMFlood(GeoBenchBaseDataset):
             hydro_img = torch.from_numpy(hydro_img).float()
             img_dict["hydro"] = hydro_img
 
-        img_dict = self.rearrange_bands(img_dict, self.band_order)
+        bo = cast(Mapping[str, list[str]], self.band_order)
+        img_dict = self.rearrange_bands(img_dict, bo)
         if "image_s1" in img_dict:
             nan_mask = torch.isnan(img_dict["image_s1"])[0]
         image_dict = self.data_normalizer(img_dict)

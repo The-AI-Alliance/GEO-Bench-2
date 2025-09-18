@@ -4,6 +4,7 @@
 """Visualization utilities for GeoBench datasets."""
 
 import json
+from typing import Any
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -82,7 +83,7 @@ def compute_batch_histograms(
     batch: dict[str, Tensor],
     n_bins: int = 100,
     hist_range: tuple[float, float] | None = None,
-) -> dict[str, dict[str, list | np.ndarray]]:
+) -> dict[str, dict[str, Any]]:
     """Compute channel-wise histograms for image modalities in a batch.
 
     Args:
@@ -460,7 +461,7 @@ def compare_normalization_methods(
             band_indices = list(range(batch[modality].shape[1]))
             band_names = [f"Band {i}" for i in band_indices]
 
-        all_data = {"raw": {}}
+        all_data: dict[str, dict[str, Any]] = {"raw": {}}
         normalizer_display_names = {}
 
         for i, normalizer in enumerate(normalizer_modules):

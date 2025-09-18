@@ -87,7 +87,7 @@ class TestSpaceNet8DataModule:
 
     def test_batch_visualization(self, datamodule):
         """Test batch visualization."""
-        fig, batch = datamodule.visualize_batch("train")
+        fig, batch = datamodule.visualize_batch(split="train")
         assert isinstance(fig, plt.Figure)
         assert isinstance(batch, dict)
 

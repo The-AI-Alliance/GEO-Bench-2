@@ -58,11 +58,6 @@ KuroSiwo
 
 .. autoclass:: GeoBenchKuroSiwo
 
-M4SAR
------
-
-.. autoclass:: GeoBenchM4SAR
-
 MMFlood
 -------
 

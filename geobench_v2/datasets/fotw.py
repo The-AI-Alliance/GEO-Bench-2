@@ -45,7 +45,7 @@ class GeoBenchFieldsOfTheWorld(GeoBenchBaseDataset):
     band_default_order = ("red", "green", "blue", "nir")
 
     # Define normalization stats using canonical names
-    normalization_stats = {
+    normalization_stats: dict[str, dict[str, float]] = {
         "means": {"red": 0.0, "green": 0.0, "blue": 0.0, "nir": 0.0},
         "stds": {"red": 3000.0, "green": 3000.0, "blue": 3000.0, "nir": 3000.0},
     }
@@ -108,8 +108,6 @@ class GeoBenchFieldsOfTheWorld(GeoBenchBaseDataset):
         Returns:
             dict: a dict containing the image and mask
         """
-        sample: dict[str, Tensor] = {}
-
         sample: dict[str, Tensor] = {}
 
         sample_row = self.data_df.read(idx)

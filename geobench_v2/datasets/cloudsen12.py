@@ -51,7 +51,7 @@ class GeoBenchCloudSen12(GeoBenchBaseDataset):
 
     band_default_order = DatasetBandRegistry.CLOUDSEN12.default_order
 
-    normalization_stats = {
+    normalization_stats: dict[str, dict[str, float]] = {
         "means": {
             "B01": 0.0,
             "B02": 0.0,
@@ -88,7 +88,7 @@ class GeoBenchCloudSen12(GeoBenchBaseDataset):
         self,
         root,
         split: Literal["train", "validation", "test"] = "train",
-        band_order: Sequence[float | str] = ["B04", "B03", "B02"],
+        band_order: list[float | str] = ["B04", "B03", "B02"],
         data_normalizer: type[nn.Module] = ZScoreNormalizer,
         transforms: nn.Module | None = None,
         metadata: Sequence[str] | None = None,

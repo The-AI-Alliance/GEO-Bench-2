@@ -5,7 +5,7 @@
 
 import os
 from pathlib import Path
-from typing import Literal
+from typing import Any, Mapping, Optional, Sequence, Literal, cast
 
 import pandas as pd
 import torch.nn as nn
@@ -26,11 +26,12 @@ class GeoBenchDOTAV2(DOTA, DataUtilsMixin):
     """
 
     dataset_band_config = DatasetBandRegistry.DOTAV2
-    band_default_order = ("red", "green", "blue")
+    band_default_order = ["red", "green", "blue"]
 
-    normalization_stats = {
-        "means": {"red": 0.0, "green": 0.0, "blue": 0.0},
-        "stds": {"red": 255.0, "green": 255.0, "blue": 255.0},
+    # Ensure normalization stats use three-level shape expected by DataUtilsMixin
+    normalization_stats: dict[str, dict[str, float]] = {
+        "means": {"red": 0, "green": 0, "blue": 0},
+        "stds": {"red": 255, "green": 255, "blue": 255},
     }
 
     classes = (
@@ -59,8 +60,8 @@ class GeoBenchDOTAV2(DOTA, DataUtilsMixin):
     def __init__(
         self,
         root: Path,
-        split: str,
-        band_order: list[str] = band_default_order,
+        split: Literal["train", "val", "validation", "test"],
+        band_order: list[str] = ["r", "g", "b"],
         data_normalizer: type[nn.Module] = ZScoreNormalizer,
         bbox_orientation: Literal["horizontal", "oriented"] = "oriented",
         transforms: nn.Module | None = None,
@@ -80,7 +81,13 @@ class GeoBenchDOTAV2(DOTA, DataUtilsMixin):
             transforms: The transforms to apply to the data, defaults to None.
         """
         self.root = root
-        self.split = split
+
+        split_norm: Literal["train", "validation", "test"]
+        if split == "val":
+            split_norm = "validation"
+        else:
+            split_norm = cast(Literal["train", "validation", "test"], split)
+        self.split = split_norm
 
         self.transforms = transforms
 
@@ -102,7 +109,7 @@ class GeoBenchDOTAV2(DOTA, DataUtilsMixin):
             print(f"Initializing normalizer from class: {data_normalizer.__name__}")
             if issubclass(data_normalizer, DataNormalizer):
                 self.data_normalizer = data_normalizer(
-                    self.normalization_stats, self.band_order
+                    stats=self.normalization_stats, band_order=self.band_order
                 )
             else:
                 self.data_normalizer = data_normalizer()

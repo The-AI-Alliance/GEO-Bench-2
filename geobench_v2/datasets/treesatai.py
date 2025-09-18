@@ -6,6 +6,7 @@
 import os
 from collections.abc import Sequence
 from pathlib import Path
+from typing import Optional
 
 import h5py
 import numpy as np
@@ -40,7 +41,7 @@ class GeoBenchTreeSatAI(GeoBenchBaseDataset):
 
     dataset_band_config = DatasetBandRegistry.TREESATAI
 
-    normalization_stats = {
+    normalization_stats: dict[str, dict[str, float]] = {
         "means": {
             "nir": 0.0,
             "green": 0.0,
@@ -132,14 +133,12 @@ class GeoBenchTreeSatAI(GeoBenchBaseDataset):
         self,
         root: Path,
         split: str,
-        band_order: dict[str, Sequence[str]] = {
-            "aerial": ["red", "green", "blue", "nir"]
-        },
+        band_order: dict[str, list[str]] = {"aerial": ["red", "green", "blue", "nir"]},
         data_normalizer: type[nn.Module] = ZScoreNormalizer,
         transforms: nn.Module | None = None,
         metadata: Sequence[str] | None = None,
         include_ts: bool = False,
-        num_time_steps: int = None,
+        num_time_steps: int = 1,
         return_stacked_image: bool = False,
         download: bool = False,
     ) -> None:
@@ -201,7 +200,7 @@ class GeoBenchTreeSatAI(GeoBenchBaseDataset):
 
         img_dict = {}
         for modality in self.band_order:
-            if modality in modality_to_index:
+            if modality in modality_to_index and isinstance(modality, str):
                 file_path = sample_row.read(modality_to_index[modality])
                 with rasterio.open(file_path) as src:
                     data = src.read().astype(np.float32)

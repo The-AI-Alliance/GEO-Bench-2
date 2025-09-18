@@ -8,6 +8,7 @@
 
 from collections.abc import Sequence
 from pathlib import Path
+from typing import Optional, Mapping, Literal, Sequence, cast
 
 import rasterio
 import torch
@@ -36,7 +37,7 @@ class GeoBenchBENV2(GeoBenchBaseDataset):
     ]
 
     band_default_order = {
-        "s2": (
+        "s2": [
             "B01",
             "B02",
             "B03",
@@ -49,8 +50,8 @@ class GeoBenchBENV2(GeoBenchBaseDataset):
             "B09",
             "B11",
             "B12",
-        ),
-        "s1": ("VV", "VH"),
+        ],
+        "s1": ["VV", "VH"],
     }
 
     dataset_band_config = DatasetBandRegistry.BENV2
@@ -90,12 +91,6 @@ class GeoBenchBENV2(GeoBenchBaseDataset):
         },
     }
 
-    # paths: Sequence[str] = (
-    #     "FullBenV2.0000.part.tortilla",
-    #     "FullBenV2.0001.part.tortilla",
-    #     "FullBenV2.0002.part.tortilla",
-    # )
-
     label_names: Sequence[str] = (
         "Urban fabric",
         "Industrial or commercial units",
@@ -129,11 +124,11 @@ class GeoBenchBENV2(GeoBenchBaseDataset):
     def __init__(
         self,
         root: Path,
-        split: str,
-        band_order: dict[str, Sequence[float | str]] = band_default_order,
+        split: Literal["train", "val", "validation", "test"],
+        band_order: Mapping[str, list[str]] = band_default_order,
         data_normalizer: type[nn.Module] = ZScoreNormalizer,
-        transforms: nn.Module | None = None,
-        metadata: Sequence[str] = None,
+        transforms: Optional[nn.Module] = None,
+        metadata: Optional[Sequence[str]] = None,
         return_stacked_image: bool = False,
         download: bool = False,
     ) -> None:
@@ -154,9 +149,14 @@ class GeoBenchBENV2(GeoBenchBaseDataset):
             return_stacked_image: If True, return the stacked modalities across channel dimension instead of the individual modalities.
             download: Whether to download the dataset
         """
+        split_norm: Literal["train", "validation", "test"]
+        if split == "val":
+            split_norm = "validation"
+        else:
+            split_norm = cast(Literal["train", "validation", "test"], split)
         super().__init__(
             root=root,
-            split=split,
+            split=split_norm,
             band_order=band_order,
             data_normalizer=data_normalizer,
             transforms=transforms,

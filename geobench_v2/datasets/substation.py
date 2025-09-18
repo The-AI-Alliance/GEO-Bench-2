@@ -57,7 +57,7 @@ class GeoBenchSubstation(GeoBenchBaseDataset):
     dataset_band_config = DatasetBandRegistry.SUBSTATION
     band_default_order = dataset_band_config.default_order
 
-    normalization_stats = {
+    normalization_stats: dict[str, dict[str, float]] = {
         "means": {
             "B01": 0,
             "B02": 0,
@@ -201,9 +201,10 @@ class GeoBenchSubstation(GeoBenchBaseDataset):
         """
         pattern = r"(\d+)_(\d+),(.+)"
         match = re.search(pattern, path)
-        offset = int(match.group(1))
-        size = int(match.group(2))
-        file_name = match.group(3)
+        if match:
+            offset = int(match.group(1))
+            size = int(match.group(2))
+            file_name = match.group(3)
 
         with open(file_name, "rb") as f:
             f.seek(offset)

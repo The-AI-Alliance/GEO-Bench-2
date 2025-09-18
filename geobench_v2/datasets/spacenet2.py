@@ -5,7 +5,7 @@
 
 from collections.abc import Sequence
 from pathlib import Path
-from typing import Literal
+from typing import Literal, Mapping, Optional, cast
 
 import numpy as np
 import rasterio
@@ -45,7 +45,7 @@ class GeoBenchSpaceNet2(GeoBenchBaseDataset):
 
     dataset_band_config = DatasetBandRegistry.SPACENET2
 
-    normalization_stats = {
+    normalization_stats: dict[str, dict[str, float]] = {
         "means": {
             "coastal": 0.0,
             "blue": 0.0,
@@ -71,7 +71,7 @@ class GeoBenchSpaceNet2(GeoBenchBaseDataset):
     }
 
     band_default_order = {
-        "worldview": (
+        "worldview": [
             "coastal",
             "blue",
             "green",
@@ -80,24 +80,24 @@ class GeoBenchSpaceNet2(GeoBenchBaseDataset):
             "red_edge",
             "nir1",
             "nir2",
-        ),
-        "pan": ("pan",),
+        ],
+        "pan": ["pan"],
     }
 
     classes = ("background", "no-building", "building")
 
     num_classes = len(classes)
 
-    metadata = ("lat", "lon")
+    metadata = ["lat", "lon"]
 
     def __init__(
         self,
         root: Path,
-        split: str,
-        band_order: list[str] = band_default_order,
+        split: Literal["train", "val", "validation", "test"],
+        band_order: Mapping[str, list[str]] = band_default_order,
         data_normalizer: type[nn.Module] = ZScoreNormalizer,
         label_type: Literal["instance_seg", "semantic_seg"] = "semantic_seg",
-        transforms: nn.Module = None,
+        transforms: Optional[nn.Module] = None,
         metadata: Sequence[str] | None = None,
         return_stacked_image: bool = False,
         download: bool = False,
@@ -121,9 +121,14 @@ class GeoBenchSpaceNet2(GeoBenchBaseDataset):
             return_stacked_image: if true, returns a single image tensor with all modalities stacked in band_order
             download: Whether to download the dataset
         """
+        split_norm: Literal["train", "validation", "test"]
+        if split == "val":
+            split_norm = "validation"
+        else:
+            split_norm = cast(Literal["train", "validation", "test"], split)
         super().__init__(
             root=root,
-            split=split,
+            split=split_norm,
             band_order=band_order,
             data_normalizer=data_normalizer,
             transforms=transforms,
@@ -165,12 +170,13 @@ class GeoBenchSpaceNet2(GeoBenchBaseDataset):
 
         sample.update(image_dict)
 
+        mask: np.ndarray
         if self.label_type == "instance_seg":
             with rasterio.open(instance_path) as instance_src:
-                mask: np.ndarray = instance_src.read()
+                mask = instance_src.read()
         else:
             with rasterio.open(segmentation_path) as mask_src:
-                mask: np.ndarray = mask_src.read()
+                mask = mask_src.read()
 
         # We add 1 to the mask to map the current {background, building} labels to
         # the values {1, 2}. to have a true background class.
@@ -180,10 +186,9 @@ class GeoBenchSpaceNet2(GeoBenchBaseDataset):
             sample = self.transforms(sample)
 
         if self.return_stacked_image:
+            bo = cast(Mapping[str, list[str]], self.band_order)
             sample = {
-                "image": torch.cat(
-                    [sample[f"image_{key}"] for key in self.band_order.keys()], 0
-                ),
+                "image": torch.cat([sample[f"image_{key}"] for key in bo.keys()], 0),
                 "mask": sample["mask"],
             }
 

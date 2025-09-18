@@ -5,7 +5,6 @@
 
 from .benv2 import GeoBenchBENV2
 from .biomassters import GeoBenchBioMassters
-from .bright import GeoBenchBRIGHT
 from .burn_scars import GeoBenchBurnScars
 from .caffe import GeoBenchCaFFe
 from .cloudsen12 import GeoBenchCloudSen12
@@ -15,11 +14,9 @@ from .everwatch import GeoBenchEverWatch
 from .flair2 import GeoBenchFLAIR2
 from .fotw import GeoBenchFieldsOfTheWorld
 from .kuro_siwo import GeoBenchKuroSiwo
-from .m4sar import GeoBenchM4SAR
 from .mmflood import GeoBenchMMFlood
 from .nzcattle import GeoBenchNZCattle
 from .pastis import GeoBenchPASTIS
-from .qfabric import GeoBenchQFabric
 from .spacenet2 import GeoBenchSpaceNet2
 from .spacenet6 import GeoBenchSpaceNet6
 from .spacenet7 import GeoBenchSpaceNet7
@@ -44,12 +41,9 @@ __all__ = (
     "GeoBenchKuroSiwo",
     "GeoBenchTreeSatAI",
     "GeoBenchBioMassters",
-    "GeoBenchM4SAR",
     "GeoBenchDynamicEarthNet",
     "GeoBenchMMFlood",
-    "GeoBenchBRIGHT",
     "GeoBenchWindTurbine",
-    "GeoBenchQFabric",
     "GeoBenchBurnScars",
     "GeoBenchNZCattle",
     "GeoBenchSubstation",

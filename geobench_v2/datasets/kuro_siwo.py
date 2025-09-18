@@ -5,6 +5,8 @@
 
 from collections.abc import Sequence
 from typing import Literal
+from pathlib import Path
+from typing import Mapping, Optional, cast
 
 import numpy as np
 import rasterio
@@ -30,21 +32,13 @@ class GeoBenchKuroSiwo(GeoBenchBaseDataset):
 
     url = "https://hf.co/datasets/aialliance/kuro_siwo/resolve/main/{}"
 
-    paths = [
-        # "kurosiwo.0000.part.tortilla",
-        # "kurosiwo.0001.part.tortilla",
-        # "kurosiwo.0002.part.tortilla",
-        # "kurosiwo.0003.part.tortilla",
-        # "kurosiwo.0004.part.tortilla",
-        # "kurosiwo.0005.part.tortilla",
-        "geobench_kuro_siwo.tortilla"
-    ]
+    paths = ["geobench_kuro_siwo.tortilla"]
 
     sha256str = ["0b546c54df70cb7548081df688cc2317f00f7b81e541e09fa0ddcd787d647eef"]
 
     dataset_band_config = DatasetBandRegistry.KURO_SIWO
 
-    band_default_order = {"sar": ("vv", "vh"), "dem": ("dem",)}
+    band_default_order: dict[str, list[str]] = {"sar": ["vv", "vh"], "dem": ["dem"]}
 
     # https://github.com/Orion-AI-Lab/KuroSiwo/blob/2b9491629ffd9e1322eea4eaaf88fbaecef6d9b3/configs/train/data_config.json#L16
     # "data_mean": [0.0953, 0.0264],
@@ -52,7 +46,7 @@ class GeoBenchKuroSiwo(GeoBenchBaseDataset):
     # "dem_mean":93.4313,
     # "dem_std":1410.8382,
 
-    normalization_stats = {
+    normalization_stats: dict[str, dict[str, float]] = {
         "means": {"vv": 0.0953, "vh": 0.0264, "dem": 93.4313},
         "stds": {"vv": 0.0427, "vh": 0.0215, "dem": 1410.8382},
     }
@@ -72,13 +66,13 @@ class GeoBenchKuroSiwo(GeoBenchBaseDataset):
 
     def __init__(
         self,
-        root: str,
-        split: Literal["train", "val", "test"],
-        band_order: dict[str, Sequence[str]] = band_default_order,
+        root: Path,
+        split: Literal["train", "val", "validation", "test"],
+        band_order: Mapping[str, list[str]] = band_default_order,
         data_normalizer: type[nn.Module] = ZScoreNormalizer,
-        transforms: type[nn.Module] = None,
+        transforms: Optional[type[nn.Module]] = None,
         return_stacked_image: bool = False,
-        time_step: Sequence[str] = ["pre_1", "pre_2", "post"],
+        time_step: Sequence[str] = ("pre_1", "pre_2", "post"),
         download: bool = False,
     ) -> None:
         """Initialize Kuro Siwo Dataset.
@@ -93,9 +87,14 @@ class GeoBenchKuroSiwo(GeoBenchBaseDataset):
             time_step: Time step for dataset
             download: whether to download the dataset, if not already present
         """
+        parent_split: Literal["train", "validation", "test"]
+        if split == "val":
+            parent_split = "validation"
+        else:
+            parent_split = cast(Literal["train", "validation", "test"], split)
         super().__init__(
             root=root,
-            split=split,
+            split=parent_split,
             band_order=band_order,
             data_normalizer=data_normalizer,
             transforms=transforms,
@@ -141,8 +140,10 @@ class GeoBenchKuroSiwo(GeoBenchBaseDataset):
         sample["invalid_data"] = invalid_data_tensor
         invalid_mask = invalid_data_tensor
 
+        band_order_map = cast(Mapping[str, list[str]], self.band_order)
+
         def process_sar_image(image) -> Tensor:
-            image = self.rearrange_bands({"sar": image}, self.band_order["sar"])
+            image = self.rearrange_bands({"sar": image}, list(band_order_map["sar"]))
             nan_mask = torch.isnan(image["image"])
             normalized = self.data_normalizer({"image_sar": image["image"]})
             normalized = torch.where(
@@ -152,7 +153,7 @@ class GeoBenchKuroSiwo(GeoBenchBaseDataset):
             )
             return normalized * invalid_mask
 
-        if "sar" in self.band_order:
+        if "sar" in band_order_map:
             with rasterio.open(pre_event_1_path) as src:
                 pre_event_1_img = src.read()
                 pre_event_1_img = torch.from_numpy(pre_event_1_img)
@@ -170,13 +171,15 @@ class GeoBenchKuroSiwo(GeoBenchBaseDataset):
             if "post" in self.time_step:
                 sample["image_post"] = process_sar_image(post_event_img)
 
-        if "dem" in self.band_order:
+        if "dem" in band_order_map:
             with rasterio.open(dem_path) as src:
                 dem = src.read()
                 dem_nans = torch.from_numpy(np.isnan(dem))
 
             image_dem = torch.from_numpy(dem)
-            image_dem = self.rearrange_bands({"dem": image_dem}, self.band_order["dem"])
+            image_dem = self.rearrange_bands(
+                {"dem": image_dem}, list(band_order_map["dem"])
+            )
             image_dem = self.data_normalizer({"image_dem": image_dem["image"]})
             image_dem = torch.where(
                 dem_nans,
@@ -204,7 +207,7 @@ class GeoBenchKuroSiwo(GeoBenchBaseDataset):
             }
             stacked_images = [
                 sample[key]
-                for modality in self.band_order
+                for modality in band_order_map
                 for key in modality_keys.get(modality, [])
                 if key in sample
             ]

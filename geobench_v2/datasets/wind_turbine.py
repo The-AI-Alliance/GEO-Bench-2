@@ -7,6 +7,7 @@ import io
 import re
 import warnings
 from pathlib import Path
+from typing import Optional, Sequence, Literal, cast
 
 import geopandas as gpd
 import rasterio
@@ -33,8 +34,8 @@ class GeoBenchWindTurbine(GeoBenchBaseDataset):
     num_classes = len(classes)
 
     dataset_band_config = DatasetBandRegistry.WINDTURBINE
-    band_default_order = ("red", "green", "blue")
-    normalization_stats = {
+    band_default_order = ["red", "green", "blue"]
+    normalization_stats: dict[str, dict[str, float]] = {
         "means": {"red": 0.0, "green": 0.0, "blue": 0.0},
         "stds": {"red": 255.0, "green": 255.0, "blue": 255.0},
     }
@@ -42,10 +43,10 @@ class GeoBenchWindTurbine(GeoBenchBaseDataset):
     def __init__(
         self,
         root: Path,
-        split: str,
-        band_order: list[str] = band_default_order,
+        split: Literal["train", "val", "validation", "test"],
+        band_order: Sequence[str] = band_default_order,
         data_normalizer: type[nn.Module] = ZScoreNormalizer,
-        transforms: nn.Module | None = None,
+        transforms: Optional[nn.Module] = None,
         download: bool = False,
     ) -> None:
         """Initialize WindTurbine dataset.
@@ -62,9 +63,14 @@ class GeoBenchWindTurbine(GeoBenchBaseDataset):
             transforms: image transformations to apply to the data, defaults to None
             download: Whether to download the dataset
         """
+        split_norm: Literal["train", "validation", "test"]
+        if split == "val":
+            split_norm = "validation"
+        else:
+            split_norm = cast(Literal["train", "validation", "test"], split)
         super().__init__(
             root=root,
-            split=split,
+            split=split_norm,
             band_order=band_order,
             data_normalizer=data_normalizer,
             transforms=transforms,
@@ -92,9 +98,10 @@ class GeoBenchWindTurbine(GeoBenchBaseDataset):
 
         pattern = r"(\d+)_(\d+),(.+)"
         match = re.search(pattern, annot_path)
-        offset = int(match.group(1))
-        size = int(match.group(2))
-        file_name = match.group(3)
+        if match:
+            offset = int(match.group(1))
+            size = int(match.group(2))
+            file_name = match.group(3)
 
         with open(file_name, "rb") as f:
             f.seek(offset)

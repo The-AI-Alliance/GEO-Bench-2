@@ -5,6 +5,7 @@
 
 from collections.abc import Sequence
 from pathlib import Path
+from typing import Any, Mapping, Optional, Sequence, Literal, cast
 
 import numpy as np
 import rasterio
@@ -35,12 +36,12 @@ class GeoBenchSpaceNet7(GeoBenchBaseDataset):
 
     dataset_band_config = DatasetBandRegistry.SPACENET7
 
-    normalization_stats = {
+    normalization_stats: dict[str, dict[str, float]] = {
         "means": {"red": 0.0, "green": 0.0, "blue": 0.0, "nir": 0.0},
         "stds": {"red": 255.0, "green": 255.0, "blue": 255.0, "nir": 255.0},
     }
 
-    band_default_order = ("red", "green", "blue")
+    band_default_order = ["red", "green", "blue"]
 
     classes = ("background", "no-building", "building")
 
@@ -51,10 +52,10 @@ class GeoBenchSpaceNet7(GeoBenchBaseDataset):
     def __init__(
         self,
         root: Path,
-        split: str,
-        band_order: list[str] = band_default_order,
+        split: Literal["train", "val", "validation", "test"],
+        band_order: Sequence[str] = band_default_order,
         data_normalizer: type[nn.Module] = ZScoreNormalizer,
-        transforms: nn.Module = None,
+        transforms: Optional[nn.Module] = None,
         metadata: Sequence[str] | None = None,
         download: bool = False,
     ) -> None:
@@ -73,9 +74,14 @@ class GeoBenchSpaceNet7(GeoBenchBaseDataset):
                 __getitem__ method. If None, no metadata is returned.
             download: Whether to download the dataset
         """
+        split_norm: Literal["train", "validation", "test"]
+        if split == "val":
+            split_norm = "validation"
+        else:
+            split_norm = cast(Literal["train", "validation", "test"], split)
         super().__init__(
             root=root,
-            split=split,
+            split=split_norm,
             band_order=band_order,
             data_normalizer=data_normalizer,
             transforms=transforms,
@@ -109,10 +115,12 @@ class GeoBenchSpaceNet7(GeoBenchBaseDataset):
         # add 1 to mask to have a true background class
         mask = torch.from_numpy(mask).long().squeeze(0) + 1
 
-        image = self.rearrange_bands(image, self.band_order)
-        image = self.data_normalizer(image)
+        image_dict = self.rearrange_bands(
+            image, cast(Sequence[str | float], self.band_order)
+        )
+        image_dict = self.data_normalizer(image_dict)
 
-        sample.update(image)
+        sample.update(image_dict)
 
         sample["mask"] = mask
 
