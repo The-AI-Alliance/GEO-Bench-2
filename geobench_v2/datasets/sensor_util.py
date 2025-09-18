@@ -1026,58 +1026,6 @@ class DatasetBandRegistry:
         },
     )
 
-    DOTAV2 = SensorBandRegistry.RGB
-
-    MMFLOOD = MultiModalConfig(
-        modalities={
-            "s1": ModalityConfig(
-                bands={
-                    "vv": BandConfig("vv", ["VV"], wavelength=0.056),
-                    "vh": BandConfig("vh", ["VH"], wavelength=0.056),
-                },
-                default_order=["vv", "vh"],
-                plot_bands=["vv", "vh"],
-            ),
-            "dem": ModalityConfig(
-                bands={"dem": BandConfig("dem", ["elevation", "dem"], wavelength=None)},
-                default_order=["dem"],
-                plot_bands=["dem"],
-            ),
-            "hydro": ModalityConfig(
-                bands={
-                    "hydro": BandConfig(
-                        "hydro", ["hydro_layer", "HYDRO"], wavelength=None
-                    )
-                },
-                default_order=["hydro"],
-                plot_bands=["hydro"],
-            ),
-        },
-        default_order={"s1": ["vv", "vh"], "dem": ["dem"], "hydro": ["hydro"]},
-        band_to_modality={"vv": "s1", "vh": "s1", "dem": "dem", "hydro": "hydro"},
-    )
-
-    BRIGHT = MultiModalConfig(
-        modalities={
-            "aerial": ModalityConfig(
-                bands={
-                    "r": BandConfig("red", ["r", "red", "RED"], wavelength=0.665),
-                    "g": BandConfig("green", ["g", "green", "GREEN"], wavelength=0.560),
-                    "b": BandConfig("blue", ["b", "blue", "BLUE"], wavelength=0.490),
-                },
-                default_order=["r", "g", "b"],
-            ),
-            "sar": ModalityConfig(
-                bands={
-                    "sar": BandConfig("sar", ["SAR"], wavelength=None, resolution=10)
-                },
-                default_order=["sar"],
-            ),
-        },
-        default_order={"aerial": ["r", "g", "b"], "sar": ["sar"]},
-        band_to_modality={"r": "aerial", "g": "aerial", "b": "aerial", "sar": "sar"},
-    )
-
     WINDTURBINE = SensorBandRegistry.RGB
 
     BURNSCARS = SensorBandRegistry.HLS
