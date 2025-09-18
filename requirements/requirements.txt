@@ -1,5 +1,5 @@
 # setup
-setuptools==75.8.0
+setuptools==80.9.0
 
 # dependencies
 lightning>=2.4.0
