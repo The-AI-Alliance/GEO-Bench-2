@@ -80,11 +80,12 @@ class GeoBenchQFabricDataModule(GeoBenchSegmentationDataModule):
         )
 
     def visualize_batch(
-        self, split: str = "train"
-    ) -> tuple[plt.Figure, dict[str, Tensor]]:
+        self, batch: dict[str, Any] | None = None, split: str = "train"
+    ) -> tuple[Any, dict[str, Any]]:
         """Visualize a batch of QFabric data with temporal dimension.
 
         Args:
+            batch: A batch of data
             split: One of 'train', 'validation', 'test'
 
         Returns:

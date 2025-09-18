@@ -81,8 +81,8 @@ class GeoBenchKuroSiwoDataModule(GeoBenchSegmentationDataModule):
         return self.data_df
 
     def visualize_batch(
-        self, batch: dict[str, Tensor] | None = None, split: str = "train"
-    ) -> tuple[plt.Figure, dict[str, Tensor]]:
+        self, batch: dict[str, Any] | None = None, split: str = "train"
+    ) -> tuple[Any, dict[str, Any]]:
         """Visualize a batch of data.
 
         Args:

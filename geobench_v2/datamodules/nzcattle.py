@@ -92,11 +92,12 @@ class GeoBenchNZCattleDataModule(GeoBenchObjectDetectionDataModule):
         )
 
     def visualize_batch(
-        self, split: str = "train"
-    ) -> tuple[plt.Figure, dict[str, Tensor]]:
+        self, batch: dict[str, Any] | None = None, split: str = "train"
+    ) -> tuple[Any, dict[str, Any]]:
         """Visualize a batch of data.
 
         Args:
+            batch: A batch of data (optional)
             split: One of 'train', 'validation', 'test'
 
         Returns:

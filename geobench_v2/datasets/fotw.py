@@ -123,13 +123,11 @@ class GeoBenchFieldsOfTheWorld(GeoBenchBaseDataset):
             else sample_row.read(3)
         )
 
-        with (
-            rasterio.open(win_a_path) as win_a_src,
-            rasterio.open(win_b_path) as win_b_src,
-            rasterio.open(mask_path) as mask_src,
-        ):
+        with rasterio.open(win_a_path) as win_a_src:
             win_a = win_a_src.read()
+        with rasterio.open(win_b_path) as win_b_src:
             win_b = win_b_src.read()
+        with rasterio.open(mask_path) as mask_src:
             mask = mask_src.read(1)
 
         win_a = torch.from_numpy(win_a).float()

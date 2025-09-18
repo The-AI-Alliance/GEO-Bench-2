@@ -28,7 +28,7 @@ class GeoBenchBENV2DataModule(GeoBenchClassificationDataModule):
     def __init__(
         self,
         img_size: int = 120,
-        band_order: Sequence[float | str] = GeoBenchBENV2.band_default_order,
+        band_order: dict[str, Sequence[float | str]] = GeoBenchBENV2.band_default_order,
         batch_size: int = 32,
         eval_batch_size: int = 64,
         num_workers: int = 0,
@@ -78,11 +78,12 @@ class GeoBenchBENV2DataModule(GeoBenchClassificationDataModule):
         return self.data_df
 
     def visualize_batch(
-        self, split: str = "train"
-    ) -> tuple[plt.Figure, dict[str, Tensor]]:
+        self, batch: dict[str, Any] | None = None, split: str = "train"
+    ) -> tuple[Any, dict[str, Any]]:
         """Visualize a batch of data.
 
         Args:
+            batch: Optional batch of data. If not provided, a batch will be fetched from the dataloader.
             split: One of 'train', 'validation', 'test'
 
         Returns:

@@ -104,13 +104,11 @@ class GeoBenchBRIGHT(GeoBenchBaseDataset):
         post_event_path = sample_row.read(1)
         mask_path = sample_row.read(2)
 
-        with (
-            rasterio.open(pre_event_path) as pre_src,
-            rasterio.open(post_event_path) as post_src,
-            rasterio.open(mask_path) as mask_src,
-        ):
+        with rasterio.open(pre_event_path) as pre_src:
             pre_image: np.ndarray = pre_src.read(out_dtype="float32")
+        with rasterio.open(post_event_path) as post_src:
             post_image: np.ndarray = post_src.read(out_dtype="float32")
+        with rasterio.open(mask_path) as mask_src:
             mask: np.ndarray = mask_src.read()
 
         image_pre = torch.from_numpy(pre_image).float()

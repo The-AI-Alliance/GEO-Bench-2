@@ -137,11 +137,9 @@ class GeoBenchCloudSen12(GeoBenchBaseDataset):
         image_path: str = l2a_row.read(0)
         target_path: str = l2a_row.read(1)
 
-        with (
-            rasterio.open(image_path) as image_src,
-            rasterio.open(target_path) as target_src,
-        ):
+        with rasterio.open(image_path) as image_src:
             image_data: np.ndarray = image_src.read(out_dtype="float32")
+        with rasterio.open(target_path) as target_src:
             target_data: np.ndarray = target_src.read()
 
         image = torch.from_numpy(image_data).float()
