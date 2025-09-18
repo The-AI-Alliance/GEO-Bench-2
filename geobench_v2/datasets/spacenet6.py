@@ -3,9 +3,9 @@
 
 """SpaceNet6 dataset."""
 
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from pathlib import Path
-from typing import Optional, Mapping, Literal, Sequence, cast
+from typing import Literal, cast
 
 import numpy as np
 import rasterio
@@ -34,11 +34,7 @@ class GeoBenchSpaceNet6(GeoBenchBaseDataset):
     """
 
     url = "https://hf.co/datasets/aialliance/spacenet6/resolve/main/{}"
-    # paths = [
-    #     "SpaceNet6.0000.part.tortilla",
-    #     "SpaceNet6.0001.part.tortilla",
-    #     "SpaceNet6.0002.part.tortilla",
-    # ]
+
     paths = [
         "geobench_spacenet6.0000.part.tortilla",
         "geobench_spacenet6.0001.part.tortilla",
@@ -88,7 +84,7 @@ class GeoBenchSpaceNet6(GeoBenchBaseDataset):
         split: Literal["train", "val", "validation", "test"],
         band_order: Mapping[str, list[str]] = band_default_order,
         data_normalizer: type[nn.Module] = ZScoreNormalizer,
-        transforms: Optional[nn.Module] = None,
+        transforms: nn.Module | None = None,
         return_stacked_image: bool = False,
         metadata: Sequence[str] | None = None,
         download: bool = False,

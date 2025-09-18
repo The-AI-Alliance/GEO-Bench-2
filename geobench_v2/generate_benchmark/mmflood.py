@@ -92,9 +92,6 @@ def generate_metadata_df(root) -> pd.DataFrame:
 
 def create_tortilla(root_dir, df, save_dir, tortilla_name):
     """Create a tortilla version of the dataset."""
-    # filter by valid_ratio, which is the percent of valid number of pixels in an image
-    # df = df[df["valid_ratio"] > 0.4]
-
     tortilla_dir = os.path.join(save_dir, "tortilla")
     os.makedirs(tortilla_dir, exist_ok=True)
 

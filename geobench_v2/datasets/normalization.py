@@ -705,7 +705,6 @@ class RescaleNormalizer(DataNormalizer):
             shifted = clipped + shifts_r
 
             rescaled = shifted / scales_r
-            # rescaled = torch.clamp(rescaled, min=0.0, max=1.0)
 
             if self.output_range != "zero_one":
                 rescaled = rescaled * self.range_scale + self.range_shift
@@ -1131,7 +1130,6 @@ class ClipOnlyNormalizer(DataNormalizer):
 
     def unnormalize(self, data: dict[str, Tensor]) -> dict[str, Tensor]:
         """Passthrough since clipping cannot be undone."""
-        # Clipping is a lossy operation that cannot be reversed
         return data.copy()
 
     def _get_required_stats(self) -> dict[str, str]:

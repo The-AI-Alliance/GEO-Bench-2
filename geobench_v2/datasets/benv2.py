@@ -6,9 +6,9 @@
 
 """BigEarthNet V2 Dataset."""
 
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from pathlib import Path
-from typing import Optional, Mapping, Literal, Sequence, cast
+from typing import Literal, cast
 
 import rasterio
 import torch
@@ -127,8 +127,8 @@ class GeoBenchBENV2(GeoBenchBaseDataset):
         split: Literal["train", "val", "validation", "test"],
         band_order: Mapping[str, list[str]] = band_default_order,
         data_normalizer: type[nn.Module] = ZScoreNormalizer,
-        transforms: Optional[nn.Module] = None,
-        metadata: Optional[Sequence[str]] = None,
+        transforms: nn.Module | None = None,
+        metadata: Sequence[str] | None = None,
         return_stacked_image: bool = False,
         download: bool = False,
     ) -> None:
@@ -196,7 +196,6 @@ class GeoBenchBENV2(GeoBenchBaseDataset):
                 s2_img = src.read()
             data["s2"] = torch.from_numpy(s2_img).float()
 
-        # Rearrange bands and normalize
         img = self.rearrange_bands(data, self.band_order)
         img = self.data_normalizer(img)
         sample.update(img)

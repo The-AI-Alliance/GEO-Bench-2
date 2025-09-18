@@ -5,7 +5,7 @@
 
 from collections.abc import Sequence
 from pathlib import Path
-from typing import Optional, Sequence, Literal, cast
+from typing import Literal, cast
 
 import numpy as np
 import rasterio
@@ -65,7 +65,7 @@ class GeoBenchSpaceNet8(GeoBenchBaseDataset):
         split: Literal["train", "val", "validation", "test"],
         band_order: Sequence[str] = band_default_order,
         data_normalizer: type[nn.Module] = ZScoreNormalizer,
-        transforms: Optional[nn.Module] = None,
+        transforms: nn.Module | None = None,
         metadata: Sequence[str] | None = None,
         return_stacked_image: bool = False,
         time_step: Sequence[str] = ["pre", "post"],

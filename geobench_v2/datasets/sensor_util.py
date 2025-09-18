@@ -27,9 +27,9 @@ class ModalityConfig:
     """Configuration for a satellite/sensor modality."""
 
     bands: dict[str, BandConfig]
-    default_order: list[str]  # Default band order for this modality
-    native_resolution: int | None = None  # Native resolution in meters
-    plot_bands: Sequence[str] | None = None  # Bands to be plotted
+    default_order: list[str]
+    native_resolution: int | None = None
+    plot_bands: Sequence[str] | None = None
 
     # Add band_to_modality mapping for consistency with MultiModalConfig
     @property
@@ -54,7 +54,7 @@ class ModalityConfig:
         for canon, band_config in self.bands.items():
             if band_spec == canon or band_spec in band_config.aliases:
                 return canon
-        return None  # Return None instead of raising ValueError
+        return None
 
 
 @dataclass
@@ -62,9 +62,9 @@ class MultiModalConfig:
     """Configuration for multi-modal datasets combining multiple sensors."""
 
     modalities: dict[str, ModalityConfig]
-    default_order: dict[str, Sequence[str]]  # Default band order across all modalities
-    band_to_modality: dict[str, str]  # Maps band names to their modality
-    plot_bands: Sequence[str] | None = None  # Bands to be plotted
+    default_order: dict[str, Sequence[str]]
+    band_to_modality: dict[str, str]
+    plot_bands: Sequence[str] | None = None
 
 
 class SensorType(Enum):

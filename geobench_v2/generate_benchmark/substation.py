@@ -35,19 +35,15 @@ def generate_metadata_df(root_dir: str) -> pd.DataFrame:
     with open(root_dir + "annotations.json") as f:
         d = json.load(f)
 
-    # load images meta
     images_df = pd.DataFrame(d["images"])
     images_df = images_df.rename(columns={"id": "image_id"})
 
-    # load splits meta
     splits_df = pd.read_csv(root_dir + "substation_meta_splits_full.csv")
     splits_df = splits_df.drop(columns=["id", "index_right"])
     splits_df = splits_df.rename(columns={"image": "file_name"})
 
-    # join splits and images
     images_df = pd.merge(images_df, splits_df, on=["file_name", "lat", "lon"])
 
-    # load annotations
     annotations_df = pd.DataFrame(d["annotations"])
 
     metadata_df = pd.merge(images_df, annotations_df, on="image_id")
@@ -114,14 +110,11 @@ def save_image_tiff(image_path, lat, lon, output_folder):
     transformer = Transformer.from_crs("EPSG:4326", utm_crs, always_xy=True)
     centroid_x, centroid_y = transformer.transform(lon, lat)
 
-    # For a 1000x1000 pixel raster at 10m resolution
     rows, cols = image_data.shape[-2:]
-    resolution = 10  # meters
+    resolution = 10
 
     x_top_left = centroid_x - (cols * resolution) / 2
-    y_top_left = (
-        centroid_y + (rows * resolution) / 2
-    )  # Negative height handled in transform
+    y_top_left = centroid_y + (rows * resolution) / 2
 
     transform = Affine(resolution, 0, x_top_left, 0, -resolution, y_top_left)
 
@@ -131,7 +124,7 @@ def save_image_tiff(image_path, lat, lon, output_folder):
         "width": cols,
         "count": image_data.shape[0],
         "dtype": np.int16,
-        "crs": utm_crs,  # UTM CRS in meters
+        "crs": utm_crs,
         "transform": transform,
         "nodata": None,
     }
@@ -159,7 +152,6 @@ def create_tortilla(metadata_df, save_dir, tortilla_name):
     unique_images = metadata_df["file_name"].unique()
 
     for idx, image_path in enumerate(tqdm(unique_images, desc="Creating tortillas")):
-        ###### image conversion
         tiff_profile, new_image_path = save_image_tiff(
             image_path,
             metadata_df["lat"].values[idx],
@@ -169,7 +161,6 @@ def create_tortilla(metadata_df, save_dir, tortilla_name):
 
         img_annotations = metadata_df[metadata_df["file_name"] == image_path]
 
-        # Create annotations dictionary in COCO-like format
         boxes = []
         for _, ann in img_annotations.iterrows():
             boxes.append(
@@ -194,7 +185,6 @@ def create_tortilla(metadata_df, save_dir, tortilla_name):
         )
 
         with h5py.File(annotations_file, "w") as f:
-            # Store the entire dictionary as a JSON string attribute
             f.attrs["annotation"] = json.dumps(
                 {
                     "sample_annotations": boxes,
@@ -202,7 +192,6 @@ def create_tortilla(metadata_df, save_dir, tortilla_name):
                 }
             )
 
-        # create image
         image_sample = tacotoolbox.tortilla.datamodel.Sample(
             id="image",
             path=new_image_path,
@@ -222,7 +211,6 @@ def create_tortilla(metadata_df, save_dir, tortilla_name):
             lat=lat,
         )
 
-        # Create annotation part
         annotations_sample = tacotoolbox.tortilla.datamodel.Sample(
             id="annotations",
             path=annotations_file,
@@ -237,7 +225,6 @@ def create_tortilla(metadata_df, save_dir, tortilla_name):
         sample_path = os.path.join(tortilla_dir, f"sample_{idx}.tortilla")
         tacotoolbox.tortilla.create(taco_samples, sample_path, quiet=True)
 
-    # Merge all individual tortillas into one dataset
     all_tortilla_files = sorted(glob.glob(os.path.join(tortilla_dir, "*.tortilla")))
 
     samples = []

@@ -523,7 +523,6 @@ def process_patches_parallel(
 
     results_df.drop(columns=["status"], inplace=True)
 
-    # rename val to validation in split column
     results_df["split"] = results_df["split"].replace({"val": "validation"})
 
     return results_df
@@ -538,8 +537,6 @@ def generate_metadata_df(root: str) -> pd.DataFrame:
     Returns:
         DataFrame with metadata including geolocation for each patch
     """
-    # TODO add download and unzip of raw data to the root directory
-    # and the metadata CSV file from huggingface, both available on torchgeo huggingface
     df = save_patch_coordinates_only(
         raw_data_dir=os.path.join(root, "data_raw"),
         patch_size=512,

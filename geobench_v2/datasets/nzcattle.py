@@ -6,8 +6,9 @@
 import io
 import json
 import re
+from collections.abc import Sequence
 from pathlib import Path
-from typing import Optional, Sequence, Literal, cast
+from typing import Literal, cast
 
 import h5py
 import rasterio
@@ -48,7 +49,7 @@ class GeoBenchNZCattle(GeoBenchBaseDataset):
         split: Literal["train", "val", "validation", "test"],
         band_order: Sequence[str] = band_default_order,
         data_normalizer: type[nn.Module] = ZScoreNormalizer,
-        transforms: Optional[nn.Module] = None,
+        transforms: nn.Module | None = None,
         download: bool = False,
     ) -> None:
         """Initialize nzCattle dataset.
@@ -96,14 +97,11 @@ class GeoBenchNZCattle(GeoBenchBaseDataset):
 
         sample: dict[str, Tensor] = {}
 
-        ## load image
         image = self._load_image(image_path)
 
         image_dict = self.rearrange_bands(image, self.band_order)
         image_dict = self.data_normalizer(image_dict)
         sample.update(image_dict)
-
-        ## load annotations
 
         boxes, labels = self._load_target(anno_path)
 
@@ -124,7 +122,6 @@ class GeoBenchNZCattle(GeoBenchBaseDataset):
         Returns:
             image tensor
         """
-        ## load image
         with rasterio.open(path) as src:
             image = src.read(out_dtype="float32")
 

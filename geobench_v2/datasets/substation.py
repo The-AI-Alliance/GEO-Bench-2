@@ -177,7 +177,6 @@ class GeoBenchSubstation(GeoBenchBaseDataset):
         Returns:
             image tensor
         """
-        ## load image
         with rasterio.open(path) as src:
             image = src.read(out_dtype="float32")
 

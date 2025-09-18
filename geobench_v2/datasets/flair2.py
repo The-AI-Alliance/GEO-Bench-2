@@ -3,9 +3,9 @@
 
 """Flair 2 Aerial Dataset."""
 
-from collections.abc import Sequence
-from typing import Optional, Mapping, Literal, cast
+from collections.abc import Mapping, Sequence
 from pathlib import Path
+from typing import Literal, cast
 
 import rasterio
 import torch
@@ -71,7 +71,7 @@ class GeoBenchFLAIR2(GeoBenchBaseDataset):
         split: Literal["train", "val", "validation", "test"],
         band_order: Mapping[str, list[str]] = band_default_order,
         data_normalizer: type[nn.Module] = ZScoreNormalizer,
-        transforms: Optional[nn.Module] = None,
+        transforms: nn.Module | None = None,
         metadata: Sequence[str] | None = None,
         download: bool = False,
     ) -> None:
@@ -125,12 +125,10 @@ class GeoBenchFLAIR2(GeoBenchBaseDataset):
 
         data_dict = {}
         with rasterio.open(aerial_path) as f:
-            # read aerial bands
             data = f.read()
             image = data[:-1, :, :]
             data_dict["aerial"] = torch.from_numpy(image).float()
             if "elevation" in self.band_order:
-                # read elevation band
                 elevation = data[-1, :, :]
                 data_dict["elevation"] = (
                     torch.from_numpy(elevation).unsqueeze(0).float()

@@ -3,12 +3,11 @@
 
 """Data Processing Utility Mixin."""
 
-from abc import ABC, abstractmethod
+from abc import ABC
 from collections.abc import Sequence
 
 import torch
 from torch import Tensor
-from typing import cast
 
 from .sensor_util import ModalityConfig, MultiModalConfig
 

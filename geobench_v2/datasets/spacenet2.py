@@ -3,9 +3,9 @@
 
 """SpaceNet2 dataset."""
 
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from pathlib import Path
-from typing import Literal, Mapping, Optional, cast
+from typing import Literal, cast
 
 import numpy as np
 import rasterio
@@ -97,7 +97,7 @@ class GeoBenchSpaceNet2(GeoBenchBaseDataset):
         band_order: Mapping[str, list[str]] = band_default_order,
         data_normalizer: type[nn.Module] = ZScoreNormalizer,
         label_type: Literal["instance_seg", "semantic_seg"] = "semantic_seg",
-        transforms: Optional[nn.Module] = None,
+        transforms: nn.Module | None = None,
         metadata: Sequence[str] | None = None,
         return_stacked_image: bool = False,
         download: bool = False,

@@ -158,6 +158,7 @@ class GeoBenchDataModule(LightningDataModule, ABC):
         """Visualize a batch of data.
 
         Args:
+            batch: batch of data to visualize, if None a batch will be fetched from the dataloader
             split: One of 'train', 'validation', 'test'.
 
         Returns:
@@ -526,6 +527,7 @@ class GeoBenchClassificationDataModule(GeoBenchDataModule):
         """Visualize a batch of data.
 
         Args:
+            batch: batch of data to visualize, if None a batch will be fetched from the dataloader
             split: One of 'train', 'validation', 'test'
 
         Returns:
@@ -646,6 +648,7 @@ class GeoBenchSegmentationDataModule(GeoBenchDataModule):
         """Visualize a batch of data.
 
         Args:
+            batch: batch of data to visualize, if None a batch will be fetched from the dataloader
             split: One of 'train', 'validation', 'test'
 
         Returns:
@@ -765,6 +768,7 @@ class GeoBenchObjectDetectionDataModule(GeoBenchDataModule):
         """Visualize a batch of data.
 
         Args:
+            batch: batch of data to visualize, if None a batch will be fetched from the dataloader
             split: One of 'train', 'validation', 'test'
 
         Returns:

@@ -199,13 +199,11 @@ def convert_annotations_to_geoparquet(metadata_df, save_dir):
                     box_width = float(parts[3]) * width
                     box_height = float(parts[4]) * height
 
-                    # Convert center and width/height to xmin, ymin, xmax, ymax
                     xmin = max(0, int(x_center - (box_width / 2)))
                     ymin = max(0, int(y_center - (box_height / 2)))
                     xmax = min(width, int(x_center + (box_width / 2)))
                     ymax = min(height, int(y_center + (box_height / 2)))
 
-                    # Create bbox record
                     objects.append(
                         {
                             "filename": filename,
@@ -224,7 +222,6 @@ def convert_annotations_to_geoparquet(metadata_df, save_dir):
                         }
                     )
 
-            # Skip if no objects found
             if not objects:
                 results.append(
                     {
@@ -306,7 +303,6 @@ def generate_metadata_df(root_dir: str) -> pd.DataFrame:
         df["image_path"].str.replace("JPEGImages", "labels").str.replace(".png", ".txt")
     )
 
-    # find image sizes
     def extract_image_size(image_path):
         with open(image_path, "rb") as f:
             img = Image.open(f)
@@ -326,7 +322,6 @@ def generate_metadata_df(root_dir: str) -> pd.DataFrame:
     df["lat"] = None
     df["lon"] = None
 
-    # create splits
     df = create_region_based_splits(df)
 
     df["image_path"] = df["image_path"].str.replace(root_dir, "")
@@ -372,7 +367,6 @@ def create_tortilla(annotations_df, root_dir, save_dir, tortilla_name):
         lon = row["lon"] if not pd.isna(row["lon"]) else None
         lat = row["lat"] if not pd.isna(row["lat"]) else None
 
-        # create image
         image_sample = tacotoolbox.tortilla.datamodel.Sample(
             id="image",
             path=geotiff_path,
@@ -389,7 +383,6 @@ def create_tortilla(annotations_df, root_dir, save_dir, tortilla_name):
             lat=lat,
         )
 
-        # Create annotation part
         annotations_sample = tacotoolbox.tortilla.datamodel.Sample(
             id="annotations",
             path=annotation_path,

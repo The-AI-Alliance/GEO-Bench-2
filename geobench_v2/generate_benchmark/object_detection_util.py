@@ -111,7 +111,6 @@ def convert_pngs_to_geotiffs(
     source_dir = os.path.join(source_dir)
     os.makedirs(target_dir, exist_ok=True)
 
-    # Validate that all requested image columns exist in the DataFrame
     missing_columns = [col for col in image_columns if col not in metadata_df.columns]
     if missing_columns:
         raise ValueError(f"Image columns not found in metadata: {missing_columns}")

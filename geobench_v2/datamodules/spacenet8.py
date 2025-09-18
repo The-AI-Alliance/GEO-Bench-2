@@ -14,7 +14,6 @@ import torch
 import torch.nn as nn
 from einops import rearrange
 from matplotlib.colors import ListedColormap
-from torch import Tensor
 from torchgeo.datasets.utils import percentile_normalization
 
 from geobench_v2.datasets import GeoBenchSpaceNet8

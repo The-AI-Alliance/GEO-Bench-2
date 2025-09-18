@@ -6,7 +6,6 @@
 import os
 from collections.abc import Sequence
 from pathlib import Path
-from typing import Optional
 
 import h5py
 import numpy as np
@@ -34,7 +33,7 @@ class GeoBenchTreeSatAI(GeoBenchBaseDataset):
     """
 
     url = "https://hf.co/datasets/aialliance/treesatai/resolve/main/{}"
-    # paths = ["TreeSatAI.tortilla"]
+
     paths = ["geobench_treesatai.tortilla"]
 
     sha256str = ["04435ade7d429418cf2e51db9ec493a9ca196e79aff661425d82b066bdd3a759"]
@@ -206,7 +205,6 @@ class GeoBenchTreeSatAI(GeoBenchBaseDataset):
                     data = src.read().astype(np.float32)
                 img_dict[modality] = torch.from_numpy(data)
 
-        # img_dict = self.rearrange_bands(img_dict, self.band_order)
         img_dict = self.rearrange_bands(img_dict, self.band_order)
         img_dict = self.data_normalizer(img_dict)
         sample.update(img_dict)

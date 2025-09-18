@@ -6,8 +6,9 @@
 import io
 import re
 import warnings
+from collections.abc import Sequence
 from pathlib import Path
-from typing import Optional, Sequence, Literal, cast
+from typing import Literal, cast
 
 import geopandas as gpd
 import rasterio
@@ -46,7 +47,7 @@ class GeoBenchWindTurbine(GeoBenchBaseDataset):
         split: Literal["train", "val", "validation", "test"],
         band_order: Sequence[str] = band_default_order,
         data_normalizer: type[nn.Module] = ZScoreNormalizer,
-        transforms: Optional[nn.Module] = None,
+        transforms: nn.Module | None = None,
         download: bool = False,
     ) -> None:
         """Initialize WindTurbine dataset.

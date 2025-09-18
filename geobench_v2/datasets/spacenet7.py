@@ -5,7 +5,7 @@
 
 from collections.abc import Sequence
 from pathlib import Path
-from typing import Any, Mapping, Optional, Sequence, Literal, cast
+from typing import Literal, cast
 
 import numpy as np
 import rasterio
@@ -55,7 +55,7 @@ class GeoBenchSpaceNet7(GeoBenchBaseDataset):
         split: Literal["train", "val", "validation", "test"],
         band_order: Sequence[str] = band_default_order,
         data_normalizer: type[nn.Module] = ZScoreNormalizer,
-        transforms: Optional[nn.Module] = None,
+        transforms: nn.Module | None = None,
         metadata: Sequence[str] | None = None,
         download: bool = False,
     ) -> None:
@@ -88,7 +88,6 @@ class GeoBenchSpaceNet7(GeoBenchBaseDataset):
             metadata=metadata,
             download=download,
         )
-        # TODO how to setup for time-series prediction
 
     def __getitem__(self, index: int) -> dict[str, Tensor]:
         """Return an index within the dataset.

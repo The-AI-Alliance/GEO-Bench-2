@@ -3,10 +3,9 @@
 
 """Kuro Siwo dataset."""
 
-from collections.abc import Sequence
-from typing import Literal
+from collections.abc import Mapping, Sequence
 from pathlib import Path
-from typing import Mapping, Optional, cast
+from typing import Literal, cast
 
 import numpy as np
 import rasterio
@@ -51,7 +50,6 @@ class GeoBenchKuroSiwo(GeoBenchBaseDataset):
         "stds": {"vv": 0.0427, "vh": 0.0215, "dem": 1410.8382},
     }
 
-    # classes = ("No Water", "Permanent Water", "Flood", "No Data")
     classes = ("No Data", "No Water", "Permanent Water", "Flood")
 
     num_classes = len(classes)
@@ -70,7 +68,7 @@ class GeoBenchKuroSiwo(GeoBenchBaseDataset):
         split: Literal["train", "val", "validation", "test"],
         band_order: Mapping[str, list[str]] = band_default_order,
         data_normalizer: type[nn.Module] = ZScoreNormalizer,
-        transforms: Optional[type[nn.Module]] = None,
+        transforms: type[nn.Module] | None = None,
         return_stacked_image: bool = False,
         time_step: Sequence[str] = ("pre_1", "pre_2", "post"),
         download: bool = False,

@@ -3,9 +3,9 @@
 
 """MMFlood dataset."""
 
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from pathlib import Path
-from typing import Optional, Mapping, Literal, Sequence, cast
+from typing import Literal, cast
 
 import rasterio
 import torch
@@ -34,7 +34,6 @@ class GeoBenchMMFlood(GeoBenchBaseDataset):
 
     url = "https://hf.co/datasets/aialliance/mmflood/resolve/main/{}"
 
-    # paths = ["MMFlood.tortilla"]
     paths = ["geobench_mmflood.tortilla"]
 
     sha256str = ["bb58a1cf0d8b801b647b8eae98718e708ae5d35331b9bc34d9dff9d30832b4e9"]
@@ -60,7 +59,7 @@ class GeoBenchMMFlood(GeoBenchBaseDataset):
         split: Literal["train", "val", "validation", "test"],
         band_order: Mapping[str, list[str]] = band_default_order,
         data_normalizer: type[nn.Module] = ZScoreNormalizer,
-        transforms: Optional[nn.Module] = None,
+        transforms: nn.Module | None = None,
         metadata: Sequence[str] | None = None,
         return_stacked_image: bool = False,
         download: bool = False,

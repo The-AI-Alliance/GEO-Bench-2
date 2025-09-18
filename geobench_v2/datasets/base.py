@@ -5,10 +5,9 @@
 
 import hashlib
 import os
-import urllib.request
-from collections.abc import Callable, Sequence
+from collections.abc import Mapping, Sequence
 from pathlib import Path
-from typing import Any, Mapping, Optional, Sequence, Union, Literal, cast
+from typing import Any, Literal, cast
 
 import rasterio
 import tacoreader
@@ -19,7 +18,7 @@ from torchgeo.datasets import DatasetNotFoundError, NonGeoDataset
 from torchvision.datasets.utils import download_url
 
 from .data_util import DataUtilsMixin
-from .normalization import DataNormalizer, ZScoreNormalizer
+from .normalization import ZScoreNormalizer
 
 
 class GeoBenchBaseDataset(NonGeoDataset, DataUtilsMixin):
@@ -29,9 +28,7 @@ class GeoBenchBaseDataset(NonGeoDataset, DataUtilsMixin):
     paths: Sequence[str] = []
     sha256str: Sequence[str] = []
 
-    # Normalization stats should follow: {"means"|"stds": {modality: {band: value}}}
     normalization_stats: dict[str, dict[str, float]] = {}
-    # Allow subclasses to define a default band order (shape flexible)
     band_default_order: Any = ()
 
     def __init__(
@@ -40,8 +37,8 @@ class GeoBenchBaseDataset(NonGeoDataset, DataUtilsMixin):
         split: str,
         band_order: Sequence[str] | Mapping[str, Sequence[str]],
         data_normalizer: type[nn.Module] = ZScoreNormalizer,
-        transforms: Optional[nn.Module] = None,
-        metadata: Optional[Sequence[str]] = None,
+        transforms: nn.Module | None = None,
+        metadata: list[str] | None = None,
         download: bool = False,
     ) -> None:
         """Initialize the dataset.
@@ -69,7 +66,6 @@ class GeoBenchBaseDataset(NonGeoDataset, DataUtilsMixin):
         self.download = download
         self.dataset_verification()
 
-        # Normalize split value and restrict to the expected literals
         split_norm: Literal["train", "validation", "test"]
         if split == "val":
             split_norm = "validation"
@@ -82,7 +78,7 @@ class GeoBenchBaseDataset(NonGeoDataset, DataUtilsMixin):
         self.split = split_norm
 
         # Store metadata as a list of strings on the instance
-        self.metadata: list[str] = list(metadata) if metadata is not None else []
+        self.metadata: list[str] = metadata if metadata is not None else []
 
         self.band_order = self.resolve_band_order(band_order)
 

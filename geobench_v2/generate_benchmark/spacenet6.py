@@ -125,7 +125,6 @@ def process_spacenet6_tile(args):
                 window = Window(col_start, row_start, patch_size[1], patch_size[0])
                 patch_transform = rasterio.windows.transform(window, transform)
 
-                # Extract patches
                 ps_patch = ps_data[
                     :,
                     row_start : row_start + patch_size[0],
@@ -144,7 +143,6 @@ def process_spacenet6_tile(args):
                     col_start : col_start + patch_size[1],
                 ]
 
-                # Calculate valid data ratio for this specific patch
                 if ps_nodata is not None:
                     patch_valid_ratio = np.sum(ps_patch != ps_nodata) / ps_patch.size
                 else:
@@ -257,9 +255,7 @@ def process_spacenet6_tile(args):
                     "row_px": row_start,
                     "col_px": col_start,
                     "building_ratio": float(building_ratio),
-                    "valid_ratio": float(
-                        patch_valid_ratio
-                    ),  # Add valid ratio to metadata
+                    "valid_ratio": float(patch_valid_ratio),
                     "is_positive": building_ratio > 0,
                     "ps_rgbnir_path": os.path.join("ps-rgbnir", ps_patch_filename),
                     "sar_intensity_path": os.path.join(
@@ -325,10 +321,8 @@ def split_spacenet6_into_patches(
     os.makedirs(sar_intensity_dir, exist_ok=True)
     os.makedirs(mask_dir, exist_ok=True)
 
-    # Process tiles in parallel
     all_patch_metadata = []
 
-    # Determine batch size for better progress tracking
     batch_size = max(1, min(100, len(metadata_df) // (num_workers * 2)))
     batches = [
         metadata_df.iloc[i : i + batch_size]
@@ -363,7 +357,6 @@ def split_spacenet6_into_patches(
                 )
             )
 
-            # Flatten results
             for result_list in results:
                 all_patch_metadata.extend(result_list)
 
@@ -445,7 +438,6 @@ def generate_metadata_df(root: str) -> pd.DataFrame:
         *df["ps_rgbnir_path"].apply(extract_lng_lat)
     )
 
-    # make path relative
     df["mask_path"] = df["mask_path"].str.replace(root, "").str.lstrip(os.sep)
     df["sar_intensity_path"] = (
         df["sar_intensity_path"].str.replace(root, "").str.lstrip(os.sep)
@@ -496,7 +488,6 @@ def create_tortilla(root_dir, df, save_dir, tortilla_name):
         samples_path = os.path.join(tortilla_dir, f"sample_{idx}.tortilla")
         tacotoolbox.tortilla.create(taco_samples, samples_path, quiet=True, nworkers=4)
 
-    # merge tortillas into a single dataset
     all_tortilla_files = sorted(glob.glob(os.path.join(tortilla_dir, "*.tortilla")))
 
     samples = []
@@ -528,7 +519,6 @@ def create_tortilla(root_dir, df, save_dir, tortilla_name):
         )
         samples.append(sample_tortilla)
 
-    # create final taco file
     final_samples = tacotoolbox.tortilla.datamodel.Samples(samples=samples)
     tacotoolbox.tortilla.create(
         final_samples, os.path.join(save_dir, tortilla_name), quiet=True, nworkers=4

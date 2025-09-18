@@ -75,7 +75,6 @@ def process_spacenet8_tile(args):
     result_metadata = []
 
     try:
-        # Use the correct path keys from the metadata DataFrame
         pre_img_path = row["pre-path"]
         post_img_path = row["post-path"]
         label_path = row["label-path"]
@@ -91,7 +90,6 @@ def process_spacenet8_tile(args):
         with rasterio.open(post_img_path) as src:
             post_data = src.read()
 
-        # Load the label/mask as a GeoDataFrame
         gdf = gpd.read_file(label_path)
         mask_data = np.zeros((1, height, width), dtype=np.uint8)
 
@@ -163,7 +161,6 @@ def process_spacenet8_tile(args):
                 )
                 mask_data = mask_data[np.newaxis, :, :]
 
-        # Apply buffers to get the effective dimensions
         effective_height = height - buffer_top - buffer_bottom
         effective_width = width - buffer_left - buffer_right
 
@@ -172,8 +169,6 @@ def process_spacenet8_tile(args):
                 f"Error: Image dimensions ({height}x{width}) are smaller than the combined buffers. Skipping."
             )
             return []
-
-        # Calculate number of patches considering buffers and stride
         patches_per_dim_h = max(
             1, (effective_height - patch_size[0] + stride[0]) // stride[0]
         )
@@ -183,11 +178,9 @@ def process_spacenet8_tile(args):
 
         for i in range(patches_per_dim_h):
             for j in range(patches_per_dim_w):
-                # Calculate row and column start with buffer offsets
                 row_start = buffer_top + (i * stride[0])
                 col_start = buffer_left + (j * stride[1])
 
-                # Ensure we don't go beyond the effective area (accounting for buffers)
                 if row_start + patch_size[0] > height - buffer_bottom:
                     row_start = max(buffer_top, height - buffer_bottom - patch_size[0])
                 if col_start + patch_size[1] > width - buffer_right:
@@ -494,7 +487,7 @@ def generate_metadata_df(root_dir) -> pd.DataFrame:
     ]
 
     # match region to each sample
-    metadata_df["region"] = "unknown"  # Default value
+    metadata_df["region"] = "unknown"
 
     for region in regions:
         bounds = region["bounds"]
