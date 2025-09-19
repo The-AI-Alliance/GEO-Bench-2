@@ -29,7 +29,7 @@ class GeoBenchFLAIR2(GeoBenchBaseDataset):
 
     classes = (
         "building",
-        "pervious surface",
+        "previous surface",
         "impervious surface",
         "bare soil",
         "water",
