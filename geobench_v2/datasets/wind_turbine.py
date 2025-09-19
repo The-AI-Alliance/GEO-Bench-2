@@ -23,7 +23,7 @@ from .sensor_util import DatasetBandRegistry
 
 
 class GeoBenchWindTurbine(GeoBenchBaseDataset):
-    """Implementation of WindTurbine dataset."""
+    """GeoBench version of WindTurbine dataset."""
 
     url = "https://hf.co/datasets/aialliance/wind_turbine/resolve/main/{}"
 

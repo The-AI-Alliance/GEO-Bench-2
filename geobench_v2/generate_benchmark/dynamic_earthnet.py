@@ -290,7 +290,7 @@ def generate_metadata_df(root: str) -> pd.DataFrame:
     coords = df.apply(extract_lng_lat, axis=1)
     df["lon"], df["lat"] = zip(*coords)
 
-    # based on area id assing split
+    # based on area id assign split
     df, train_ids, val_ids, test_ids = create_geospatial_temporal_split(
         df, train_ratio=0.7, val_ratio=0.1, test_ratio=0.2, random_seed=42
     )
@@ -1092,7 +1092,7 @@ def create_geobench_subset(
 def verify_split_disjointness(metadata_df):
     """Verify that train, validation, and test splits are disjoint in space-time.
 
-    For proper disjointness:
+    For proper disjointedness:
     1. A location can appear in multiple splits only if the time periods are different
     2. For any specific location, all observations in a given time period must be in the same split
 
@@ -1162,10 +1162,10 @@ def verify_split_disjointness(metadata_df):
 
     if all_disjoint:
         print(
-            "SUCCESS: Space-time disjointness verified! Each location's time series is in only one split."
+            "SUCCESS: Space-time disjointedness verified! Each location's time series is in only one split."
         )
     else:
-        print("FAILURE: Space-time disjointness violated.")
+        print("FAILURE: Space-time disjointedness violated.")
 
     loc_counts = {split: len(locs) for split, locs in split_locations.items()}
     print("\nSplit distribution summary:")

@@ -22,7 +22,7 @@ from .normalization import ZScoreNormalizer
 
 
 class GeoBenchBaseDataset(NonGeoDataset, DataUtilsMixin):
-    """Base dataset for classification tasks."""
+    """Base dataset for Geobench datasets."""
 
     url = ""
     paths: Sequence[str] = []

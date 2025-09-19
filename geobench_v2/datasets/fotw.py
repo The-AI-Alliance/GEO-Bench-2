@@ -27,12 +27,6 @@ class GeoBenchFieldsOfTheWorld(GeoBenchBaseDataset):
     """
 
     url = "https://hf.co/datasets/aialliance/fotw/resolve/main/{}"
-    # paths = [
-    #     "FullFOTW.0000.part.tortilla",
-    #     "FullFOTW.0001.part.tortilla",
-    #     "FullFOTW.0002.part.tortilla",
-    #     "FullFOTW.0003.part.tortilla",
-    # ]
 
     paths = ["geobench_fotw.tortilla"]
 

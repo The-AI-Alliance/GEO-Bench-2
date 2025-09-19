@@ -18,12 +18,7 @@ from .sensor_util import DatasetBandRegistry
 
 
 class GeoBenchBioMassters(GeoBenchBaseDataset):
-    """BioMassters dataset.
-
-    There are always 12 S1 time steps available but the number of S2 time steps can vary.
-
-    Dataset does not include geospatial information.
-    """
+    """GeoBench version of BioMassters dataset."""
 
     url = "https://hf.co/datasets/aialliance/biomassters/resolve/main/{}"
 

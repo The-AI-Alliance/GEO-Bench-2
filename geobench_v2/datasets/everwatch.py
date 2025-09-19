@@ -23,7 +23,7 @@ from .sensor_util import DatasetBandRegistry
 
 
 class GeoBenchEverWatch(GeoBenchBaseDataset):
-    """Implementation of EverWatch dataset."""
+    """GeoBench version of EverWatch dataset."""
 
     url = "https://hf.co/datasets/aialliance/everwatch/resolve/main/{}"
 

@@ -21,14 +21,7 @@ from .sensor_util import DatasetBandRegistry
 
 
 class GeoBenchPASTIS(GeoBenchBaseDataset):
-    """PAStis Dataset with enhanced functionality.
-
-    This is the PASTIS-R version.
-
-    Allows:
-    - Variable Band Selection
-    - Return band wavelengths
-    """
+    """GeoBench version of PASTIS dataset."""
 
     url = "https://hf.co/datasets/aialliance/pastis/resolve/main/{}"
 
