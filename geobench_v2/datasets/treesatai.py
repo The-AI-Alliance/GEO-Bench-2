@@ -21,16 +21,7 @@ from .sensor_util import DatasetBandRegistry
 
 
 class GeoBenchTreeSatAI(GeoBenchBaseDataset):
-    """TreeSatAI dataset with enhanced functionality.
-
-    Multi-label classification dataset, should we also support standard classification
-    based on majority label?
-
-    If you use this dataset, please cite:
-
-    *
-    *
-    """
+    """GeoBench version of TreeSatAI dataset."""
 
     url = "https://hf.co/datasets/aialliance/treesatai/resolve/main/{}"
 

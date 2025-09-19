@@ -19,7 +19,7 @@ from .sensor_util import DatasetBandRegistry
 
 
 class GeoBenchDynamicEarthNet(GeoBenchBaseDataset):
-    """DynamicEarthNet dataset."""
+    """GeoBench version of DynamicEarthNet dataset."""
 
     url = "https://hf.co/datasets/aialliance/dynamic_earthnet/resolve/main/{}"
 

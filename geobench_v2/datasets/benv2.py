@@ -21,12 +21,7 @@ from .sensor_util import DatasetBandRegistry
 
 
 class GeoBenchBENV2(GeoBenchBaseDataset):
-    """BigEarthNet V2 Dataset with enhanced functionality.
-
-    Allows:
-    - Variable Band Selection
-    - Return band wavelengths
-    """
+    """GeoBench Version of BigEarthNet V2 Dataset."""
 
     url = "https://hf.co/datasets/aialliance/benv2/resolve/main/{}"
 

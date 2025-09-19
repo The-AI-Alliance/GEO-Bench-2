@@ -17,7 +17,7 @@ from .sensor_util import DatasetBandRegistry
 
 
 class GeoBenchCaFFe(GeoBenchBaseDataset):
-    """GeoBench Caffe dataset."""
+    """GeoBench version of Caffe dataset."""
 
     url = "https://hf.co/datasets/aialliance/caffe/resolve/main/{}"
     paths = ["geobench_caffe.tortilla"]

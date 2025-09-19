@@ -46,7 +46,7 @@ def polygon_to_mask(vertices, width=228, height=228):
 
 
 class GeoBenchSubstation(GeoBenchBaseDataset):
-    """Substation dataset."""
+    """GeoBench version Substation dataset."""
 
     url = "https://hf.co/datasets/aialliance/substation/resolve/main/{}"
 

@@ -19,21 +19,7 @@ from .sensor_util import DatasetBandRegistry
 
 
 class GeoBenchCloudSen12(GeoBenchBaseDataset):
-    """Implementation of CloudSen12 dataset Sentinel 2 L1C.
-
-    CloudSen12 is a dataset for cloud segmentation that provides humanly annotated Sentinel-2 L1C imagery.
-
-    The dataset contains four semantic segmentation classes:
-
-    0. clear: Pixels without cloud and cloud shadow contamination.
-    1. thick cloud: Opaque clouds that block all reflected light from Earth's surface.
-    2. thin cloud: Semitransparent clouds that alter the surface spectral signal but still allow recognition of the background.
-    3. cloud shadow: Dark pixels where light is occluded by thick or thin clouds.
-
-    If you use this dataset in your research, please cite the following paper:
-
-    * link
-    """
+    """Geobench version of CloudSen12 dataset."""
 
     url = "https://hf.co/datasets/aialliance/cloudsen12/resolve/main/{}"
 

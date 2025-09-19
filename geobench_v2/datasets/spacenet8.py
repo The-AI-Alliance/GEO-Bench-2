@@ -20,17 +20,7 @@ from .sensor_util import DatasetBandRegistry
 
 
 class GeoBenchSpaceNet8(GeoBenchBaseDataset):
-    """SpaceNet8 dataset with enhanced functionality.
-
-    Allows:
-    - Variable Band Selection
-    - Return band wavelengths
-
-    3 classes: background, building or road (not flooded), building or road (flooded)
-    0. ackground
-    # TODO
-    but maybe also 5 classes?
-    """
+    """GeoBench version of SpaceNet8 dataset."""
 
     url = "https://hf.co/datasets/aialliance/spacenet8/resolve/main/{}"
 

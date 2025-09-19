@@ -19,7 +19,7 @@ from .sensor_util import DatasetBandRegistry
 
 
 class GeoBenchFLAIR2(GeoBenchBaseDataset):
-    """Implementation of FLAIR 2 Aerial dataset."""
+    """GeoBench version of FLAIR 2 dataset."""
 
     url = "https://hf.co/datasets/aialliance/flair2/resolve/main/{}"
 
