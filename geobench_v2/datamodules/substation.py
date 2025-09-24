@@ -10,15 +10,17 @@ from typing import Any
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import tacoreader
 import torch
 import torch.nn as nn
 from einops import rearrange
+from torch import Tensor
 from torchgeo.datasets.utils import percentile_normalization
-
+import tacoreader
 from geobench_v2.datasets import GeoBenchSubstation
 
 from .base import GeoBenchObjectDetectionDataModule
+import skimage
+from matplotlib import patches
 
 
 def substation_collate_fn(batch: Sequence[dict[str, Any]]) -> dict[str, Any]:
@@ -57,6 +59,7 @@ class GeoBenchSubstationDataModule(GeoBenchObjectDetectionDataModule):
         pin_memory: bool = False,
         **kwargs: Any,
     ) -> None:
+        
         """Initialize GeoBench Substation dataset module.
 
         Args:
@@ -70,10 +73,10 @@ class GeoBenchSubstationDataModule(GeoBenchObjectDetectionDataModule):
             num_workers: Number of workers
             collate_fn: Collate function
             train_augmentations: Transforms/Augmentations to apply during training, they will be applied
-                at the sample level and should include normalization. See :meth:`define_augmentations`
+                at the sample level and should include normalization. See :method:`define_augmentations`
                 for the default transformation.
             eval_augmentations: Transforms/Augmentations to apply during evaluation, they will be applied
-                at the sample level and should include normalization. See :meth:`define_augmentations`
+                at the sample level and should include normalization. See :method:`define_augmentations`
                 for the default transformation.
             pin_memory: Pin memory
             **kwargs: Additional keyword arguments for the dataset class
@@ -92,7 +95,7 @@ class GeoBenchSubstationDataModule(GeoBenchObjectDetectionDataModule):
             pin_memory=pin_memory,
             **kwargs,
         )
-
+    
     def load_metadata(self) -> pd.DataFrame:
         """Load metadata file.
 
@@ -105,13 +108,12 @@ class GeoBenchSubstationDataModule(GeoBenchObjectDetectionDataModule):
         return self.data_df
 
     def visualize_batch(
-        self, batch: dict[str, Any] | None = None, split: str = "train"
-    ) -> tuple[Any, dict[str, Any]]:
+        self, split: str = "train"
+    ) -> tuple[plt.Figure, dict[str, Tensor]]:
         """Visualize a batch of data.
 
         Args:
-            batch: A batch of data
-            split: One of 'train', 'validation', 'test'
+            split: One of 'train', 'val', 'test'
 
         Returns:
             The matplotlib figure and the batch of data
@@ -137,7 +139,7 @@ class GeoBenchSubstationDataModule(GeoBenchObjectDetectionDataModule):
         images = images[indices]
         boxes_batch = [boxes_batch[i] for i in indices]
         labels_batch = [labels_batch[i] for i in indices]
-        masks_batch = [masks_batch[i] for i in indices]
+        masks_batch =  [masks_batch[i] for i in indices]
 
         plot_bands = self.dataset_band_config.plot_bands
         rgb_indices = [
@@ -211,14 +213,13 @@ class GeoBenchSubstationDataModule(GeoBenchObjectDetectionDataModule):
                     facecolor="none",
                 )
                 ax_img.add_patch(rect)
-
-                h, w = mask.shape
-                rgba = np.zeros((h, w, 4), dtype=float)
-                rgba[..., :3] = color[:3]
-                rgba[..., 3] = (mask > 0.5) * 0.4
-                ax_img.imshow(rgba, interpolation="none")
-
-                ax_img.contour(mask, levels=[0.5], colors=["white"], linewidths=1)
+                contours = skimage.measure.find_contours(mask, 0.5)
+                for verts in contours:
+                    verts = np.fliplr(verts)
+                    p = patches.Polygon(
+                        verts, facecolor=color, alpha=0.4, edgecolor='white'
+                    )
+                    ax_img.add_patch(p)
 
             ax_img.set_title(f"Sample {i + 1}" if i == 0 else "")
             ax_img.set_xticks([])
