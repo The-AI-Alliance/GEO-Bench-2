@@ -124,15 +124,18 @@ class GeoBenchDataModule(LightningDataModule, ABC):
                 **self.kwargs,
             )
 
-        self.dataset_band_config = self.train_dataset.dataset_band_config
+        if stage in ["fit", "validate"]:
+            dataset = self.train_dataset
+        elif stage in ["test"]:
+            dataset = self.test_dataset
 
-        self.data_normalizer = self.train_dataset.data_normalizer
+        self.dataset_band_config = dataset.dataset_band_config
+        self.data_normalizer = dataset.data_normalizer
+        self.band_order = dataset.band_order
 
-        self.band_order = self.train_dataset.band_order
-
-        if hasattr(self.train_dataset, "num_classes"):
-            self.num_classes = self.train_dataset.num_classes
-            self.class_names = self.train_dataset.classes
+        if hasattr(dataset, "num_classes"):
+            self.num_classes = dataset.num_classes
+            self.class_names = dataset.classes
 
     @abstractmethod
     def setup_image_size_transforms(self) -> tuple[nn.Module, nn.Module, nn.Module]:
@@ -200,7 +203,10 @@ class GeoBenchDataModule(LightningDataModule, ABC):
         Returns:
             A matplotlib Figure object with the geospatial distribution plot.
         """
-        data_df = self.load_metadata()
+        if not hasattr(self, "data_df") or self.data_df is None:
+            self.load_metadata()
+
+        data_df = self.data_df.copy()
 
         # Standardize coordinate columns
         if "lat" not in data_df.columns or "lon" not in data_df.columns:
@@ -298,6 +304,7 @@ class GeoBenchDataModule(LightningDataModule, ABC):
             )
 
         ax.legend(handles=legend_elements, loc="lower right", title="Dataset Splits")
+        title = f"Geographic Distribution of {dataset_name} Samples by Split"
 
         # Gridlines and title
         gl = ax.gridlines(
@@ -573,10 +580,10 @@ class GeoBenchSegmentationDataModule(GeoBenchDataModule):
             num_workers: Number of workers for dataloaders
             collate_fn: Collate function that can reformat samples to the needs of the model.
             train_augmentations: Transforms/Augmentations to apply during training, they will be applied
-                at the sample level and should include normalization. See :meth:`define_augmentations`
+                at the sample level and should include normalization. See :method:`define_augmentations`
                 for the default transformation.
             eval_augmentations: Transforms/Augmentations to apply during evaluation, they will be applied
-                at the sample level and should include normalization. See :meth:`define_augmentations`
+                at the sample level and should include normalization. See :method:`define_augmentations`
                 for the default transformation.
             pin_memory: whether to pin memory in dataloaders
             **kwargs: Additional keyword arguments passed to ``dataset_class``
