@@ -6,5 +6,5 @@
 A comprehensive evaluation framework for geospatial machine learning models.
 """
 
-__authors__ = ("Alexandre Lacoste", "Nils Lehmann", "Naomi Simumba")
+__authors__ = ("Alexandre Lacoste", "Nils Lehmann", "Naomi Simumba", "Paolo Fraccaro")
 __version__ = "0.1.0.dev0"

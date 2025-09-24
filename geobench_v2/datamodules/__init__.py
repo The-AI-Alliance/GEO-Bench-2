@@ -21,6 +21,7 @@ from .fotw import GeoBenchFieldsOfTheWorldDataModule
 from .kuro_siwo import GeoBenchKuroSiwoDataModule
 from .nzcattle import GeoBenchNZCattleDataModule
 from .pastis import GeoBenchPASTISDataModule
+from .pastis_panoptic import GeoBenchPASTISPanopticDataModule
 from .spacenet2 import GeoBenchSpaceNet2DataModule
 from .spacenet6 import GeoBenchSpaceNet6DataModule
 from .spacenet7 import GeoBenchSpaceNet7DataModule
@@ -28,6 +29,7 @@ from .spacenet8 import GeoBenchSpaceNet8DataModule
 from .substation import GeoBenchSubstationDataModule
 from .treesatai import GeoBenchTreeSatAIDataModule
 from .wind_turbine import GeoBenchWindTurbineDataModule
+
 
 __all__ = (
     "GeoBenchDataModule",
@@ -40,6 +42,7 @@ __all__ = (
     "GeoBenchSpaceNet8DataModule",
     "GeoBenchBENV2DataModule",
     "GeoBenchEverWatchDataModule",
+    "GeoBenchDOTAV2DataModule",
     "GeoBenchFLAIR2DataModule",
     "GeoBenchCloudSen12DataModule",
     "GeoBenchClassificationDataModule",
@@ -53,4 +56,6 @@ __all__ = (
     "GeoBenchNZCattleDataModule",
     "GeoBenchSubstationDataModule",
     "GeoBenchBurnScarsDataModule",
+    "GeoBenchPASTISPanopticDataModule",
+
 )
