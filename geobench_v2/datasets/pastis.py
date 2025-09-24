@@ -18,6 +18,15 @@ from torchgeo.datasets import PASTIS
 from .base import GeoBenchBaseDataset
 from .normalization import ZScoreNormalizer
 from .sensor_util import DatasetBandRegistry
+import pdb
+
+
+def greater_than_zero_area_bbox_indexes(bboxes):
+    """
+    Returns the indexes of bounding boxes with greater than zero area.
+    bboxes: list of [x1, y1, x2, y2]
+    """
+    return [i for i, (x1, y1, x2, y2) in enumerate(bboxes) if ((x1 != x2) and (y1 != y2))]
 
 
 class GeoBenchPASTIS(GeoBenchBaseDataset):
@@ -63,49 +72,49 @@ class GeoBenchPASTIS(GeoBenchBaseDataset):
     )
 
     band_default_order = {
-        "s2": ["B02", "B03", "B04", "B05", "B06", "B07", "B08", "B8A", "B11", "B12"],
-        "s1_asc": ["VV_asc", "VH_asc", "VV/VH_asc"],
-        "s1_desc": ["VV_desc", "VH_desc", "VV/VH_desc"],
+        "s2": ("B02", "B03", "B04", "B05", "B06", "B07", "B08", "B8A", "B11", "B12"),
+        "s1_asc": ("VV_asc", "VH_asc", "VV/VH_asc"),
+        "s1_desc": ("VV_desc", "VH_desc", "VV/VH_desc"),
     }
 
     valid_splits = ("train", "val", "test")
 
     normalization_stats: dict[str, dict[str, float]] = {
         "means": {
-            "B02": 0.0,
-            "B03": 0.0,
-            "B04": 0.0,
-            "B05": 0.0,
-            "B06": 0.0,
-            "B07": 0.0,
-            "B08": 0.0,
-            "B8A": 0.0,
-            "B11": 0.0,
-            "B12": 0.0,
-            "VV_asc": 0.0,
-            "VH_asc": 0.0,
-            "VV/VH_asc": 0.0,
-            "VV_desc": 0.0,
-            "VH_desc": 0.0,
-            "VV/VH_desc": 0.0,
+            "B02": 1392.5018310546875,
+            "B03": 1605.011474609375,
+            "B04": 1649.772216796875,
+            "B05": 1951.032470703125,
+            "B06": 2935.529052734375,
+            "B07": 3294.7822265625,
+            "B08": 3429.625,
+            "B8A": 3553.476318359375,
+            "B11": 2575.755615234375,
+            "B12": 1719.2239990234375,
+            "VV_asc": -10.314891815185547,
+            "VH_asc": -16.891693115234375,
+            "VV/VH_asc": 6.576767921447754,
+            "VV_desc": -10.33873176574707,
+            "VH_desc": -16.899442672729492,
+            "VV/VH_desc": 6.560678482055664
         },
         "stds": {
-            "B02": 3000.0,
-            "B03": 3000.0,
-            "B04": 3000.0,
-            "B05": 3000.0,
-            "B06": 3000.0,
-            "B07": 3000.0,
-            "B08": 3000.0,
-            "B8A": 3000.0,
-            "B11": 3000.0,
-            "B12": 3000.0,
-            "VV_asc": 1.0,
-            "VH_asc": 1.0,
-            "VV/VH_asc": 1.0,
-            "VV_desc": 1.0,
-            "VH_desc": 1.0,
-            "VV/VH_desc": 1.0,
+            "B02": 2273.633544921875,
+            "B03": 2203.701904296875,
+            "B04": 2280.4736328125,
+            "B05": 2167.027099609375,
+            "B06": 1952.1614990234375,
+            "B07": 1922.79833984375,
+            "B08": 1912.768798828125,
+            "B8A": 1894.3756103515625,
+            "B11": 1426.388916015625,
+            "B12": 1200.4859619140625,
+            "VV_asc": 3.130173683166504,
+            "VH_asc": 3.055800199508667,
+            "VV/VH_asc": 3.3437912464141846,
+            "VV_desc": 3.252969741821289,
+            "VH_desc": 3.0515613555908203,
+            "VV/VH_desc": 3.3415229320526123
         },
     }
 
@@ -119,20 +128,22 @@ class GeoBenchPASTIS(GeoBenchBaseDataset):
         self,
         root: Path,
         split: str,
-        band_order: dict[str, list[float | str]] = {"s2": ["B04", "B03", "B02"]},
+        band_order: dict[str, Sequence[float | str]] = {"s2": ["B04", "B03", "B02"]},
         data_normalizer: type[nn.Module] = ZScoreNormalizer,
         num_time_steps: int = 1,
         transforms: nn.Module | None = None,
         metadata: Sequence[str] | None = None,
         label_type: Literal["instance_seg", "semantic_seg"] = "semantic_seg",
         return_stacked_image: bool = False,
+        temporal_aggregation: Literal["mean", "median"] = None,
+        temporal_output_format: Literal["TCHW", "CTHW"] = "TCHW",
         download: bool = False,
     ) -> None:
         """Initialize PASTIS Dataset.
 
         Args:
             root: Path to the dataset root directory
-            split: The dataset split, supports 'train', 'validation', 'test'
+            split: The dataset split, supports 'train', 'val', 'test'
             band_order: The order of bands to return, defaults to ['red', 'green', 'blue', 'nir'], if one would
                 specify ['red', 'green', 'blue', 'nir', 'nir'], the dataset would return images with 5 channels
                 in that order. This is useful for models that expect a certain band order, or
@@ -148,24 +159,64 @@ class GeoBenchPASTIS(GeoBenchBaseDataset):
                 __getitem__ method. If None, no metadata is returned.
             label_type: The type of label to return, either 'instance_seg' or 'semantic_seg'
             return_stacked_image: if true, returns a single image tensor with all modalities stacked in band_order
-            download: Whether to download the dataset
+            temporal_aggregation: whether apply temporal aggregation [mean, median]
 
         Raises:
             AssertionError: If an invalid split is specified
         """
-        super().__init__(
-            root=root,
-            split=split,
-            band_order=band_order,
-            data_normalizer=data_normalizer,
-            transforms=transforms,
-            metadata=metadata,
-            download=download,
+        super().__init__(root=root)
+
+        if split == "validation":
+            split = "val"
+
+        assert split in self.valid_splits, (
+            f"Invalid split {split}. Must be one of {self.valid_splits}"
         )
+        self.split = split
+
+        self.band_order = self.validate_band_order(band_order)
+
+        self.transforms = transforms
+        self.num_time_steps = num_time_steps
 
         self.label_type = label_type
-        self.num_time_steps = num_time_steps
         self.return_stacked_image = return_stacked_image
+
+        if metadata is None:
+            self.metadata = []
+        else:
+            self.metadata = metadata
+
+        self.data_df = pd.read_parquet(os.path.join(root, "geobench_pastis.parquet"))
+        self.data_df = self.data_df[self.data_df["split"] == split].reset_index(
+            drop=True
+        )
+
+        if isinstance(data_normalizer, type):
+            print(f"Initializing normalizer from class: {data_normalizer.__name__}")
+            if issubclass(data_normalizer, DataNormalizer):
+                self.data_normalizer = data_normalizer(
+                    self.normalization_stats, self.band_order
+                )
+            else:
+                self.data_normalizer = data_normalizer()
+
+        elif callable(data_normalizer):
+            print(
+                f"Using provided pre-initialized normalizer instance: {data_normalizer.__class__.__name__}"
+            )
+            self.data_normalizer = data_normalizer
+        else:
+            raise TypeError(
+                f"data_normalizer must be a DataNormalizer subclass type or a callable instance. Got {type(data_normalizer)}"
+            )
+            
+        self.temporal_aggregation = temporal_aggregation
+        self.temporal_output_format = temporal_output_format
+
+    def __len__(self) -> int:
+        """Return the length of the dataset."""
+        return len(self.data_df)
 
     def __getitem__(self, index: int) -> dict[str, Tensor]:
         """Return an index within the dataset.
@@ -188,6 +239,10 @@ class GeoBenchPASTIS(GeoBenchBaseDataset):
         img_dict = self.rearrange_bands(data, self.band_order)
 
         img_dict = self.data_normalizer(img_dict)
+        
+        if self.temporal_output_format == "CTHW":
+            for key in img_dict.keys():
+                img_dict[key] = img_dict[key].permute((1,0,2,3))
 
         sample.update(img_dict)
 
@@ -204,7 +259,6 @@ class GeoBenchPASTIS(GeoBenchBaseDataset):
             sample_dates = [0] * (self.num_time_steps - len(dates)) + dates
         else:
             sample_dates = dates[-self.num_time_steps :]
-
         if self.transforms:
             sample = self.transforms(sample)
 
@@ -266,7 +320,15 @@ class GeoBenchPASTIS(GeoBenchBaseDataset):
             )
             tensor = torch.cat((padding, tensor), dim=0)
         else:
-            tensor = tensor[-self.num_time_steps :]
+            step =  tensor.shape[0] / self.num_time_steps
+            indexes = [int(i * step) for i in range(self.num_time_steps)]
+            tensor = tensor[indexes, :, :, :]
+
+        if self.temporal_aggregation is not None:
+            if self.temporal_aggregation == 'mean':
+                tensor = torch.mean(tensor, 0)
+            if self.temporal_aggregation == 'median':
+                tensor = torch.median(tensor, 0).values
 
         if self.num_time_steps == 1:
             tensor = tensor.squeeze(0)
@@ -311,7 +373,8 @@ class GeoBenchPASTIS(GeoBenchBaseDataset):
         instance_ids = instance_ids[instance_ids != 0]
         instance_ids = instance_ids[:, None, None]
         masks: Tensor = instance_tensor == instance_ids
-
+        
+        mask_tensor = mask_tensor.to(torch.int16)
         # Parse labels for each instance
         labels_list = []
         for mask in masks:
@@ -327,6 +390,10 @@ class GeoBenchPASTIS(GeoBenchBaseDataset):
             xmax = torch.max(pos[1])
             ymin = torch.min(pos[0])
             ymax = torch.max(pos[0])
+            if xmin == xmax:
+                xmax = xmax +1
+            if ymin == ymax:
+                ymax = ymax +1    
             boxes_list.append([xmin, ymin, xmax, ymax])
 
         masks = masks.to(torch.uint8)
