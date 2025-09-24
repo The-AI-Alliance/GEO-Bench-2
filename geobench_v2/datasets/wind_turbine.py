@@ -31,14 +31,14 @@ class GeoBenchWindTurbine(GeoBenchBaseDataset):
 
     sha256str = ["ce04744472ce5ef4159575a31c662aa5d4b68ba068c7079f26ac60816ddfe23c"]
 
-    classes = ("windTurbine",)
+    classes = ("Background", "windTurbine")
     num_classes = len(classes)
 
     dataset_band_config = DatasetBandRegistry.WINDTURBINE
-    band_default_order = ["red", "green", "blue"]
-    normalization_stats: dict[str, dict[str, float]] = {
-        "means": {"red": 0.0, "green": 0.0, "blue": 0.0},
-        "stds": {"red": 255.0, "green": 255.0, "blue": 255.0},
+    band_default_order = ("red", "green", "blue")
+    normalization_stats = {
+        "means": {"red": 113.03805541992188, "green": 106.80823516845703, "blue": 98.30384063720703},
+        "stds": {"red": 40.64764404296875, "green": 36.21271896362305, "blue": 34.226219177246094},
     }
 
     def __init__(
