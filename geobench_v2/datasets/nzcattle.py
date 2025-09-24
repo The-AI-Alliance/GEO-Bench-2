@@ -145,7 +145,6 @@ class GeoBenchNZCattle(GeoBenchBaseDataset):
             boxes: bounding boxes tensor in xyxy format
             labels: labels tensor
         """
-
         pattern = r"(\d+)_(\d+),(.+)"
         match = re.search(pattern, path)
         if match:
