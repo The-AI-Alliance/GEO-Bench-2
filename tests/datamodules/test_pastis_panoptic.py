@@ -1,13 +1,17 @@
 # Copyright (c) 2025 GeoBenchV2. All rights reserved.
 # Licensed under the Apache License 2.0.
 
-"""PASTIS DataModule Tests."""
+"""PASTIS Panoptic Segmentation DataModule Tests."""
 
 import os
+from collections.abc import Sequence
+from pathlib import Path
 
 import matplotlib.pyplot as plt
 import pytest
-
+from pytest import MonkeyPatch
+from torchgeo.datasets import DatasetNotFoundError
+from geobench_v2.datasets import GeoBenchPASTIS
 from geobench_v2.datamodules import GeoBenchPASTISPanopticDataModule
 from geobench_v2.datamodules.pastis_panoptic import pastis_collate_fn as collate
 import pdb
@@ -33,18 +37,33 @@ def invalid_mixed_band_order():
 
 
 @pytest.fixture
-def datamodule(band_order):
+def datamodule(
+    monkeypatch: MonkeyPatch,
+    tmp_path: Path,
+    band_order: dict[str, Sequence[str | float]],
+):
+    monkeypatch.setattr(GeoBenchPASTIS, "paths", ["pastis.tortilla"])
+    monkeypatch.setattr(
+        GeoBenchPASTIS, "url", os.path.join("tests", "data", "pastis", "{}")
+    )
+    monkeypatch.setattr(
+        GeoBenchPASTIS,
+        "sha256str",
+        ["c501d6cb8c5d4660dda125ff9c8d04cabaead3d660cebb7509dac38e025dad2d"],
+    )
     datamodule = GeoBenchPASTISPanopticDataModule(
         img_size=256,
-        batch_size=8,
+        batch_size=2,
         num_workers=0,
         band_order=band_order,
-        root="/opt/app-root/src/fm-geospatial/data/PASTIS/",
+        root=tmp_path,
         metadata=["lon", "lat"],
         return_stacked_image=False,
         label_type="instance_seg",
         collate_fn=collate,
-        num_time_steps= 12,
+        num_time_steps= 2,
+        pin_memory=False,
+        download=True,
     )
     datamodule.setup("fit")
     datamodule.setup("test")
@@ -52,7 +71,13 @@ def datamodule(band_order):
 
 
 class TestPASTISPanopticDataModule:
-    """Test cases for PASTIS datamodule functionality."""
+    """Test cases for PASTIS Panoptic datamodule functionality."""
+
+    def test_loaders(self, datamodule):
+        """Test if dataloaders are created successfully."""
+        assert len(datamodule.train_dataloader()) > 0
+        assert len(datamodule.val_dataloader()) > 0
+        assert len(datamodule.test_dataloader()) > 0
 
     def test_multimodal_band_order(self, datamodule):
         """Test batch retrieval with modality-specific band sequences."""
@@ -97,24 +122,8 @@ class TestPASTISPanopticDataModule:
         assert isinstance(fig, plt.Figure)
         assert isinstance(batch, dict)
 
-        fig.savefig(os.path.join("tests", "data", "pastis", "test_batch.png"))
+        fig.savefig(os.path.join("tests", "data", "pastis", "test_panoptic_batch.png"))
 
-    def test_time_series(self, band_order):
-        """Test batch retrieval with time series."""
-        num_time_steps = 3
-        datamodule = GeoBenchPASTISPanopticDataModule(
-            img_size=74,
-            batch_size=4,
-            num_time_steps=num_time_steps,
-            band_order=band_order,
-            root="/opt/app-root/src/fm-geospatial/data/PASTIS/",
-        )
-        datamodule.setup("fit")
-        batch = next(iter(datamodule.train_dataloader()))
-
-        # Check single tensor output - only S2 bands
-        assert batch["image_s2"].shape[0] == datamodule.batch_size
-        assert batch["image_s2"].shape[1] == num_time_steps
-        assert batch["image_s2"].shape[2] == len(datamodule.band_order["s2"])
-        assert batch["image_s2"].shape[3] == datamodule.img_size
-        assert batch["image_s2"].shape[4] == datamodule.img_size
+    def test_not_downloaded(self, tmp_path: Path) -> None:
+        with pytest.raises(DatasetNotFoundError, match="Dataset not found"):
+            GeoBenchPASTIS(tmp_path, split="train")
