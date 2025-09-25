@@ -18,7 +18,6 @@ from torchgeo.datasets import PASTIS
 from .base import GeoBenchBaseDataset
 from .normalization import ZScoreNormalizer
 from .sensor_util import DatasetBandRegistry
-import pdb
 
 
 def greater_than_zero_area_bbox_indexes(bboxes):
@@ -164,7 +163,15 @@ class GeoBenchPASTIS(GeoBenchBaseDataset):
         Raises:
             AssertionError: If an invalid split is specified
         """
-        super().__init__(root=root)
+        super().__init__(
+            root=root,
+            split=split,
+            band_order=band_order,
+            data_normalizer=data_normalizer,
+            transforms=transforms,
+            metadata=metadata,
+            download=download,
+        )
 
         if split == "validation":
             split = "val"
@@ -186,30 +193,6 @@ class GeoBenchPASTIS(GeoBenchBaseDataset):
             self.metadata = []
         else:
             self.metadata = metadata
-
-        self.data_df = pd.read_parquet(os.path.join(root, "geobench_pastis.parquet"))
-        self.data_df = self.data_df[self.data_df["split"] == split].reset_index(
-            drop=True
-        )
-
-        if isinstance(data_normalizer, type):
-            print(f"Initializing normalizer from class: {data_normalizer.__name__}")
-            if issubclass(data_normalizer, DataNormalizer):
-                self.data_normalizer = data_normalizer(
-                    self.normalization_stats, self.band_order
-                )
-            else:
-                self.data_normalizer = data_normalizer()
-
-        elif callable(data_normalizer):
-            print(
-                f"Using provided pre-initialized normalizer instance: {data_normalizer.__class__.__name__}"
-            )
-            self.data_normalizer = data_normalizer
-        else:
-            raise TypeError(
-                f"data_normalizer must be a DataNormalizer subclass type or a callable instance. Got {type(data_normalizer)}"
-            )
             
         self.temporal_aggregation = temporal_aggregation
         self.temporal_output_format = temporal_output_format
