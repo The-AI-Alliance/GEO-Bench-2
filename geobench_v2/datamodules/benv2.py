@@ -73,12 +73,13 @@ class GeoBenchBENV2DataModule(GeoBenchClassificationDataModule):
         )
 
     def visualize_batch(
-        self, split: str = "train"
-    ) -> tuple[plt.Figure, dict[str, Tensor]]:
+        self, batch: dict[str, Any] | None = None, split: str = "train"
+    ) -> tuple[Any, dict[str, Any]]:
         """Visualize a batch of data.
 
         Args:
-            split: One of 'train', 'val', 'test'
+            batch: Optional batch of data. If not provided, a batch will be fetched from the dataloader.
+            split: One of 'train', 'validation', 'test'
 
         Returns:
             The matplotlib figure and the batch of data
@@ -93,7 +94,8 @@ class GeoBenchBENV2DataModule(GeoBenchClassificationDataModule):
         else:
             batch = next(iter(self.test_dataloader()))
 
-        batch = self.data_normalizer.unnormalize(batch)
+        if hasattr(self.data_normalizer, "unnormalize"):
+            batch = self.data_normalizer.unnormalize(batch)
 
         batch_size = batch["label"].shape[0]
         n_samples = min(8, batch_size)
@@ -120,19 +122,10 @@ class GeoBenchBENV2DataModule(GeoBenchClassificationDataModule):
             modalities[mod] = mod_images
 
         num_modalities = len(modalities)
-        fig, axes = plt.subplots(
-            n_samples,
-            num_modalities,
-            figsize=(num_modalities * 4, 3 * n_samples),
-            gridspec_kw={"width_ratios": num_modalities * [1]},
+        fig = plt.figure(figsize=(num_modalities * 4 + 2, 3 * n_samples))
+        gs = fig.add_gridspec(
+            n_samples, num_modalities + 1, width_ratios=[*[1] * num_modalities, 0.4]
         )
-
-        if n_samples == 1 and num_modalities == 1:
-            axes = np.array([[axes]])
-        elif n_samples == 1:
-            axes = axes.reshape(1, -1)
-        elif num_modalities == 1:
-            axes = axes.reshape(-1, 1)
 
         labels = batch["label"][indices]
         sample_labels = []
@@ -142,6 +135,7 @@ class GeoBenchBENV2DataModule(GeoBenchClassificationDataModule):
 
         for i in range(n_samples):
             for j, (mod, modality_img) in enumerate(modalities.items()):
+                ax = fig.add_subplot(gs[i, j])
                 plot_img = modality_img[i]
 
                 if mod == "s1":
@@ -160,16 +154,36 @@ class GeoBenchBENV2DataModule(GeoBenchClassificationDataModule):
                 else:
                     img = percentile_normalization(plot_img, lower=2, upper=98)
 
-                ax = axes[i, j]
                 ax.imshow(img)
                 ax.set_title(f"{mod} image" if i == 0 else "", fontsize=20)
                 ax.axis("off")
 
-            label_names = [self.class_names[label] for label in sample_labels[i]]
-            separator = ", \n"
-            suptitle = f"Labels: {separator.join(label_names)}"
-            ax = axes[i, -1]
-            ax.set_title(suptitle, fontsize=8)
+            label_ax = fig.add_subplot(gs[i, -1])
+            label_ax.axis("off")
+
+            label_names = [f"- {self.class_names[label]}" for label in sample_labels[i]]
+
+            label_text = "\n".join(label_names)
+
+            label_ax.text(
+                0.05,
+                0.5,
+                label_text,
+                ha="left",
+                va="center",
+                fontsize=9,
+                bbox=dict(
+                    boxstyle="round,pad=0.5",
+                    facecolor="lightyellow",
+                    alpha=0.8,
+                    edgecolor="lightgray",
+                ),
+                transform=label_ax.transAxes,
+                wrap=True,
+            )
+
+            if i == 0:
+                label_ax.set_title("Labels", fontsize=15)
 
         plt.tight_layout()
 
@@ -177,6 +191,30 @@ class GeoBenchBENV2DataModule(GeoBenchClassificationDataModule):
 
         return fig, batch
 
-    def visualize_geolocation_distribution(self) -> None:
-        """Visualize the geolocation distribution of the dataset."""
-        pass
+    def visualize_geospatial_distribution(
+        self,
+        split_column: str = "tortilla:data_split",
+        buffer_degrees: float = 5.0,
+        sample_fraction: float | None = None,
+        scale: Literal["10m", "50m", "110m"] = "50m",
+        alpha: float = 0.5,
+        s: float = 0.5,
+    ) -> plt.Figure:
+        """Visualize the geospatial distribution of dataset samples on a map.
+
+        Args:
+            split_column: Column name in the metadata DataFrame that indicates the dataset split.
+            buffer_degrees: Buffer around the data extent in degrees.
+            sample_fraction: Optional fraction of samples to plot (0.0-1.0) for performance with large datasets.
+            scale: Scale of cartopy features (e.g., '10m', '50m', '110m').
+            alpha: Transparency of plotted points.
+            s: Size of plotted points.
+        """
+        return super().visualize_geospatial_distribution(
+            split_column=split_column,
+            buffer_degrees=buffer_degrees,
+            sample_fraction=sample_fraction,
+            scale=scale,
+            alpha=alpha,
+            s=s,
+        )
