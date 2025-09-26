@@ -9,6 +9,7 @@ from .base import (
     GeoBenchObjectDetectionDataModule,
     GeoBenchSegmentationDataModule,
 )
+
 from .benv2 import GeoBenchBENV2DataModule
 from .biomassters import GeoBenchBioMasstersDataModule
 from .burn_scars import GeoBenchBurnScarsDataModule
@@ -29,7 +30,11 @@ from .substation import GeoBenchSubstationDataModule
 from .treesatai import GeoBenchTreeSatAIDataModule
 from .wind_turbine import GeoBenchWindTurbineDataModule
 
-__all__ = (
+from .utils import (MultiTemporalSegmentationAugmentation, 
+                    MultiModalSegmentationAugmentation,
+                    MultiModalClassificationAugmentation)
+
+_all__ = (
     "GeoBenchDataModule",
     "GeoBenchCaFFeDataModule",
     "GeoBenchFieldsOfTheWorldDataModule",
@@ -53,4 +58,7 @@ __all__ = (
     "GeoBenchNZCattleDataModule",
     "GeoBenchSubstationDataModule",
     "GeoBenchBurnScarsDataModule",
+    "MultiTemporalSegmentationAugmentation", 
+    "MultiModalSegmentationAugmentation",
+    "MultiModalClassificationAugmentation",
 )

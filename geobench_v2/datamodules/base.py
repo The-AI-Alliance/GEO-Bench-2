@@ -4,19 +4,24 @@
 """Base DataModules."""
 
 from abc import ABC, abstractmethod
-from collections.abc import Callable, Sequence
-from typing import Any, Literal
+from collections.abc import Callable
+from typing import Any, Sequence
 
-import cartopy.crs as ccrs
-import cartopy.feature as cfeature
 import kornia.augmentation as K
 import pandas as pd
+import torch
 import torch.nn as nn
 from lightning import LightningDataModule
 from matplotlib import pyplot as plt
-from matplotlib.lines import Line2D
 from torch import Tensor
 from torch.utils.data import DataLoader, Dataset
+from torch.utils.data import random_split
+import einops
+from .utils import (MultiTemporalSegmentationAugmentation, 
+                    MultiModalClassificationAugmentation,
+                    )
+
+
 
 # TODO come up with an expected metadata file scheme
 # with common names etc. so a standardization
@@ -33,7 +38,7 @@ class GeoBenchDataModule(LightningDataModule, ABC):
         self,
         dataset_class: Dataset,
         img_size: int,
-        band_order: dict[str, Sequence[float | str]],
+        band_order: Sequence[float | str],
         batch_size: int = 32,
         eval_batch_size: int = 64,
         num_workers: int = 0,
@@ -65,12 +70,12 @@ class GeoBenchDataModule(LightningDataModule, ABC):
         """
         super().__init__()
         if isinstance(train_augmentations, str):
-            assert train_augmentations == "default", (
-                "Please provide one of the follow for eval_augmentations: Callable or None or 'default'"
+            assert train_augmentations in ("default", "multi_temporal_default"), (
+                "Please provide one of the follow for eval_augmentations: Callable or None or 'default' or 'multi_temporal_default'"
             )
         if isinstance(eval_augmentations, str):
-            assert eval_augmentations == "default", (
-                "Please provide one of the follow for eval_augmentations: Callable or None or 'default'"
+            assert eval_augmentations  in ("default", "multi_temporal_default"), (
+                "Please provide one of the follow for eval_augmentations: Callable or None or 'default' or 'multi_temporal_default'"
             )
 
         self.dataset_class = dataset_class
@@ -136,11 +141,11 @@ class GeoBenchDataModule(LightningDataModule, ABC):
 
     @abstractmethod
     def setup_image_size_transforms(self) -> tuple[nn.Module, nn.Module, nn.Module]:
-        """Setup image resizing transforms for train, val, and test.
+        """Setup image resizing transforms for train, val, test.
 
-        Image resizing and normalization happens on the dataset level on individual data samples.
+        Image resizing and normalization happens on dataset level on individual data samples.
         """
-        raise NotImplementedError
+        pass
 
     @abstractmethod
     def load_metadata(self) -> pd.DataFrame:
@@ -149,173 +154,34 @@ class GeoBenchDataModule(LightningDataModule, ABC):
         Returns:
             pandas DataFrame with metadata.
         """
-        raise NotImplementedError
+        pass
 
     @abstractmethod
     def visualize_batch(
-        self, batch: dict[str, Any] | None = None, split: str = "train"
-    ) -> tuple[Any, dict[str, Any]]:
+        self, split: str = "train"
+    ) -> tuple[plt.Figure, dict[str, Tensor]]:
         """Visualize a batch of data.
 
         Args:
-            batch: batch of data to visualize, if None a batch will be fetched from the dataloader
-            split: One of 'train', 'validation', 'test'.
+            split: One of 'train', 'val', 'test'
 
         Returns:
-            The matplotlib figure and the batch of data.
+            The matplotlib figure and the batch of data
         """
-        raise NotImplementedError
+        pass
 
     @abstractmethod
     def define_augmentations(self) -> None:
-        """Define augmentations for the dataset and task, applied on a batch of data.
+        """Define augmentations for the dataset and task, that are applied on a batch of data.
 
         Augmentations will be applied in `on_after_batch_transfer` in the LightningDataModule.
         """
-        raise NotImplementedError
+        pass
 
-    def visualize_geospatial_distribution(
-        self,
-        split_column: str = "tortilla:data_split",
-        buffer_degrees: float = 5.0,
-        sample_fraction: float | None = None,
-        scale: Literal["10m", "50m", "110m"] = "50m",
-        alpha: float = 0.5,
-        s: float = 10,
-    ) -> plt.Figure:
-        """Visualize the geospatial distribution of dataset samples on a map.
-
-        Creates a plot showing the geographic locations of samples, colored by dataset split
-        (train, validation, test, extra_test). This helps to understand the spatial distribution
-        and potential geographic biases in the dataset.
-
-        Args:
-            split_column: Column name in the metadata DataFrame that indicates the dataset split.
-            buffer_degrees: Buffer around the data extent in degrees.
-            sample_fraction: Optional fraction of samples to plot (0.0-1.0) for performance with large datasets.
-            scale: Scale of cartopy features (e.g., '10m', '50m', '110m').
-            alpha: Transparency of plotted points.
-            s: Size of plotted points.
-
-        Returns:
-            A matplotlib Figure object with the geospatial distribution plot.
-        """
-        data_df = self.load_metadata()
-
-        # Standardize coordinate columns
-        if "lat" not in data_df.columns or "lon" not in data_df.columns:
-            if "latitude" in data_df.columns and "longitude" in data_df.columns:
-                data_df = data_df.rename(
-                    columns={"latitude": "lat", "longitude": "lon"}
-                )
-            else:
-                raise ValueError(
-                    "Metadata is missing required latitude and longitude information"
-                )
-
-        # Optional sub-sampling for performance
-        if sample_fraction is not None and 0.0 < sample_fraction < 1.0:
-            data_df = data_df.sample(frac=sample_fraction, random_state=0)
-
-        dataset_name = self.__class__.__name__.replace("DataModule", "")
-
-        # Compute extent with buffer and clamp to world bounds
-        min_lon = max(-180, data_df["lon"].min() - buffer_degrees)
-        max_lon = min(180, data_df["lon"].max() + buffer_degrees)
-        min_lat = max(-90, data_df["lat"].min() - buffer_degrees)
-        max_lat = min(90, data_df["lat"].max() + buffer_degrees)
-
-        fig = plt.figure(figsize=(20, 16))
-        lon_extent = max_lon - min_lon
-        lat_extent = max_lat - min_lat
-
-        # Choose projection based on extent
-        if lon_extent > 180:
-            projection = ccrs.Robinson()
-        else:
-            central_lon = (min_lon + max_lon) / 2
-            central_lat = (min_lat + max_lat) / 2
-            if lat_extent > 60:
-                projection = ccrs.AlbersEqualArea(
-                    central_longitude=central_lon, central_latitude=central_lat
-                )
-            else:
-                projection = ccrs.LambertConformal(
-                    central_longitude=central_lon, central_latitude=central_lat
-                )
-
-        ax = plt.axes(projection=projection)
-        ax.set_extent([min_lon, max_lon, min_lat, max_lat], crs=ccrs.PlateCarree())
-
-        # Base features
-        ax.add_feature(cfeature.LAND.with_scale(scale), facecolor="lightgray")
-        ax.add_feature(cfeature.OCEAN.with_scale(scale), facecolor="lightblue")
-        ax.add_feature(cfeature.COASTLINE.with_scale(scale), linewidth=0.8)
-        ax.add_feature(cfeature.BORDERS.with_scale(scale), linewidth=0.8, linestyle=":")
-        if lon_extent < 90:
-            ax.add_feature(cfeature.RIVERS, linewidth=0.2, alpha=0.5)
-            ax.add_feature(cfeature.LAKES, facecolor="lightblue", alpha=0.5)
-
-        # Normalize split names and incorporate extra test if available
-        plot_col = "plot_split"
-        data_df[plot_col] = (
-            data_df[split_column].astype(str).replace({"val": "validation"})
-        )
-
-        # Stable split order for legend
-        desired_order = ["train", "validation", "test", "extra_test"]
-        present = [sp for sp in desired_order if sp in set(data_df[plot_col].unique())]
-        others = [sp for sp in data_df[plot_col].unique() if sp not in present]
-        splits = present + others
-
-        split_colors = {"train": "blue", "validation": "green", "test": "red"}
-
-        legend_elements: list[Line2D] = []
-        for split in splits:
-            split_data = data_df[data_df[plot_col] == split]
-            if len(split_data) == 0:
-                continue
-            color = split_colors.get(split, "gray")
-            ax.scatter(
-                split_data["lon"],
-                split_data["lat"],
-                transform=ccrs.PlateCarree(),
-                c=color,
-                s=s,
-                alpha=alpha,
-                label=split,
-            )
-            legend_elements.append(
-                Line2D(
-                    [0],
-                    [0],
-                    marker="o",
-                    color="w",
-                    markerfacecolor=color,
-                    markersize=8,
-                    label=f"{split} (n={len(split_data)})",
-                )
-            )
-
-        ax.legend(handles=legend_elements, loc="lower right", title="Dataset Splits")
-
-        # Gridlines and title
-        gl = ax.gridlines(
-            draw_labels=True, linewidth=0.5, color="gray", alpha=0.5, linestyle="--"
-        )
-        gl.top_labels = False
-        gl.right_labels = False
-        plt.title(
-            f"Geographic Distribution of {dataset_name} Samples by Split", fontsize=14
-        )
-
-        return fig
-
-    # @abstractmethod
-    # def visualize_target_distribution(self) -> None:
-    #     """Visualize the target distribution of the dataset."""
-    #     # for single vector targets this should be easy, but how to make this easier for pixel-wise targets, also store in metadata?
-    #     pass
+    @abstractmethod
+    def visualize_geolocation_distribution(self) -> None:
+        """Visualize the geolocation distribution of the dataset."""
+        pass
 
     def train_dataloader(self) -> DataLoader:
         """Return train dataloader.
@@ -382,18 +248,15 @@ class GeoBenchDataModule(LightningDataModule, ABC):
                 split = "train"
             else:
                 split = "eval"
-
             aug = self._valid_attribute(f"{split}_augmentations")
-
             batch = aug(batch)
-
         return batch
 
     def _valid_attribute(self, args) -> Any:
         """Find a valid attribute with length > 0.
 
         Args:
-            args: One or more names of attributes to check (string or sequence of strings).
+            args: One or more names of attributes to check.
 
         Returns:
             The first valid attribute found.
@@ -401,21 +264,20 @@ class GeoBenchDataModule(LightningDataModule, ABC):
         Raises:
             RuntimeError: If no attribute is defined, or has length 0.
         """
-        names = args if isinstance(args, (list, tuple)) else [args]
-        for name in names:
-            obj = getattr(self, name, None)
+        for arg in args:
+            obj = getattr(self, arg)
 
             if obj is None:
                 continue
 
             if not obj:
-                msg = f"{self.__class__.__name__}.{name} has length 0."
+                msg = f"{self.__class__.__name__}.{arg} has length 0."
                 print(msg)
                 raise RuntimeError
 
             return obj
 
-        msg = f"{self.__class__.__name__}.setup must define one of {names}."
+        msg = f"{self.__class__.__name__}.setup must define one of {args}."
         print(msg)
         raise RuntimeError
 
@@ -431,7 +293,7 @@ class GeoBenchClassificationDataModule(GeoBenchDataModule):
         self,
         dataset_class: Dataset,
         img_size: int,
-        band_order: dict[str, Sequence[float | str]],
+        band_order: Sequence[float | str],
         batch_size: int = 32,
         eval_batch_size: int = 64,
         num_workers: int = 0,
@@ -453,10 +315,10 @@ class GeoBenchClassificationDataModule(GeoBenchDataModule):
             num_workers: Number of workers for dataloaders
             collate_fn: Collate function that can reformat samples to the needs of the model.
             train_augmentations: Transforms/Augmentations to apply during training, they will be applied
-                at the sample level and should include normalization. See :meth:`define_augmentations`
+                at the sample level and should include normalization. See :method:`define_augmentations`
                 for the default transformation.
             eval_augmentations: Transforms/Augmentations to apply during evaluation, they will be applied
-                at the sample level and should include normalization. See :meth:`define_augmentations`
+                at the sample level and should include normalization. See :method:`define_augmentations`
                 for the default transformation.
             pin_memory: whether to pin memory in dataloaders
             **kwargs: Additional keyword arguments passed to ``dataset_class``
@@ -487,11 +349,27 @@ class GeoBenchClassificationDataModule(GeoBenchDataModule):
                 data_keys=None,
                 keepdim=True,
             )
+        elif self.train_augmentations == "multi_temporal_default":
+            self.train_augmentations = K.AugmentationSequential(
+                K.VideoSequential(
+                    K.RandomHorizontalFlip(p=0.5),
+                    K.RandomVerticalFlip(p=0.5),
+                    data_format="BCTHW",
+                ),
+                data_keys=None,
+                keepdim=True,
+            )
         elif self.train_augmentations is None:
             self.train_augmentations = nn.Identity()
 
-        if (self.eval_augmentations == "default") or (self.eval_augmentations is None):
+        if (self.eval_augmentations in ["default", "multi_temporal_default"]) or (
+            self.eval_augmentations is None):
             self.eval_augmentations = nn.Identity()
+
+        if "rename_modalities" in self.kwargs:
+            self.train_augmentations = MultiModalClassificationAugmentation(transforms=self.train_augmentations)
+            self.eval_augmentations = MultiModalClassificationAugmentation(transforms=self.eval_augmentations)
+
 
     def setup_image_size_transforms(self) -> tuple[nn.Module, nn.Module, nn.Module]:
         """Setup image resizing transforms for train, val, test.
@@ -519,25 +397,24 @@ class GeoBenchClassificationDataModule(GeoBenchDataModule):
         Returns:
             pandas DataFrame with metadata.
         """
-        raise NotImplementedError
+        pass
 
     def visualize_batch(
-        self, batch: dict[str, Any] | None = None, split: str = "train"
-    ) -> tuple[Any, dict[str, Any]]:
+        self, split: str = "train"
+    ) -> tuple[plt.Figure, dict[str, Tensor]]:
         """Visualize a batch of data.
 
         Args:
-            batch: batch of data to visualize, if None a batch will be fetched from the dataloader
-            split: One of 'train', 'validation', 'test'
+            split: One of 'train', 'val', 'test'
 
         Returns:
             The matplotlib figure and the batch of data
         """
-        raise NotImplementedError
+        pass
 
     def visualize_geolocation_distribution(self) -> None:
         """Visualize the geolocation distribution of the dataset."""
-        raise NotImplementedError
+        pass
 
 
 class GeoBenchSegmentationDataModule(GeoBenchDataModule):
@@ -551,7 +428,7 @@ class GeoBenchSegmentationDataModule(GeoBenchDataModule):
         self,
         dataset_class: Dataset,
         img_size: int,
-        band_order: dict[str, Sequence[float | str]],
+        band_order: Sequence[float | str],
         batch_size: int = 32,
         eval_batch_size: int = 64,
         num_workers: int = 0,
@@ -573,10 +450,10 @@ class GeoBenchSegmentationDataModule(GeoBenchDataModule):
             num_workers: Number of workers for dataloaders
             collate_fn: Collate function that can reformat samples to the needs of the model.
             train_augmentations: Transforms/Augmentations to apply during training, they will be applied
-                at the sample level and should include normalization. See :meth:`define_augmentations`
+                at the sample level and should include normalization. See :method:`define_augmentations`
                 for the default transformation.
             eval_augmentations: Transforms/Augmentations to apply during evaluation, they will be applied
-                at the sample level and should include normalization. See :meth:`define_augmentations`
+                at the sample level and should include normalization. See :method:`define_augmentations`
                 for the default transformation.
             pin_memory: whether to pin memory in dataloaders
             **kwargs: Additional keyword arguments passed to ``dataset_class``
@@ -608,10 +485,22 @@ class GeoBenchSegmentationDataModule(GeoBenchDataModule):
                 data_keys=None,
                 keepdim=True,
             )
+        elif self.train_augmentations == "multi_temporal_default":
+            transforms = K.AugmentationSequential(
+                        K.VideoSequential(
+                            K.RandomHorizontalFlip(p=0.5),
+                            K.RandomVerticalFlip(p=0.5),
+                            data_format="BCTHW",
+                        ),
+                        data_keys=None,
+                        keepdim=True,
+                    )
+            self.train_augmentations = MultiTemporalSegmentationAugmentation(transforms=transforms)
         elif self.train_augmentations is None:
             self.train_augmentations = nn.Identity()
 
-        if (self.eval_augmentations == "default") or (self.eval_augmentations is None):
+        if (self.eval_augmentations in ["default", "multi_temporal_default"]) or (
+            self.eval_augmentations is None):
             self.eval_augmentations = nn.Identity()
 
     def setup_image_size_transforms(self) -> tuple[nn.Module, nn.Module, nn.Module]:
@@ -640,25 +529,24 @@ class GeoBenchSegmentationDataModule(GeoBenchDataModule):
         Returns:
             pandas DataFrame with metadata.
         """
-        raise NotImplementedError
+        pass
 
     def visualize_batch(
-        self, batch: dict[str, Any] | None = None, split: str = "train"
-    ) -> tuple[Any, dict[str, Any]]:
+        self, split: str = "train"
+    ) -> tuple[plt.Figure, dict[str, Tensor]]:
         """Visualize a batch of data.
 
         Args:
-            batch: batch of data to visualize, if None a batch will be fetched from the dataloader
-            split: One of 'train', 'validation', 'test'
+            split: One of 'train', 'val', 'test'
 
         Returns:
             The matplotlib figure and the batch of data
         """
-        raise NotImplementedError
+        pass
 
     def visualize_geolocation_distribution(self) -> None:
         """Visualize the geolocation distribution of the dataset."""
-        raise NotImplementedError
+        pass
 
 
 class GeoBenchObjectDetectionDataModule(GeoBenchDataModule):
@@ -672,7 +560,7 @@ class GeoBenchObjectDetectionDataModule(GeoBenchDataModule):
         self,
         dataset_class: Dataset,
         img_size: int,
-        band_order: dict[str, Sequence[float | str]],
+        band_order: Sequence[float | str],
         batch_size: int = 32,
         eval_batch_size: int = 64,
         num_workers: int = 0,
@@ -687,17 +575,16 @@ class GeoBenchObjectDetectionDataModule(GeoBenchDataModule):
         Args:
             dataset_class: Dataset class to use in the DataModule
             img_size: Desired image input size for the model
-            band_order: band order of the image sample to be returned
             batch_size: Batch size during training
             eval_batch_size: Batch size during evaluation, can usually be larger than batch_size,
                 to speed up evaluation.
             num_workers: Number of workers for dataloaders
             collate_fn: Collate function that can reformat samples to the needs of the model.
             train_augmentations: Transforms/Augmentations to apply during training, they will be applied
-                at the sample level and should include normalization. See :meth:`define_augmentations`
+                at the sample level and should include normalization. See :method:`define_augmentations`
                 for the default transformation.
             eval_augmentations: Transforms/Augmentations to apply during evaluation, they will be applied
-                at the sample level and should include normalization. See :meth:`define_augmentations`
+                at the sample level and should include normalization. See :method:`define_augmentations`
                 for the default transformation.
             pin_memory: whether to pin memory in dataloaders
             **kwargs: Additional keyword arguments passed to ``dataset_class``
@@ -725,14 +612,30 @@ class GeoBenchObjectDetectionDataModule(GeoBenchDataModule):
             self.train_augmentations = K.AugmentationSequential(
                 K.RandomHorizontalFlip(p=0.5),
                 K.RandomVerticalFlip(p=0.5),
+                data_keys=["image", "bbox_xyxy", "label"],
+                keepdim=True,
+            )
+        elif self.train_augmentations == "multi_temporal_default":
+            self.train_augmentations = K.AugmentationSequential(
+                K.VideoSequential(
+                    K.RandomHorizontalFlip(p=0.5),
+                    K.RandomVerticalFlip(p=0.5),
+                    data_format="BCTHW",
+                ),
                 data_keys=None,
                 keepdim=True,
             )
         elif self.train_augmentations is None:
             self.train_augmentations = nn.Identity()
 
-        if (self.eval_augmentations == "default") or (self.eval_augmentations is None):
+        if (self.eval_augmentations in ["default", "multi_temporal_default"]) or (
+            self.eval_augmentations is None):
             self.eval_augmentations = nn.Identity()
+
+        if "rename_modalities" in self.kwargs:
+            self.train_augmentations = NestedMultiModalAugmentationWrapper(transforms=self.train_augmentations)
+            self.eval_augmentations = NestedMultiModalAugmentationWrapper(transforms=self.eval_augmentations)
+
 
     def setup_image_size_transforms(self) -> tuple[nn.Module, nn.Module, nn.Module]:
         """Setup image resizing transforms for train, val, test.
@@ -760,22 +663,21 @@ class GeoBenchObjectDetectionDataModule(GeoBenchDataModule):
         Returns:
             pandas DataFrame with metadata.
         """
-        raise NotImplementedError
+        pass
 
     def visualize_batch(
-        self, batch: dict[str, Any] | None = None, split: str = "train"
-    ) -> tuple[Any, dict[str, Any]]:
+        self, split: str = "train"
+    ) -> tuple[plt.Figure, dict[str, Tensor]]:
         """Visualize a batch of data.
 
         Args:
-            batch: batch of data to visualize, if None a batch will be fetched from the dataloader
-            split: One of 'train', 'validation', 'test'
+            split: One of 'train', 'val', 'test'
 
         Returns:
             The matplotlib figure and the batch of data
         """
-        raise NotImplementedError
+        pass
 
     def visualize_geolocation_distribution(self) -> None:
         """Visualize the geolocation distribution of the dataset."""
-        raise NotImplementedError
+        pass

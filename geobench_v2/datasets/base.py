@@ -3,22 +3,23 @@
 
 """Base dataset."""
 
-import hashlib
-import os
-from collections.abc import Mapping, Sequence
-from pathlib import Path
-from typing import Any, Literal, cast
-
-import rasterio
-import tacoreader
-import torch
 import torch.nn as nn
 from torch import Tensor
-from torchgeo.datasets import DatasetNotFoundError, NonGeoDataset
+from typing import Type, Literal, Sequence, Callable, Union
+import rasterio
+from torchgeo.datasets import NonGeoDataset
+import tacoreader
+import os
+import hashlib
+import torch
+import torch.nn as nn
 from torchvision.datasets.utils import download_url
+import urllib.request
 
-from .data_util import DataUtilsMixin
-from .normalization import ZScoreNormalizer
+from torchgeo.datasets import DatasetNotFoundError
+
+
+from .data_util import DataUtilsMixin, DataNormalizer
 
 
 class GeoBenchBaseDataset(NonGeoDataset, DataUtilsMixin):
@@ -26,74 +27,81 @@ class GeoBenchBaseDataset(NonGeoDataset, DataUtilsMixin):
 
     url = ""
     paths: Sequence[str] = []
-    sha256str: Sequence[str] = []
+    sha256strsumsumsumsumsum: Sequence[str] = []
 
-    normalization_stats: dict[str, dict[str, float]] = {}
-    band_default_order: Any = ()
+    normalization_stats = {"means": {}, "stds": {}}
+    band_default_order: dict[str, list[str]] = {}
 
     def __init__(
         self,
-        root: Path,
-        split: str,
-        band_order: Sequence[str] | Mapping[str, Sequence[str]],
-        data_normalizer: type[nn.Module] = ZScoreNormalizer,
-        transforms: nn.Module | None = None,
-        metadata: list[str] | None = None,
+        root: str,
+        split: Literal["train", "validation", "test"],
+        band_order: list[str],
+        data_normalizer: Union[
+            Type[DataNormalizer], Callable[[dict[str, Tensor]], dict[str, Tensor]]
+        ] = nn.Identity,
+        transforms: nn.Module = None,
+        metadata: Sequence[str] | None = None,
         download: bool = False,
     ) -> None:
         """Initialize the dataset.
-
         Args:
             root: Root directory where the dataset can be found
-            split: The dataset split, supports 'train', 'validation', 'test', 'extra_test'. Also accepts 'val' as an alias for 'validation'.
-            band_order: List of bands to return
+            split: The dataset split, supports 'train', 'val', 'test'
+            band_order:
             data_normalizer: Normalization strategy. Can be:
-                             - A class type inheriting from DataNormalizer (e.g., ZScoreNormalizer)
+                             - A class type inheriting from DataNormalizer (e.g., MultiModalNormalizer)
                                or a basic callable class (e.g., nn.Identity - default).
                                It will be initialized appropriately (using stats/band_order if needed).
                              - An initialized callable instance (e.g., a custom nn.Module or nn.Identity()).
                                It will be used directly.
-            transforms: A composition of transformations to apply to the data
+            transform: A composition of transformations to apply to the data
             metadata: metadata names to be returned as part of the sample in the
                 __getitem__ method. If None, no metadata is returned.
-            download: If True, download the dataset .
+            download: If True, download the dataset if it is not already present.
         """
         super().__init__()
         self.root = root
         self.split = split
         self.band_order = band_order
         self.transforms = transforms
+        if metadata is None:
+            self.metadata = []
+        else:
+            self.metadata = metadata
+
         self.download = download
+
         self.dataset_verification()
 
-        split_norm: Literal["train", "validation", "test"]
-        if split == "val":
-            split_norm = "validation"
-        elif split in ("train", "validation", "test"):
-            split_norm = cast(Literal["train", "validation", "test"], split)
-        else:
-            raise ValueError(
-                "split must be one of {'train', 'val', 'validation', 'test'}"
-            )
-        self.split = split_norm
-
-        # Store metadata as a list of strings on the instance
-        self.metadata: list[str] = metadata if metadata is not None else []
+        self.data_df = tacoreader.load([os.path.join(root, f) for f in self.paths])
+        effective_split = "validation" if split == "val" else split
+        self.data_df = self.data_df[
+            self.data_df["tortilla:data_split"] == effective_split
+        ].reset_index(drop=True)
 
         self.band_order = self.resolve_band_order(band_order)
 
-        self.data_df = tacoreader.load([os.path.join(root, f) for f in self.paths])
-        self.data_df = self.data_df[
-            (self.data_df["tortilla:data_split"] == self.split)
-        ].reset_index(drop=True)
+        if isinstance(data_normalizer, type):
+            print(f"Initializing normalizer from class: {data_normalizer.__name__}")
+            if issubclass(data_normalizer, DataNormalizer):
+                self.data_normalizer = data_normalizer(
+                    self.normalization_stats, self.band_order
+                )
+            else:
+                self.data_normalizer = data_normalizer()
 
-        # Initialize normalizer
-        self.data_normalizer = data_normalizer(
-            self.normalization_stats, self.band_order
-        )
-        self.transforms = transforms
+        elif callable(data_normalizer):
+            print(
+                f"Using provided pre-initialized normalizer instance: {data_normalizer.__class__.__name__}"
+            )
+            self.data_normalizer = data_normalizer
+        else:
+            raise TypeError(
+                f"data_normalizer must be a DataNormalizer subclass type or a callable instance. Got {type(data_normalizer)}"
+            )
 
-    def __getitem__(self, index: int) -> dict[str, Any]:
+    def __getitem__(self, index: int) -> dict[str, any]:
         """Return an index within the dataset.
 
         Args:
@@ -118,7 +126,7 @@ class GeoBenchBaseDataset(NonGeoDataset, DataUtilsMixin):
         Args:
             path: Path to the TIFF file
 
-        Return:
+        Return
             The image tensor
         """
         with rasterio.open(path) as src:
@@ -136,6 +144,20 @@ class GeoBenchBaseDataset(NonGeoDataset, DataUtilsMixin):
         if not self.download:
             raise DatasetNotFoundError(self)
 
+        # Get Hugging Face token from environment variable
+        hf_token = os.environ.get("HF_TOKEN")
+        if not hf_token:
+            raise ValueError(
+                "HF_TOKEN environment variable not set. "
+                "Please set it to download from private repositories."
+            )
+
+        # Create a custom opener with authentication
+        opener = urllib.request.build_opener()
+        opener.addheaders = [("Authorization", f"Bearer {hf_token}")]
+        # Install our custom opener
+        urllib.request.install_opener(opener)
+
         for path, sha256str in zip(self.paths, self.sha256str):
             if not os.path.exists(os.path.join(self.root, path)):
                 download_url(self.url.format(path), self.root, filename=path)
@@ -145,7 +167,7 @@ class GeoBenchBaseDataset(NonGeoDataset, DataUtilsMixin):
                         "The file may be corrupted or incomplete."
                     )
 
-        # TODO check for other band stats etc files
+        # TODO maybe check for other band stats etc files
 
     def verify_sha256str(self, file_path, expected_sha256str):
         """Verify file integrity using sha256str hash.
@@ -165,5 +187,5 @@ class GeoBenchBaseDataset(NonGeoDataset, DataUtilsMixin):
                 sha256str_hash.update(chunk)
 
         calculated_hash = sha256str_hash.hexdigest()
-        print(calculated_hash)
+
         return calculated_hash == expected_sha256str

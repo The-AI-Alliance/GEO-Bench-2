@@ -3,9 +3,11 @@
 
 """Utility functions for handling satellite imagery datasets."""
 
-from collections.abc import Sequence
 from dataclasses import dataclass
+from typing import Dict, List, Union, Optional, Sequence
 from enum import Enum
+import torch
+from torch import Tensor
 
 
 @dataclass
@@ -13,9 +15,9 @@ class BandConfig:
     """Configuration for a single band."""
 
     canonical_name: str
-    aliases: list[str]
-    wavelength: float | None = None
-    resolution: int | None = None  # spatial resolution in meters
+    aliases: List[str]
+    wavelength: Optional[float] = None
+    resolution: Optional[int] = None  # spatial resolution in meters
 
     def matches_alias(self, name: str) -> bool:
         """Check if name matches canonical name or aliases."""
@@ -26,23 +28,23 @@ class BandConfig:
 class ModalityConfig:
     """Configuration for a satellite/sensor modality."""
 
-    bands: dict[str, BandConfig]
-    default_order: list[str]
-    native_resolution: int | None = None
-    plot_bands: Sequence[str] | None = None
+    bands: Dict[str, BandConfig]
+    default_order: List[str]  # Default band order for this modality
+    native_resolution: Optional[int] = None  # Native resolution in meters
+    plot_bands: Optional[Sequence[str]] = None  # Bands to be plotted
 
     # Add band_to_modality mapping for consistency with MultiModalConfig
     @property
-    def band_to_modality(self) -> dict[str, str]:
+    def band_to_modality(self) -> Dict[str, str]:
         """Maps band names to their modality. For single modality, all bands map to same modality."""
         return {band: "self" for band in self.bands.keys()}
 
     @property
-    def modalities(self) -> dict[str, "ModalityConfig"]:
+    def modalities(self) -> Dict[str, "ModalityConfig"]:
         """For consistency with MultiModalConfig interface."""
         return {"self": self}
 
-    def resolve_band(self, band_spec: str) -> str | None:
+    def resolve_band(self, band_spec: str) -> Optional[str]:
         """Resolve band name to canonical name within this modality.
 
         Args:
@@ -54,17 +56,17 @@ class ModalityConfig:
         for canon, band_config in self.bands.items():
             if band_spec == canon or band_spec in band_config.aliases:
                 return canon
-        return None
+        return None  # Return None instead of raising ValueError
 
 
 @dataclass
 class MultiModalConfig:
     """Configuration for multi-modal datasets combining multiple sensors."""
 
-    modalities: dict[str, ModalityConfig]
-    default_order: dict[str, Sequence[str]]
-    band_to_modality: dict[str, str]
-    plot_bands: Sequence[str] | None = None
+    modalities: Dict[str, ModalityConfig]
+    default_order: List[str]  # Default band order across all modalities
+    band_to_modality: Dict[str, str]  # Maps band names to their modality
+    plot_bands: Optional[Sequence[str]] = None  # Bands to be plotted
 
 
 class SensorType(Enum):
@@ -77,7 +79,6 @@ class SensorType(Enum):
     GRAYSCALE = "gray"
     LANDSAT8 = "l8"
     MODIS = "modis"
-    HLS = "hls"
 
 
 class SensorBandRegistry:
@@ -90,12 +91,12 @@ class SensorBandRegistry:
 
     RGB = ModalityConfig(
         bands={
-            "red": BandConfig("red", ["r", "red", "RED"], wavelength=0.665),
-            "green": BandConfig("green", ["g", "green", "GREEN"], wavelength=0.560),
-            "blue": BandConfig("blue", ["b", "blue", "BLUE"], wavelength=0.490),
+            "r": BandConfig("red", ["r", "red", "RED"], wavelength=0.665),
+            "g": BandConfig("green", ["g", "green", "GREEN"], wavelength=0.560),
+            "b": BandConfig("blue", ["b", "blue", "BLUE"], wavelength=0.490),
         },
-        default_order=["red", "green", "blue"],
-        plot_bands=["red", "green", "blue"],
+        default_order=["r", "g", "b"],
+        plot_bands=["r", "g", "b"],
     )
 
     RGBN = ModalityConfig(
@@ -103,8 +104,8 @@ class SensorBandRegistry:
             **RGB.bands,
             "nir": BandConfig("nir", ["nir", "NIR", "near_infrared"], wavelength=0.842),
         },
-        default_order=["red", "green", "blue", "nir"],
-        plot_bands=["red", "green", "blue"],
+        default_order=["r", "g", "b", "nir"],
+        plot_bands=["r", "g", "b"],
     )
 
     SENTINEL2 = ModalityConfig(
@@ -298,7 +299,9 @@ class SensorBandRegistry:
                 "green", ["b03", "green"], wavelength=0.560, resolution=30
             ),
             "B04": BandConfig("red", ["b04", "red"], wavelength=0.665, resolution=30),
-            "B8A": BandConfig("nir_narrow", ["b8a"], wavelength=0.850, resolution=60),
+            "B8A": BandConfig(
+                "nir_narrow", ["b8a"], wavelength=0.850, resolution=60
+            ),
             "B11": BandConfig(
                 "swir1",
                 ["short_wave_infrared_1", "b11"],
@@ -312,13 +315,21 @@ class SensorBandRegistry:
                 resolution=60,
             ),
         },
-        default_order=["B02", "B03", "B04", "B8A", "B11", "B12"],
+        default_order=[
+            "B02",
+            "B03",
+            "B04",
+            "B8A",
+            "B11",
+            "B12",
+        ],
         native_resolution=10,
         plot_bands=["B04", "B03", "B02"],
     )
 
+
     @classmethod
-    def get_modality_config(cls, modality: str | SensorType) -> ModalityConfig:
+    def get_modality_config(cls, modality: Union[str, SensorType]) -> ModalityConfig:
         """Get configuration for a specific modality."""
         if isinstance(modality, str):
             modality = SensorType(modality)
@@ -329,7 +340,6 @@ class DatasetBandRegistry:
     """Registry of dataset-specific band configurations."""
 
     BENV2 = MultiModalConfig(
-        # s2 does not have B10 band
         modalities={
             "s2": ModalityConfig(
                 bands={
@@ -359,23 +369,22 @@ class DatasetBandRegistry:
             ),
             "s1": SensorBandRegistry.SENTINEL1,
         },
-        default_order={
-            "s2": [
-                "B01",
-                "B02",
-                "B03",
-                "B04",
-                "B05",
-                "B06",
-                "B07",
-                "B08",
-                "B8A",
-                "B09",
-                "B11",
-                "B12",
-            ],
-            "s1": ["VV", "VH"],
-        },
+        default_order=[
+            "B01",
+            "B02",
+            "B03",
+            "B04",
+            "B05",
+            "B06",
+            "B07",
+            "B08",
+            "B8A",
+            "B09",
+            "B11",
+            "B12",
+            "VV",
+            "VH",
+        ],
         band_to_modality={
             "B01": "s2",
             "B02": "s2",
@@ -480,22 +489,20 @@ class DatasetBandRegistry:
                 native_resolution=10,
             ),
         },
-        default_order={
-            "s2": [
-                "B02",
-                "B03",
-                "B04",
-                "B05",
-                "B06",
-                "B07",
-                "B08",
-                "B8A",
-                "B11",
-                "B12",
-            ],
-            "s1_asc": ["VV_asc", "VH_asc", "VV/VH_asc"],
-            "s1_desc": ["VV_desc", "VH_desc", "VV/VH_desc"],
-        },
+        default_order=[
+            "B02",
+            "B03",
+            "B04",
+            "B05",
+            "B06",
+            "B07",
+            "B08",
+            "B8A",
+            "B11",
+            "B12",
+            *["VV_asc", "VH_asc", "VV/VH_asc"],  # S1 ascending bands
+            *["VV_desc", "VH_desc", "VV/VH_desc"],  # S1 descending bands
+        ],
         band_to_modality={
             **{
                 k: "s2"
@@ -525,11 +532,13 @@ class DatasetBandRegistry:
 
     EVERWATCH = SensorBandRegistry.RGB
 
-    NZCATTLE = SensorBandRegistry.RGB
+    FOTW = ModalityConfig(
+        bands=SensorBandRegistry.RGBN.bands, default_order=["r", "g", "b", "nir"]
+    )
 
-    SUBSTATION = SensorBandRegistry.SENTINEL2
-
-    FOTW = SensorBandRegistry.RGBN
+    RESISC45 = ModalityConfig(
+        bands=SensorBandRegistry.RGB.bands, default_order=["r", "g", "b"]
+    )
 
     SPACENET2 = MultiModalConfig(
         modalities={
@@ -562,19 +571,17 @@ class DatasetBandRegistry:
                 plot_bands=["pan"],
             ),
         },
-        default_order={
-            "worldview": [
-                "coastal",
-                "blue",
-                "green",
-                "yellow",
-                "red",
-                "red_edge",
-                "nir1",
-                "nir2",
-            ],
-            "pan": ["pan"],
-        },
+        default_order=[
+            "coastal",
+            "blue",
+            "green",
+            "yellow",
+            "red",
+            "red_edge",
+            "nir1",
+            "nir2",
+            "pan",
+        ],
         band_to_modality={
             "coastal": "worldview",
             "blue": "worldview",
@@ -603,14 +610,11 @@ class DatasetBandRegistry:
                 plot_bands=["vv", "vh"],
             ),
         },
-        default_order={
-            "rgbn": ["red", "green", "blue", "nir"],
-            "sar": ["hh", "hv", "vv", "vh"],
-        },
+        default_order=["r", "g", "b", "nir", "hh", "hv", "vv", "vh"],
         band_to_modality={
-            "red": "rgbn",
-            "green": "rgbn",
-            "blue": "rgbn",
+            "r": "rgbn",
+            "g": "rgbn",
+            "b": "rgbn",
             "nir": "rgbn",
             "hh": "sar",
             "hv": "sar",
@@ -619,43 +623,31 @@ class DatasetBandRegistry:
         },
     )
 
-    SPACENET7 = SensorBandRegistry.RGBN
+    SPACENET7 = ModalityConfig(
+        bands=SensorBandRegistry.RGBN.bands,
+        default_order=["r", "g", "b", "nir"],
+        plot_bands=["r", "g", "b"],
+    )
 
+    # SPACENET8 = ModalityConfig(
+    #     bands=SensorBandRegistry.RGB.bands, default_order=["r", "g", "b"], plot_bands=["r", "g", "b"]
+    # )
     SPACENET8 = SensorBandRegistry.RGB
 
     # flair 2 has rgbn and elevation bands
-    FLAIR2 = MultiModalConfig(
-        modalities={
-            "aerial": SensorBandRegistry.RGBN,
-            "elevation": ModalityConfig(
-                bands={
-                    "elevation": BandConfig("elevation", ["elevation"], wavelength=None)
-                },
-                default_order=["elevation"],
-                plot_bands=["elevation"],
-            ),
+    FLAIR2 = ModalityConfig(
+        bands={
+            **SensorBandRegistry.RGBN.bands,
+            "elevation": BandConfig("elevation", ["elevation"], wavelength=None),
         },
-        default_order={
-            "aerial": ["red", "green", "blue", "nir"],
-            "elevation": ["elevation"],
-        },
-        band_to_modality={
-            "red": "aerial",
-            "green": "aerial",
-            "blue": "aerial",
-            "nir": "aerial",
-            "elevation": "elevation",
-        },
-        plot_bands=["red", "green", "blue", "elevation"],
+        default_order=["r", "g", "b", "nir", "elevation"],
+        plot_bands=["r", "g", "b"],
     )
 
     # CLOUDSEN12 has cloudsen12-l1c Sentinel2 data is actually just a single ModalityConfig
     CLOUDSEN12 = ModalityConfig(
-        bands={
-            k: v
-            for k, v in SensorBandRegistry.SENTINEL2.bands.items()
-            if k not in ["B10"]
-        },
+        bands={**SensorBandRegistry.SENTINEL2.bands},
+        # band_to_modality={**SensorBandRegistry.SENTINEL2.band_to_modality},
         default_order=[
             "B01",
             "B02",
@@ -670,8 +662,6 @@ class DatasetBandRegistry:
             "B11",
             "B12",
         ],
-        plot_bands=["B04", "B03", "B02"],
-        native_resolution=10,
     )
 
     FLOGA = MultiModalConfig(
@@ -695,10 +685,19 @@ class DatasetBandRegistry:
                 native_resolution=500,
             ),
         },
-        default_order={
-            "s2": ["B02", "B03", "B04", "B08"],
-            "modis": ["M01", "M02", "M03", "M04", "M05", "M06", "M07"],
-        },
+        default_order=[
+            "B02",
+            "B03",
+            "B04",
+            "B08",
+            "M01",
+            "M02",
+            "M03",
+            "M04",
+            "M05",
+            "M06",
+            "M07",
+        ],
         band_to_modality={
             "B02": "s2",
             "B03": "s2",
@@ -730,7 +729,7 @@ class DatasetBandRegistry:
                 plot_bands=["dem"],
             ),
         },
-        default_order={"sar": ["vv", "vh"], "dem": ["dem"]},
+        default_order=["vv", "vh", "dem"],
         band_to_modality={"vv": "sar", "vh": "sar", "dem": "dem"},
     )
 
@@ -764,7 +763,6 @@ class DatasetBandRegistry:
                     ),
                 },
                 default_order=["VV_asc", "VH_asc", "VV_desc", "VH_desc"],
-                plot_bands=["VV_asc", "VH_asc"],
                 native_resolution=10,
             ),
             "s2": ModalityConfig(
@@ -785,13 +783,12 @@ class DatasetBandRegistry:
                     "B11",
                     "B12",
                 ],
-                plot_bands=["B04", "B03", "B02"],
                 native_resolution=10,
             ),
         },
         default_order={
-            "s1": ["VV_asc", "VH_asc", "VV_desc", "VH_desc"],
-            "s2": [
+            "s1": {"VV_asc", "VH_asc", "VV_desc", "VH_desc"},
+            "s2": {
                 "B02",
                 "B03",
                 "B04",
@@ -802,7 +799,7 @@ class DatasetBandRegistry:
                 "B8A",
                 "B11",
                 "B12",
-            ],
+            },
         },
         band_to_modality={
             "VV_asc": "s1",
@@ -869,29 +866,32 @@ class DatasetBandRegistry:
                 ],
             ),
         },
-        default_order={
-            "aerial": ["nir", "green", "blue", "red"],
-            "s1": ["vv", "vh", "vv/vh"],
-            "s2": [
-                "B02",
-                "B03",
-                "B04",
-                "B08",
-                "B05",
-                "B06",
-                "B07",
-                "B8A",
-                "B11",
-                "B12",
-                "B01",
-                "B09",
-            ],
-        },
+        default_order=[
+            "nir",
+            "g",
+            "b",
+            "r",
+            "vv",
+            "vh",
+            "vv/vh",
+            "B02",
+            "B03",
+            "B04",
+            "B08",
+            "B05",
+            "B06",
+            "B07",
+            "B8A",
+            "B11",
+            "B12",
+            "B01",
+            "B09",
+        ],
         band_to_modality={
             "nir": "aerial",
-            "green": "aerial",
-            "blue": "aerial",
-            "red": "aerial",
+            "g": "aerial",
+            "b": "aerial",
+            "r": "aerial",
             "vv": "s1",
             "vh": "s1",
             "vv/vh": "s1",
@@ -949,7 +949,6 @@ class DatasetBandRegistry:
                 # https://github.com/aysim/dynnet/blob/1e7d90294b54f52744ae2b35db10b4d0a48d093d/data/utae_dynamicen.py#L105
                 # order of bands is BGRN,
                 default_order=["b", "g", "r", "nir"],
-                plot_bands=["r", "g", "b"],
             ),
             # except B9
             "s2": ModalityConfig(
@@ -972,7 +971,6 @@ class DatasetBandRegistry:
                     "B11",
                     "B12",
                 ],
-                plot_bands=["B04", "B03", "B02"],
             ),
             # TODO wait for inof
             # "s1": ModalityConfig(
@@ -984,23 +982,23 @@ class DatasetBandRegistry:
             #     native_resolution=10,
             # ),
         },
-        default_order={
-            "planet": ["r", "g", "b", "nir"],
-            "s2": [
-                "B01",
-                "B02",
-                "B03",
-                "B04",
-                "B05",
-                "B06",
-                "B07",
-                "B08",
-                "B8A",
-                "B10",
-                "B11",
-                "B12",
-            ],
-        },
+        default_order=[
+            "r",
+            "g",
+            "b",
+            "nir",
+            "B01",
+            "B02",
+            "B03",
+            "B04",
+            "B05",
+            "B06",
+            "B07",
+            "B08",
+            "B8A",
+            "B11",
+            "B12",
+        ],
         band_to_modality={
             "r": "planet",
             "g": "planet",
@@ -1026,17 +1024,93 @@ class DatasetBandRegistry:
         },
     )
 
+    SEN4AGRINET = ModalityConfig(
+        bands={**SensorBandRegistry.SENTINEL2.bands},
+        default_order=[
+            "B01",
+            "B02",
+            "B03",
+            "B04",
+            "B05",
+            "B06",
+            "B07",
+            "B08",
+            "B8A",
+            "B09",
+            "B10",
+            "B11",
+            "B12",
+        ],
+        native_resolution=10,
+    )
+
+    DOTAV2 = SensorBandRegistry.RGB
+
+    MMFLOOD = MultiModalConfig(
+        modalities={
+            "s1": ModalityConfig(
+                bands={
+                    "vv": BandConfig("vv", ["VV"], wavelength=0.056),
+                    "vh": BandConfig("vh", ["VH"], wavelength=0.056),
+                },
+                default_order=["vv", "vh"],
+                plot_bands=["vv", "vh"],
+            ),
+            "dem": ModalityConfig(
+                bands={"dem": BandConfig("dem", ["elevation", "dem"], wavelength=None)},
+                default_order=["dem"],
+                plot_bands=["dem"],
+            ),
+            "hydro": ModalityConfig(
+                bands={
+                    "hydro": BandConfig(
+                        "hydro", ["hydro_layer", "HYDRO"], wavelength=None
+                    )
+                },
+                default_order=["hydro"],
+                plot_bands=["hydro"],
+            ),
+        },
+        default_order=["vv", "vh", "dem", "hydro"],
+        band_to_modality={"vv": "s1", "vh": "s1", "dem": "dem", "hydro": "hydro"},
+    )
+
+    BRIGHT = MultiModalConfig(
+        modalities={
+            "aerial": ModalityConfig(
+                bands={
+                    "r": BandConfig("red", ["r", "red", "RED"], wavelength=0.665),
+                    "g": BandConfig("green", ["g", "green", "GREEN"], wavelength=0.560),
+                    "b": BandConfig("blue", ["b", "blue", "BLUE"], wavelength=0.490),
+                },
+                default_order=["r", "g", "b"],
+            ),
+            "sar": ModalityConfig(
+                bands={
+                    "sar": BandConfig("sar", ["SAR"], wavelength=None, resolution=10)
+                },
+                default_order=["sar"],
+            ),
+        },
+        default_order=["r", "g", "b", "sar"],
+        band_to_modality={"r": "aerial", "g": "aerial", "b": "aerial", "sar": "sar"},
+    )
+
+    QFABRIC = SensorBandRegistry.RGB
+
     WINDTURBINE = SensorBandRegistry.RGB
 
     BURNSCARS = SensorBandRegistry.HLS
 
     @classmethod
-    def get_dataset_config(cls, dataset_name: str) -> ModalityConfig | MultiModalConfig:
+    def get_dataset_config(
+        cls, dataset_name: str
+    ) -> Union[ModalityConfig, MultiModalConfig]:
         """Get configuration for a specific dataset."""
         return getattr(cls, dataset_name.upper())
 
 
-def get_wavelengths(band_order: Sequence[str], sensor_type: SensorType) -> list[float]:
+def get_wavelengths(band_order: Sequence[str], sensor_type: SensorType) -> List[float]:
     """Get wavelengths in micrometers for given bands."""
     config = SensorBandRegistry.get_modality_config(sensor_type)
     wavelengths = []

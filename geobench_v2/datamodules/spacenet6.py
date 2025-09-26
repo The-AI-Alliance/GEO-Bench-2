@@ -4,34 +4,34 @@
 
 """SpaceNet6 Datamodule."""
 
-import os
-from collections.abc import Callable, Sequence
-from typing import Any
+from collections.abc import Callable
+from typing import Any, Sequence
 
-import matplotlib.pyplot as plt
-import numpy as np
 import pandas as pd
-import tacoreader
+from torch import Tensor
+import os
 import torch
-import torch.nn as nn
-from einops import rearrange
-from matplotlib.colors import ListedColormap
+import numpy as np
 from torchgeo.datasets.utils import percentile_normalization
+from einops import rearrange
+import matplotlib.pyplot as plt
+from matplotlib.colors import ListedColormap
 
 from geobench_v2.datasets import GeoBenchSpaceNet6
 
 from .base import GeoBenchSegmentationDataModule
+import torch.nn as nn
 
 
 class GeoBenchSpaceNet6DataModule(GeoBenchSegmentationDataModule):
     """GeoBench SpaceNet6 Data Module."""
 
+    #
+
     def __init__(
         self,
         img_size: int = 450,
-        band_order: dict[
-            str, Sequence[float | str]
-        ] = GeoBenchSpaceNet6.band_default_order,
+        band_order: Sequence[float | str] = GeoBenchSpaceNet6.band_default_order,
         batch_size: int = 32,
         eval_batch_size: int = 64,
         num_workers: int = 0,
@@ -45,16 +45,15 @@ class GeoBenchSpaceNet6DataModule(GeoBenchSegmentationDataModule):
 
         Args:
             img_size: Image size, in geobench version patches of 450
-            band_order: The order of bands to return in the sample
             batch_size: Batch size during training
             eval_batch_size: Evaluation batch size
             num_workers: Number of workers
             collate_fn: Collate function
             train_augmentations: Transforms/Augmentations to apply during training, they will be applied
-                at the sample level and should include normalization. See :meth:`define_augmentations`
+                at the sample level and should include normalization. See :method:`define_augmentations`
                 for the default transformation.
             eval_augmentations: Transforms/Augmentations to apply during evaluation, they will be applied
-                at the sample level and should include normalization. See :meth:`define_augmentations`
+                at the sample level and should include normalization. See :method:`define_augmentations`
                 for the default transformation.
             pin_memory: Pin memory
             **kwargs: Additional keyword arguments for the dataset class
@@ -79,18 +78,17 @@ class GeoBenchSpaceNet6DataModule(GeoBenchSegmentationDataModule):
         Returns:
             pandas DataFrame with metadata.
         """
-        return tacoreader.load(
-            [os.path.join(self.kwargs["root"], f) for f in GeoBenchSpaceNet6.paths]
+        return pd.read_parquet(
+            os.path.join(self.kwargs["root"], "geobench_spacenet6.parquet")
         )
 
     def visualize_batch(
-        self, batch: dict[str, Any] | None = None, split: str = "train"
-    ) -> tuple[Any, dict[str, Any]]:
+        self, split: str = "train"
+    ) -> tuple[plt.Figure, dict[str, Tensor]]:
         """Visualize a batch of data.
 
         Args:
-            batch: A batch of data
-            split: One of 'train', 'validation', 'test'
+            split: One of 'train', 'val', 'test'
 
         Returns:
             The matplotlib figure and the batch of data
@@ -105,8 +103,7 @@ class GeoBenchSpaceNet6DataModule(GeoBenchSegmentationDataModule):
         else:
             batch = next(iter(self.test_dataloader()))
 
-        if hasattr(self.data_normalizer, "unnormalize"):
-            batch = self.data_normalizer.unnormalize(batch)
+        batch = self.data_normalizer.unnormalize(batch)
 
         batch_size = batch["mask"].shape[0]
         n_samples = min(8, batch_size)
@@ -190,7 +187,7 @@ class GeoBenchSpaceNet6DataModule(GeoBenchSegmentationDataModule):
 
             ax = axes[i, -1]
             mask_img = masks[i].cpu().numpy()
-            ax.imshow(mask_img, cmap=build_cmap, vmin=0, vmax=2)
+            im = ax.imshow(mask_img, cmap=build_cmap, vmin=0, vmax=2)
             ax.set_title("Building Mask" if i == 0 else "", fontsize=20)
             ax.axis("off")
 

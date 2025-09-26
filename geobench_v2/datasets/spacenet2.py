@@ -3,20 +3,19 @@
 
 """SpaceNet2 dataset."""
 
-from collections.abc import Mapping, Sequence
-from pathlib import Path
-from typing import Literal, cast
-
-import numpy as np
-import rasterio
-import torch
-import torch.nn as nn
-from shapely import wkt
 from torch import Tensor
+from torchgeo.datasets import SpaceNet2
+from pathlib import Path
+from typing import Type, Literal, Sequence
+from shapely import wkt
 
-from .base import GeoBenchBaseDataset
-from .normalization import ZScoreNormalizer
 from .sensor_util import DatasetBandRegistry
+from .data_util import MultiModalNormalizer
+from .base import GeoBenchBaseDataset
+import torch.nn as nn
+import rasterio
+import numpy as np
+import torch
 
 
 class GeoBenchSpaceNet2(GeoBenchBaseDataset):
@@ -31,47 +30,51 @@ class GeoBenchSpaceNet2(GeoBenchBaseDataset):
 
     url = "https://hf.co/datasets/aialliance/spacenet2/resolve/main/{}"
 
+    # paths = [
+    #     "SpaceNet2.0000.part.tortilla",
+    #     "SpaceNet2.0001.part.tortilla",
+    #     "SpaceNet2.0002.part.tortilla",
+    #     "SpaceNet2.0003.part.tortilla",
+    #     "SpaceNet2.0004.part.tortilla",
+    # ]
+
     paths = [
         "geobench_spacenet2.0000.part.tortilla",
         "geobench_spacenet2.0001.part.tortilla",
         "geobench_spacenet2.0002.part.tortilla",
     ]
 
-    sha256str = [
-        "97e47bca68e482bed0fe44d5e1d799cbbef7828374a1a7e5cf9687385047183a",
-        "66bfd89e7d80ceaef88a439034ab771e61ee396b8a3e785817e876c9c0a35163",
-        "bcfcaedef82d7b49bc9bf23cb34fcf50e83d25fdb14e50332bfeabeb793b3e03",
-    ]
+    sha256str = ["", "", ""]
 
     dataset_band_config = DatasetBandRegistry.SPACENET2
 
-    normalization_stats: dict[str, dict[str, float]] = {
+    normalization_stats = {
         "means": {
-            "coastal": 0.0,
-            "blue": 0.0,
-            "green": 0.0,
-            "yellow": 0.0,
-            "red": 0.0,
-            "red_edge": 0.0,
-            "nir1": 0.0,
-            "nir2": 0.0,
-            "pan": 0.0,
+            "coastal": 298.7280578613281,
+            "blue": 358.0099182128906,
+            "green": 464.5103759765625,
+            "yellow": 419.947265625,
+            "red": 333.60040283203125,
+            "red_edge": 408.66888427734375,
+            "nir1": 475.084228515625,
+            "nir2": 362.3487243652344,
+            "pan": 468.57403564453125,
         },
         "stds": {
-            "coastal": 3000.0,
-            "blue": 3000.0,
-            "green": 3000.0,
-            "yellow": 3000.0,
-            "red": 3000.0,
-            "red_edge": 3000.0,
-            "nir1": 3000.0,
-            "nir2": 3000.0,
-            "pan": 3000.0,
+            "coastal": 106.97924041748047,
+            "blue": 148.18682861328125,
+            "green": 224.40948486328125,
+            "yellow": 225.79014587402344,
+            "red": 194.02330017089844,
+            "red_edge": 208.45565795898438,
+            "nir1": 234.758544921875,
+            "nir2": 193.23211669921875,
+            "pan": 260.8954162597656,
         },
     }
 
     band_default_order = {
-        "worldview": [
+        "worldview": (
             "coastal",
             "blue",
             "green",
@@ -80,24 +83,24 @@ class GeoBenchSpaceNet2(GeoBenchBaseDataset):
             "red_edge",
             "nir1",
             "nir2",
-        ],
-        "pan": ["pan"],
+        ),
+        "pan": ("pan",),
     }
 
     classes = ("background", "no-building", "building")
 
     num_classes = len(classes)
 
-    metadata = ["lat", "lon"]
+    metadata = ("lat", "lon")
 
     def __init__(
         self,
         root: Path,
-        split: Literal["train", "val", "validation", "test"],
-        band_order: Mapping[str, list[str]] = band_default_order,
-        data_normalizer: type[nn.Module] = ZScoreNormalizer,
+        split: str,
+        band_order: list[str] = band_default_order,
+        data_normalizer: Type[nn.Module] = MultiModalNormalizer,
         label_type: Literal["instance_seg", "semantic_seg"] = "semantic_seg",
-        transforms: nn.Module | None = None,
+        transforms: nn.Module = None,
         metadata: Sequence[str] | None = None,
         return_stacked_image: bool = False,
         download: bool = False,
@@ -106,29 +109,22 @@ class GeoBenchSpaceNet2(GeoBenchBaseDataset):
 
         Args:
             root: Path to the dataset root directory
-            split: The dataset split, supports 'train', 'validation', 'test'
+            split: The dataset split, supports 'train', 'val', 'test'
             label_type: The type of label to return, supports 'instance_seg' or 'semantic_seg'
             band_order: The order of bands to return, defaults to ['red', 'green', 'blue'], if one would
                 specify ['red', 'green', 'blue', 'blue', 'blue'], the dataset would return images with 5 channels
                 in that order. This is useful for models that expect a certain band order, or
                 test the impact of band order on model performance.
-            data_normalizer: The data normalizer to apply to the data, defaults to :class:`data_util.ZScoreNormalizer`,
-                which applies z-score normalization to each band.
-            label_type: The type of label to return, supports 'instance_seg' or 'semantic_seg'
+            data_normalizer:
+            label_type:
             transforms: The transforms to apply to the data, defaults to None
             metadata: metadata names to be returned as part of the sample in the
                 __getitem__ method. If None, no metadata is returned.
             return_stacked_image: if true, returns a single image tensor with all modalities stacked in band_order
-            download: Whether to download the dataset
         """
-        split_norm: Literal["train", "validation", "test"]
-        if split == "val":
-            split_norm = "validation"
-        else:
-            split_norm = cast(Literal["train", "validation", "test"], split)
         super().__init__(
             root=root,
-            split=split_norm,
+            split=split,
             band_order=band_order,
             data_normalizer=data_normalizer,
             transforms=transforms,
@@ -170,13 +166,12 @@ class GeoBenchSpaceNet2(GeoBenchBaseDataset):
 
         sample.update(image_dict)
 
-        mask: np.ndarray
         if self.label_type == "instance_seg":
             with rasterio.open(instance_path) as instance_src:
-                mask = instance_src.read()
+                mask: np.ndarray = instance_src.read()
         else:
             with rasterio.open(segmentation_path) as mask_src:
-                mask = mask_src.read()
+                mask: np.ndarray = mask_src.read()
 
         # We add 1 to the mask to map the current {background, building} labels to
         # the values {1, 2}. to have a true background class.
@@ -186,9 +181,10 @@ class GeoBenchSpaceNet2(GeoBenchBaseDataset):
             sample = self.transforms(sample)
 
         if self.return_stacked_image:
-            bo = cast(Mapping[str, list[str]], self.band_order)
             sample = {
-                "image": torch.cat([sample[f"image_{key}"] for key in bo.keys()], 0),
+                "image": torch.cat(
+                    [sample[f"image_{key}"] for key in self.band_order.keys()], 0
+                ),
                 "mask": sample["mask"],
             }
 

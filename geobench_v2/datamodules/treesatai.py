@@ -3,23 +3,22 @@
 
 """TreeSatAI dataset."""
 
-import os
-from collections.abc import Callable, Sequence
-from typing import Any, Literal
+from collections.abc import Callable
+from typing import Any, Sequence
 
-import matplotlib.pyplot as plt
-import numpy as np
 import pandas as pd
-import tacoreader
-import torch
-import torch.nn as nn
-from einops import rearrange
 from torch import Tensor
+import torch
+import numpy as np
+from einops import rearrange
 from torchgeo.datasets.utils import percentile_normalization
+import os
+import matplotlib.pyplot as plt
 
 from geobench_v2.datasets import GeoBenchTreeSatAI
 
 from .base import GeoBenchClassificationDataModule
+import torch.nn as nn
 
 
 class GeoBenchTreeSatAIDataModule(GeoBenchClassificationDataModule):
@@ -42,13 +41,10 @@ class GeoBenchTreeSatAIDataModule(GeoBenchClassificationDataModule):
 
         Args:
             img_size: Image size originally 304
-            band_order: The order of bands to return in the sample
             batch_size: Batch size
             eval_batch_size: Evaluation batch size
             num_workers: Number of workers
             collate_fn: Collate function
-            train_augmentations: Training augmentations
-            eval_augmentations: Evaluation augmentations
             pin_memory: Pin memory
             **kwargs: Additional keyword arguments
         """
@@ -72,39 +68,8 @@ class GeoBenchTreeSatAIDataModule(GeoBenchClassificationDataModule):
         Returns:
             pandas DataFrame with metadata.
         """
-        self.data_df = tacoreader.load(
-            [os.path.join(self.kwargs["root"], f) for f in GeoBenchTreeSatAI.paths]
-        )
-        return self.data_df
-
-    def visualize_geospatial_distribution(
-        self,
-        split_column="tortilla:data_split",
-        buffer_degrees: float = 2.0,
-        scale: Literal["10m", "50m", "110m"] = "50m",
-        alpha: float = 0.5,
-        s: float = 0.5,
-    ) -> plt.Figure:
-        """Visualize the geospatial distribution of dataset samples on a map.
-
-        Creates a plot showing the geographic locations of samples, colored by dataset split
-        (train, validation, test). This helps to understand the spatial distribution
-        and potential geographic biases in the dataset.
-
-        Args:
-            split_column: Column name in the metadata DataFrame that indicates the dataset split.
-            buffer_degrees: Buffer around the data extent in degrees
-            sample_fraction: Fraction of samples to plot (0.0-1.0) for performance with large datasets
-            scale: Scale of cartopy features (e.g., '10m', '50m', '110m')
-            alpha: Transparency of plotted points
-            s: Size of plotted points
-        """
-        return super().visualize_geospatial_distribution(
-            split_column=split_column,
-            buffer_degrees=buffer_degrees,
-            scale=scale,
-            alpha=alpha,
-            s=s,
+        return pd.read_parquet(
+            os.path.join(self.kwargs["root"], "geobench_treesatai.parquet")
         )
 
     def visualize_batch(
@@ -113,7 +78,7 @@ class GeoBenchTreeSatAIDataModule(GeoBenchClassificationDataModule):
         """Visualize a batch of data.
 
         Args:
-            split: One of 'train', 'validation', 'test'
+            split: One of 'train', 'val', 'test'
 
         Returns:
             The matplotlib figure and the batch of data
@@ -128,8 +93,7 @@ class GeoBenchTreeSatAIDataModule(GeoBenchClassificationDataModule):
         else:
             batch = next(iter(self.test_dataloader()))
 
-        if hasattr(self.data_normalizer, "unnormalize"):
-            batch = self.data_normalizer.unnormalize(batch)
+        batch = self.data_normalizer.unnormalize(batch)
 
         batch_size = batch["label"].shape[0]
         n_samples = min(8, batch_size)

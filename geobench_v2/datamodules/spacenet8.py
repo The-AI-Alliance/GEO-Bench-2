@@ -3,22 +3,22 @@
 
 """SpaceNet8 DataModule."""
 
-import os
-from collections.abc import Callable, Sequence
-from typing import Any
-
+from collections.abc import Callable
+from typing import Any, Sequence
 import matplotlib.pyplot as plt
 import pandas as pd
-import tacoreader
+import os
+from torch import Tensor
 import torch
-import torch.nn as nn
-from einops import rearrange
-from matplotlib.colors import ListedColormap
+import numpy as np
 from torchgeo.datasets.utils import percentile_normalization
+from einops import rearrange
+
 
 from geobench_v2.datasets import GeoBenchSpaceNet8
 
 from .base import GeoBenchSegmentationDataModule
+import torch.nn as nn
 
 
 class GeoBenchSpaceNet8DataModule(GeoBenchSegmentationDataModule):
@@ -41,16 +41,15 @@ class GeoBenchSpaceNet8DataModule(GeoBenchSegmentationDataModule):
 
         Args:
             img_size: Image size, created patches are of size 512
-            band_order: The order of bands to return in the sample
             batch_size: Batch size during training
             eval_batch_size: Evaluation batch size
             num_workers: Number of workers
             collate_fn: Collate function
             train_augmentations: Transforms/Augmentations to apply during training, they will be applied
-                at the sample level and should include normalization. See :meth:`define_augmentations`
+                at the sample level and should include normalization. See :method:`define_augmentations`
                 for the default transformation.
             eval_augmentations: Transforms/Augmentations to apply during evaluation, they will be applied
-                at the sample level and should include normalization. See :meth:`define_augmentations`
+                at the sample level and should include normalization. See :method:`define_augmentations`
                 for the default transformation.
             pin_memory: Pin memory
             **kwargs: Additional keyword arguments for the dataset class
@@ -69,43 +68,33 @@ class GeoBenchSpaceNet8DataModule(GeoBenchSegmentationDataModule):
             **kwargs,
         )
 
-    def load_metadata(self) -> pd.DataFrame:
-        """Load metadata file.
-
-        Returns:
-            pandas DataFrame with metadata.
-        """
-        self.data_df = tacoreader.load(
-            [os.path.join(self.kwargs["root"], f) for f in GeoBenchSpaceNet8.paths]
-        )
-        return self.data_df
-
     def visualize_batch(
-        self, batch: dict[str, Any] | None = None, split: str = "train"
-    ) -> tuple[Any, dict[str, Any]]:
+        self, split: str = "train"
+    ) -> tuple[plt.Figure, dict[str, Tensor]]:
         """Visualize a batch of data.
 
         Args:
-            batch: Optional batch of data. If not provided, a batch will be fetched from the dataloader.
-            split: One of 'train', 'validation', 'test'
+            split: One of 'train', 'val', 'test'
 
         Returns:
             The matplotlib figure and the batch of data
         """
-        if batch is None:
-            if split == "train":
-                batch = next(iter(self.train_dataloader()))
-            elif split == "validation":
-                batch = next(iter(self.val_dataloader()))
-            else:
-                batch = next(iter(self.test_dataloader()))
+        if split == "train":
+            batch = next(iter(self.train_dataloader()))
+        elif split == "validation":
+            batch = next(iter(self.val_dataloader()))
+        else:
+            batch = next(iter(self.test_dataloader()))
 
-        if hasattr(self.data_normalizer, "unnormalize"):
-            batch = self.data_normalizer.unnormalize(batch)
+        batch = self.data_normalizer.unnormalize(batch)
 
         pre_images = batch["image_pre"]
         post_images = batch["image_post"]
         masks = batch["mask"]
+
+        # Print some debugging info about the masks
+        print(f"Masks shape: {masks.shape}")
+        print(f"Unique values in masks: {torch.unique(masks).cpu().numpy()}")
 
         batch_size = pre_images.shape[0]
         n_samples = min(8, batch_size)
@@ -129,11 +118,16 @@ class GeoBenchSpaceNet8DataModule(GeoBenchSegmentationDataModule):
         if n_samples == 1:
             axes = axes.reshape(1, -1)
 
+        # Get the unique classes in the masks
         unique_classes = torch.unique(masks).cpu().numpy()
         unique_classes = [
             int(cls) for cls in unique_classes if cls < len(self.class_names)
         ]
 
+        print(f"Unique classes after filtering: {unique_classes}")
+        print(f"Class names: {self.class_names}")
+
+        # Define colors that match our class definitions
         colors = {
             0: "#000000",  # Black for background
             1: "#4daf4a",  # Green for road (not flooded)
@@ -142,11 +136,14 @@ class GeoBenchSpaceNet8DataModule(GeoBenchSegmentationDataModule):
             4: "#984ea3",  # Purple for building (flooded)
         }
 
+        # Create colormap for all possible classes
+        from matplotlib.colors import ListedColormap
+
         class_colors = [colors[i] for i in range(len(colors))]
         flood_cmap = ListedColormap(class_colors)
 
         for i in range(n_samples):
-            # pre-event image
+            # Plot pre-event image
             ax = axes[i, 0]
             img = rearrange(pre_images[i], "c h w -> h w c").cpu().numpy()
             img = percentile_normalization(img, lower=2, upper=98)
@@ -154,7 +151,7 @@ class GeoBenchSpaceNet8DataModule(GeoBenchSegmentationDataModule):
             ax.set_title("Aerial Pre Image" if i == 0 else "")
             ax.axis("off")
 
-            # post-event image
+            # Plot post-event image
             ax = axes[i, 1]
             img = rearrange(post_images[i], "c h w -> h w c").cpu().numpy()
             img = percentile_normalization(img, lower=2, upper=98)
@@ -162,13 +159,19 @@ class GeoBenchSpaceNet8DataModule(GeoBenchSegmentationDataModule):
             ax.set_title("Aerial Post Image" if i == 0 else "")
             ax.axis("off")
 
+            # Plot mask with correct colormap
             ax = axes[i, 2]
             mask_img = masks[i].cpu().numpy()
 
-            ax.imshow(mask_img, cmap=flood_cmap, vmin=0, vmax=4)
+            # Debug info for this specific mask
+            mask_unique = np.unique(mask_img)
+            print(f"Sample {i}, mask unique values: {mask_unique}")
+
+            im = ax.imshow(mask_img, cmap=flood_cmap, vmin=0, vmax=4)
             ax.set_title("Flood Mask" if i == 0 else "")
             ax.axis("off")
 
+        # Create legend elements for classes that are actually present
         legend_elements = []
         for cls in unique_classes:
             if cls in colors:
@@ -203,3 +206,13 @@ class GeoBenchSpaceNet8DataModule(GeoBenchSegmentationDataModule):
     def visualize_geolocation_distribution(self) -> None:
         """Visualize the geolocation distribution of the dataset."""
         pass
+
+    def load_metadata(self) -> pd.DataFrame:
+        """Load metadata file.
+
+        Returns:
+            pandas DataFrame with metadata.
+        """
+        return pd.read_parquet(
+            os.path.join(self.kwargs["root"], "geobench_spacenet8.parquet")
+        )

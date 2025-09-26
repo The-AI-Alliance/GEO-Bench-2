@@ -3,19 +3,22 @@
 
 """DynamicEarthNet Dataset."""
 
-from collections.abc import Sequence
-from pathlib import Path
-from typing import Literal
-
-import rasterio
-import torch
-import torch.nn as nn
-from shapely import wkt
 from torch import Tensor
+from pathlib import Path
+import numpy as np
+from typing import Any, Sequence, Union, Type, Literal
+import torch
+import os
+import json
+import pandas as pd
+import torch.nn as nn
+import rasterio
+from shapely import wkt
 
 from .base import GeoBenchBaseDataset
-from .normalization import ZScoreNormalizer
+
 from .sensor_util import DatasetBandRegistry
+from .data_util import DataUtilsMixin, MultiModalNormalizer
 
 
 class GeoBenchDynamicEarthNet(GeoBenchBaseDataset):
@@ -23,23 +26,41 @@ class GeoBenchDynamicEarthNet(GeoBenchBaseDataset):
 
     url = "https://hf.co/datasets/aialliance/dynamic_earthnet/resolve/main/{}"
 
+    # paths = [
+    #     "FullDynamicEarthNet.0000.part.tortilla",
+    #     "FullDynamicEarthNet.0001.part.tortilla",
+    #     "FullDynamicEarthNet.0002.part.tortilla",
+    #     "FullDynamicEarthNet.0003.part.tortilla",
+    #     "FullDynamicEarthNet.0004.part.tortilla",
+    #     "FullDynamicEarthNet.0005.part.tortilla",
+    #     "FullDynamicEarthNet.0006.part.tortilla",
+    #     "FullDynamicEarthNet.0007.part.tortilla",
+    #     "FullDynamicEarthNet.0008.part.tortilla",
+    #     "FullDynamicEarthNet.0009.part.tortilla",
+    #     "FullDynamicEarthNet.0010.part.tortilla",
+    #     "FullDynamicEarthNet.0011.part.tortilla",
+    #     "FullDynamicEarthNet.0012.part.tortilla",
+    #     "FullDynamicEarthNet.0013.part.tortilla",
+    #     "FullDynamicEarthNet.0014.part.tortilla",
+    #     "FullDynamicEarthNet.0015.part.tortilla",
+    #     "FullDynamicEarthNet.0016.part.tortilla",
+    #     "FullDynamicEarthNet.0017.part.tortilla",
+    #     "FullDynamicEarthNet.0018.part.tortilla",
+    # ]
+
     paths = [
         "geobench_dynamic_earthnet.0000.part.tortilla",
         "geobench_dynamic_earthnet.0001.part.tortilla",
         "geobench_dynamic_earthnet.0002.part.tortilla",
     ]
 
-    sha256str = [
-        "ddc7848db890933337d494a3086a5179630132dd7d76cd92cf0ae98bec66c986",
-        "de6b49c217f35f6f1c37fd7e889fc2c9db28f542207c797627de8fa3fd211b4f",
-        "d08bceb12f4294d815dd9ea26f31d9ae6315d9afc816301863a08a65addd4e73",
-    ]
+    sha256str = ["", "", ""]
 
     dataset_band_config = DatasetBandRegistry.DYNAMICEARTHNET
 
-    band_default_order: dict[str, list[str]] = {
-        "planet": ["b", "g", "r", "nir"],
-        "s2": [
+    band_default_order = {
+        "planet": ("b", "g", "r", "nir"),
+        "s2": (
             "B01",
             "B02",
             "B03",
@@ -52,7 +73,7 @@ class GeoBenchDynamicEarthNet(GeoBenchBaseDataset):
             "B10",
             "B11",
             "B12",
-        ],
+        ),
     }
 
     # Appendix C normalization stats for planet
@@ -60,42 +81,42 @@ class GeoBenchDynamicEarthNet(GeoBenchBaseDataset):
     # std = [957.96, 715.55, 596.94, 1059.90],
     # https://github.com/aysim/dynnet/blob/1e7d90294b54f52744ae2b35db10b4d0a48d093d/data/utae_dynamicen.py#L13
     # TODO check
-    normalization_stats: dict[str, dict[str, float]] = {
+    normalization_stats = {
         "means": {
-            "r": 0.0,
-            "g": 0.0,
-            "b": 0.0,
-            "nir": 0.0,
-            "B01": 0.0,
-            "B02": 0.0,
-            "B03": 0.0,
-            "B04": 0.0,
-            "B05": 0.0,
-            "B06": 0.0,
-            "B07": 0.0,
-            "B08": 0.0,
-            "B8A": 0.0,
-            "B10": 0.0,
-            "B11": 0.0,
-            "B12": 0.0,
+            "b": 641.124267578125,
+            "g": 881.2556762695312,
+            "r": 1011.3512573242188,
+            "nir": 2609.922607421875,
+            "B01": 1091.76220703125,
+            "B02": 1318.852783203125,
+            "B03": 1380.147216796875,
+            "B04": 2678.525146484375,
+            "B05": 1730.9559326171875,
+            "B06": 2373.4130859375,
+            "B07": 2630.05322265625,
+            "B08": 2782.686767578125,
+            "B8A": 2307.15869140625,
+            "B10": 1719.888671875,
+            "B11": 1003.9291381835938,
+            "B12": 3031.021728515625,
         },
         "stds": {
-            "r": 3000.0,
-            "g": 3000.0,
-            "b": 3000.0,
-            "nir": 3000.0,
-            "B01": 3000.0,
-            "B02": 3000.0,
-            "B03": 3000.0,
-            "B04": 3000.0,
-            "B05": 3000.0,
-            "B06": 3000.0,
-            "B07": 3000.0,
-            "B08": 3000.0,
-            "B8A": 3000.0,
-            "B10": 3000.0,
-            "B11": 3000.0,
-            "B12": 3000.0,
+            "b": 523.4900512695312,
+            "g": 647.6270141601562,
+            "r": 888.1035766601562,
+            "nir": 992.0601806640625,
+            "B01": 1414.6219482421875,
+            "B02": 1343.7620849609375,
+            "B03": 1427.9449462890625,
+            "B04": 1376.4869384765625,
+            "B05": 1429.6456298828125,
+            "B06": 1333.841064453125,
+            "B07": 1370.47802734375,
+            "B08": 1386.9127197265625,
+            "B8A": 1394.8505859375,
+            "B10": 1304.7115478515625,
+            "B11": 1475.8455810546875,
+            "B12": 2124.4130859375,
         },
     }
 
@@ -124,26 +145,26 @@ class GeoBenchDynamicEarthNet(GeoBenchBaseDataset):
         root: Path,
         split: str,
         band_order: dict[str, Sequence[float | str]] = {
-            "plane": ["r", "g", "b", "nir"]
+            "planet": ["r", "g", "b", "nir"]
         },
-        data_normalizer: type[nn.Module] = ZScoreNormalizer,
+        data_normalizer: Type[nn.Module] = MultiModalNormalizer,
         transforms: nn.Module | None = None,
         metadata: Sequence[str] | None = None,
         temporal_setting: Literal["single", "daily", "weekly"] = "single",
+        return_stacked_image: bool = False,
         download: bool = False,
     ) -> None:
         """Initialize the dataset.
 
         Args:
             root: Root directory where the dataset can be found
-            split: The dataset split, supports 'train', 'validation', 'test'
+            split: The dataset split, supports 'train', 'val', 'test'
             band_order: Band order for the dataset
             data_normalizer: Data normalizer
             transforms: A composition of transformations to apply to the data
             metadata: metadata names to be returned as part of the sample in the
                 __getitem__ method. If None, no metadata is returned.
             temporal_setting: The temporal setting to use, either 'single', 'daily' or 'weekly'
-            download: Whether to download the dataset
         """
         super().__init__(
             root=root,
@@ -154,8 +175,11 @@ class GeoBenchDynamicEarthNet(GeoBenchBaseDataset):
             metadata=metadata,
             download=download,
         )
-
+        assert temporal_setting in ["single", "daily", "weekly"], (
+            "temporal_setting must be one of the following: single, daily, or weekly"
+        )
         self.temporal_setting = temporal_setting
+        self.return_stacked_image = return_stacked_image
 
     def __getitem__(self, idx: int) -> dict[str, Tensor]:
         """Return an index within the dataset.
@@ -171,6 +195,7 @@ class GeoBenchDynamicEarthNet(GeoBenchBaseDataset):
 
         if self.temporal_setting == "single":
             indices = [0]
+
         elif self.temporal_setting == "daily":
             indices = sample_row[sample_row["modality"] == "planet"].index
         elif self.temporal_setting == "weekly":
@@ -179,14 +204,14 @@ class GeoBenchDynamicEarthNet(GeoBenchBaseDataset):
             indices = [0, 4, 9, 14, 19, 24]
 
         img_dict: dict[str, Tensor] = {}
-        planet_img_ls: list[Tensor] = []
+        planet_imgs: list[Tensor] = []
         for i in indices:
             with rasterio.open(sample_row.read(i)) as src:
                 img = src.read()
-                planet_img_ls.append(torch.from_numpy(img))
+                planet_imgs.append(torch.from_numpy(img))
 
         # [T, C, H, W]
-        planet_imgs: Tensor = torch.stack(planet_img_ls, dim=0).float()
+        planet_imgs = torch.stack(planet_imgs, dim=0).float()
 
         img_dict["planet"] = planet_imgs
         # [C, T, H, W]
@@ -220,12 +245,30 @@ class GeoBenchDynamicEarthNet(GeoBenchBaseDataset):
         point = wkt.loads(sample_row.iloc[0]["stac:centroid"])
         lon, lat = point.x, point.y
 
+        if self.transforms is not None:
+            sample = self.transforms(sample)
+
+        if ("planet" in self.band_order):# and ():
+            #convert from T, C, H, W -> C, T, H, W
+            sample["image_planet"] = sample["image_planet"].permute(1, 0, 2, 3)
+
+        if (self.temporal_setting == "single"):
+            sample["image_planet"] = sample["image_planet"].squeeze(1)
+
+        if self.return_stacked_image:
+            if ("s2" in self.band_order) and (self.temporal_setting != "single"):
+                raise ValueError("To stack Sentinel 2 (s2) with Planet, please use temporal_setting = single")
+            sample = { 
+                "image": torch.cat(
+                    [sample[f"image_{key}"] for key in self.band_order.keys()], 0
+                ),
+                "mask": sample["mask"],
+            }
+            sample["mask"] = torch.squeeze(sample["mask"])
+
         if "lon" in self.metadata:
             sample["lon"] = torch.tensor(lon)
         if "lat" in self.metadata:
             sample["lat"] = torch.tensor(lat)
-
-        if self.transforms is not None:
-            sample = self.transforms(sample)
 
         return sample

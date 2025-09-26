@@ -3,26 +3,28 @@
 
 """SpaceNet7 DataModule."""
 
-import os
-from collections.abc import Callable, Sequence
-from typing import Any
-
+from collections.abc import Callable
+from typing import Any, Sequence
 import matplotlib.pyplot as plt
 import pandas as pd
-import tacoreader
+import os
+from torch import Tensor
 import torch
-import torch.nn as nn
-from einops import rearrange
-from matplotlib.colors import ListedColormap
+import numpy as np
 from torchgeo.datasets.utils import percentile_normalization
+from einops import rearrange
+
 
 from geobench_v2.datasets import GeoBenchSpaceNet7
 
 from .base import GeoBenchSegmentationDataModule
+import torch.nn as nn
 
 
 class GeoBenchSpaceNet7DataModule(GeoBenchSegmentationDataModule):
     """GeoBench SpaceNet7 Data Module."""
+
+    #
 
     def __init__(
         self,
@@ -41,16 +43,15 @@ class GeoBenchSpaceNet7DataModule(GeoBenchSegmentationDataModule):
 
         Args:
             img_size: Image size, created patches are of size 512
-            band_order: The order of bands to return in the sample
             batch_size: Batch size during training
             eval_batch_size: Evaluation batch size
             num_workers: Number of workers
             collate_fn: Collate function
             train_augmentations: Transforms/Augmentations to apply during training, they will be applied
-                at the sample level and should include normalization. See :meth:`define_augmentations`
+                at the sample level and should include normalization. See :method:`define_augmentations`
                 for the default transformation.
             eval_augmentations: Transforms/Augmentations to apply during evaluation, they will be applied
-                at the sample level and should include normalization. See :meth:`define_augmentations`
+                at the sample level and should include normalization. See :method:`define_augmentations`
                 for the default transformation.
             pin_memory: Pin memory
             **kwargs: Additional keyword arguments for the dataset class
@@ -69,26 +70,13 @@ class GeoBenchSpaceNet7DataModule(GeoBenchSegmentationDataModule):
             **kwargs,
         )
 
-    def load_metadata(self) -> pd.DataFrame:
-        """Load metadata file.
-
-        Returns:
-            pandas DataFrame with metadata.
-        """
-        self.data_df = tacoreader.load(
-            [os.path.join(self.kwargs["root"], f) for f in GeoBenchSpaceNet7.paths]
-        )
-        return self.data_df
-
     def visualize_batch(
-        self, batch: dict[str, Any] | None = None, split: str = "train"
-    ) -> tuple[Any, dict[str, Any]]:
+        self, split: str = "train"
+    ) -> tuple[plt.Figure, dict[str, Tensor]]:
         """Visualize a batch of data.
 
         Args:
-            batch: Optional batch of data to visualize. If not provided, a batch will be fetched
-                from the dataloader.
-            split: One of 'train', 'validation', 'test'
+            split: One of 'train', 'val', 'test'
 
         Returns:
             The matplotlib figure and the batch of data
@@ -103,8 +91,7 @@ class GeoBenchSpaceNet7DataModule(GeoBenchSegmentationDataModule):
         else:
             batch = next(iter(self.test_dataloader()))
 
-        if hasattr(self.data_normalizer, "unnormalize"):
-            batch = self.data_normalizer.unnormalize(batch)
+        batch = self.data_normalizer.unnormalize(batch)
 
         images = batch["image"]
         masks = batch["mask"]
@@ -122,6 +109,16 @@ class GeoBenchSpaceNet7DataModule(GeoBenchSegmentationDataModule):
             if band in self.band_order
         ]
         images = images[:, rgb_indices, :, :]
+
+        fig, axes = plt.subplots(
+            n_samples,
+            2,
+            figsize=(12, 3 * n_samples),
+            gridspec_kw={"width_ratios": [1, 1]},
+        )
+
+        if n_samples == 1:
+            axes = axes.reshape(1, -1)
 
         unique_classes = torch.unique(masks).cpu().numpy()
         unique_classes = [
@@ -141,6 +138,8 @@ class GeoBenchSpaceNet7DataModule(GeoBenchSegmentationDataModule):
 
         colors = {0: "black", 1: "gray", 2: "orange"}
 
+        from matplotlib.colors import ListedColormap
+
         class_colors = [colors[i] for i in range(len(colors))]
         build_cmap = ListedColormap(class_colors)
 
@@ -154,7 +153,7 @@ class GeoBenchSpaceNet7DataModule(GeoBenchSegmentationDataModule):
 
             ax = axes[i, 1]
             mask_img = masks[i].cpu().numpy()
-            ax.imshow(mask_img, cmap=build_cmap, vmin=0, vmax=2)
+            im = ax.imshow(mask_img, cmap=build_cmap, vmin=0, vmax=2)
             ax.set_title("Building Mask" if i == 0 else "")
             ax.axis("off")
 
@@ -190,3 +189,13 @@ class GeoBenchSpaceNet7DataModule(GeoBenchSegmentationDataModule):
     def visualize_geolocation_distribution(self) -> None:
         """Visualize the geolocation distribution of the dataset."""
         pass
+
+    def load_metadata(self) -> pd.DataFrame:
+        """Load metadata file.
+
+        Returns:
+            pandas DataFrame with metadata.
+        """
+        return pd.read_parquet(
+            os.path.join(self.kwargs["root"], "geobench_spacenet7.parquet")
+        )

@@ -12,9 +12,13 @@ from shapely import wkt
 from torch import Tensor
 
 from .base import GeoBenchBaseDataset
-from .normalization import ZScoreNormalizer
-from .sensor_util import DatasetBandRegistry
+from typing import Sequence, Type, Literal
 
+from .data_util import MultiModalNormalizer
+
+# from .normalization import ZScoreNormalizer
+from .sensor_util import DatasetBandRegistry
+import pdb
 
 class GeoBenchBurnScars(GeoBenchBaseDataset):
     """GeoBench Burn Scars dataset."""
@@ -28,7 +32,27 @@ class GeoBenchBurnScars(GeoBenchBaseDataset):
 
     band_default_order = dataset_band_config.default_order
 
-    normalization_stats: dict[str, dict[str, float]] = {
+    # normalization_stats = {
+    #     "means": {
+    #         "B02": 0.0333497067415863,
+    #         "B03": 0.0570118552053618,
+    #         "B04": 0.0588974813200132,
+    #         "B8A": 0.2323245113436119,
+    #         "B11": 0.1972854853760658,
+    #         "B12": 0.1194491422518656,
+    #     },
+    #     "stds": {
+    #         "B02": 0.0226913556882377,
+    #         "B03": 0.0268075602230702,
+    #         "B04": 0.0400410984436278,
+    #         "B8A": 0.0779173242367269,
+    #         "B11": 0.0870873883814014,
+    #         "B12": 0.0724197947743781,
+    #     },
+    # }
+
+
+    normalization_stats = {
         "means": {
             "B02": 0.0,
             "B03": 0.0,
@@ -37,7 +61,14 @@ class GeoBenchBurnScars(GeoBenchBaseDataset):
             "B11": 0.0,
             "B12": 0.0,
         },
-        "stds": {"B02": 1, "B03": 1, "B04": 1, "B8A": 1, "B11": 1, "B12": 1},
+        "stds": {
+            "B02": 1,
+            "B03": 1,
+            "B04": 1,
+            "B8A": 1,
+            "B11": 1,
+            "B12": 1,
+        },
     }
 
     classes = ("Background", "Burn Scar")
@@ -49,7 +80,8 @@ class GeoBenchBurnScars(GeoBenchBaseDataset):
         root,
         split="train",
         band_order: Sequence[float | str] = band_default_order,
-        data_normalizer: type[nn.Module] = ZScoreNormalizer,
+        data_normalizer: Type[nn.Module] = MultiModalNormalizer,
+        # data_normalizer: type[nn.Module] = ZScoreNormalizer,
         transforms: nn.Module | None = None,
         metadata: Sequence[str] | None = None,
         download: bool = False,
@@ -58,7 +90,7 @@ class GeoBenchBurnScars(GeoBenchBaseDataset):
 
         Args:
             root: Path to the dataset root directory
-            split: The dataset split, supports 'train', 'validation', 'test'
+            split: The dataset split, supports 'train', 'val', 'test'
             band_order: The order of bands to return, defaults to ['gray'], if one would
                 specify ['gray', 'gray', 'gray], the dataset would return the gray band three times.
             data_normalizer: The data normalizer to apply to the data, defaults to :class:`data_util.ZScoreNormalizer`,
@@ -109,8 +141,9 @@ class GeoBenchBurnScars(GeoBenchBaseDataset):
         image_dict = self.data_normalizer(image_dict)
 
         sample.update(image_dict)
-
+        mask[mask==-1] = 2
         sample["mask"] = mask
+        
 
         point = wkt.loads(sample_row.iloc[0]["stac:centroid"])
         lon, lat = point.x, point.y

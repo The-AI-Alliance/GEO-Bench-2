@@ -3,24 +3,23 @@
 
 """PASTIS Dataset."""
 
-import io
-import re
-from collections.abc import Sequence
-from pathlib import Path
-from typing import Literal
-
-import h5py
-import torch
-import torch.nn as nn
 from torch import Tensor
 from torchgeo.datasets import PASTIS
+from pathlib import Path
+import numpy as np
+from typing import Any, Sequence, Union, Type, Literal, Dict
+import torch
+import os
+import json
+import pandas as pd
+import torch.nn as nn
 
-from .base import GeoBenchBaseDataset
-from .normalization import ZScoreNormalizer
 from .sensor_util import DatasetBandRegistry
+from .data_util import DataUtilsMixin, MultiModalNormalizer, DataNormalizer
+#import einops
 
 
-class GeoBenchPASTIS(GeoBenchBaseDataset):
+class GeoBenchPASTIS(PASTIS, DataUtilsMixin):
     """PAStis Dataset with enhanced functionality.
 
     This is the PASTIS-R version.
@@ -29,20 +28,6 @@ class GeoBenchPASTIS(GeoBenchBaseDataset):
     - Variable Band Selection
     - Return band wavelengths
     """
-
-    url = "https://hf.co/datasets/aialliance/pastis/resolve/main/{}"
-
-    paths = [
-        "geobench_pastis.0000.part.tortilla",
-        "geobench_pastis.0001.part.tortilla",
-        "geobench_pastis.0002.part.tortilla",
-    ]
-
-    sha256str = [
-        "7ab6748fe26c4d9ece6ccc2139d1e305505f3cb51e966024795b127d0b84bf35",
-        "92b25a4220e35104ae2e79916d506c949da16dcba136d5f37452bafc0ca8ce13",
-        "f3038a4f7ced1c5faf89368ee10dae408e612fd29a60f500140ce8d315503dbb",
-    ]
 
     dataset_band_config = DatasetBandRegistry.PASTIS
 
@@ -63,49 +48,49 @@ class GeoBenchPASTIS(GeoBenchBaseDataset):
     )
 
     band_default_order = {
-        "s2": ["B02", "B03", "B04", "B05", "B06", "B07", "B08", "B8A", "B11", "B12"],
-        "s1_asc": ["VV_asc", "VH_asc", "VV/VH_asc"],
-        "s1_desc": ["VV_desc", "VH_desc", "VV/VH_desc"],
+        "s2": ("B02", "B03", "B04", "B05", "B06", "B07", "B08", "B8A", "B11", "B12"),
+        "s1_asc": ("VV_asc", "VH_asc", "VV/VH_asc"),
+        "s1_desc": ("VV_desc", "VH_desc", "VV/VH_desc"),
     }
 
     valid_splits = ("train", "val", "test")
 
-    normalization_stats: dict[str, dict[str, float]] = {
+    normalization_stats = {
         "means": {
-            "B02": 0.0,
-            "B03": 0.0,
-            "B04": 0.0,
-            "B05": 0.0,
-            "B06": 0.0,
-            "B07": 0.0,
-            "B08": 0.0,
-            "B8A": 0.0,
-            "B11": 0.0,
-            "B12": 0.0,
-            "VV_asc": 0.0,
-            "VH_asc": 0.0,
-            "VV/VH_asc": 0.0,
-            "VV_desc": 0.0,
-            "VH_desc": 0.0,
-            "VV/VH_desc": 0.0,
+            "B02": 1369.9984130859375,
+            "B03": 1583.14794921875,
+            "B04": 1627.649658203125,
+            "B05": 1930.8377685546875,
+            "B06": 2921.8388671875,
+            "B07": 3284.9306640625,
+            "B08": 3421.798828125,
+            "B8A": 3544.233642578125,
+            "B11": 2564.71435546875,
+            "B12": 1708.5986328125,
+            "VV_asc": -10.283859252929688,
+            "VH_asc": -16.86566734313965,
+            "VV/VH_asc": 6.581782817840576,
+            "VV_desc": -10.348858833312988,
+            "VH_desc": -16.90220069885254,
+            "VV/VH_desc": 6.553304672241211
         },
         "stds": {
-            "B02": 3000.0,
-            "B03": 3000.0,
-            "B04": 3000.0,
-            "B05": 3000.0,
-            "B06": 3000.0,
-            "B07": 3000.0,
-            "B08": 3000.0,
-            "B8A": 3000.0,
-            "B11": 3000.0,
-            "B12": 3000.0,
-            "VV_asc": 1.0,
-            "VH_asc": 1.0,
-            "VV/VH_asc": 1.0,
-            "VV_desc": 1.0,
-            "VH_desc": 1.0,
-            "VV/VH_desc": 1.0,
+            "B02": 2247.75537109375,
+            "B03": 2179.169921875,
+            "B04": 2255.17626953125,
+            "B05": 2142.72216796875,
+            "B06": 1928.7330322265625,
+            "B07": 1900.8660888671875,
+            "B08": 1890.31640625,
+            "B8A": 1873.0811767578125,
+            "B11": 1409.2015380859375,
+            "B12": 1189.0947265625,
+            "VV_asc": 3.0927364826202393,
+            "VH_asc": 3.026491403579712,
+            "VV/VH_asc": 3.3431670665740967,
+            "VV_desc": 3.216468334197998,
+            "VH_desc": 3.0307400226593018,
+            "VV/VH_desc": 3.3312063217163086,
         },
     }
 
@@ -119,20 +104,20 @@ class GeoBenchPASTIS(GeoBenchBaseDataset):
         self,
         root: Path,
         split: str,
-        band_order: dict[str, list[float | str]] = {"s2": ["B04", "B03", "B02"]},
-        data_normalizer: type[nn.Module] = ZScoreNormalizer,
+        rename_modalities: dict | None = None, 
+        band_order: dict[str, Sequence[float | str]] = {"s2": ["B04", "B03", "B02"]},
+        data_normalizer: Type[nn.Module] = MultiModalNormalizer,
         num_time_steps: int = 1,
         transforms: nn.Module | None = None,
         metadata: Sequence[str] | None = None,
         label_type: Literal["instance_seg", "semantic_seg"] = "semantic_seg",
         return_stacked_image: bool = False,
-        download: bool = False,
     ) -> None:
         """Initialize PASTIS Dataset.
 
         Args:
             root: Path to the dataset root directory
-            split: The dataset split, supports 'train', 'validation', 'test'
+            split: The dataset split, supports 'train', 'val', 'test'
             band_order: The order of bands to return, defaults to ['red', 'green', 'blue', 'nir'], if one would
                 specify ['red', 'green', 'blue', 'nir', 'nir'], the dataset would return images with 5 channels
                 in that order. This is useful for models that expect a certain band order, or
@@ -141,31 +126,69 @@ class GeoBenchPASTIS(GeoBenchBaseDataset):
                 if set to 10, the latest 10 time steps will be returned. If a time series has fewer time steps than
                 specified, it will be padded with zeros. A value of 1 will return a [C, H, W] tensor, while a value
                 of 10 will return a [T, C, H, W] tensor.
-            data_normalizer: The data normalizer to apply to the data, defaults to :class:`data_util.ZScoreNormalizer`,
+            data_normalizer: The data normalizer to apply to the data, defaults to :class:`data_util.MultiModalNormalizer`,
                 which applies z-score normalization to each band.
-            transforms: The transforms to apply to the data, defaults to None
+            transforms:
             metadata: metadata names to be returned under specified keys as part of the sample in the
                 __getitem__ method. If None, no metadata is returned.
             label_type: The type of label to return, either 'instance_seg' or 'semantic_seg'
             return_stacked_image: if true, returns a single image tensor with all modalities stacked in band_order
-            download: Whether to download the dataset
-
+            rename_modalities: dictionary with information to rename modalities in output e.g. {image: {sar:  S1RTC, rgbn: S2L2A}}
         Raises:
             AssertionError: If an invalid split is specified
         """
-        super().__init__(
-            root=root,
-            split=split,
-            band_order=band_order,
-            data_normalizer=data_normalizer,
-            transforms=transforms,
-            metadata=metadata,
-            download=download,
+        super().__init__(root=root)
+
+        if split == "validation":
+            split = "val"
+
+        assert split in self.valid_splits, (
+            f"Invalid split {split}. Must be one of {self.valid_splits}"
         )
+        self.split = split
+
+        self.band_order = self.validate_band_order(band_order)
+
+        self.transforms = transforms
+        self.num_time_steps = num_time_steps
 
         self.label_type = label_type
-        self.num_time_steps = num_time_steps
+        if return_stacked_image: assert rename_modalities is None, "Cannot return a stacked image if modalities are renamed"
         self.return_stacked_image = return_stacked_image
+        self.rename_modalities = rename_modalities
+
+        if metadata is None:
+            self.metadata = []
+        else:
+            self.metadata = metadata
+
+        self.data_df = pd.read_parquet(os.path.join(root, "geobench_pastis.parquet"))
+        self.data_df = self.data_df[self.data_df["split"] == split].reset_index(
+            drop=True
+        )
+
+        if isinstance(data_normalizer, type):
+            print(f"Initializing normalizer from class: {data_normalizer.__name__}")
+            if issubclass(data_normalizer, DataNormalizer):
+                self.data_normalizer = data_normalizer(
+                    self.normalization_stats, self.band_order
+                )
+            else:
+                self.data_normalizer = data_normalizer()
+
+        elif callable(data_normalizer):
+            print(
+                f"Using provided pre-initialized normalizer instance: {data_normalizer.__class__.__name__}"
+            )
+            self.data_normalizer = data_normalizer
+        else:
+            raise TypeError(
+                f"data_normalizer must be a DataNormalizer subclass type or a callable instance. Got {type(data_normalizer)}"
+            )
+
+    def __len__(self) -> int:
+        """Return the length of the dataset."""
+        return len(self.data_df)
 
     def __getitem__(self, index: int) -> dict[str, Tensor]:
         """Return an index within the dataset.
@@ -177,12 +200,13 @@ class GeoBenchPASTIS(GeoBenchBaseDataset):
             data and label at that index
         """
         sample: dict[str, Tensor] = {}
-        sample_row = self.data_df.read(index)
-
+        sample_row = self.data_df.iloc[index]
         data = {
-            "s2": self._load_image(sample_row.read(0)),
-            "s1_asc": self._load_image(sample_row.read(1)),
-            "s1_desc": self._load_image(sample_row.read(2)),
+            "s2": self._load_image(os.path.join(self.root, sample_row["s2_path"])),#T, C, H, W
+            "s1_asc": self._load_image(os.path.join(self.root, sample_row["s1a_path"])),#T, C, H, W
+            "s1_desc": self._load_image(
+                os.path.join(self.root, sample_row["s1d_path"])#T, C, H, W
+            ),
         }
 
         img_dict = self.rearrange_bands(data, self.band_order)
@@ -192,14 +216,18 @@ class GeoBenchPASTIS(GeoBenchBaseDataset):
         sample.update(img_dict)
 
         if self.label_type == "semantic_seg":
-            sample["mask"] = self._load_semantic_targets(sample_row.read(3))
+            sample["mask"] = self._load_semantic_targets(
+                os.path.join(self.root, sample_row["semantic_path"])
+            )
         elif self.label_type == "instance_seg":
             sample["mask"], sample["boxes"], sample["label"] = (
-                self._load_instance_targets(sample_row.read(3), sample_row.read(4))
+                self._load_instance_targets(
+                    os.path.join(self.root, sample_row["semantic_path"]),
+                    os.path.join(sample_row["instance_path"]),
+                )
             )
 
-        dates = sample_row["dates"].iloc[0]
-
+        dates = sample_row["dates-s2"]
         if len(dates) < self.num_time_steps:
             sample_dates = [0] * (self.num_time_steps - len(dates)) + dates
         else:
@@ -208,45 +236,51 @@ class GeoBenchPASTIS(GeoBenchBaseDataset):
         if self.transforms:
             sample = self.transforms(sample)
 
+        for key in sample:
+            if "image" in key and len(sample[key].shape) == 4: # [T, C, H, W]    
+                sample[key] = sample[key].permute(1, 0, 2, 3) #C, T, H, W
+
         if self.return_stacked_image:
             sample = {
                 "image": torch.cat(
-                    [sample[f"image_{key}"] for key in self.band_order.keys()], 0
+                    [sample[f"image_{key}"] for key in self.band_order.keys()], 0 
                 ),
                 "mask": sample["mask"],
             }
+            if self.num_time_steps == 1:
+                sample["image"] = sample["image"].squeeze(1)
+
+        if self.rename_modalities is not None:
+            for key, value in self.rename_modalities.items():
+                if isinstance(value, Dict):
+                    sample[key] = {}
+                    for old_sub_key in value:
+                        if old_sub_key in self.band_order:
+                            new_sub_key = value[old_sub_key]
+                            if new_sub_key in sample[key]: 
+                            # Note that this overwrites key order in self.band_order, 
+                            # so order of self.rename_modalities should follow final desired order
+                                sample[key][new_sub_key] = torch.cat([sample[key][new_sub_key], sample[f"image_{old_sub_key}"]], 0) 
+                            else:
+                                sample[key][new_sub_key] = sample[f"image_{old_sub_key}"]
+                            del sample[f"image_{old_sub_key}"]
+                else:
+                    if key in self.band_order:
+                        new_sub_key = value
+                        sample[new_sub_key] = sample[f"image_{key}"]
+                        del sample[f"image_{key}"]
+                    else:
+                        raise ValueError("rename_modalities must include names that exist in the dataset")
+
 
         if "lon" in self.metadata:
-            sample["lon"] = torch.Tensor([sample_row.lon.iloc[0]]).squeeze()
+            sample["lon"] = torch.tensor(sample_row["longitude"])
         if "lat" in self.metadata:
-            sample["lat"] = torch.Tensor([sample_row.lat.iloc[0]]).squeeze()
+            sample["lat"] = torch.tensor(sample_row["latitude"])
         if "dates" in self.metadata:
-            sample["dates"] = torch.from_numpy(sample_dates)
+            sample["dates"] = torch.tensor(sample_dates)
 
         return sample
-
-    def _return_byte_stream(self, path: str):
-        """Return a byte stream for a given path.
-
-        Args:
-            path: internal path to tortilla modality
-
-        Returns:
-            A byte stream of the data
-        """
-        pattern = r"(\d+)_(\d+),(.+)"
-        match = re.search(pattern, path)
-        if match:
-            offset = int(match.group(1))
-            size = int(match.group(2))
-            file_name = match.group(3)
-
-        with open(file_name, "rb") as f:
-            f.seek(offset)
-            data = f.read(size)
-        byte_stream = io.BytesIO(data)
-
-        return byte_stream
 
     def _load_image(self, path: str) -> Tensor:
         """Load a single time-series.
@@ -257,8 +291,7 @@ class GeoBenchPASTIS(GeoBenchBaseDataset):
         Returns:
             the time-series
         """
-        with h5py.File(self._return_byte_stream(path), "r") as f:
-            tensor = torch.from_numpy(f["data"][:]).float()
+        tensor = torch.tensor(np.load(path).astype(np.float32))
 
         if tensor.shape[0] < self.num_time_steps:
             padding = torch.zeros(
@@ -284,26 +317,26 @@ class GeoBenchPASTIS(GeoBenchBaseDataset):
         """
         # See https://github.com/VSainteuf/pastis-benchmark/blob/main/code/dataloader.py#L201
         # even though the mask file is 3 bands, we just select the first band
-        with h5py.File(self._return_byte_stream(path), "r") as f:
-            tensor = torch.from_numpy(f["data"][:][0]).long()
+        array = np.load(path)[0].astype(np.uint8).copy()
+        tensor = torch.from_numpy(array).long()
         return tensor
 
     def _load_instance_targets(
-        self, sem_path: str, instance_path: str
+        self, sem_path: str, instance_path
     ) -> tuple[Tensor, Tensor, Tensor]:
         """Load the instance segmentation targets for a single sample.
 
         Args:
-            sem_path: path to the label
-            instance_path: path to the instance segmentation mask
+            path: path to the label
 
         Returns:
             the instance segmentation mask, box, and label for each instance
         """
-        mask_tensor = self._load_semantic_targets(sem_path)
+        mask_array = np.load(sem_path)[0].copy()
+        instance_array = np.load(instance_path).copy()
 
-        with h5py.File(self._return_byte_stream(instance_path), "r") as f:
-            instance_tensor = torch.from_numpy(f["data"][:]).long()
+        mask_tensor = torch.from_numpy(mask_array)
+        instance_tensor = torch.from_numpy(instance_array)
 
         # Convert instance mask of N instances to N binary instance masks
         instance_ids = torch.unique(instance_tensor)
@@ -336,8 +369,11 @@ class GeoBenchPASTIS(GeoBenchBaseDataset):
         return masks, boxes, labels
 
     def validate_band_order(
-        self, band_order: Sequence[str | float] | dict[str, Sequence[str | float]]
-    ) -> list[str | float] | dict[str, list[str | float]]:
+        self,
+        band_order: Union[
+            Sequence[Union[str, float]], dict[str, Sequence[Union[str, float]]]
+        ],
+    ) -> Union[list[Union[str, float]], dict[str, list[Union[str, float]]]]:
         """Validate band order configuration for PASTIS time-series data.
 
         For PASTIS, we need to ensure that bands in a sequence belong to the same modality,
@@ -363,7 +399,7 @@ class GeoBenchPASTIS(GeoBenchBaseDataset):
         # Check that all bands are from the same modality
         modalities = []
         for band in resolved:
-            if isinstance(band, (int | float)):
+            if isinstance(band, (int, float)):
                 continue  # Skip fill values
 
             modality = self.dataset_band_config.band_to_modality.get(band)

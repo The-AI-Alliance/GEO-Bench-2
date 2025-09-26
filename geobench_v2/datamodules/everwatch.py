@@ -3,21 +3,25 @@
 
 """GeoBench EverWatch DataModule."""
 
-import os
-from collections.abc import Callable, Sequence
-from typing import Any
-
-import matplotlib.pyplot as plt
-import numpy as np
-import pandas as pd
+from collections.abc import Callable
+from typing import Any, Sequence
+import kornia.augmentation as K
 import torch
-import torch.nn as nn
-from einops import rearrange
+
+import pandas as pd
+from torch import Tensor
+import os
+import numpy as np
+import matplotlib.pyplot as plt
 from torchgeo.datasets.utils import percentile_normalization
+from einops import rearrange
+
 
 from geobench_v2.datasets import GeoBenchEverWatch
+from torch.utils.data import random_split
 
 from .base import GeoBenchObjectDetectionDataModule
+import torch.nn as nn
 
 # TODO everwatch collate_fn check the different image sizes
 
@@ -62,16 +66,15 @@ class GeoBenchEverWatchDataModule(GeoBenchObjectDetectionDataModule):
 
         Args:
             img_size: Image size
-            band_order: The order of bands to return in the sample
             batch_size: Batch size during
             eval_batch_size: Evaluation batch size
             num_workers: Number of workers
             collate_fn: Collate function
             train_augmentations: Transforms/Augmentations to apply during training, they will be applied
-                at the sample level and should include normalization. See :meth:`define_augmentations`
+                at the sample level and should include normalization. See :method:`define_augmentations`
                 for the default transformation.
             eval_augmentations: Transforms/Augmentations to apply during evaluation, they will be applied
-                at the sample level and should include normalization. See :meth:`define_augmentations`
+                at the sample level and should include normalization. See :method:`define_augmentations`
                 for the default transformation.
             pin_memory: Pin memory
             **kwargs: Additional keyword arguments for the dataset class
@@ -101,13 +104,12 @@ class GeoBenchEverWatchDataModule(GeoBenchObjectDetectionDataModule):
         )
 
     def visualize_batch(
-        self, batch: dict[str, Any] | None = None, split: str = "train"
-    ) -> tuple[Any, dict[str, Any]]:
+        self, split: str = "train"
+    ) -> tuple[plt.Figure, dict[str, Tensor]]:
         """Visualize a batch of data.
 
         Args:
-            batch: A batch of data (optional, for debugging purposes)
-            split: One of 'train', 'validation', 'test'
+            split: One of 'train', 'val', 'test'
 
         Returns:
             The matplotlib figure and the batch of data
@@ -119,8 +121,7 @@ class GeoBenchEverWatchDataModule(GeoBenchObjectDetectionDataModule):
         else:
             batch = next(iter(self.test_dataloader()))
 
-        if hasattr(self.data_normalizer, "unnormalize"):
-            batch = self.data_normalizer.unnormalize(batch)
+        batch = self.data_normalizer.unnormalize(batch)
 
         images = batch["image"]
         boxes_batch = batch["bbox_xyxy"]

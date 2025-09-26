@@ -3,21 +3,21 @@
 
 """TreesatAI dataset."""
 
-import os
-from collections.abc import Sequence
+from torch import Tensor
 from pathlib import Path
-
-import h5py
-import numpy as np
-import rasterio
-import torch
+from typing import Sequence, Type, Dict
 import torch.nn as nn
 from shapely import wkt
-from torch import Tensor
 
-from .base import GeoBenchBaseDataset
-from .normalization import ZScoreNormalizer
 from .sensor_util import DatasetBandRegistry
+from .base import GeoBenchBaseDataset
+from .data_util import MultiModalNormalizer
+import torch.nn as nn
+import rasterio
+import numpy as np
+import h5py
+import torch
+import os
 
 
 class GeoBenchTreeSatAI(GeoBenchBaseDataset):
@@ -33,60 +33,60 @@ class GeoBenchTreeSatAI(GeoBenchBaseDataset):
     """
 
     url = "https://hf.co/datasets/aialliance/treesatai/resolve/main/{}"
-
+    # paths = ["TreeSatAI.tortilla"]
     paths = ["geobench_treesatai.tortilla"]
 
-    sha256str = ["04435ade7d429418cf2e51db9ec493a9ca196e79aff661425d82b066bdd3a759"]
+    sha256str = [""]
 
     dataset_band_config = DatasetBandRegistry.TREESATAI
 
-    normalization_stats: dict[str, dict[str, float]] = {
+    normalization_stats = {
         "means": {
-            "nir": 0.0,
-            "green": 0.0,
-            "blue": 0.0,
-            "red": 0.0,
-            "vv": 0.0,
-            "vh": 0.0,
-            "vv/vh": 0.0,
-            "B02": 0.0,
-            "B03": 0.0,
-            "B04": 0.0,
-            "B08": 0.0,
-            "B05": 0.0,
-            "B06": 0.0,
-            "B07": 0.0,
-            "B8A": 0.0,
-            "B11": 0.0,
-            "B12": 0.0,
-            "B01": 0.0,
-            "B09": 0.0,
+            "nir": 154.289794921875,
+            "g": 92.13509368896484,
+            "b": 85.36317443847656,
+            "r": 79.30790710449219,
+            "vv": -6.364912509918213,
+            "vh": -12.508633613586426,
+            "vv/vh": 0.4892385005950928,
+            "B02": 245.31068420410156,
+            "B03": 387.63568115234375,
+            "B04": 248.4667205810547,
+            "B08": 2825.93603515625,
+            "B05": 625.9300537109375,
+            "B06": 2118.83740234375,
+            "B07": 2709.37890625,
+            "B8A": 2982.208740234375,
+            "B11": 1316.7186279296875,
+            "B12": 594.203369140625,
+            "B01": 265.8070068359375,
+            "B09": 2962.182373046875,
         },
         "stds": {
-            "nir": 255.0,
-            "green": 255.0,
-            "blue": 255.0,
-            "red": 255.0,
-            "vv": 1.0,
-            "vh": 1.0,
-            "vv/vh": 1.0,
-            "B02": 1000.0,
-            "B03": 1000.0,
-            "B04": 1000.0,
-            "B08": 1000.0,
-            "B05": 1000.0,
-            "B06": 1000.0,
-            "B07": 1000.0,
-            "B8A": 1000.0,
-            "B11": 1000.0,
-            "B12": 1000.0,
-            "B01": 1000.0,
-            "B09": 1000.0,
+            "nir": 49.029109954833984,
+            "g": 33.52909469604492,
+            "b": 27.931865692138672,
+            "r": 33.36391830444336,
+            "vv": 3.5287060737609863,
+            "vh": 3.2120885848999023,
+            "vv/vh": 0.2582942247390747,
+            "B02": 117.73491668701172,
+            "B03": 130.0995635986328,
+            "B04": 129.66375732421875,
+            "B08": 756.8175659179688,
+            "B05": 191.35238647460938,
+            "B06": 517.2822265625,
+            "B07": 691.1488037109375,
+            "B8A": 754.9419555664062,
+            "B11": 411.339111328125,
+            "B12": 234.48863220214844,
+            "B01": 125.9928207397461,
+            "B09": 674.169189453125,
         },
     }
 
     band_default_order = {
-        "aerial": ["red", "green", "blue", "nir"],
+        "aerial": ["r", "g", "b", "nir"],
         "s2": [
             "B02",
             "B03",
@@ -101,7 +101,7 @@ class GeoBenchTreeSatAI(GeoBenchBaseDataset):
             "B01",
             "B09",
         ],
-        "s1": ["vv", "vh", "vv/vh"],
+        "s1": ["VV", "VH", "vv/vh"],
     }
 
     classes: Sequence[str] = (
@@ -122,8 +122,6 @@ class GeoBenchTreeSatAI(GeoBenchBaseDataset):
         "Tilia",
     )
 
-    multilabel: bool = True
-
     num_classes: int = len(classes)
 
     valid_metadata = ("lat", "lon")
@@ -132,12 +130,13 @@ class GeoBenchTreeSatAI(GeoBenchBaseDataset):
         self,
         root: Path,
         split: str,
-        band_order: dict[str, list[str]] = {"aerial": ["red", "green", "blue", "nir"]},
-        data_normalizer: type[nn.Module] = ZScoreNormalizer,
+        rename_modalities: dict | None = None, 
+        band_order: dict[str, Sequence[str]] = {"aerial": ["r", "g", "b"]},
+        data_normalizer: Type[nn.Module] = MultiModalNormalizer,
         transforms: nn.Module | None = None,
         metadata: Sequence[str] | None = None,
         include_ts: bool = False,
-        num_time_steps: int = 1,
+        num_time_steps: int = None,
         return_stacked_image: bool = False,
         download: bool = False,
     ) -> None:
@@ -145,20 +144,20 @@ class GeoBenchTreeSatAI(GeoBenchBaseDataset):
 
         Args:
             root: Path to the dataset root directory
-            split: The dataset split, supports 'train', 'validation', 'test'
+            split: The dataset split, supports 'train', 'val', 'test'
             band_order: The order of bands to return, defaults to ['red', 'green', 'blue', 'nir'], if one would
                 specify ['red', 'green', 'blue', 'nir', 'nir'], the dataset would return images with 5 channels
                 in that order. This is useful for models that expect a certain band order, or
                 test the impact of band order on model performance.
-            data_normalizer: The data normalizer to apply to the data, defaults to :class:`data_util.ZScoreNormalizer`,
+            data_normalizer: The data normalizer to apply to the data, defaults to :class:`data_util.MultiModalNormalizer`,
                 which applies z-score normalization to each band.
-            transforms: image transformations to apply to the data, defaults to None
+            transforms:
             metadata: metadata names to be returned as part of the sample in the
                 __getitem__ method. If None, no metadata is returned.
             include_ts: whether or not to return the time series in data loading
             num_time_steps: number of last time steps to return in the ts data
             return_stacked_image: if true, returns a single image tensor with all modalities stacked in band_order
-            download: Whether to download the dataset
+            rename_modalities: dictionary with information to rename modalities in output e.g. {image: {s1:  S1RTC, s2: S2L2A}}
         """
         super().__init__(
             root=root,
@@ -170,9 +169,12 @@ class GeoBenchTreeSatAI(GeoBenchBaseDataset):
             download=download,
         )
 
+        if return_stacked_image: assert rename_modalities is None, "Cannot return a stacked image if modalities are renamed"
+        self.return_stacked_image = return_stacked_image
+        self.rename_modalities = rename_modalities
         self.include_ts = include_ts
         self.num_time_steps = num_time_steps
-        self.return_stacked_image = return_stacked_image
+        
 
         if include_ts:
             if num_time_steps is None:
@@ -195,18 +197,29 @@ class GeoBenchTreeSatAI(GeoBenchBaseDataset):
 
         img_dict: dict[str, Tensor] = {}
 
-        modality_to_index = {"aerial": 0, "s1": 1, "s2": 2}
-
-        img_dict = {}
-        for modality in self.band_order:
-            if modality in modality_to_index and isinstance(modality, str):
-                file_path = sample_row.read(modality_to_index[modality])
-                with rasterio.open(file_path) as src:
-                    data = src.read().astype(np.float32)
-                img_dict[modality] = torch.from_numpy(data)
+        if "aerial" in self.band_order:
+            aerial_path = sample_row.read(0)
+            with rasterio.open(aerial_path) as src:
+                aerial_data = src.read().astype(np.float32)
+            aerial_data = torch.from_numpy(aerial_data)
+            img_dict["aerial"] = aerial_data
+        if "s1" in self.band_order:
+            s1_path = sample_row.read(1)
+            with rasterio.open(s1_path) as src:
+                s1_data = src.read().astype(np.float32)
+            s1_data = torch.from_numpy(s1_data)
+            img_dict["s1"] = s1_data
+        if "s2" in self.band_order:
+            s2_path = sample_row.read(2)
+            with rasterio.open(s2_path) as src:
+                s2_data = src.read().astype(np.float32)
+            s2_data = torch.from_numpy(s2_data)
+            img_dict["s2"] = s2_data
 
         img_dict = self.rearrange_bands(img_dict, self.band_order)
+
         img_dict = self.data_normalizer(img_dict)
+
         sample.update(img_dict)
 
         # only resize the aerial image
@@ -224,6 +237,24 @@ class GeoBenchTreeSatAI(GeoBenchBaseDataset):
             sample_row.iloc[0]["species_labels"], sample_row.iloc[0]["dist_labels"]
         )
 
+        if self.rename_modalities is not None:
+            for key, value in self.rename_modalities.items():
+                if isinstance(value, Dict):
+                    sample[key] = {}
+                    for old_sub_key in value:
+                        if old_sub_key in self.band_order:
+                            new_sub_key = value[old_sub_key]
+                            sample[key][new_sub_key] = sample[f"image_{old_sub_key}"]
+                            del sample[f"image_{old_sub_key}"]
+                else:
+                    if key in self.band_order:
+                        new_sub_key = value
+                        sample[new_sub_key] = sample[f"image_{key}"]
+                        del sample[f"image_{key}"]
+                    else:
+                        raise ValueError("rename_modalities must include names that exist in the dataset")
+
+
         point = wkt.loads(sample_row.iloc[0]["stac:centroid"])
         lon, lat = point.x, point.y
 
@@ -239,12 +270,18 @@ class GeoBenchTreeSatAI(GeoBenchBaseDataset):
                 sen_1_asc_data = h5file["sen-1-asc-data"][
                     :
                 ]  # Tx2x6x6, Channels: VV, VH
+                sen_1_asc_products = h5file["sen-1-asc-products"][:]
                 sen_1_des_data = h5file["sen-1-des-data"][
                     :
                 ]  # Tx2x6x6, Channels: VV, VH
+                sen_1_des_products = h5file["sen-1-des-products"][:]
                 sen_2_data = h5file["sen-2-data"][
                     :
                 ]  # Tx10x6x6 B02,B03,B04,B05,B06,B07,B08,B8A,B11,B12
+                sen_2_products = h5file["sen-2-products"][:]
+                sen_2_masks = h5file["sen-2-masks"][
+                    :
+                ]  # (Tx2x6x6), Channels: snow probability, cloud probability
 
             if "s1" in self.band_order:
                 sample["image_s1_asc_ts"] = torch.from_numpy(sen_1_asc_data)[
@@ -263,7 +300,7 @@ class GeoBenchTreeSatAI(GeoBenchBaseDataset):
     def _format_label(
         self, class_labels: list[str], dist_labels: list[float]
     ) -> Tensor:
-        """Format label list to Tensor.
+        """Format label list to Tensor
 
         Args:
             class_labels: list of label class names
