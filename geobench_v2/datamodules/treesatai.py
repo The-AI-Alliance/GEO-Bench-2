@@ -104,7 +104,7 @@ class GeoBenchTreeSatAIDataModule(GeoBenchClassificationDataModule):
             s=s,
         )
 
-   def visualize_batch(
+    def visualize_batch(
         self, split: str = "train"
     ) -> tuple[plt.Figure, dict[str, Tensor]]:
         """Visualize a batch of data.
