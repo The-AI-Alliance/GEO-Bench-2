@@ -3,22 +3,20 @@
 
 """Base dataset."""
 
+import hashlib
+import os
+from collections.abc import Mapping, Sequence
+from pathlib import Path
+from typing import Any, Literal, cast
 import torch.nn as nn
 from torch import Tensor
 from typing import Type, Literal, Sequence, Callable, Union
 import rasterio
-from torchgeo.datasets import NonGeoDataset
 import tacoreader
-import os
-import hashlib
 import torch
-import torch.nn as nn
 from torchvision.datasets.utils import download_url
-import urllib.request
-
-from torchgeo.datasets import DatasetNotFoundError
-
-
+# import urllib.request
+from torchgeo.datasets import DatasetNotFoundError, NonGeoDataset
 from .data_util import DataUtilsMixin, DataNormalizer
 
 
