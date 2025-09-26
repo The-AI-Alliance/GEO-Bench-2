@@ -3,19 +3,17 @@
 
 """CaFFe DataMdule."""
 
-from collections.abc import Callable
-from typing import Any, Sequence
+import os
+from collections.abc import Callable, Sequence
+from typing import Any
 import kornia.augmentation as K
 import pandas as pd
 from torch import Tensor
-import os
 import matplotlib.pyplot as plt
 import torch
+import tacoreader
 from torchgeo.datasets.utils import percentile_normalization
-
-
 from geobench_v2.datasets.caffe import GeoBenchCaFFe
-
 from .base import GeoBenchSegmentationDataModule
 import torch.nn as nn
 
@@ -40,6 +38,7 @@ class GeoBenchCaFFeDataModule(GeoBenchSegmentationDataModule):
 
         Args:
             img_size: Image size
+            band_order: The order of bands to return in the sample
             batch_size: Batch size during
             eval_batch_size: Evaluation batch size
             num_workers: Number of workers
@@ -73,29 +72,33 @@ class GeoBenchCaFFeDataModule(GeoBenchSegmentationDataModule):
         Returns:
             pandas DataFrame with metadata.
         """
-        return pd.read_parquet(
-            os.path.join(self.kwargs["root"], "geobench_caffe.parquet")
+        self.data_df = tacoreader.load(
+            [os.path.join(self.kwargs["root"], f) for f in GeoBenchCaFFe.paths]
         )
+        return self.data_df
 
     def visualize_batch(
-        self, split: str = "train"
+        self, batch: dict[str, Tensor] | None = None, split: str = "train"
     ) -> tuple[plt.Figure, dict[str, Tensor]]:
         """Visualize a batch of data.
 
         Args:
-            split: One of 'train', 'val', 'test'
+            batch: Batch of data to visualize
+            split: One of 'train', 'validation', 'test'
 
         Returns:
             The matplotlib figure and the batch of data
         """
-        if split == "train":
-            batch = next(iter(self.train_dataloader()))
-        elif split == "validation":
-            batch = next(iter(self.val_dataloader()))
-        else:
-            batch = next(iter(self.test_dataloader()))
+        if batch is None:
+            if split == "train":
+                batch = next(iter(self.train_dataloader()))
+            elif split == "validation":
+                batch = next(iter(self.val_dataloader()))
+            else:
+                batch = next(iter(self.test_dataloader()))
 
-        batch = self.data_normalizer.unnormalize(batch)
+        if hasattr(self.data_normalizer, "unnormalize"):
+            batch = self.data_normalizer.unnormalize(batch)
 
         images = batch["image"]
         masks = batch["mask"]
@@ -138,7 +141,7 @@ class GeoBenchCaFFeDataModule(GeoBenchSegmentationDataModule):
 
             ax = axes[i, 1]
             mask_img = masks[i].cpu().numpy()
-            im = ax.imshow(mask_img, cmap="tab20", vmin=0, vmax=19)
+            ax.imshow(mask_img, cmap="tab20", vmin=0, vmax=19)
             ax.set_title("Mask" if i == 0 else "")
             ax.axis("off")
 
@@ -170,6 +173,7 @@ class GeoBenchCaFFeDataModule(GeoBenchSegmentationDataModule):
 
         plt.tight_layout()
         return fig, batch
+
 
     def visualize_geolocation_distribution(self) -> None:
         """Visualize the geolocation distribution of the dataset."""

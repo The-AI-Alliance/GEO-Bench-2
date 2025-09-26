@@ -1,29 +1,25 @@
 # Copyright (c) 2025 GeoBenchV2. All rights reserved.
 # Licensed under the Apache License 2.0.
 
-"""GeoBench EverWatch DataModule."""
+"""GeoBench NZCattle DataModule."""
 
-import os
 from collections.abc import Callable, Sequence
 from typing import Any
 
 import matplotlib.pyplot as plt
 import numpy as np
-import pandas as pd
 import torch
 import torch.nn as nn
 from einops import rearrange
 from torchgeo.datasets.utils import percentile_normalization
 
-from geobench_v2.datasets import GeoBenchEverWatch
+from geobench_v2.datasets import GeoBenchNZCattle
 
 from .base import GeoBenchObjectDetectionDataModule
 
-# TODO everwatch collate_fn check the different image sizes
 
-
-def everwatch_collate_fn(batch: Sequence[dict[str, Any]]) -> dict[str, Any]:
-    """Collate function for EverWatch dataset.
+def nzcattle_collate_fn(batch: Sequence[dict[str, Any]]) -> dict[str, Any]:
+    """Collate function for nzCattle dataset.
 
     Args:
         batch: A list of dictionaries containing the data for each sample
@@ -42,27 +38,30 @@ def everwatch_collate_fn(batch: Sequence[dict[str, Any]]) -> dict[str, Any]:
     return {"image": images, "bbox_xyxy": boxes, "label": label}
 
 
-class GeoBenchEverWatchDataModule(GeoBenchObjectDetectionDataModule):
-    """GeoBench EverWatch Data Module."""
+class GeoBenchNZCattleDataModule(GeoBenchObjectDetectionDataModule):
+    """GeoBench nzCattle Data Module."""
 
     def __init__(
         self,
         img_size: int = 512,
-        band_order: Sequence[float | str] = GeoBenchEverWatch.band_default_order,
+        band_order: Sequence[float | str] = GeoBenchNZCattle.band_default_order,
         batch_size: int = 32,
         eval_batch_size: int = 64,
         num_workers: int = 0,
-        collate_fn: Callable | None = everwatch_collate_fn,
+        collate_fn: Callable | None = nzcattle_collate_fn,
         train_augmentations: nn.Module | None = None,
         eval_augmentations: nn.Module | None = None,
         pin_memory: bool = False,
         **kwargs: Any,
     ) -> None:
-        """Initialize GeoBench DOTAV2 dataset module.
+        """Initialize GeoBench nzCattle dataset module.
 
         Args:
             img_size: Image size
-            band_order: The order of bands to return in the sample
+            band_order: The order of bands to return, defaults to ['red', 'green', 'blue'], if one would
+                specify ['red', 'green', 'blue', 'blue'], the dataset would return images with 4 channels
+                in that order. This is useful for models that expect a certain band order, or
+                test the impact of band order on model performance.
             batch_size: Batch size during
             eval_batch_size: Evaluation batch size
             num_workers: Number of workers
@@ -75,9 +74,10 @@ class GeoBenchEverWatchDataModule(GeoBenchObjectDetectionDataModule):
                 for the default transformation.
             pin_memory: Pin memory
             **kwargs: Additional keyword arguments for the dataset class
+
         """
         super().__init__(
-            dataset_class=GeoBenchEverWatch,
+            dataset_class=GeoBenchNZCattle,
             img_size=img_size,
             band_order=band_order,
             batch_size=batch_size,
@@ -90,23 +90,13 @@ class GeoBenchEverWatchDataModule(GeoBenchObjectDetectionDataModule):
             **kwargs,
         )
 
-    def load_metadata(self) -> pd.DataFrame:
-        """Load metadata file.
-
-        Returns:
-            pandas DataFrame with metadata.
-        """
-        return pd.read_parquet(
-            os.path.join(self.kwargs["root"], "geobench_everwatch.parquet")
-        )
-
     def visualize_batch(
         self, batch: dict[str, Any] | None = None, split: str = "train"
     ) -> tuple[Any, dict[str, Any]]:
         """Visualize a batch of data.
 
         Args:
-            batch: A batch of data (optional, for debugging purposes)
+            batch: A batch of data (optional)
             split: One of 'train', 'validation', 'test'
 
         Returns:
@@ -119,8 +109,7 @@ class GeoBenchEverWatchDataModule(GeoBenchObjectDetectionDataModule):
         else:
             batch = next(iter(self.test_dataloader()))
 
-        if hasattr(self.data_normalizer, "unnormalize"):
-            batch = self.data_normalizer.unnormalize(batch)
+        batch = self.data_normalizer.unnormalize(batch)
 
         images = batch["image"]
         boxes_batch = batch["bbox_xyxy"]

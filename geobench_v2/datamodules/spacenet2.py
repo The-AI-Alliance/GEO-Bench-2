@@ -3,10 +3,11 @@
 
 """SpaceNet2 DataModule."""
 
-from collections.abc import Callable
-from typing import Any, Sequence
+from collections.abc import Callable, Sequence
+from typing import Any
 import matplotlib.pyplot as plt
 import pandas as pd
+import tacoreader
 import os
 from torch import Tensor
 from matplotlib.colors import ListedColormap
@@ -14,10 +15,7 @@ import torch
 import matplotlib.pyplot as plt
 from torchgeo.datasets.utils import percentile_normalization
 from einops import rearrange
-
-
 from geobench_v2.datasets import GeoBenchSpaceNet2
-
 from .base import GeoBenchSegmentationDataModule
 import torch.nn as nn
 
@@ -42,6 +40,7 @@ class GeoBenchSpaceNet2DataModule(GeoBenchSegmentationDataModule):
 
         Args:
             img_size: Image size, created patches are of size 512
+            band_order: The order of bands to return in the sample
             batch_size: Batch size during training
             eval_batch_size: Evaluation batch size
             num_workers: Number of workers
@@ -69,13 +68,27 @@ class GeoBenchSpaceNet2DataModule(GeoBenchSegmentationDataModule):
             **kwargs,
         )
 
+    def load_metadata(self) -> pd.DataFrame:
+        """Load metadata file.
+
+        Returns:
+            pandas DataFrame with metadata.
+        """
+        self.data_df = tacoreader.load(
+            [os.path.join(self.kwargs["root"], f) for f in GeoBenchSpaceNet2.paths]
+        )
+        return self.data_df
+
+
     def visualize_batch(
-        self, split: str = "train"
-    ) -> tuple[plt.Figure, dict[str, Tensor]]:
+        self, batch: dict[str, Any] | None = None, split: str = "train"
+    ) -> tuple[Any, dict[str, Any]]:
         """Visualize a batch of data.
 
         Args:
-            split: One of 'train', 'val', 'test'
+            batch: Optional batch of data to visualize. If not provided, a batch will be fetched
+                from the dataloader.
+            split: One of 'train', 'validation', 'test'
 
         Returns:
             The matplotlib figure and the batch of data
@@ -83,14 +96,16 @@ class GeoBenchSpaceNet2DataModule(GeoBenchSegmentationDataModule):
         Raises:
             AssertionError: If bands needed for plotting are missing
         """
-        if split == "train":
-            batch = next(iter(self.train_dataloader()))
-        elif split == "validation":
-            batch = next(iter(self.val_dataloader()))
-        else:
-            batch = next(iter(self.test_dataloader()))
+        if batch is None:
+            if split == "train":
+                batch = next(iter(self.train_dataloader()))
+            elif split == "validation":
+                batch = next(iter(self.val_dataloader()))
+            else:
+                batch = next(iter(self.test_dataloader()))
 
-        batch = self.data_normalizer.unnormalize(batch)
+        if hasattr(self.data_normalizer, "unnormalize"):
+            batch = self.data_normalizer.unnormalize(batch)
 
         batch_size = batch["mask"].shape[0]
         n_samples = min(8, batch_size)
@@ -151,7 +166,7 @@ class GeoBenchSpaceNet2DataModule(GeoBenchSegmentationDataModule):
 
             ax = axes[i, -1]
             mask_img = masks[i].cpu().numpy()
-            im = ax.imshow(mask_img, cmap=flood_cmap, vmin=0, vmax=2)
+            ax.imshow(mask_img, cmap=flood_cmap, vmin=0, vmax=2)
             ax.set_title("Building Mask" if i == 0 else "", fontsize=20)
             ax.axis("off")
 
@@ -184,16 +199,8 @@ class GeoBenchSpaceNet2DataModule(GeoBenchSegmentationDataModule):
 
         return fig, batch
 
+
     def visualize_geolocation_distribution(self) -> None:
         """Visualize the geolocation distribution of the dataset."""
         pass
 
-    def load_metadata(self) -> pd.DataFrame:
-        """Load metadata file.
-
-        Returns:
-            pandas DataFrame with metadata.
-        """
-        return pd.read_parquet(
-            os.path.join(self.kwargs["root"], "geobench_spacenet2.parquet")
-        )

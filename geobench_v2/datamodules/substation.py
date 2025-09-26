@@ -1,7 +1,7 @@
 # Copyright (c) 2025 GeoBenchV2. All rights reserved.
 # Licensed under the Apache License 2.0.
 
-"""GeoBench EverWatch DataModule."""
+"""GeoBench Substation DataModule."""
 
 import os
 from collections.abc import Callable, Sequence
@@ -10,20 +10,19 @@ from typing import Any
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+import tacoreader
 import torch
 import torch.nn as nn
 from einops import rearrange
 from torchgeo.datasets.utils import percentile_normalization
 
-from geobench_v2.datasets import GeoBenchEverWatch
+from geobench_v2.datasets import GeoBenchSubstation
 
 from .base import GeoBenchObjectDetectionDataModule
 
-# TODO everwatch collate_fn check the different image sizes
 
-
-def everwatch_collate_fn(batch: Sequence[dict[str, Any]]) -> dict[str, Any]:
-    """Collate function for EverWatch dataset.
+def substation_collate_fn(batch: Sequence[dict[str, Any]]) -> dict[str, Any]:
+    """Collate function for Substation dataset.
 
     Args:
         batch: A list of dictionaries containing the data for each sample
@@ -34,35 +33,38 @@ def everwatch_collate_fn(batch: Sequence[dict[str, Any]]) -> dict[str, Any]:
     # collate images
     images = [sample["image"] for sample in batch]
     images = torch.stack(images, dim=0)
-
     # collate boxes into list of boxes
     boxes = [sample["bbox_xyxy"] for sample in batch]
     label = [sample["label"] for sample in batch]
+    masks = [sample["mask"] for sample in batch]
 
-    return {"image": images, "bbox_xyxy": boxes, "label": label}
+    return {"image": images, "bbox_xyxy": boxes, "label": label, "mask": masks}
 
 
-class GeoBenchEverWatchDataModule(GeoBenchObjectDetectionDataModule):
-    """GeoBench EverWatch Data Module."""
+class GeoBenchSubstationDataModule(GeoBenchObjectDetectionDataModule):
+    """GeoBench Substation Data Module."""
 
     def __init__(
         self,
-        img_size: int = 512,
-        band_order: Sequence[float | str] = GeoBenchEverWatch.band_default_order,
+        img_size: int = 228,
+        band_order: Sequence[float | str] = GeoBenchSubstation.band_default_order,
         batch_size: int = 32,
         eval_batch_size: int = 64,
         num_workers: int = 0,
-        collate_fn: Callable | None = everwatch_collate_fn,
+        collate_fn: Callable | None = substation_collate_fn,
         train_augmentations: nn.Module | None = None,
         eval_augmentations: nn.Module | None = None,
         pin_memory: bool = False,
         **kwargs: Any,
     ) -> None:
-        """Initialize GeoBench DOTAV2 dataset module.
+        """Initialize GeoBench Substation dataset module.
 
         Args:
             img_size: Image size
-            band_order: The order of bands to return in the sample
+            band_order: The order of bands to return, defaults to ['red', 'green', 'blue'], if one would
+                specify ['red', 'green', 'blue', 'blue'], the dataset would return images with 4 channels
+                in that order. This is useful for models that expect a certain band order, or
+                test the impact of band order on model performance.
             batch_size: Batch size during
             eval_batch_size: Evaluation batch size
             num_workers: Number of workers
@@ -75,9 +77,10 @@ class GeoBenchEverWatchDataModule(GeoBenchObjectDetectionDataModule):
                 for the default transformation.
             pin_memory: Pin memory
             **kwargs: Additional keyword arguments for the dataset class
+
         """
         super().__init__(
-            dataset_class=GeoBenchEverWatch,
+            dataset_class=GeoBenchSubstation,
             img_size=img_size,
             band_order=band_order,
             batch_size=batch_size,
@@ -96,9 +99,10 @@ class GeoBenchEverWatchDataModule(GeoBenchObjectDetectionDataModule):
         Returns:
             pandas DataFrame with metadata.
         """
-        return pd.read_parquet(
-            os.path.join(self.kwargs["root"], "geobench_everwatch.parquet")
+        self.data_df = tacoreader.load(
+            [os.path.join(self.kwargs["root"], f) for f in GeoBenchSubstation.paths]
         )
+        return self.data_df
 
     def visualize_batch(
         self, batch: dict[str, Any] | None = None, split: str = "train"
@@ -106,7 +110,7 @@ class GeoBenchEverWatchDataModule(GeoBenchObjectDetectionDataModule):
         """Visualize a batch of data.
 
         Args:
-            batch: A batch of data (optional, for debugging purposes)
+            batch: A batch of data
             split: One of 'train', 'validation', 'test'
 
         Returns:
@@ -119,12 +123,12 @@ class GeoBenchEverWatchDataModule(GeoBenchObjectDetectionDataModule):
         else:
             batch = next(iter(self.test_dataloader()))
 
-        if hasattr(self.data_normalizer, "unnormalize"):
-            batch = self.data_normalizer.unnormalize(batch)
+        batch = self.data_normalizer.unnormalize(batch)
 
         images = batch["image"]
         boxes_batch = batch["bbox_xyxy"]
         labels_batch = batch["label"]
+        masks_batch = batch["mask"]
 
         batch_size = images.shape[0]
         n_samples = min(8, batch_size)
@@ -133,6 +137,7 @@ class GeoBenchEverWatchDataModule(GeoBenchObjectDetectionDataModule):
         images = images[indices]
         boxes_batch = [boxes_batch[i] for i in indices]
         labels_batch = [labels_batch[i] for i in indices]
+        masks_batch = [masks_batch[i] for i in indices]
 
         plot_bands = self.dataset_band_config.plot_bands
         rgb_indices = [
@@ -177,6 +182,7 @@ class GeoBenchEverWatchDataModule(GeoBenchObjectDetectionDataModule):
 
             boxes = boxes_batch[i]
             labels = labels_batch[i]
+            masks = masks_batch[i]
 
             class_counts = {}
             for label in labels:
@@ -185,11 +191,13 @@ class GeoBenchEverWatchDataModule(GeoBenchObjectDetectionDataModule):
                 class_name = self.class_names[int(label)]
                 class_counts[class_name] = class_counts.get(class_name, 0) + 1
 
-            for box, label in zip(boxes, labels):
+            for box, label, mask in zip(boxes, labels, masks):
                 if isinstance(box, torch.Tensor):
                     box = box.cpu().numpy()
                 if isinstance(label, torch.Tensor):
                     label = label.item()
+                if isinstance(mask, torch.Tensor):
+                    mask = mask.cpu().numpy()
 
                 x1, y1, x2, y2 = box
                 color = colors[int(label)]
@@ -203,6 +211,14 @@ class GeoBenchEverWatchDataModule(GeoBenchObjectDetectionDataModule):
                     facecolor="none",
                 )
                 ax_img.add_patch(rect)
+
+                h, w = mask.shape
+                rgba = np.zeros((h, w, 4), dtype=float)
+                rgba[..., :3] = color[:3]
+                rgba[..., 3] = (mask > 0.5) * 0.4
+                ax_img.imshow(rgba, interpolation="none")
+
+                ax_img.contour(mask, levels=[0.5], colors=["white"], linewidths=1)
 
             ax_img.set_title(f"Sample {i + 1}" if i == 0 else "")
             ax_img.set_xticks([])

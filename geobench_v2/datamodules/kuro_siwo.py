@@ -3,20 +3,18 @@
 
 """KuroSiwo DataModule."""
 
-from collections.abc import Callable
-from typing import Any, Sequence
-
+from collections.abc import Callable, Sequence
+from typing import Any
 import pandas as pd
 from torch import Tensor
 import os
 import matplotlib.pyplot as plt
 import torch
+import tacoreader
 import numpy as np
 from torchgeo.datasets.utils import percentile_normalization
 from einops import rearrange
-
 from geobench_v2.datasets import GeoBenchKuroSiwo
-
 from .base import GeoBenchSegmentationDataModule
 import torch.nn as nn
 
@@ -43,6 +41,7 @@ class GeoBenchKuroSiwoDataModule(GeoBenchSegmentationDataModule):
 
         Args:
             img_size: Image size
+            band_order: The order of bands to return in the sample
             batch_size: Batch size during training
             eval_batch_size: Evaluation batch size
             num_workers: Number of workers
@@ -76,18 +75,20 @@ class GeoBenchKuroSiwoDataModule(GeoBenchSegmentationDataModule):
         Returns:
             pandas DataFrame with metadata.
         """
-        return pd.read_parquet(
-            os.path.join(self.kwargs["root"], "geobench_kuro_siwo.parquet")
+        self.data_df = tacoreader.load(
+            [os.path.join(self.kwargs["root"], f) for f in GeoBenchKuroSiwo.paths]
         )
+        return self.data_df
 
     def visualize_batch(
-        self, batch: dict[str, Tensor] | None = None, split: str = "train"
-    ) -> tuple[plt.Figure, dict[str, Tensor]]:
+        self, batch: dict[str, Any] | None = None, split: str = "train"
+    ) -> tuple[Any, dict[str, Any]]:
         """Visualize a batch of data.
 
         Args:
             batch: Batch of data to visualize
-            split: One of 'train', 'val', 'test'
+                split: One of 'train', 'validation', 'test'
+            split: One of 'train', 'validation', 'test'
 
         Returns:
             The matplotlib figure and the batch of data
@@ -103,7 +104,8 @@ class GeoBenchKuroSiwoDataModule(GeoBenchSegmentationDataModule):
             else:
                 batch = next(iter(self.test_dataloader()))
 
-        batch = self.data_normalizer.unnormalize(batch)
+        if hasattr(self.data_normalizer, "unnormalize"):
+            batch = self.data_normalizer.unnormalize(batch)
 
         batch_size = batch["mask"].shape[0]
         n_samples = min(8, batch_size)
@@ -193,7 +195,7 @@ class GeoBenchKuroSiwoDataModule(GeoBenchSegmentationDataModule):
 
             ax = axes[i, -1]
             mask_img = masks[i].cpu().numpy()
-            im = ax.imshow(mask_img, cmap=flood_cmap, vmin=0, vmax=3)
+            ax.imshow(mask_img, cmap=flood_cmap, vmin=0, vmax=3)
             ax.set_title("Flood Mask" if i == 0 else "", fontsize=20)
             ax.axis("off")
 
@@ -226,6 +228,18 @@ class GeoBenchKuroSiwoDataModule(GeoBenchSegmentationDataModule):
 
         return fig, batch
 
-    def visualize_geolocation_distribution(self) -> None:
-        """Visualize the geolocation distribution of the dataset."""
-        pass
+    def visualize_geospatial_distribution(
+        self,
+        split_column: str = "tortilla:data_split",
+        buffer_degrees: float = 5.0,
+        sample_fraction: float | None = None,
+        scale: Literal["10m", "50m", "110m"] = "50m",
+        alpha: float = 0.5,
+        s: float = 0.5,
+    ) -> plt.Figure | None:
+        """Visualize the geospatial distribution of dataset samples on a map.
+
+        Note: This dataset does not provide geolocation information; returns None.
+        """
+        print("Dataset does not have geolocation information.")
+        return None

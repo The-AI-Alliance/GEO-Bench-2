@@ -27,7 +27,7 @@ class GeoBenchBENV2DataModule(GeoBenchClassificationDataModule):
     def __init__(
         self,
         img_size: int = 120,
-        band_order: Sequence[float | str] = GeoBenchBENV2.band_default_order,
+        band_order: Sequence[float | str] | dict[str, Sequence[float | str]], = GeoBenchBENV2.band_default_order,
         batch_size: int = 32,
         eval_batch_size: int = 64,
         num_workers: int = 0,
@@ -68,9 +68,10 @@ class GeoBenchBENV2DataModule(GeoBenchClassificationDataModule):
         Returns:
             pandas DataFrame with metadata.
         """
-        return pd.read_parquet(
-            os.path.join(self.kwargs["root"], "geobench_benv2.parquet")
+        self.data_df = tacoreader.load(
+            [os.path.join(self.kwargs["root"], f) for f in GeoBenchBENV2.paths]
         )
+        return self.data_df
 
     def visualize_batch(
         self, batch: dict[str, Any] | None = None, split: str = "train"

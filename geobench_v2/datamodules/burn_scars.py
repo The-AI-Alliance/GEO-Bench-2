@@ -6,18 +6,14 @@
 import os
 from collections.abc import Callable, Sequence
 from typing import Any
-
 import matplotlib.pyplot as plt
 import pandas as pd
 import tacoreader
 import torch
 import torch.nn as nn
 from torch import Tensor
-
-#from torchgeo.datasets.utils import percentile_normalization
-
+from torchgeo.datasets.utils import percentile_normalization
 from geobench_v2.datasets.burn_scars import GeoBenchBurnScars
-
 from .base import GeoBenchSegmentationDataModule
 
 
@@ -80,102 +76,103 @@ class GeoBenchBurnScarsDataModule(GeoBenchSegmentationDataModule):
         )
         return self.data_df
 
-    # def visualize_batch(
-    #     self, batch: dict[str, Tensor] | None = None, split: str = "train"
-    # ) -> tuple[plt.Figure, dict[str, Tensor]]:
-    #     """Visualize a batch of data.
+    def visualize_batch(
+        self, batch: dict[str, Tensor] | None = None, split: str = "train"
+    ) -> tuple[plt.Figure, dict[str, Tensor]]:
+        """Visualize a batch of data.
 
-    #     Args:
-    #         batch: Batch of data to visualize
-    #         split: One of 'train', 'val', 'test'
+        Args:
+            batch: Batch of data to visualize
+            split: One of 'train', 'validation', 'test'
 
-    #     Returns:
-    #         The matplotlib figure and the batch of data
-    #     """
-    #     if batch is None:
-    #         if split == "train":
-    #             batch = next(iter(self.train_dataloader()))
-    #         elif split == "validation":
-    #             batch = next(iter(self.val_dataloader()))
-    #         else:
-    #             batch = next(iter(self.test_dataloader()))
+        Returns:
+            The matplotlib figure and the batch of data
+        """
+        if batch is None:
+            if split == "train":
+                batch = next(iter(self.train_dataloader()))
+            elif split == "validation":
+                batch = next(iter(self.val_dataloader()))
+            else:
+                batch = next(iter(self.test_dataloader()))
 
-    #     if hasattr(self.data_normalizer, "unnormalize"):
-    #         batch = self.data_normalizer.unnormalize(batch)
+        if hasattr(self.data_normalizer, "unnormalize"):
+            batch = self.data_normalizer.unnormalize(batch)
 
-    #     images = batch["image"]
-    #     masks = batch["mask"]
+        images = batch["image"]
+        masks = batch["mask"]
 
-    #     n_samples = min(8, images.shape[0])
-    #     indices = torch.randperm(images.shape[0])[:n_samples]
+        n_samples = min(8, images.shape[0])
+        indices = torch.randperm(images.shape[0])[:n_samples]
 
-    #     images = images[indices]
-    #     masks = masks[indices]
+        images = images[indices]
+        masks = masks[indices]
 
-    #     plot_bands = self.dataset_band_config.plot_bands
-    #     plot_indices = [self.band_order.index(band) for band in plot_bands]
-    #     images = images[:, plot_indices, :, :]
+        plot_bands = self.dataset_band_config.plot_bands
+        plot_indices = [self.band_order.index(band) for band in plot_bands]
+        images = images[:, plot_indices, :, :]
 
-    #     # Create figure with 3 columns: image, mask, and legend
-    #     fig, axes = plt.subplots(
-    #         n_samples,
-    #         3,
-    #         figsize=(12, 3 * n_samples),
-    #         gridspec_kw={"width_ratios": [1, 1, 0.5]},
-    #     )
+        # Create figure with 3 columns: image, mask, and legend
+        fig, axes = plt.subplots(
+            n_samples,
+            3,
+            figsize=(12, 3 * n_samples),
+            gridspec_kw={"width_ratios": [1, 1, 0.5]},
+        )
 
-    #     if n_samples == 1:
-    #         axes = axes.reshape(1, -1)
+        if n_samples == 1:
+            axes = axes.reshape(1, -1)
 
-    #     unique_classes = torch.unique(masks).cpu().numpy()
-    #     unique_classes = [
-    #         int(cls) for cls in unique_classes if cls < len(self.class_names)
-    #     ]
+        unique_classes = torch.unique(masks).cpu().numpy()
+        unique_classes = [
+            int(cls) for cls in unique_classes if cls < len(self.class_names)
+        ]
 
-    #     cmap = plt.cm.tab20
+        cmap = plt.cm.tab20
 
-    #     for i in range(n_samples):
-    #         ax = axes[i, 0]
-    #         img = images[i].cpu().numpy()
-    #         img = percentile_normalization(img, lower=2, upper=98).transpose((1,2,0))
-    #         ax.imshow(img, cmap="gray")
-    #         ax.set_title("HLS Image" if i == 0 else "")
-    #         ax.axis("off")
+        for i in range(n_samples):
+            ax = axes[i, 0]
+            img = images[i].cpu().numpy()
+            img = percentile_normalization(img, lower=2, upper=98).transpose((1, 2, 0))
+            ax.imshow(img, cmap="gray")
+            ax.set_title("HLS Image" if i == 0 else "")
+            ax.axis("off")
 
-    #         ax = axes[i, 1]
-    #         mask_img = masks[i].cpu().numpy()
-    #         ax.imshow(mask_img, cmap="tab20", vmin=0, vmax=19)
-    #         ax.set_title("Mask" if i == 0 else "")
-    #         ax.axis("off")
+            ax = axes[i, 1]
+            mask_img = masks[i].cpu().numpy()
+            ax.imshow(mask_img, cmap="tab20", vmin=0, vmax=19)
+            ax.set_title("Mask" if i == 0 else "")
+            ax.axis("off")
 
-    #         ax = axes[i, 2]
-    #         ax.axis("off")
+            ax = axes[i, 2]
+            ax.axis("off")
 
-    #         if i == 0:
-    #             legend_elements = []
-    #             for cls in unique_classes:
-    #                 if cls < len(self.class_names):
-    #                     color = cmap(cls / 20.0 if cls < 20 else 0)
-    #                     legend_elements.append(
-    #                         plt.Rectangle(
-    #                             (0, 0),
-    #                             1,
-    #                             1,
-    #                             color=color,
-    #                             label=f"{cls}: {self.class_names[cls]}",
-    #                         )
-    #                     )
+            if i == 0:
+                legend_elements = []
+                for cls in unique_classes:
+                    if cls < len(self.class_names):
+                        color = cmap(cls / 20.0 if cls < 20 else 0)
+                        legend_elements.append(
+                            plt.Rectangle(
+                                (0, 0),
+                                1,
+                                1,
+                                color=color,
+                                label=f"{cls}: {self.class_names[cls]}",
+                            )
+                        )
 
-    #             ax.legend(
-    #                 handles=legend_elements,
-    #                 loc="center",
-    #                 frameon=True,
-    #                 fontsize="small",
-    #                 title="Classes",
-    #             )
+                ax.legend(
+                    handles=legend_elements,
+                    loc="center",
+                    frameon=True,
+                    fontsize="small",
+                    title="Classes",
+                )
 
-    #     plt.tight_layout()
-    #     return fig, batch
+        plt.tight_layout()
+        return fig, batch
+
 
     def visualize_geolocation_distribution(self) -> None:
         """Visualize the geolocation distribution of the dataset."""
