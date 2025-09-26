@@ -4,15 +4,16 @@
 """Base DataModules."""
 
 from abc import ABC, abstractmethod
-from collections.abc import Callable
-from typing import Any, Sequence
-
+from collections.abc import Callable, Sequence
+from typing import Any
+import cartopy.crs as ccrs
+import cartopy.feature as cfeature
 import kornia.augmentation as K
 import pandas as pd
-import torch
 import torch.nn as nn
 from lightning import LightningDataModule
 from matplotlib import pyplot as plt
+from matplotlib.lines import Line2D
 from torch import Tensor
 from torch.utils.data import DataLoader, Dataset
 from torch.utils.data import random_split
@@ -38,7 +39,7 @@ class GeoBenchDataModule(LightningDataModule, ABC):
         self,
         dataset_class: Dataset,
         img_size: int,
-        band_order: Sequence[float | str],
+        band_order: Sequence[float | str] | dict[str, Sequence[float | str]],
         batch_size: int = 32,
         eval_batch_size: int = 64,
         num_workers: int = 0,
@@ -145,7 +146,7 @@ class GeoBenchDataModule(LightningDataModule, ABC):
 
         Image resizing and normalization happens on dataset level on individual data samples.
         """
-        pass
+        raise NotImplementedError
 
     @abstractmethod
     def load_metadata(self) -> pd.DataFrame:
@@ -154,21 +155,24 @@ class GeoBenchDataModule(LightningDataModule, ABC):
         Returns:
             pandas DataFrame with metadata.
         """
-        pass
+        raise NotImplementedError
 
     @abstractmethod
     def visualize_batch(
-        self, split: str = "train"
-    ) -> tuple[plt.Figure, dict[str, Tensor]]:
+        self, 
+        batch: dict[str, Any] | None = None, 
+        split: str = "train"
+    ) -> tuple[Any, dict[str, Any]]:
         """Visualize a batch of data.
 
         Args:
-            split: One of 'train', 'val', 'test'
+            batch: batch of data to visualize, if None a batch will be fetched from the dataloader
+            split: One of 'train', 'validation', 'test'.
 
         Returns:
             The matplotlib figure and the batch of data
         """
-        pass
+        raise NotImplementedError
 
     @abstractmethod
     def define_augmentations(self) -> None:
@@ -176,12 +180,13 @@ class GeoBenchDataModule(LightningDataModule, ABC):
 
         Augmentations will be applied in `on_after_batch_transfer` in the LightningDataModule.
         """
-        pass
+        raise NotImplementedError
+
 
     @abstractmethod
     def visualize_geolocation_distribution(self) -> None:
         """Visualize the geolocation distribution of the dataset."""
-        pass
+        raise NotImplementedError
 
     def train_dataloader(self) -> DataLoader:
         """Return train dataloader.
@@ -256,7 +261,7 @@ class GeoBenchDataModule(LightningDataModule, ABC):
         """Find a valid attribute with length > 0.
 
         Args:
-            args: One or more names of attributes to check.
+            args: One or more names of attributes to check (string or sequence of strings).
 
         Returns:
             The first valid attribute found.
@@ -264,20 +269,21 @@ class GeoBenchDataModule(LightningDataModule, ABC):
         Raises:
             RuntimeError: If no attribute is defined, or has length 0.
         """
-        for arg in args:
-            obj = getattr(self, arg)
+        names = args if isinstance(args, (list, tuple)) else [args]
+        for name in names:
+            obj = getattr(self, name, None)
 
             if obj is None:
                 continue
 
             if not obj:
-                msg = f"{self.__class__.__name__}.{arg} has length 0."
+                msg = f"{self.__class__.__name__}.{name} has length 0."
                 print(msg)
                 raise RuntimeError
 
             return obj
 
-        msg = f"{self.__class__.__name__}.setup must define one of {args}."
+        msg = f"{self.__class__.__name__}.setup must define one of {names}."
         print(msg)
         raise RuntimeError
 
@@ -293,7 +299,7 @@ class GeoBenchClassificationDataModule(GeoBenchDataModule):
         self,
         dataset_class: Dataset,
         img_size: int,
-        band_order: Sequence[float | str],
+        band_order: Sequence[float | str] | dict[str, Sequence[float | str]],
         batch_size: int = 32,
         eval_batch_size: int = 64,
         num_workers: int = 0,
@@ -397,24 +403,27 @@ class GeoBenchClassificationDataModule(GeoBenchDataModule):
         Returns:
             pandas DataFrame with metadata.
         """
-        pass
+        raise NotImplementedError
 
     def visualize_batch(
-        self, split: str = "train"
-    ) -> tuple[plt.Figure, dict[str, Tensor]]:
+        self, 
+        batch: dict[str, Any] | None = None, 
+        split: str = "train"
+    ) -> tuple[Any, dict[str, Any]]:
         """Visualize a batch of data.
 
         Args:
-            split: One of 'train', 'val', 'test'
+            batch: batch of data to visualize, if None a batch will be fetched from the dataloader
+            split: One of 'train', 'validation', 'test'.
 
         Returns:
             The matplotlib figure and the batch of data
         """
-        pass
+        raise NotImplementedError
 
     def visualize_geolocation_distribution(self) -> None:
         """Visualize the geolocation distribution of the dataset."""
-        pass
+        raise NotImplementedError
 
 
 class GeoBenchSegmentationDataModule(GeoBenchDataModule):
@@ -428,7 +437,7 @@ class GeoBenchSegmentationDataModule(GeoBenchDataModule):
         self,
         dataset_class: Dataset,
         img_size: int,
-        band_order: Sequence[float | str],
+        band_order: Sequence[float | str] | dict[str, Sequence[float | str]],
         batch_size: int = 32,
         eval_batch_size: int = 64,
         num_workers: int = 0,
@@ -504,9 +513,9 @@ class GeoBenchSegmentationDataModule(GeoBenchDataModule):
             self.eval_augmentations = nn.Identity()
 
     def setup_image_size_transforms(self) -> tuple[nn.Module, nn.Module, nn.Module]:
-        """Setup image resizing transforms for train, val, test.
+        """Setup image resizing transforms for train, val, and test.
 
-        Image resizing and normalization happens on dataset level on individual data samples.
+        Image resizing and normalization happens on the dataset level on individual data samples.
         """
         return (
             K.AugmentationSequential(
@@ -529,24 +538,27 @@ class GeoBenchSegmentationDataModule(GeoBenchDataModule):
         Returns:
             pandas DataFrame with metadata.
         """
-        pass
+        raise NotImplementedError
 
     def visualize_batch(
-        self, split: str = "train"
-    ) -> tuple[plt.Figure, dict[str, Tensor]]:
+        self, 
+        batch: dict[str, Any] | None = None, 
+        split: str = "train"
+    ) -> tuple[Any, dict[str, Any]]:
         """Visualize a batch of data.
 
         Args:
-            split: One of 'train', 'val', 'test'
+            batch: batch of data to visualize, if None a batch will be fetched from the dataloader
+            split: One of 'train', 'validation', 'test'.
 
         Returns:
             The matplotlib figure and the batch of data
         """
-        pass
+        raise NotImplementedError
 
     def visualize_geolocation_distribution(self) -> None:
         """Visualize the geolocation distribution of the dataset."""
-        pass
+        raise NotImplementedError
 
 
 class GeoBenchObjectDetectionDataModule(GeoBenchDataModule):
@@ -560,7 +572,7 @@ class GeoBenchObjectDetectionDataModule(GeoBenchDataModule):
         self,
         dataset_class: Dataset,
         img_size: int,
-        band_order: Sequence[float | str],
+        band_order: Sequence[float | str] | dict[str, Sequence[float | str]],
         batch_size: int = 32,
         eval_batch_size: int = 64,
         num_workers: int = 0,
@@ -575,6 +587,7 @@ class GeoBenchObjectDetectionDataModule(GeoBenchDataModule):
         Args:
             dataset_class: Dataset class to use in the DataModule
             img_size: Desired image input size for the model
+            band_order: band order of the image sample to be returned
             batch_size: Batch size during training
             eval_batch_size: Batch size during evaluation, can usually be larger than batch_size,
                 to speed up evaluation.
@@ -663,21 +676,24 @@ class GeoBenchObjectDetectionDataModule(GeoBenchDataModule):
         Returns:
             pandas DataFrame with metadata.
         """
-        pass
+        raise NotImplementedError
 
     def visualize_batch(
-        self, split: str = "train"
-    ) -> tuple[plt.Figure, dict[str, Tensor]]:
+        self, 
+        batch: dict[str, Any] | None = None, 
+        split: str = "train"
+    ) -> tuple[Any, dict[str, Any]]:
         """Visualize a batch of data.
 
         Args:
-            split: One of 'train', 'val', 'test'
+            batch: batch of data to visualize, if None a batch will be fetched from the dataloader
+            split: One of 'train', 'validation', 'test'.
 
         Returns:
             The matplotlib figure and the batch of data
         """
-        pass
+        raise NotImplementedError
 
     def visualize_geolocation_distribution(self) -> None:
         """Visualize the geolocation distribution of the dataset."""
-        pass
+        raise NotImplementedError
