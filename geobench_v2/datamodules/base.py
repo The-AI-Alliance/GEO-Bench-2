@@ -18,13 +18,6 @@ from matplotlib.lines import Line2D
 from torch import Tensor
 from torch.utils.data import DataLoader, Dataset
 
-# TODO come up with an expected metadata file scheme
-# with common names etc. so a standardization
-# - datamodules have functions to create nice visualizations of data distribution etc
-# - datasets return an id that can be used to link back to all metadata available
-# - datasets return lat/lon, if available time, and wavelength information
-# - show how to allow for more elaborate analysis of predictions etc.
-
 
 class GeoBenchDataModule(LightningDataModule, ABC):
     """GeoBench DataModule."""

@@ -1,14 +1,19 @@
 import pytest
 import torch
 
-from geobench_v2.datasets.normalization import SatMAENormalizer, ZScoreNormalizer
+from geobench_v2.datasets.normalization import (
+    SatMAENormalizer,
+    ZScoreNormalizer,
+    ClipOnlyNormalizer,
+    RescaleNormalizer,
+    ClipZScoreNormalizer,
+)
 
 
 class TestSatMAENormalizer:
-    """
-    Tests the SatMAENormalizer class.
+    """Tests the SatMAENormalizer class.
 
-    Verifies correct SatMAE-style normalization (clipping to mean +/- 2*std, then scaling)
+    Unit tests SatMAE-style normalization (clipping to mean +/- 2*std, then scaling)
     and denormalization across different output ranges ([0,1], [0,255], [-1,1]) and
     input tensor dimensions (3D, 4D, 5D). Also tests that fill values specified in the
     band order are correctly ignored during both normalization and denormalization.
@@ -60,6 +65,40 @@ class TestSatMAENormalizer:
     def stats(self):
         """Return the test statistics."""
         return self.TEST_STATS.copy()
+
+    def test_data_normalizer_missing_required_stats_raises(self):
+        bad = {"means": {"B1": 1.0}}  # stds missing
+        with pytest.raises(ValueError):
+            _ = ZScoreNormalizer(bad, ["B1"])
+
+    def test_get_band_stats_unknown_band_raises(self):
+        stats = {"means": {"B1": 0.0}, "stds": {"B1": 1.0}}
+        with pytest.raises(ValueError):
+            _ = ZScoreNormalizer(stats, ["B1", "UNKNOWN_BAND"])
+
+    def test_invalid_tensor_dim_raises_in_forward(self):
+        stats = {"means": {"B1": 0.0}, "stds": {"B1": 1.0}}
+        norm = ZScoreNormalizer(stats, ["B1"])
+        bad = torch.randn(2, 2)  # invalid shape
+        with pytest.raises(ValueError):
+            _ = norm({"image": bad})
+
+    def test_image_keys_applied_to_aux(self):
+        stats = {"means": {"B1": 10.0}, "stds": {"B1": 2.0}}
+        norm = ZScoreNormalizer(stats, ["B1"], image_keys=("image", "aux"))
+        x = torch.tensor([[[10.0], [12.0]]])  # [C,H,W]
+        out = norm({"image": x, "aux": x.clone()})
+        expected = (x - 10.0) / 2.0
+        assert torch.allclose(out["image"], expected, atol=1e-6)
+        assert torch.allclose(out["aux"], expected, atol=1e-6)
+
+    def test_repr_contains_fill_value_and_channels(self):
+        stats = {"means": {"B1": 10.0}, "stds": {"B1": 2.0}}
+        fill = -999.0
+        norm = ZScoreNormalizer(stats, ["B1", fill])
+        r = repr(norm)
+        assert "Channel 0" in r
+        assert "Fill Value" in r
 
     @pytest.mark.parametrize("output_range", ["zero_one", "zero_255", "neg_one_one"])
     @pytest.mark.parametrize(
@@ -390,3 +429,86 @@ class TestZScoreNormalizer:
         assert torch.allclose(
             denormalized_result["image_mod2"], expected_roundtrip_mod2, atol=1e-5
         )
+
+
+class TestRescaleAndClipNormalizers:
+    def test_clip_only_normalizer_clipping_and_passthrough(self):
+        stats = {
+            "means": {"B1": 100.0, "B2": 0.0},
+            "stds": {"B1": 20.0, "B2": 1.0},
+            "clip_min": {"image": 0.0},
+            "clip_max": {"image": 10.0},
+        }
+        norm = ClipOnlyNormalizer(stats, ["B1", "B2"])
+        x = torch.tensor([[[-5.0, 5.0], [15.0, 1.0]], [[-1.0, 20.0], [8.0, 9.0]]])
+        out = norm({"image": x})["image"]
+        expected = torch.clamp(x, 0.0, 10.0)
+        assert torch.allclose(out, expected)
+        back = norm.unnormalize({"image": out})["image"]
+        assert torch.allclose(back, out)
+
+    @pytest.mark.parametrize("output_range", ["zero_one", "zero_255", "neg_one_one"])
+    def test_rescale_normalizer_roundtrip_and_ranges(self, output_range):
+        stats = {
+            "means": {"B1": -5.0, "B2": 5.0},
+            "stds": {"B1": 2.0, "B2": 3.0},
+            "clip_min": {"image": -10.0},
+            "clip_max": {"image": 10.0},
+        }
+        norm = RescaleNormalizer(stats, ["B1", "B2"], output_range=output_range)
+        x = torch.tensor([[[-20.0, -5.0, 12.0]], [[-1.0, 6.0, 100.0]]])  # [C,1,3]
+        y = norm({"image": x})["image"]
+        back = norm.unnormalize({"image": y})["image"]
+        clipped = torch.clamp(x, -10.0, 10.0)
+        assert torch.allclose(back, clipped, atol=1e-6)
+
+    def test_rescale_normalizer_multimodal_dict(self):
+        stats = {
+            "means": {"B1": 0.0, "B2": 0.0, "B3": 0.0},
+            "stds": {"B1": 1.0, "B2": 1.0, "B3": 1.0},
+            "clip_min": {"image_mod1": 0.0, "image_mod2": -1.0},
+            "clip_max": {"image_mod1": 1.0, "image_mod2": 1.0},
+        }
+        band_order = {"mod1": ["B1"], "mod2": ["B2", "B3"]}
+        norm = RescaleNormalizer(stats, band_order)
+
+        x1 = torch.tensor([[[[-0.5], [1.5]]]])  # [B=1,T=1,C=1,H=2,W=1]
+        x2 = torch.tensor([[[[[-2.0]], [[0.5]]]]])  # [1,1,2,1,1]
+
+        inp = {"image_mod1": x1, "image_mod2": x2}
+        out = norm(inp)
+        back = norm.unnormalize(out)
+
+        expected1 = x1.clone()
+        expected1[..., 0, 0] = torch.clamp(expected1[..., 0, 0], 0.0, 1.0)
+        expected1[..., 1, 0] = torch.clamp(expected1[..., 1, 0], 0.0, 1.0)
+
+        expected2 = x2.clone()
+        expected2[..., 0, 0, 0] = torch.clamp(expected2[..., 0, 0, 0], -1.0, 1.0)
+        expected2[..., 1, 0, 0] = torch.clamp(expected2[..., 1, 0, 0], -1.0, 1.0)
+
+        assert torch.allclose(back["image_mod1"], expected1, atol=1e-6)
+        assert torch.allclose(back["image_mod2"], expected2, atol=1e-6)
+
+    def test_clipzscore_normalizer_zero_mean_after_rescale(self):
+        stats = {
+            "means": {"B1": 10.0, "B2": -2.0},
+            "stds": {"B1": 2.0, "B2": 1.0},
+            "clip_min": {"image": -5.0},
+            "clip_max": {"image": 20.0},
+        }
+        norm = ClipZScoreNormalizer(stats, ["B1", "B2"])
+        x = torch.tensor([[[10.0]], [[-2.0]]])  # [C,1,1]
+        y = norm({"image": x})["image"]
+        assert torch.allclose(y, torch.zeros_like(y), atol=1e-6)
+
+        x2 = torch.tensor([[[100.0]], [[-100.0]]])
+        y2 = norm({"image": x2})["image"]
+        back2 = norm.unnormalize({"image": y2})["image"]
+        clipped = torch.clamp(x2, -5.0, 20.0)
+        assert torch.allclose(back2, clipped, atol=1e-5)
+
+    def test_clipzscore_requires_clip_bounds(self):
+        stats = {"means": {"B1": 10.0}, "stds": {"B1": 2.0}}
+        with pytest.raises(ValueError):
+            _ = ClipZScoreNormalizer(stats, ["B1"])
