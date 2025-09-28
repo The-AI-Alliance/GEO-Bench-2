@@ -4,8 +4,8 @@
 """CaFFe Dataset."""
 
 import os
-
-from typing import Sequence, Type
+from collections.abc import Sequence
+from typing import  Type
 import numpy as np
 import torch
 from PIL import Image
@@ -16,9 +16,8 @@ import pandas as pd
 import torch.nn as nn
 import rasterio
 from shapely import wkt
-
 from .sensor_util import DatasetBandRegistry
-from .data_util import MultiModalNormalizer
+from .normalization import MultiModalNormalizer, ZScoreNormalizer
 from .base import GeoBenchBaseDataset
 
 
@@ -27,14 +26,14 @@ class GeoBenchCaFFe(GeoBenchBaseDataset):
 
     url = "https://hf.co/datasets/aialliance/caffe/resolve/main/{}"
     paths = ["geobench_caffe.tortilla"]
-    sha256str = [""]
+    sha256str = ["f9aec21a2a0da3365e853c1a370b3209dca668ab7a595ac1b3b6f13446fd8939"]
 
     dataset_band_config = DatasetBandRegistry.CAFFE
     # TODO update sensor type with wavelength and resolution
 
     band_default_order = ("gray",)
 
-    normalization_stats = {"means": {"gray": 62.682498931884766}, "stds": {"gray": 79.8001937866211}}
+    normalization_stats: dict[str, dict[str, float]] = {"means": {"gray": 62.682498931884766}, "stds": {"gray": 79.8001937866211}}
 
     mask_dirs = ("zones", "zones")
 
@@ -42,28 +41,21 @@ class GeoBenchCaFFe(GeoBenchBaseDataset):
 
     num_classes = len(classes)
 
-    #px_class_values_zones = {
-    #    0: 'N/A',
-    #    64: 'rock',
-    #    127: 'glacier',
-    #    254: 'ocean/ice melange',
-    #}
-
     def __init__(
         self,
         root,
         split="train",
-        band_order: Sequence[float | str] = ["r", "g", "b"],
+        band_order: Sequence[float | str] = band_default_order,
         data_normalizer: Type[nn.Module] = MultiModalNormalizer,
         transforms: nn.Module | None = None,
         metadata: Sequence[str] | None = None,
         download: bool = False,
-    ):
+    ) -> None:
         """Initialize Caffe dataset.
 
         Args:
             root: Path to the dataset root directory
-            split: The dataset split, supports 'train', 'val', 'test'
+            split: The dataset split, supports 'train', 'validation', 'test'
             band_order: The order of bands to return, defaults to ['gray'], if one would
                 specify ['gray', 'gray', 'gray], the dataset would return the gray band three times.
             data_normalizer: The data normalizer to apply to the data, defaults to :class:`data_util.MultiModalNormalizer`,
@@ -106,7 +98,6 @@ class GeoBenchCaFFe(GeoBenchBaseDataset):
         with rasterio.open(mask_path) as f:
             mask = f.read(1)
         mask = torch.from_numpy(mask).long()
-        #mask = self.ordinal_map_zones[mask]
 
         image_dict = self.rearrange_bands(image, self.band_order)
         image_dict = self.data_normalizer(image_dict)

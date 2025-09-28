@@ -3,15 +3,15 @@
 
 """Kuro Siwo dataset."""
 
+from collections.abc import Mapping, Sequence
 from torch import Tensor
 from torchgeo.datasets import SpaceNet6
 from pathlib import Path
-from typing import Sequence, Type, Literal
+from typing import Type, Literal, cast
 import torch.nn as nn
-
 from .sensor_util import DatasetBandRegistry
 from .base import GeoBenchBaseDataset
-from .data_util import MultiModalNormalizer
+from .normalization import MultiModalNormalizer
 import torch.nn as nn
 import rasterio
 import numpy as np
@@ -22,30 +22,24 @@ class GeoBenchKuroSiwo(GeoBenchBaseDataset):
     """Kuro Siwo Flood Change Detection Dataset.
 
     Classes:
-    0. NO-Water
-    1. Permanent Water
-    2. Flood
-    3. No-Data
+    1. NO-Water
+    2. Permanent Water
+    3. Flood
+    0. No-Data
 
     """
 
     url = "https://hf.co/datasets/aialliance/kuro_siwo/resolve/main/{}"
 
     paths = [
-        # "kurosiwo.0000.part.tortilla",
-        # "kurosiwo.0001.part.tortilla",
-        # "kurosiwo.0002.part.tortilla",
-        # "kurosiwo.0003.part.tortilla",
-        # "kurosiwo.0004.part.tortilla",
-        # "kurosiwo.0005.part.tortilla",
         "geobench_kuro_siwo.tortilla"
     ]
 
-    sha256str = [""]
+    sha256str = ["0b546c54df70cb7548081df688cc2317f00f7b81e541e09fa0ddcd787d647eef"]
 
     dataset_band_config = DatasetBandRegistry.KURO_SIWO
 
-    band_default_order = {"sar": ("vv", "vh"), "dem": ("dem",)}
+    band_default_order: dict[str, list[str]] = {"sar": ["vv", "vh"], "dem": ["dem"]}
 
     # https://github.com/Orion-AI-Lab/KuroSiwo/blob/2b9491629ffd9e1322eea4eaaf88fbaecef6d9b3/configs/train/data_config.json#L16
     # "data_mean": [0.0953, 0.0264],
@@ -53,17 +47,15 @@ class GeoBenchKuroSiwo(GeoBenchBaseDataset):
     # "dem_mean":93.4313,
     # "dem_std":1410.8382,
 
-    normalization_stats = {
+    normalization_stats: dict[str, dict[str, float]]  = {
         "means": {"vv": 0.0953, "vh": 0.0264, "dem": 93.4313},
         "stds": {"vv": 0.0427, "vh": 0.0215, "dem": 1410.8382},
     }
 
-    # classes = ("No Water", "Permanent Water", "Flood", "No Data")
     classes = ("No Data", "No Water", "Permanent Water", "Flood")
 
     num_classes = len(classes)
 
-    # TODO should move no-data to 0 and have that as ignore_index
     CLASS_MAPPING = {
         0: 1,  # No Water -> 1
         1: 2,  # Permanent Water -> 2
@@ -91,10 +83,17 @@ class GeoBenchKuroSiwo(GeoBenchBaseDataset):
             data_normalizer: Data normalizer
             transforms: Data transforms
             return_stacked_image: if true, returns a single image tensor with all modalities stacked in band_order
+            time_step: Time step for dataset
+            download: whether to download the dataset
         """
+        split_norm: Literal["train", "validation", "test"]
+        if split == "val":
+            split_norm = "validation"
+        else:
+            split_norm = cast(Literal["train", "validation", "test"], split)
         super().__init__(
             root=root,
-            split=split,
+            split=split_norm,
             band_order=band_order,
             data_normalizer=data_normalizer,
             transforms=transforms,
@@ -107,7 +106,9 @@ class GeoBenchKuroSiwo(GeoBenchBaseDataset):
                     "time_step must include at least one item from  ['pre_1, , 'pre_2', 'post']"
                 )
         for i in time_step:
-            assert i in ['pre_1', 'pre_2', 'post'], "time_step must include at least one item from  ['pre_1, , 'pre_2', 'post']"
+            assert i in ['pre_1', 'pre_2', 'post'], (
+                "time_step must include at least one item from  ['pre_1, , 'pre_2', 'post']"
+                )
         self.time_step = time_step
 
     def __getitem__(self, index: int) -> dict[str, Tensor]:

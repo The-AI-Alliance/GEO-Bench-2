@@ -3,14 +3,15 @@
 
 """SpaceNet8 dataset."""
 
+from collections.abc import Sequence
 from torch import Tensor
 from torchgeo.datasets import SpaceNet8
 from pathlib import Path
-from typing import Type, Sequence
+from typing import Type
 from shapely import wkt
 
 from .sensor_util import DatasetBandRegistry
-from .data_util import MultiModalNormalizer
+from .normalization import MultiModalNormalizer
 from .base import GeoBenchBaseDataset
 import torch.nn as nn
 import rasterio
@@ -40,7 +41,7 @@ class GeoBenchSpaceNet8(GeoBenchBaseDataset):
 
     dataset_band_config = DatasetBandRegistry.SPACENET8
 
-    normalization_stats = {
+    normalization_stats: dict[str, dict[str, float]] = {
         "means": {"r": 65.36776733398438, "g": 84.85777282714844, "b": 57.087120056152344},
         "stds": {"r": 44.107696533203125, "g": 37.45336151123047, "b": 35.882049560546875},
     }
@@ -61,10 +62,10 @@ class GeoBenchSpaceNet8(GeoBenchBaseDataset):
     def __init__(
         self,
         root: Path,
-        split: str,
+        split: Literal["train", "val", "validation", "test"],
         band_order: list[str] = band_default_order,
         data_normalizer: Type[nn.Module] = MultiModalNormalizer,
-        transforms: nn.Module = None,
+        transforms:  nn.Module | None = None,
         metadata: Sequence[str] | None = None,
         return_stacked_image: bool = False,
         time_step: Sequence[str] = ["pre", "post"],
@@ -74,7 +75,7 @@ class GeoBenchSpaceNet8(GeoBenchBaseDataset):
 
         Args:
             root: Path to the dataset root directory
-            split: The dataset split, supports 'train', 'val', 'test'
+            split: The dataset split, supports 'train', 'validation', 'test'
             band_order: The order of bands to return, defaults to ['red', 'green', 'blue'], if one would
                 specify ['red', 'green', 'blue', 'blue', 'blue'], the dataset would return images with 5 channels
                 in that order. This is useful for models that expect a certain band order, or
@@ -85,10 +86,16 @@ class GeoBenchSpaceNet8(GeoBenchBaseDataset):
                 __getitem__ method. If None, no metadata is returned.
             time_step: list of image time steps to include from the list ["pre", "post"]
             return_stacked_image: if true, returns a single image tensor with all modalities stacked in band_order
+            download: Whether to download the dataset
         """
+        split_norm: Literal["train", "validation", "test"]
+        if split == "val":
+            split_norm = "validation"
+        else:
+            split_norm = cast(Literal["train", "validation", "test"], split)
         super().__init__(
             root=root,
-            split=split,
+            split=split_norm,
             band_order=band_order,
             data_normalizer=data_normalizer,
             transforms=transforms,
@@ -99,10 +106,10 @@ class GeoBenchSpaceNet8(GeoBenchBaseDataset):
         
         if len(time_step) == 0:
             raise ValueError(
-                    "time_step must include at least one item from  ['pre, 'post']"
+                    "time_step must include at least one item from  ['pre', 'post']"
                 )
         for i in time_step:
-            assert i in ["pre", "post"], "time_step must include at least one item from  ['pre, 'post']"
+            assert i in ["pre", "post"], "time_step must include at least one item from  ['pre', 'post']"
         self.time_step = time_step
 
     def __getitem__(self, index: int) -> dict[str, Tensor]:
@@ -122,13 +129,11 @@ class GeoBenchSpaceNet8(GeoBenchBaseDataset):
         post_event_path = sample_row.read(1)
         mask_path = sample_row.read(2)
 
-        with (
-            rasterio.open(pre_event_path) as pre_src,
-            rasterio.open(post_event_path) as post_src,
-            rasterio.open(mask_path) as mask_src,
-        ):
+        with rasterio.open(pre_event_path) as pre_src:
             pre_image: np.ndarray = pre_src.read(out_dtype="float32")
+        with rasterio.open(post_event_path) as post_src:
             post_image: np.ndarray = post_src.read(out_dtype="float32")
+        with rasterio.open(mask_path) as mask_src:
             mask: np.ndarray = mask_src.read()
 
         image_pre = torch.from_numpy(pre_image).float()

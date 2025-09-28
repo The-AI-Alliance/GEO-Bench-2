@@ -4,19 +4,14 @@
 """HLS Burn Scars Dataset."""
 
 from collections.abc import Sequence
-
 import rasterio
 import torch
 import torch.nn as nn
 from shapely import wkt
 from torch import Tensor
-
 from .base import GeoBenchBaseDataset
 from typing import Sequence, Type, Literal
-
-from .data_util import MultiModalNormalizer
-
-# from .normalization import ZScoreNormalizer
+from .normalization import MultiModalNormalizer, ZScoreNormalizer
 from .sensor_util import DatasetBandRegistry
 import pdb
 
@@ -32,7 +27,7 @@ class GeoBenchBurnScars(GeoBenchBaseDataset):
 
     band_default_order = dataset_band_config.default_order
 
-    # normalization_stats = {
+    # normalization_stats: dict[str, dict[str, float]] = {
     #     "means": {
     #         "B02": 0.0333497067415863,
     #         "B03": 0.0570118552053618,
@@ -52,7 +47,7 @@ class GeoBenchBurnScars(GeoBenchBaseDataset):
     # }
 
 
-    normalization_stats = {
+    normalization_stats: dict[str, dict[str, float]] = {
         "means": {
             "B02": 0.0,
             "B03": 0.0,
@@ -81,16 +76,15 @@ class GeoBenchBurnScars(GeoBenchBaseDataset):
         split="train",
         band_order: Sequence[float | str] = band_default_order,
         data_normalizer: Type[nn.Module] = MultiModalNormalizer,
-        # data_normalizer: type[nn.Module] = ZScoreNormalizer,
         transforms: nn.Module | None = None,
         metadata: Sequence[str] | None = None,
         download: bool = False,
-    ):
+    ) -> None:
         """Initialize Burn Scars dataset.
 
         Args:
             root: Path to the dataset root directory
-            split: The dataset split, supports 'train', 'val', 'test'
+            split: The dataset split, supports 'train', 'validation', 'test'
             band_order: The order of bands to return, defaults to ['gray'], if one would
                 specify ['gray', 'gray', 'gray], the dataset would return the gray band three times.
             data_normalizer: The data normalizer to apply to the data, defaults to :class:`data_util.ZScoreNormalizer`,
@@ -141,7 +135,7 @@ class GeoBenchBurnScars(GeoBenchBaseDataset):
         image_dict = self.data_normalizer(image_dict)
 
         sample.update(image_dict)
-        mask[mask==-1] = 2
+        mask[mask==-1] = 2 #change no data values to 2
         sample["mask"] = mask
         
 

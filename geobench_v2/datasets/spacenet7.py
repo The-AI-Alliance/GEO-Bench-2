@@ -3,14 +3,15 @@
 
 """SpaceNet7 dataset."""
 
+from collections.abc import Sequence
 from torch import Tensor
 from torchgeo.datasets import SpaceNet7
 from pathlib import Path
-from typing import Type, Sequence
+from typing import Type, Literal, cast
 from shapely import wkt
 
 from .sensor_util import DatasetBandRegistry
-from .data_util import MultiModalNormalizer
+from .normalization import MultiModalNormalizer
 from .base import GeoBenchBaseDataset
 import torch.nn as nn
 import rasterio
@@ -28,10 +29,9 @@ class GeoBenchSpaceNet7(GeoBenchBaseDataset):
 
     url = "https://hf.co/datasets/aialliance/spacenet7/resolve/main/{}"
 
-    # paths = ["SpaceNet7.tortilla"]
     paths = ["geobench_spacenet7.tortilla"]
 
-    sha256str = [""]
+    sha256str = ["dc2364926ce2b247d183f77fadf778f3a679d6be6ef891ffed92cff230722ee4"]
 
     dataset_band_config = DatasetBandRegistry.SPACENET7
 
@@ -51,7 +51,7 @@ class GeoBenchSpaceNet7(GeoBenchBaseDataset):
     def __init__(
         self,
         root: Path,
-        split: str,
+        split: Literal["train", "val", "validation", "test"],
         band_order: list[str] = band_default_order,
         data_normalizer: Type[nn.Module] = MultiModalNormalizer,
         transforms: nn.Module = None,
@@ -62,7 +62,7 @@ class GeoBenchSpaceNet7(GeoBenchBaseDataset):
 
         Args:
             root: Path to the dataset root directory
-            split: The dataset split, supports 'train', 'val', 'test'
+            split: The dataset split, supports 'train', 'validation', 'test'
             band_order: The order of bands to return, defaults to ['red', 'green', 'blue'], if one would
                 specify ['red', 'green', 'blue', 'blue', 'blue'], the dataset would return images with 5 channels
                 in that order. This is useful for models that expect a certain band order, or
@@ -71,10 +71,16 @@ class GeoBenchSpaceNet7(GeoBenchBaseDataset):
             transforms: The transforms to apply to the data, defaults to None
             metadata: metadata names to be returned as part of the sample in the
                 __getitem__ method. If None, no metadata is returned.
+            download: Whether to download the dataset
         """
+        split_norm: Literal["train", "validation", "test"]
+        if split == "val":
+            split_norm = "validation"
+        else:
+            split_norm = cast(Literal["train", "validation", "test"], split)
         super().__init__(
             root=root,
-            split=split,
+            split=split_norm,
             band_order=band_order,
             data_normalizer=data_normalizer,
             transforms=transforms,

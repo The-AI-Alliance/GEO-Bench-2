@@ -6,21 +6,19 @@
 
 """BigEarthNet V2 Dataset."""
 
+from collections.abc import Mapping, Sequence
 from torch import Tensor
 from torchgeo.datasets import SpaceNet6
 from pathlib import Path
-from typing import Sequence, Type, Dict
+from typing import Type, Dict
 import torch.nn as nn
-
 from .sensor_util import DatasetBandRegistry
 from .base import GeoBenchBaseDataset
-from .data_util import MultiModalNormalizer
+from .normalization import MultiModalNormalizer, ZScoreNormalizer
 import torch.nn as nn
 import rasterio
 import numpy as np
 import torch
-
-from rasterio.enums import Resampling
 
 
 class GeoBenchBENV2(GeoBenchBaseDataset):
@@ -36,7 +34,7 @@ class GeoBenchBENV2(GeoBenchBaseDataset):
     paths: Sequence[str] = ["geobench_benv2.tortilla"]
 
     sha256str: Sequence[str] = [
-        "e1a3b214bd6118d39ec2c0c34b310de7b8e048b4914f8aa52aa6b24625c2b286"
+        "330876e91199cb179113224c6e4e9632f8971446fe29ffbb035e5b8bbdee8319"
     ]
 
     band_default_order = {
@@ -94,12 +92,6 @@ class GeoBenchBENV2(GeoBenchBaseDataset):
         },
     }
 
-    # paths: Sequence[str] = (
-    #     "FullBenV2.0000.part.tortilla",
-    #     "FullBenV2.0001.part.tortilla",
-    #     "FullBenV2.0002.part.tortilla",
-    # )
-
     label_names: Sequence[str] = (
         "Urban fabric",
         "Industrial or commercial units",
@@ -126,17 +118,19 @@ class GeoBenchBENV2(GeoBenchBaseDataset):
 
     num_classes: int = len(label_names)
 
+    multilabel: bool = True
+
     valid_metadata: Sequence[str] = ("lat", "lon")
 
     def __init__(
         self,
         root: Path,
-        split: str,
+        split: Literal["train", "val", "validation", "test"],
         rename_modalities: dict | None = None, 
         band_order: dict[str, Sequence[float | str]] = {"s2": ["B04", "B03", "B02"]},
         data_normalizer: Type[nn.Module] = MultiModalNormalizer,
         transforms: nn.Module | None = None,
-        metadata: Sequence[str] = None,
+        metadata: Sequence[str] | None = None,
         return_stacked_image: bool = False,
         download: bool = False,
     ) -> None:
@@ -144,7 +138,7 @@ class GeoBenchBENV2(GeoBenchBaseDataset):
 
         Args:
             root: Path to the dataset root directory
-            split: The dataset split, supports 'train', 'val', 'test'
+            split: The dataset split, supports 'train', 'validation', 'test'
             band_order: The order of bands to return, defaults to ['B04', 'B03', 'B02'], if one would
                 specify ['B04', 'B03', 'B02], the dataset would return the red, green, and blue bands.
                 This is useful for models that expect a certain band order, or
@@ -155,11 +149,17 @@ class GeoBenchBENV2(GeoBenchBaseDataset):
             metadata: metadata names to be returned under specified keys as part of the sample in the
                 __getitem__ method. If None, no metadata is returned.
             return_stacked_image: If True, return the stacked modalities across channel dimension instead of the individual modalities.
+            download: Whether to download the dataset
             rename_modalities: dictionary with information to rename modalities in output e.g. {image: {s1:  S1RTC, s2: S2L2A}}
         """
+        split_norm: Literal["train", "validation", "test"]
+        if split == "val":
+            split_norm = "validation"
+        else:
+            split_norm = cast(Literal["train", "validation", "test"], split)
         super().__init__(
             root=root,
-            split=split,
+            split=split_norm,
             band_order=band_order,
             data_normalizer=data_normalizer,
             transforms=transforms,

@@ -3,14 +3,15 @@
 
 """SpaceNet2 dataset."""
 
+from collections.abc import Mapping, Sequence
 from torch import Tensor
 from torchgeo.datasets import SpaceNet2
 from pathlib import Path
-from typing import Type, Literal, Sequence
+from typing import Type, Literal, cast
 from shapely import wkt
 
 from .sensor_util import DatasetBandRegistry
-from .data_util import MultiModalNormalizer
+from .normalization import MultiModalNormalizer
 from .base import GeoBenchBaseDataset
 import torch.nn as nn
 import rasterio
@@ -30,25 +31,20 @@ class GeoBenchSpaceNet2(GeoBenchBaseDataset):
 
     url = "https://hf.co/datasets/aialliance/spacenet2/resolve/main/{}"
 
-    # paths = [
-    #     "SpaceNet2.0000.part.tortilla",
-    #     "SpaceNet2.0001.part.tortilla",
-    #     "SpaceNet2.0002.part.tortilla",
-    #     "SpaceNet2.0003.part.tortilla",
-    #     "SpaceNet2.0004.part.tortilla",
-    # ]
-
     paths = [
         "geobench_spacenet2.0000.part.tortilla",
         "geobench_spacenet2.0001.part.tortilla",
         "geobench_spacenet2.0002.part.tortilla",
     ]
 
-    sha256str = ["", "", ""]
+    sha256str = [
+        "97e47bca68e482bed0fe44d5e1d799cbbef7828374a1a7e5cf9687385047183a", 
+        "66bfd89e7d80ceaef88a439034ab771e61ee396b8a3e785817e876c9c0a35163", 
+        "bcfcaedef82d7b49bc9bf23cb34fcf50e83d25fdb14e50332bfeabeb793b3e03"]
 
     dataset_band_config = DatasetBandRegistry.SPACENET2
 
-    normalization_stats = {
+    normalization_stats: dict[str, dict[str, float]]  = {
         "means": {
             "coastal": 298.7280578613281,
             "blue": 358.0099182128906,
@@ -96,11 +92,11 @@ class GeoBenchSpaceNet2(GeoBenchBaseDataset):
     def __init__(
         self,
         root: Path,
-        split: str,
+        split: Literal["train", "val", "validation", "test"],
         band_order: list[str] = band_default_order,
         data_normalizer: Type[nn.Module] = MultiModalNormalizer,
         label_type: Literal["instance_seg", "semantic_seg"] = "semantic_seg",
-        transforms: nn.Module = None,
+        transforms: nn.Module | None = None,
         metadata: Sequence[str] | None = None,
         return_stacked_image: bool = False,
         download: bool = False,
@@ -109,22 +105,29 @@ class GeoBenchSpaceNet2(GeoBenchBaseDataset):
 
         Args:
             root: Path to the dataset root directory
-            split: The dataset split, supports 'train', 'val', 'test'
+            split: The dataset split, supports 'train', 'validation', 'test'
             label_type: The type of label to return, supports 'instance_seg' or 'semantic_seg'
             band_order: The order of bands to return, defaults to ['red', 'green', 'blue'], if one would
                 specify ['red', 'green', 'blue', 'blue', 'blue'], the dataset would return images with 5 channels
                 in that order. This is useful for models that expect a certain band order, or
                 test the impact of band order on model performance.
-            data_normalizer:
-            label_type:
+            data_normalizer: The data normalizer to apply to the data, defaults to :class:`data_util.MultiModalNormalizer`,
+                which applies z-score normalization to each band.
+            label_type: The type of label to return, supports 'instance_seg' or 'semantic_seg'
             transforms: The transforms to apply to the data, defaults to None
             metadata: metadata names to be returned as part of the sample in the
                 __getitem__ method. If None, no metadata is returned.
             return_stacked_image: if true, returns a single image tensor with all modalities stacked in band_order
+            download: Whether to download the dataset
         """
+        split_norm: Literal["train", "validation", "test"]
+        if split == "val":
+            split_norm = "validation"
+        else:
+            split_norm = cast(Literal["train", "validation", "test"], split)
         super().__init__(
             root=root,
-            split=split,
+            split=split_norm,
             band_order=band_order,
             data_normalizer=data_normalizer,
             transforms=transforms,

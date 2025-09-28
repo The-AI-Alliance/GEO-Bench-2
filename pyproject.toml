@@ -118,6 +118,7 @@ all = [
 Documentation = "https://geo-bench-2.readthedocs.io/en/latest/"
 Issues = "https://github.com/The-AI-Alliance/GEO-Bench-2/issues"
 Source = "https://github.com/The-AI-Alliance/GEO-Bench-2"
+# Download = #TODO downlaod link in HF
 
 # [project.scripts]
 # geobench = "geobench_v2.main:main"

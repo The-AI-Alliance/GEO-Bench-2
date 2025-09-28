@@ -3,15 +3,15 @@
 
 """Flair 2 Aerial Dataset."""
 
+from collections.abc import Mapping, Sequence
 from torch import Tensor
 from torchgeo.datasets import SpaceNet6
 from pathlib import Path
-from typing import Sequence, Type
+from typing import Type, Literal, cast
 import torch.nn as nn
-
 from .sensor_util import DatasetBandRegistry
 from .base import GeoBenchBaseDataset
-from .data_util import MultiModalNormalizer
+from .normalization import MultiModalNormalizer, ZScoreNormalizer
 import torch.nn as nn
 import rasterio
 import numpy as np
@@ -24,16 +24,7 @@ class GeoBenchFLAIR2(GeoBenchBaseDataset):
 
     url = "https://hf.co/datasets/aialliance/flair2/resolve/main/{}"
 
-    sha256str = ["1d11c38a775bafc5a0790bac3b257b02203b8f0f2c6e285bebccb2917dd3d3ed"]
-
-    # paths: Sequence[str] = (
-    #     "FullFlair2.0000.part.tortilla",
-    #     "FullFlair2.0001.part.tortilla",
-    #     "FullFlair2.0002.part.tortilla",
-    #     "FullFlair2.0003.part.tortilla",
-    #     "FullFlair2.0004.part.tortilla",
-    #     "FullFlair2.0005.part.tortilla",
-    # )
+    sha256str = ["96d18b1e7673fa2233145d69fd67db530c53bf68027b30466f7c94fd456df689"]
 
     paths: Sequence[str] = ["geobench_flair2.tortilla"]
 
@@ -57,7 +48,7 @@ class GeoBenchFLAIR2(GeoBenchBaseDataset):
 
     dataset_band_config = DatasetBandRegistry.FLAIR2
 
-    normalization_stats = {
+    normalization_stats: dict[str, dict[str, float]] = {
         "means": {"r": 110.30502319335938, "g": 114.79083251953125, "b": 105.6126937866211, "nir": 104.3409194946289, "elevation": 17.69650650024414},
         "stds": {"r": 50.71001052856445, "g": 44.31645584106445, "b": 43.294822692871094, "nir": 39.049617767333984, "elevation": 29.94267463684082},
     }
@@ -69,13 +60,13 @@ class GeoBenchFLAIR2(GeoBenchBaseDataset):
     def __init__(
         self,
         root,
-        split="train",
+        split: Literal["train", "val", "validation", "test"],
         band_order: Sequence[float | str] = ["r", "g", "b"],
         data_normalizer: Type[nn.Module] = MultiModalNormalizer,
         transforms: nn.Module | None = None,
         metadata: Sequence[str] | None = None,
         download: bool = False,
-    ):
+    ) -> None:
         """Initialize FLAIR 2 dataset.
 
         Args:
@@ -85,14 +76,22 @@ class GeoBenchFLAIR2(GeoBenchBaseDataset):
                 specify ['r', 'g', 'b', 'nir'], the dataset would return images with 4 channels
             data_normalizer: The data normalizer to apply to the data, defaults to :class:`data_util.MultiModalNormalizer`,
                 which applies z-score normalization to each band.
-            transforms:
+            transforms: The transforms to apply to the data, defaults to None
+            metadata: metadata names to be returned as part of the sample in the
+                __getitem__ method. If None, no metadata is returned.
+            download: Whether to download the dataset
 
         Raises:
             AssertionError: If split is not in the splits
         """
+        split_norm: Literal["train", "validation", "test"]
+        if split == "val":
+            split_norm = "validation"
+        else:
+            split_norm = cast(Literal["train", "validation", "test"], split)
         super().__init__(
             root=root,
-            split=split,
+            split=split_norm,
             band_order=band_order,
             data_normalizer=data_normalizer,
             transforms=transforms,

@@ -6,17 +6,16 @@
 import os
 import numpy as np
 import rasterio
-
-
-from typing import Sequence, ClassVar, Union, Type, Literal
+from collections.abc import Sequence
+from typing import ClassVar, Union, Type, Literal
 import torch
 import torch.nn as nn
 from torch import Tensor
 from torchgeo.datasets import NonGeoDataset
-
 from .sensor_util import DatasetBandRegistry
 from .base import GeoBenchBaseDataset
-from .data_util import DataUtilsMixin, MultiModalNormalizer
+from .data_util import DataUtilsMixin, 
+from .normalization import MultiModalNormalizer, ZScoreNormalizer
 import tacoreader
 import numpy as np
 from shapely import wkt
@@ -54,7 +53,9 @@ class GeoBenchCloudSen12(GeoBenchBaseDataset):
 
     dataset_band_config = DatasetBandRegistry.CLOUDSEN12
 
-    normalization_stats = {
+    band_default_order = DatasetBandRegistry.CLOUDSEN12.default_order
+
+    normalization_stats: dict[str, dict[str, float]]  = {
         "means": {
             "B01": 2030.244384765625,
             "B02": 2074.817138671875,
@@ -109,6 +110,7 @@ class GeoBenchCloudSen12(GeoBenchBaseDataset):
             transforms: Image resize transform on sample level
             metadata: metadata names to be returned under specified keys as part of the sample in the
                 __getitem__ method. If None, no metadata is returned.
+            download: Whether to download the dataset
 
         Raises:
             AssertionError: If split is not in the splits
@@ -139,11 +141,9 @@ class GeoBenchCloudSen12(GeoBenchBaseDataset):
         image_path: str = l2a_row.read(0)
         target_path: str = l2a_row.read(1)
 
-        with (
-            rasterio.open(image_path) as image_src,
-            rasterio.open(target_path) as target_src,
-        ):
+        with rasterio.open(image_path) as image_src:
             image_data: np.ndarray = image_src.read(out_dtype="float32")
+        with rasterio.open(target_path) as target_src:
             target_data: np.ndarray = target_src.read()
 
         image = torch.from_numpy(image_data).float()

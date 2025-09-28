@@ -182,6 +182,149 @@ class GeoBenchDataModule(LightningDataModule, ABC):
         """
         raise NotImplementedError
 
+    def visualize_geospatial_distribution(
+        self,
+        split_column: str = "tortilla:data_split",
+        buffer_degrees: float = 5.0,
+        sample_fraction: float | None = None,
+        scale: Literal["10m", "50m", "110m"] = "50m",
+        alpha: float = 0.5,
+        s: float = 10,
+    ) -> plt.Figure:
+        """Visualize the geospatial distribution of dataset samples on a map.
+
+        Creates a plot showing the geographic locations of samples, colored by dataset split
+        (train, validation, test, extra_test). This helps to understand the spatial distribution
+        and potential geographic biases in the dataset.
+
+        Args:
+            split_column: Column name in the metadata DataFrame that indicates the dataset split.
+            buffer_degrees: Buffer around the data extent in degrees.
+            sample_fraction: Optional fraction of samples to plot (0.0-1.0) for performance with large datasets.
+            scale: Scale of cartopy features (e.g., '10m', '50m', '110m').
+            alpha: Transparency of plotted points.
+            s: Size of plotted points.
+
+        Returns:
+            A matplotlib Figure object with the geospatial distribution plot.
+        """
+        data_df = self.load_metadata()
+
+        # Standardize coordinate columns
+        if "lat" not in data_df.columns or "lon" not in data_df.columns:
+            if "latitude" in data_df.columns and "longitude" in data_df.columns:
+                data_df = data_df.rename(
+                    columns={"latitude": "lat", "longitude": "lon"}
+                )
+            else:
+                raise ValueError(
+                    "Metadata is missing required latitude and longitude information"
+                )
+
+        # Optional sub-sampling for performance
+        if sample_fraction is not None and 0.0 < sample_fraction < 1.0:
+            data_df = data_df.sample(frac=sample_fraction, random_state=0)
+
+        dataset_name = self.__class__.__name__.replace("DataModule", "")
+
+        # Compute extent with buffer and clamp to world bounds
+        min_lon = max(-180, data_df["lon"].min() - buffer_degrees)
+        max_lon = min(180, data_df["lon"].max() + buffer_degrees)
+        min_lat = max(-90, data_df["lat"].min() - buffer_degrees)
+        max_lat = min(90, data_df["lat"].max() + buffer_degrees)
+
+        fig = plt.figure(figsize=(20, 16))
+        lon_extent = max_lon - min_lon
+        lat_extent = max_lat - min_lat
+
+        # Choose projection based on extent
+        if lon_extent > 180:
+            projection = ccrs.Robinson()
+        else:
+            central_lon = (min_lon + max_lon) / 2
+            central_lat = (min_lat + max_lat) / 2
+            if lat_extent > 60:
+                projection = ccrs.AlbersEqualArea(
+                    central_longitude=central_lon, central_latitude=central_lat
+                )
+            else:
+                projection = ccrs.LambertConformal(
+                    central_longitude=central_lon, central_latitude=central_lat
+                )
+
+        ax = plt.axes(projection=projection)
+        ax.set_extent([min_lon, max_lon, min_lat, max_lat], crs=ccrs.PlateCarree())
+
+        # Base features
+        ax.add_feature(cfeature.LAND.with_scale(scale), facecolor="lightgray")
+        ax.add_feature(cfeature.OCEAN.with_scale(scale), facecolor="lightblue")
+        ax.add_feature(cfeature.COASTLINE.with_scale(scale), linewidth=0.8)
+        ax.add_feature(cfeature.BORDERS.with_scale(scale), linewidth=0.8, linestyle=":")
+        if lon_extent < 90:
+            ax.add_feature(cfeature.RIVERS, linewidth=0.2, alpha=0.5)
+            ax.add_feature(cfeature.LAKES, facecolor="lightblue", alpha=0.5)
+
+        # Normalize split names and incorporate extra test if available
+        plot_col = "plot_split"
+        data_df[plot_col] = (
+            data_df[split_column].astype(str).replace({"val": "validation"})
+        )
+
+        # Stable split order for legend
+        desired_order = ["train", "validation", "test", "extra_test"]
+        present = [sp for sp in desired_order if sp in set(data_df[plot_col].unique())]
+        others = [sp for sp in data_df[plot_col].unique() if sp not in present]
+        splits = present + others
+
+        split_colors = {"train": "blue", "validation": "green", "test": "red"}
+
+        legend_elements: list[Line2D] = []
+        for split in splits:
+            split_data = data_df[data_df[plot_col] == split]
+            if len(split_data) == 0:
+                continue
+            color = split_colors.get(split, "gray")
+            ax.scatter(
+                split_data["lon"],
+                split_data["lat"],
+                transform=ccrs.PlateCarree(),
+                c=color,
+                s=s,
+                alpha=alpha,
+                label=split,
+            )
+            legend_elements.append(
+                Line2D(
+                    [0],
+                    [0],
+                    marker="o",
+                    color="w",
+                    markerfacecolor=color,
+                    markersize=8,
+                    label=f"{split} (n={len(split_data)})",
+                )
+            )
+
+        ax.legend(handles=legend_elements, loc="lower right", title="Dataset Splits")
+
+        # Gridlines and title
+        gl = ax.gridlines(
+            draw_labels=True, linewidth=0.5, color="gray", alpha=0.5, linestyle="--"
+        )
+        gl.top_labels = False
+        gl.right_labels = False
+        plt.title(
+            f"Geographic Distribution of {dataset_name} Samples by Split", fontsize=14
+        )
+
+        return fig
+
+    # @abstractmethod
+    # def visualize_target_distribution(self) -> None:
+    #     """Visualize the target distribution of the dataset."""
+    #     # for single vector targets this should be easy, but how to make this easier for pixel-wise targets, also store in metadata?
+    #     pass
+
 
     @abstractmethod
     def visualize_geolocation_distribution(self) -> None:

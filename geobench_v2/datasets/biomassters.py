@@ -3,14 +3,15 @@
 
 """Biomassters dataset."""
 
+from collections.abc import Sequence
 from torch import Tensor
 from pathlib import Path
-from typing import Sequence, Type, Dict
+from typing import Type, Dict
 import torch.nn as nn
 
 from .sensor_util import DatasetBandRegistry
 from .base import GeoBenchBaseDataset
-from .data_util import MultiModalNormalizer
+from .normalization import MultiModalNormalizer, ZScoreNormalizer
 import torch.nn as nn
 import rasterio
 import numpy as np
@@ -28,40 +29,21 @@ class GeoBenchBioMassters(GeoBenchBaseDataset):
     """
 
     url = "https://hf.co/datasets/aialliance/biomassters/resolve/main/{}"
-    # paths = [
-    #     "BioMassters.0000.part.tortilla",
-    #     "BioMassters.0001.part.tortilla",
-    #     "BioMassters.0002.part.tortilla",
-    #     "BioMassters.0003.part.tortilla",
-    #     "BioMassters.0004.part.tortilla",
-    #     "BioMassters.0005.part.tortilla",
-    #     "BioMassters.0006.part.tortilla",
-    #     "BioMassters.0007.part.tortilla",
-    #     "BioMassters.0008.part.tortilla",
-    #     "BioMassters.0009.part.tortilla",
-    #     "BioMassters.0010.part.tortilla",
-    #     "BioMassters.0011.part.tortilla",
-    #     "BioMassters.0012.part.tortilla",
-    #     "BioMassters.0013.part.tortilla",
-    #     "BioMassters.0014.part.tortilla",
-    #     "BioMassters.0015.part.tortilla",
-    # ]
-
     paths = [
         "geobench_biomassters.0000.part.tortilla",
-        "geobench_biomassters.0001.part.tortilla",
-        "geobench_biomassters.0002.part.tortilla",
-        "geobench_biomassters.0003.part.tortilla",
-        "geobench_biomassters.0004.part.tortilla",
-        "geobench_biomassters.0005.part.tortilla",
-        "geobench_biomassters.0006.part.tortilla",
+        # "geobench_biomassters.0001.part.tortilla",
+        # "geobench_biomassters.0002.part.tortilla",
+        # "geobench_biomassters.0003.part.tortilla",
+        # "geobench_biomassters.0004.part.tortilla",
+        # "geobench_biomassters.0005.part.tortilla",
+        # "geobench_biomassters.0006.part.tortilla",
     ]
 
-    sha256str: Sequence[str] = [""]
+    sha256str: Sequence[str] = ["77682ec73a9d496eb694b6a6e65c2ee793ed9f326e6b37a9dea1b065177334ff"]
 
     dataset_band_config = DatasetBandRegistry.BIOMASSTERS
 
-    normalization_stats = {
+    normalization_stats: dict[str, dict[str, float]] = {
         "means": {
             "VH_desc": -16.17842674255371,
             "VH_asc": -16.246776580810547,
@@ -125,18 +107,19 @@ class GeoBenchBioMassters(GeoBenchBaseDataset):
 
         Args:
             root: Path to the dataset root directory
-            split: The dataset split, supports 'train', 'val', 'test'
+            split: The dataset split, supports 'train', 'validation', 'test'
             band_order: The order of bands to return, defaults to ['red', 'green', 'blue', 'nir'], if one would
                 specify ['red', 'green', 'blue', 'nir', 'nir'], the dataset would return images with 5 channels
                 in that order. This is useful for models that expect a certain band order, or
                 test the impact of band order on model performance.
             data_normalizer: The data normalizer to apply to the data, defaults to :class:`data_util.MultiModalNormalizer`,
                 which applies z-score normalization to each band.
-            transforms:
+            transforms:The transforms to apply to the data, defaults to None.
             metadata: metadata names to be returned under specified keys as part of the sample in the
                 __getitem__ method. If None, no metadata is returned.
             num_time_steps: Number of last time steps to include in the dataset, maximum is 12, for S2
                 missing time steps are filled with zeros.
+            download: Whether to download the dataset
             rename_modalities: dictionary with information to rename modalities in output e.g. {image: {sar:  S1RTC, rgbn: S2L2A}}
             **kwargs: Additional keyword arguments passed to ``torchgeo.datasets.BioMassters``
 
@@ -187,7 +170,7 @@ class GeoBenchBioMassters(GeoBenchBaseDataset):
 
         spatial_mask = None
 
-        #s1 data should always be read to obtain spatial mask
+        #s1 data should always be read
         sample_s1_row = sample_row[sample_row["modality"] == "S1"]
         s1_data = []
         for i in sample_s1_row.index[: self.num_time_steps]:

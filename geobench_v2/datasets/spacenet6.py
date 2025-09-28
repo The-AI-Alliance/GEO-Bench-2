@@ -3,13 +3,13 @@
 
 """SpaceNet6 dataset."""
 
+from collections.abc import Mapping, Sequence
 from torch import Tensor
 from torchgeo.datasets import SpaceNet6
 from pathlib import Path
-from typing import Sequence, Type, Dict
+from typing import Type, Dict, Literal, cast
 import torch.nn as nn
 from shapely import wkt
-
 from .sensor_util import DatasetBandRegistry
 from .base import GeoBenchBaseDataset
 from .data_util import MultiModalNormalizer
@@ -34,11 +34,7 @@ class GeoBenchSpaceNet6(GeoBenchBaseDataset):
     """
 
     url = "https://hf.co/datasets/aialliance/spacenet6/resolve/main/{}"
-    # paths = [
-    #     "SpaceNet6.0000.part.tortilla",
-    #     "SpaceNet6.0001.part.tortilla",
-    #     "SpaceNet6.0002.part.tortilla",
-    # ]
+
     paths = [
         "geobench_spacenet6.0000.part.tortilla",
         "geobench_spacenet6.0001.part.tortilla",
@@ -53,7 +49,7 @@ class GeoBenchSpaceNet6(GeoBenchBaseDataset):
         "sar": ("hh", "hv", "vv", "vh"),
     }
 
-    normalization_stats = {
+    normalization_stats: dict[str, dict[str, float]] = {
         "means": {
             "r": 101.56404876708984,
             "g": 140.59695434570312,
@@ -85,7 +81,7 @@ class GeoBenchSpaceNet6(GeoBenchBaseDataset):
     def __init__(
         self,
         root: Path,
-        split: str,
+        split: Literal["train", "val", "validation", "test"],
         rename_modalities: dict | None = None, 
         band_order: Sequence[str] = band_default_order,
         data_normalizer: Type[nn.Module] = MultiModalNormalizer,
@@ -99,21 +95,27 @@ class GeoBenchSpaceNet6(GeoBenchBaseDataset):
 
         Args:
             root: Path to the dataset root directory
-            split: The dataset split, supports 'train', 'val', 'test'
+            split: The dataset split, supports 'train', 'validation', 'test'
             band_order: The order of bands to return, defaults to ['red', 'green', 'blue', 'nir'], if one would
                 specify ['red', 'green', 'blue', 'nir', 'nir'], the dataset would return images with 5 channels
                 in that order. This is useful for models that expect a certain band order, or
                 test the impact of band order on model performance.
             data_normalizer: The data normalizer to apply to the data, defaults to :class:`data_util.MultiModalNormalizer`,
                 which applies z-score normalization to each band.
-            transforms:
+            transforms: image transformations to apply to the data, defaults to None
             metadata: metadata names to be returned as part of the sample in the
             return_stacked_image: if true, returns a single image tensor with all modalities stacked in band_order
             rename_modalities: dictionary with information to rename modalities in output e.g. {image: {sar:  S1RTC, rgbn: S2L2A}}
+            transforms: image transformations to apply to the data, defaults to None
         """
+        split_norm: Literal["train", "validation", "test"]
+        if split == "val":
+            split_norm = "validation"
+        else:
+            split_norm = cast(Literal["train", "validation", "test"], split)
         super().__init__(
             root=root,
-            split=split,
+            split=split_norm,
             band_order=band_order,
             data_normalizer=data_normalizer,
             transforms=transforms,
