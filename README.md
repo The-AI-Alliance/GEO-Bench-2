@@ -29,6 +29,9 @@ cd GEO-Bench-2
 pip install -e .
 ```
 
+## Download
+
+
 ## Documentation
 
 The latest documentation can be found at this [link](https://geo-bench-2.readthedocs.io/en/latest/)
