@@ -400,8 +400,7 @@ class TestZScoreNormalizer:
 
 
 class TestMultiModalNormalizer:
-    """
-    Tests the ZScoreNormalizer class with potential clip then z-score logic.
+    """Tests the MultiModalNormalizer class with potential clip then z-score logic.
 
     Verifies correct normalization (clip then z-score) and denormalization (inverse z-score only)
     behavior, handling of fill values, and both single-tensor and multi-modal dictionary inputs.
