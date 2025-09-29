@@ -4,8 +4,8 @@
 [![huggingface](https://img.shields.io/badge/Hugging_Face-join-FFD21E?logo=huggingface)](https://hf.co/datasets/aialliance/)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![Language: Python](https://img.shields.io/badge/language-Python%203.10%2B-green?logo=python&logoColor=green)](https://www.python.org)
-[![pypi](https://badge.fury.io/py/geobenchv2.svg)](https://pypi.org/project/geobenchv2) #TODO: update
-[![Docs](https://img.shields.io/badge/MkDocs-526CFE?logo=materialformkdocs&logoColor=fff)](https://geo-bench-2.readthedocs.io/en/latest/)
+[![pypi](https://badge.fury.io/py/geobenchv2.svg)](https://pypi.org/project/geobenchv2)
+[![docs](https://readthedocs.org/projects/pip/badge/)](https://geo-bench-2.readthedocs.io/en/latest/)
 
 ## Overview
 
