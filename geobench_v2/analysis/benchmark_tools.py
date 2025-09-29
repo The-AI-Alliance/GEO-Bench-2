@@ -1,22 +1,27 @@
 # Copyright (c) 2025 GeoBenchV2. All rights reserved.
 # Licensed under the Apache License 2.0.
 
-"""Utility functions to analyse results from GeoBenchV2"""
+"""Utility functions to analyse results from GeoBenchV2."""
 
-import os
 import math
 import random
 from scipy import stats
 import pandas as pd
-import numpy as np
 from itertools import product, combinations
 
 REPEATED_SEEDS_DEFAULT = 5
 
-
 def discriminativity(scores_i, scores_j, *, tie_half=True, eps=1e-12):
-    """
-    d_ij^l = 1 − H₂[p(A_i > A_j)]   (binary entropy in bits).
+    """Returns Discriminativity d_ij^l = 1 − H₂[p(A_i > A_j)] (binary entropy in bits).
+
+    Args:
+        scores_i: scores for method i
+        scores_j: scores for method j
+        tie_half: bool, describes whether to split ties
+        eps: epsilon value
+
+    Returns:
+        1.0 - h2
     """
     total = len(scores_i) * len(scores_j)
     better = ties = 0
@@ -35,23 +40,24 @@ def discriminativity(scores_i, scores_j, *, tie_half=True, eps=1e-12):
 
 
 def dataset_discriminativity(score_lists, tie_half=True, eps=1e-12):
-    """
-    Average discriminativity over every unordered pair of m algorithms:
+    """Average discriminativity over every unordered pair of m algorithms.
 
-        D_l = (2 / (m·(m−1))) · Σ_{i<j} d_ij^l
+    D_l = (2 / (m·(m−1))) · Σ_{i<j} d_ij^l
 
-    Parameters
-    ----------
-    score_lists : list[list[float]]
-        score_lists[k] holds the seed-level scores for algorithm k.
-    Returns
-    -------
-    float in [0, 1]
+    Args:
+        score_lists : list[list[float]]
+            score_lists[k] holds the seed-level scores for algorithm k.
+        tie_half: bool, describes whether to split ties
+        eps: epsilon value
+
+    Returns:
+        float in [0, 1]
     """
     pairs = combinations(range(len(score_lists)), 2)
     vals = [discriminativity(score_lists[i], score_lists[j],
                              tie_half=tie_half, eps=eps)
             for i, j in pairs]
+            
     return sum(vals) / len(vals) if vals else 0.0
 
 
@@ -59,11 +65,19 @@ def bootstrap_dataset_discriminativity(score_lists,
                                        n_iter=100, ci=0.95,
                                        tie_half=True, eps=1e-12,
                                        random_state=None):
-    """
-    Stratified bootstrap: resample seeds **within each algorithm** with
+    """Stratified bootstrapped discriminativity.
+    
+    Resample seeds **within each algorithm** with
     replacement, recompute D_l, repeat n_iter times.
 
-    Returns a dict with mean, (lower, upper) CI, and all bootstrap samples.
+    Args:
+        score_lists : list[list[float]]
+            score_lists[k] holds the seed-level scores for algorithm k.
+        tie_half: bool, describes whether to split ties
+        eps: epsilon value
+
+    Returns:
+        dict with mean, (lower, upper) CI, and all bootstrap samples.
     """
     rng = random.Random(random_state)
     boot = []
@@ -84,12 +98,13 @@ def compute_entropy_based_discriminativity(
     results: pd.DataFrame,
     num_repetitions: int = REPEATED_SEEDS_DEFAULT,
     ):
-    """
-    computes variance based discriminativity per dataset
+    """Computes variance based discriminativity per dataset.
+
     Args:
         results: dataframe of extracted results
         num_repetitions: number of repetitions used in repeated stage
-    returns:
+
+    Returns:
         pd.DataFrame with results
     """
     datasets = results["dataset"].tolist()
@@ -134,12 +149,13 @@ def compute_variance_based_discriminativity(
     results: pd.DataFrame,
     num_repetitions: int = REPEATED_SEEDS_DEFAULT,
     ):
-    """
-    computes variance based discriminativity per dataset
+    """Computes variance based discriminativity per dataset.
+
     Args:
         results: dataframe of extracted results
         num_repetitions: number of repetitions used in repeated stage
-    returns:
+
+    Returns:
         pd.DataFrame with results
     """
     datasets = results["dataset"].tolist()

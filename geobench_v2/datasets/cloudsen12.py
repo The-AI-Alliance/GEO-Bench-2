@@ -3,29 +3,24 @@
 
 """Cloud12Sen Dataset."""
 
-import os
+
 import numpy as np
 import rasterio
 from collections.abc import Sequence
-from typing import ClassVar, Union, Type, Literal
+from typing import Literal
 import torch
 import torch.nn as nn
 from torch import Tensor
-from torchgeo.datasets import NonGeoDataset
 from .sensor_util import DatasetBandRegistry
 from .base import GeoBenchBaseDataset
 from .normalization import MultiModalNormalizer
-import tacoreader
-import numpy as np
 from shapely import wkt
 
 
 class GeoBenchCloudSen12(GeoBenchBaseDataset):
     """Implementation of CloudSen12 dataset Sentinel 2 L1C.
 
-
     CloudSen12 is a dataset for cloud segmentation that provides humanly annotated Sentinel-2 L1C imagery.
-
     The dataset contains four semantic segmentation classes:
 
     0. clear: Pixels without cloud and cloud shadow contamination.
@@ -92,7 +87,7 @@ class GeoBenchCloudSen12(GeoBenchBaseDataset):
         root,
         split: Literal["train", "validation", "test"] = "train",
         band_order: Sequence[float | str] = ["B04", "B03", "B02"],
-        data_normalizer: Type[nn.Module] = MultiModalNormalizer,
+        data_normalizer: type[nn.Module] = MultiModalNormalizer,
         transforms: nn.Module | None = None,
         metadata: Sequence[str] | None = None,
         download: bool = False,

@@ -7,7 +7,7 @@ import json
 from abc import ABC, abstractmethod
 from collections.abc import Sequence
 from pathlib import Path
-from typing import Any, cast, Union, Optional
+from typing import Any, cast, Optional
 
 import torch
 import torch.nn as nn
@@ -1164,8 +1164,7 @@ class ClipOnlyNormalizer(DataNormalizer):
 
 
 class MultiModalNormalizer(nn.Module, ABC):
-    """
-    Normalization module applying sequential clipping and z-score normalization.
+    """Normalization module applying sequential clipping and z-score normalization.
 
     Applies normalization per channel based on band configuration:
     1. If 'clip_min' and 'clip_max' are defined for a band in stats:
@@ -1180,7 +1179,7 @@ class MultiModalNormalizer(nn.Module, ABC):
     def __init__(
         self,
         stats: dict[str, dict[str, float]],
-        band_order: Union[list[Union[str, float]], dict[str, list[Union[str, float]]]],
+        band_order: list[str | float] | dict[str, list[str | float]],
     ) -> None:
         """Initialize normalizer applying clip then z-score.
 
@@ -1220,7 +1219,7 @@ class MultiModalNormalizer(nn.Module, ABC):
             self.clip_mins[key], self.clip_maxs[key] = self._get_clip_values(band_order)
 
     def _get_band_stats(
-        self, bands: Sequence[Union[str, float]]
+        self, bands: Sequence[str | float]
     ) -> tuple[Tensor, Tensor, Tensor]:
         """Extract mean, std tensors and a boolean mask identifying fill value channels."""
         means, stds, is_fill = [], [], []
@@ -1242,7 +1241,7 @@ class MultiModalNormalizer(nn.Module, ABC):
         return torch.tensor(means), torch.tensor(stds), torch.tensor(is_fill)
 
     def _get_clip_values(
-        self, bands: Sequence[Union[str, float]]
+        self, bands: Sequence[str | float]
     ) -> tuple[Tensor, Tensor]:
         """Extract clip min/max tensors. Uses +/- infinity if clipping is not defined."""
         clip_mins, clip_maxs = [], []

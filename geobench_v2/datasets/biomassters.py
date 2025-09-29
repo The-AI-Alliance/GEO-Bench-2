@@ -6,17 +6,14 @@
 from collections.abc import Sequence
 from torch import Tensor
 from pathlib import Path
-from typing import Type, Dict
 import torch.nn as nn
 from .sensor_util import DatasetBandRegistry
 from .base import GeoBenchBaseDataset
 from .normalization import MultiModalNormalizer
-import torch.nn as nn
 import rasterio
 import numpy as np
 import torch
 import einops
-from PIL import Image
 
 
 class GeoBenchBioMassters(GeoBenchBaseDataset):
@@ -95,7 +92,7 @@ class GeoBenchBioMassters(GeoBenchBaseDataset):
             "s2": ["B04", "B03", "B02", "B08"],
         },
         rename_modalities: dict | None = None, 
-        data_normalizer: Type[nn.Module] = MultiModalNormalizer,
+        data_normalizer: type[nn.Module] = MultiModalNormalizer,
         transforms: nn.Module | None = None,
         metadata: Sequence[str] | None = None,
         num_time_steps: int = 1,
@@ -120,6 +117,7 @@ class GeoBenchBioMassters(GeoBenchBaseDataset):
                 missing time steps are filled with zeros.
             download: Whether to download the dataset
             rename_modalities: dictionary with information to rename modalities in output e.g. {image: {sar:  S1RTC, rgbn: S2L2A}}
+            return_stacked_image: If True, return the stacked modalities across channel dimension instead of the individual modalities.
             **kwargs: Additional keyword arguments passed to ``torchgeo.datasets.BioMassters``
 
         Raises:
@@ -288,7 +286,7 @@ class GeoBenchBioMassters(GeoBenchBaseDataset):
 
         if self.rename_modalities is not None:
             for key, value in self.rename_modalities.items():
-                if isinstance(value, Dict):
+                if isinstance(value, dict):
                     sample[key] = {}
                     for old_sub_key in value:
                         if old_sub_key in self.band_order:

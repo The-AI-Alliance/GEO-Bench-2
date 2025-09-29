@@ -3,16 +3,13 @@
 
 """Kuro Siwo dataset."""
 
-from collections.abc import Mapping, Sequence
+from collections.abc import Sequence
 from torch import Tensor
-from torchgeo.datasets import SpaceNet6
-from pathlib import Path
-from typing import Type, Literal, cast
+from typing import Literal, cast
 import torch.nn as nn
 from .sensor_util import DatasetBandRegistry
 from .base import GeoBenchBaseDataset
 from .normalization import MultiModalNormalizer
-import torch.nn as nn
 import rasterio
 import numpy as np
 import torch
@@ -68,8 +65,8 @@ class GeoBenchKuroSiwo(GeoBenchBaseDataset):
         root: str,
         split: Literal["train", "val", "test"],
         band_order: dict[str, Sequence[str]] = band_default_order,
-        data_normalizer: Type[nn.Module] = MultiModalNormalizer,
-        transforms: Type[nn.Module] = None,
+        data_normalizer: type[nn.Module] = MultiModalNormalizer,
+        transforms: type[nn.Module] = None,
         return_stacked_image: bool = False,
         time_step: Sequence[str] = ["pre_1","pre_2","post"],
         download: bool = False,

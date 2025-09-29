@@ -9,10 +9,8 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import tacoreader
 import os
-from torch import Tensor
 from matplotlib.colors import ListedColormap
 import torch
-import matplotlib.pyplot as plt
 from torchgeo.datasets.utils import percentile_normalization
 from einops import rearrange
 from geobench_v2.datasets import GeoBenchSpaceNet2

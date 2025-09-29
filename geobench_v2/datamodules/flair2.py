@@ -7,15 +7,16 @@ from collections.abc import Callable, Sequence
 from typing import Any
 import torch
 import pandas as pd
-from torch import Tensor
+import numpy as np
 import os
 import matplotlib.pyplot as plt
 from geobench_v2.datasets import GeoBenchFLAIR2
 from .base import GeoBenchSegmentationDataModule
 import torch.nn as nn
-from torch.utils.data import random_split
 from torchgeo.datasets.utils import percentile_normalization
 from einops import rearrange
+import tacoreader
+
 
 
 class GeoBenchFLAIR2DataModule(GeoBenchSegmentationDataModule):

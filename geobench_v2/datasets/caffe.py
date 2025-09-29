@@ -3,16 +3,10 @@
 
 """CaFFe Dataset."""
 
-import os
 from collections.abc import Sequence
-from typing import  Type, Literal
-import numpy as np
 import torch
-from PIL import Image
 from torch import Tensor
-from torchgeo.datasets import CaFFe
 from pathlib import Path
-import pandas as pd
 import torch.nn as nn
 import rasterio
 from shapely import wkt
@@ -46,7 +40,7 @@ class GeoBenchCaFFe(GeoBenchBaseDataset):
         root,
         split="train",
         band_order: Sequence[float | str] = band_default_order,
-        data_normalizer: Type[nn.Module] = MultiModalNormalizer,
+        data_normalizer: type[nn.Module] = MultiModalNormalizer,
         transforms: nn.Module | None = None,
         metadata: Sequence[str] | None = None,
         download: bool = False,
@@ -60,7 +54,9 @@ class GeoBenchCaFFe(GeoBenchBaseDataset):
                 specify ['gray', 'gray', 'gray], the dataset would return the gray band three times.
             data_normalizer: The data normalizer to apply to the data, defaults to :class:`data_util.MultiModalNormalizer`,
                 which applies z-score normalization to each band.
-            transforms:
+            transforms: The transforms to apply to the data, defaults to None.
+            metadata: The metadata to return, defaults to None.
+            download: Whether to download the dataset, defaults to False.
 
         Raises:
             AssertionError: If split is not in the splits

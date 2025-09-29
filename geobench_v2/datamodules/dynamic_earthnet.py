@@ -15,7 +15,6 @@ import torch
 from .base import GeoBenchSegmentationDataModule
 from .utils import TimeSeriesResize
 import torch.nn as nn
-from torch import Tensor
 from einops import rearrange
 from torchgeo.datasets.utils import percentile_normalization
 

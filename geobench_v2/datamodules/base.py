@@ -5,19 +5,17 @@
 
 from abc import ABC, abstractmethod
 from collections.abc import Callable, Sequence
-from typing import Any, Literal
 import cartopy.crs as ccrs
 import cartopy.feature as cfeature
 import kornia.augmentation as K
-import pandas as pd
-import torch.nn as nn
 from lightning import LightningDataModule
 from matplotlib import pyplot as plt
 from matplotlib.lines import Line2D
+import pandas as pd
+import torch.nn as nn
 from torch import Tensor
 from torch.utils.data import DataLoader, Dataset
-from torch.utils.data import random_split
-import einops
+from typing import Any, Literal
 from .utils import (MultiTemporalSegmentationAugmentation, 
                     MultiModalClassificationAugmentation,
                     )
@@ -787,11 +785,6 @@ class GeoBenchObjectDetectionDataModule(GeoBenchDataModule):
         if (self.eval_augmentations in ["default", "multi_temporal_default"]) or (
             self.eval_augmentations is None):
             self.eval_augmentations = nn.Identity()
-
-        if "rename_modalities" in self.kwargs:
-            self.train_augmentations = NestedMultiModalAugmentationWrapper(transforms=self.train_augmentations)
-            self.eval_augmentations = NestedMultiModalAugmentationWrapper(transforms=self.eval_augmentations)
-
 
     def setup_image_size_transforms(self) -> tuple[nn.Module, nn.Module, nn.Module]:
         """Setup image resizing transforms for train, val, test.

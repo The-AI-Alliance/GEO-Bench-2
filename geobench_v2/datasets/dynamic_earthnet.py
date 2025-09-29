@@ -6,18 +6,13 @@
 from collections.abc import Sequence
 from torch import Tensor
 from pathlib import Path
-import numpy as np
-from typing import Any, Union, Type, Literal
+from typing import Literal
 import torch
-import os
-import json
-import pandas as pd
 import torch.nn as nn
 import rasterio
 from shapely import wkt
 from .base import GeoBenchBaseDataset
 from .sensor_util import DatasetBandRegistry
-from .data_util import DataUtilsMixin
 from .normalization import  MultiModalNormalizer
 
 
@@ -130,7 +125,7 @@ class GeoBenchDynamicEarthNet(GeoBenchBaseDataset):
         band_order: dict[str, Sequence[float | str]] = {
             "planet": ["red", "green", "blue", "nir"]
         },
-        data_normalizer: Type[nn.Module] = MultiModalNormalizer,
+        data_normalizer: type[nn.Module] = MultiModalNormalizer,
         transforms: nn.Module | None = None,
         metadata: Sequence[str] | None = None,
         temporal_setting: Literal["single", "daily", "weekly"] = "single",
@@ -148,6 +143,7 @@ class GeoBenchDynamicEarthNet(GeoBenchBaseDataset):
             metadata: metadata names to be returned as part of the sample in the
                 __getitem__ method. If None, no metadata is returned.
             temporal_setting: The temporal setting to use, either 'single', 'daily' or 'weekly'
+            return_stacked_image: If True, return the stacked modalities across channel dimension instead of the individual modalities.
             download: Whether to download the dataset
         """
         super().__init__(

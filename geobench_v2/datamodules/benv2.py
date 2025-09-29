@@ -3,22 +3,18 @@
 
 """GeoBench BigEarthNetV2 DataModule."""
 
-from collections.abc import Callable
-from typing import Any, Sequence, Literal
-import pandas as pd
-from torch import Tensor
-import matplotlib.pyplot as plt
 import os
-import torch
+from .base import GeoBenchClassificationDataModule
+from collections.abc import Callable,  Sequence
+from geobench_v2.datasets import GeoBenchBENV2
+import matplotlib.pyplot as plt
 from einops import rearrange
 import numpy as np
-from torchgeo.datasets.utils import percentile_normalization
-
-from geobench_v2.datasets import GeoBenchBENV2
-import kornia.augmentation as K
-
-from .base import GeoBenchClassificationDataModule
+import pandas as pd
+import torch
 import torch.nn as nn
+from torchgeo.datasets.utils import percentile_normalization
+from typing import Any, Literal
 
 
 class GeoBenchBENV2DataModule(GeoBenchClassificationDataModule):
@@ -41,10 +37,13 @@ class GeoBenchBENV2DataModule(GeoBenchClassificationDataModule):
 
         Args:
             img_size: Image size
+            band_order: band order
             batch_size: Batch size
             eval_batch_size: Evaluation batch size
             num_workers: Number of workers
             collate_fn: Collate function
+            eval_augmentations: augmentations for validation and test splits
+            train_augmentations: augmentations for train split
             pin_memory: Pin memory
             **kwargs: Additional keyword arguments
         """

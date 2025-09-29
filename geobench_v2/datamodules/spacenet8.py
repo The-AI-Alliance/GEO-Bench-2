@@ -8,9 +8,7 @@ from typing import Any
 import matplotlib.pyplot as plt
 import pandas as pd
 import os
-from torch import Tensor
 import torch
-import numpy as np
 from torchgeo.datasets.utils import percentile_normalization
 from einops import rearrange
 from matplotlib.colors import ListedColormap

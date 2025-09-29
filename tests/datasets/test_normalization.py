@@ -1,7 +1,10 @@
 import pytest
 import torch
 
-from geobench_v2.datasets.normalization import SatMAENormalizer, ZScoreNormalizer, MultiModalNormalizer
+from geobench_v2.datasets.normalization import (
+    MultiModalNormalizer, 
+    SatMAENormalizer, 
+    ZScoreNormalizer)
 
 
 class TestSatMAENormalizer:

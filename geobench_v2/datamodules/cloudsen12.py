@@ -14,7 +14,6 @@ import torch
 from geobench_v2.datasets import GeoBenchCloudSen12
 from .base import GeoBenchSegmentationDataModule
 import torch.nn as nn
-from torch.utils.data import random_split
 from torchgeo.datasets.utils import percentile_normalization
 
 

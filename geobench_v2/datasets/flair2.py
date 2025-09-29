@@ -5,15 +5,12 @@
 
 from collections.abc import Mapping, Sequence
 from torch import Tensor
-from pathlib import Path
-from typing import Type, Literal, cast
+from typing import Literal, cast
 import torch.nn as nn
 from .sensor_util import DatasetBandRegistry
 from .base import GeoBenchBaseDataset
 from .normalization import MultiModalNormalizer
-import torch.nn as nn
 import rasterio
-import numpy as np
 import torch
 from shapely import wkt
 
@@ -64,7 +61,7 @@ class GeoBenchFLAIR2(GeoBenchBaseDataset):
         root,
         split: Literal["train", "val", "validation", "test"],
         band_order: Mapping[str, list[str]] = band_default_order,
-        data_normalizer: Type[nn.Module] = MultiModalNormalizer,
+        data_normalizer: type[nn.Module] = MultiModalNormalizer,
         transforms: nn.Module | None = None,
         metadata: Sequence[str] | None = None,
         download: bool = False,

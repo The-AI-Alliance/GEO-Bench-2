@@ -13,12 +13,10 @@ import tacoreader
 from einops import rearrange
 from torchgeo.datasets.utils import percentile_normalization
 import matplotlib.pyplot as plt
-from matplotlib.colors import ListedColormap
 import torch
 import numpy as np
 from .base import GeoBenchSegmentationDataModule
 import torch.nn as nn
-from torch import Tensor
 
 
 # TODO add timeseries argument

@@ -5,7 +5,7 @@
 
 import os
 from collections.abc import Callable, Sequence
-from typing import Any, Literal
+from typing import Any
 import torch
 from torch import Tensor
 import matplotlib.pyplot as plt
@@ -17,7 +17,6 @@ from einops import rearrange
 from .base import GeoBenchSegmentationDataModule
 from torchgeo.datasets.utils import percentile_normalization
 from geobench_v2.datasets import GeoBenchBioMassters
-from torch import Tensor
 
 
 class GeoBenchBioMasstersDataModule(GeoBenchSegmentationDataModule):

@@ -8,7 +8,6 @@ from typing import Any
 import torch
 import pandas as pd
 import tacoreader
-from torch import Tensor
 import os
 import matplotlib.pyplot as plt
 from geobench_v2.datasets import GeoBenchFieldsOfTheWorld

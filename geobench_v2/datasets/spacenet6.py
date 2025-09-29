@@ -5,15 +5,13 @@
 
 from collections.abc import Mapping, Sequence
 from torch import Tensor
-from torchgeo.datasets import SpaceNet6
 from pathlib import Path
-from typing import Type, Dict, Literal, cast
+from typing import Literal, cast
 import torch.nn as nn
 from shapely import wkt
 from .sensor_util import DatasetBandRegistry
 from .base import GeoBenchBaseDataset
 from .normalization import MultiModalNormalizer
-import torch.nn as nn
 import rasterio
 import numpy as np
 import torch
@@ -84,7 +82,7 @@ class GeoBenchSpaceNet6(GeoBenchBaseDataset):
         split: Literal["train", "val", "validation", "test"],
         rename_modalities: dict | None = None, 
         band_order: Sequence[str] = band_default_order,
-        data_normalizer: Type[nn.Module] = MultiModalNormalizer,
+        data_normalizer: type[nn.Module] = MultiModalNormalizer,
         transforms: nn.Module | None = None,
         return_stacked_image: bool = False,
         metadata: Sequence[str] | None = None,
@@ -107,6 +105,7 @@ class GeoBenchSpaceNet6(GeoBenchBaseDataset):
             return_stacked_image: if true, returns a single image tensor with all modalities stacked in band_order
             rename_modalities: dictionary with information to rename modalities in output e.g. {image: {sar:  S1RTC, rgbn: S2L2A}}
             transforms: image transformations to apply to the data, defaults to None
+            download: Whether to download the dataset
         """
         split_norm: Literal["train", "validation", "test"]
         if split == "val":
@@ -122,7 +121,8 @@ class GeoBenchSpaceNet6(GeoBenchBaseDataset):
             metadata=metadata,
             download=download,
         )
-        if return_stacked_image: assert rename_modalities is None, "Cannot return a stacked image if modalities are renamed"
+        if return_stacked_image: 
+            assert rename_modalities is None, "Cannot return a stacked image if modalities are renamed"
         self.return_stacked_image = return_stacked_image
         self.rename_modalities = rename_modalities
 
@@ -195,7 +195,7 @@ class GeoBenchSpaceNet6(GeoBenchBaseDataset):
 
         if self.rename_modalities is not None:
             for key, value in self.rename_modalities.items():
-                if isinstance(value, Dict):
+                if isinstance(value, dict):
                     sample[key] = {}
                     for old_sub_key in value:
                         if old_sub_key in self.band_order:

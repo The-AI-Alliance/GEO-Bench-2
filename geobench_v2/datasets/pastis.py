@@ -8,12 +8,9 @@ from collections.abc import Sequence
 from torch import Tensor
 from pathlib import Path
 import numpy as np
-from typing import Any,  Union, Type, Literal, Dict, cast
+from typing import Literal, cast
 import h5py
 import torch
-import os
-import json
-import pandas as pd
 import torch.nn as nn
 from .sensor_util import DatasetBandRegistry
 from .base import GeoBenchBaseDataset
@@ -120,7 +117,7 @@ class GeoBenchPASTIS(GeoBenchBaseDataset):
         split: Literal["train", "val", "validation", "test"],
         rename_modalities: dict | None = None, 
         band_order: dict[str, Sequence[float | str]] = {"s2": ["B04", "B03", "B02"]},
-        data_normalizer: Type[nn.Module] = MultiModalNormalizer,
+        data_normalizer: type[nn.Module] = MultiModalNormalizer,
         num_time_steps: int = 1,
         transforms: nn.Module | None = None,
         metadata: Sequence[str] | None = None,
@@ -177,7 +174,8 @@ class GeoBenchPASTIS(GeoBenchBaseDataset):
 
         self.label_type = label_type
         self.num_time_steps = num_time_steps
-        if return_stacked_image: assert rename_modalities is None, "Cannot return a stacked image if modalities are renamed"
+        if return_stacked_image: 
+            assert rename_modalities is None, "Cannot return a stacked image if modalities are renamed"
         self.return_stacked_image = return_stacked_image
         self.rename_modalities = rename_modalities
 
@@ -236,7 +234,7 @@ class GeoBenchPASTIS(GeoBenchBaseDataset):
 
         if self.rename_modalities is not None:
             for key, value in self.rename_modalities.items():
-                if isinstance(value, Dict):
+                if isinstance(value, dict):
                     sample[key] = {}
                     for old_sub_key in value:
                         if old_sub_key in self.band_order:

@@ -10,7 +10,6 @@ import torch.nn as nn
 from shapely import wkt
 from torch import Tensor
 from .base import GeoBenchBaseDataset
-from typing import Sequence, Type, Literal
 from .normalization import MultiModalNormalizer
 from .sensor_util import DatasetBandRegistry
 import pdb
@@ -75,7 +74,7 @@ class GeoBenchBurnScars(GeoBenchBaseDataset):
         root,
         split="train",
         band_order: Sequence[float | str] = band_default_order,
-        data_normalizer: Type[nn.Module] = MultiModalNormalizer,
+        data_normalizer: type[nn.Module] = MultiModalNormalizer,
         transforms: nn.Module | None = None,
         metadata: Sequence[str] | None = None,
         download: bool = False,

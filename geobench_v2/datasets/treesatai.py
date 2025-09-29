@@ -7,13 +7,11 @@ import os
 from collections.abc import Sequence
 from torch import Tensor
 from pathlib import Path
-from typing import Type, Dict, Literal
 import torch.nn as nn
 from shapely import wkt
 from .sensor_util import DatasetBandRegistry
 from .base import GeoBenchBaseDataset
 from .normalization import MultiModalNormalizer
-import torch.nn as nn
 import rasterio
 import numpy as np
 import h5py
@@ -133,7 +131,7 @@ class GeoBenchTreeSatAI(GeoBenchBaseDataset):
         rename_modalities: dict | None = None, 
         split: dict[str, list[str]] = {"aerial": ["red", "green", "blue", "nir"]},
         band_order: dict[str, Sequence[str]] = {"aerial": ["r", "g", "b"]},
-        data_normalizer: Type[nn.Module] = MultiModalNormalizer,
+        data_normalizer: type[nn.Module] = MultiModalNormalizer,
         transforms: nn.Module | None = None,
         metadata: Sequence[str] | None = None,
         include_ts: bool = False,
@@ -171,7 +169,8 @@ class GeoBenchTreeSatAI(GeoBenchBaseDataset):
             download=download,
         )
 
-        if return_stacked_image: assert rename_modalities is None, "Cannot return a stacked image if modalities are renamed"
+        if return_stacked_image: 
+            assert rename_modalities is None, "Cannot return a stacked image if modalities are renamed"
         self.return_stacked_image = return_stacked_image
         self.rename_modalities = rename_modalities
         self.include_ts = include_ts
@@ -232,7 +231,7 @@ class GeoBenchTreeSatAI(GeoBenchBaseDataset):
 
         if self.rename_modalities is not None:
             for key, value in self.rename_modalities.items():
-                if isinstance(value, Dict):
+                if isinstance(value, dict):
                     sample[key] = {}
                     for old_sub_key in value:
                         if old_sub_key in self.band_order:
@@ -269,9 +268,9 @@ class GeoBenchTreeSatAI(GeoBenchBaseDataset):
                 sen_2_data = h5file["sen-2-data"][
                     :
                 ]  # Tx10x6x6 B02,B03,B04,B05,B06,B07,B08,B8A,B11,B12
-                sen_2_masks = h5file["sen-2-masks"][
-                    :
-                ]  # (Tx2x6x6), Channels: snow probability, cloud probability
+                # sen_2_masks = h5file["sen-2-masks"][
+                #     :
+                # ]  # (Tx2x6x6), Channels: snow probability, cloud probability
 
             if "s1" in self.band_order:
                 sample["image_s1_asc_ts"] = torch.from_numpy(sen_1_asc_data)[
@@ -290,7 +289,7 @@ class GeoBenchTreeSatAI(GeoBenchBaseDataset):
     def _format_label(
         self, class_labels: list[str], dist_labels: list[float]
     ) -> Tensor:
-        """Format label list to Tensor
+        """Format label list to Tensor.
 
         Args:
             class_labels: list of label class names

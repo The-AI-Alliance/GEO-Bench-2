@@ -10,14 +10,12 @@ from collections.abc import Mapping, Sequence
 from torch import Tensor
 from torchgeo.datasets import SpaceNet6
 from pathlib import Path
-from typing import Type, Dict, Literal, cast
+from typing import Literal, cast
 import torch.nn as nn
 from .sensor_util import DatasetBandRegistry
 from .base import GeoBenchBaseDataset
 from .normalization import MultiModalNormalizer
-import torch.nn as nn
 import rasterio
-import numpy as np
 import torch
 
 
@@ -128,7 +126,7 @@ class GeoBenchBENV2(GeoBenchBaseDataset):
         split: Literal["train", "val", "validation", "test"],
         rename_modalities: dict | None = None, 
         band_order: dict[str, Sequence[float | str]] = {"s2": ["B04", "B03", "B02"]},
-        data_normalizer: Type[nn.Module] = MultiModalNormalizer,
+        data_normalizer: type[nn.Module] = MultiModalNormalizer,
         transforms: nn.Module | None = None,
         metadata: Sequence[str] | None = None,
         return_stacked_image: bool = False,
@@ -166,7 +164,8 @@ class GeoBenchBENV2(GeoBenchBaseDataset):
             metadata=metadata,
             download=download,
         )
-        if return_stacked_image: assert rename_modalities is None, "Cannot return a stacked image if modalities are renamed"
+        if return_stacked_image: 
+            assert rename_modalities is None, "Cannot return a stacked image if modalities are renamed"
         self.return_stacked_image = return_stacked_image
         self.rename_modalities = rename_modalities
         self.class2idx = {c: i for i, c in enumerate(self.label_names)}
@@ -216,7 +215,7 @@ class GeoBenchBENV2(GeoBenchBaseDataset):
 
         if self.rename_modalities is not None:
             for key, value in self.rename_modalities.items():
-                if isinstance(value, Dict):
+                if isinstance(value, dict):
                     sample[key] = {}
                     for old_sub_key in value:
                         if old_sub_key in self.band_order:

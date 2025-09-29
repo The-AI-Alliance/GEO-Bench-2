@@ -6,15 +6,13 @@
 from collections.abc import Sequence
 from torch import Tensor
 from pathlib import Path
-from typing import Type, Literal
+from typing import Literal
 import torch.nn as nn
 from shapely import wkt
 from .sensor_util import DatasetBandRegistry
 from .base import GeoBenchBaseDataset
 from .normalization import MultiModalNormalizer
-import torch.nn as nn
 import rasterio
-import numpy as np
 import torch
 
 
@@ -53,7 +51,7 @@ class GeoBenchFieldsOfTheWorld(GeoBenchBaseDataset):
         root: Path,
         split: str,
         band_order: Sequence[str | float] = dataset_band_config.default_order,
-        data_normalizer: Type[nn.Module] = MultiModalNormalizer,
+        data_normalizer: type[nn.Module] = MultiModalNormalizer,
         label_type: Literal["instance_seg", "semantic_seg"] = "semantic_seg",
         transforms: nn.Module | None = None,
         metadata: Sequence[str] | None = None,
@@ -72,7 +70,7 @@ class GeoBenchFieldsOfTheWorld(GeoBenchBaseDataset):
                 test the impact of band order on model performance.
             data_normalizer: The data normalizer to apply to the data, defaults to :class:`data_util.MultiModalNormalizer`,
                 which applies z-score normalization to each band.
-             label_type: The type of label to return, supports 'instance_seg' or 'semantic_seg'
+            label_type: The type of label to return, supports 'instance_seg' or 'semantic_seg'
             transforms: The transforms to apply to the data, defaults to None
             return_stacked_image: if true, returns a single image tensor with all modalities stacked in band_order
             return_window: select which windows to return

@@ -34,7 +34,7 @@ from .utils import (MultiTemporalSegmentationAugmentation,
                     MultiModalSegmentationAugmentation,
                     MultiModalClassificationAugmentation)
 
-_all__ = (
+__all__ = (
     "GeoBenchDataModule",
     "GeoBenchCaFFeDataModule",
     "GeoBenchFieldsOfTheWorldDataModule",
@@ -58,7 +58,7 @@ _all__ = (
     "GeoBenchNZCattleDataModule",
     "GeoBenchSubstationDataModule",
     "GeoBenchBurnScarsDataModule",
-    "MultiTemporalSegmentationAugmentation", 
-    "MultiModalSegmentationAugmentation",
     "MultiModalClassificationAugmentation",
+    "MultiModalSegmentationAugmentation",
+    "MultiTemporalSegmentationAugmentation", 
 )

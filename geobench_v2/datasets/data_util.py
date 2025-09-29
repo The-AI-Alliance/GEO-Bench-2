@@ -5,9 +5,8 @@
 
 from abc import ABC
 from collections.abc import Sequence
-from typing import Union, Optional
+from typing import Union
 import torch
-import torch.nn as nn
 from torch import Tensor
 from .sensor_util import ModalityConfig, MultiModalConfig
 
@@ -142,10 +141,7 @@ class DataUtilsMixin(ABC):
         return self._rearrange_multimodal_to_tensor(data, target_order)
 
     def _rearrange_bands_single_modality(
-        self,
-        data: Tensor,
-        source_order: list[str],
-        target_order: list[Union[str, float]],
+        self, data: Tensor, source_order: list[str], target_order: list[str | float]
     ) -> dict[str, Tensor]:
         """Rearrange bands for single modality."""
         output_channels = []

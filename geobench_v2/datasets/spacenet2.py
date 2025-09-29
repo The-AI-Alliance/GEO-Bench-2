@@ -3,11 +3,10 @@
 
 """SpaceNet2 dataset."""
 
-from collections.abc import Mapping, Sequence
+from collections.abc import Sequence
 from torch import Tensor
-from torchgeo.datasets import SpaceNet2
 from pathlib import Path
-from typing import Type, Literal, cast
+from typing import Literal, cast
 from shapely import wkt
 
 from .sensor_util import DatasetBandRegistry
@@ -94,7 +93,7 @@ class GeoBenchSpaceNet2(GeoBenchBaseDataset):
         root: Path,
         split: Literal["train", "val", "validation", "test"],
         band_order: list[str] = band_default_order,
-        data_normalizer: Type[nn.Module] = MultiModalNormalizer,
+        data_normalizer: type[nn.Module] = MultiModalNormalizer,
         label_type: Literal["instance_seg", "semantic_seg"] = "semantic_seg",
         transforms: nn.Module | None = None,
         metadata: Sequence[str] | None = None,

@@ -7,12 +7,17 @@ import torch.nn as nn
 import torch
 import kornia.augmentation as K
 import einops
-from typing import Dict
 import gc
 
 
 class MultiModalSegmentationAugmentation(nn.Module): 
+    """Apply augmentations to multi-modal segmentation datasets."""
     def __init__(self, transforms) -> None:
+        """Initialize the TimeSeriesResize module.
+
+        Args:
+            transforms: transfroms to be applied
+        """
         super().__init__()
         self.transforms = transforms
 
@@ -24,7 +29,7 @@ class MultiModalSegmentationAugmentation(nn.Module):
         original_keys = list(batch.keys())
         for key in original_keys:
             if ("image" in key):
-                if isinstance(batch[key], Dict):
+                if isinstance(batch[key], dict):
                     subkey_names = []
                     subkey_data = []
                     for subkey in batch[key]:
@@ -76,13 +81,13 @@ class MultiModalSegmentationAugmentation(nn.Module):
             channel_start = nested_keys[key]["channel_start"]
             channel_length = nested_keys[key]["channel_length"]
             if dims[0] == 5:
-                batch_in[key] = {m: batch_in[key][..., s:s+l, :, :, :] for m, s, l in zip(subkeys, channel_start, channel_length)}
+                batch_in[key] = {mod: batch_in[key][..., start:start+length, :, :, :] for mod, start, length in zip(subkeys, channel_start, channel_length)}
             else:
-                batch_in[key] = {m: batch_in[key][..., s:s+l, :, :] for m, s, l in zip(subkeys, channel_start, channel_length)}
+                batch_in[key] = {mod: batch_in[key][..., start:start+length, :, :] for mod, start, length in zip(subkeys, channel_start, channel_length)}
 
         #force contiguous
         for key in batch_in:
-            if isinstance(batch_in[key], Dict):
+            if isinstance(batch_in[key], dict):
                 for subkey in batch_in[key]:
                     batch_in[key][subkey] = batch_in[key][subkey].contiguous()
             else:
@@ -91,7 +96,13 @@ class MultiModalSegmentationAugmentation(nn.Module):
 
 
 class MultiModalClassificationAugmentation(nn.Module): 
+    """Apply augmentations to multi-modal classification datasets."""
     def __init__(self, transforms) -> None:
+        """Initialize the TimeSeriesResize module.
+
+        Args:
+            transforms: transfroms to be applied
+        """
         super().__init__()
         self.transforms = transforms
 
@@ -101,7 +112,7 @@ class MultiModalClassificationAugmentation(nn.Module):
         nested_keys = {}
         original_keys = list(batch.keys())
         for key in original_keys:
-            if isinstance(batch[key], Dict):
+            if isinstance(batch[key], dict):
                 subkeys = []
                 for subkey in batch[key]:
                     batch[f"{key}_{subkey}"] = batch[key][subkey]
@@ -124,7 +135,13 @@ class MultiModalClassificationAugmentation(nn.Module):
 
 
 class MultiTemporalSegmentationAugmentation(nn.Module):
+    """Apply augmentations to multi-temporal segmentation datasets."""
     def __init__(self, transforms) -> None:
+        """Initialize the TimeSeriesResize module.
+
+        Args:
+            transforms: transfroms to be applied
+        """
         super().__init__()
         self.transforms = transforms
 

@@ -8,7 +8,6 @@ from collections.abc import Callable, Sequence
 from typing import Any
 import pandas as pd
 import tacoreader
-from torch import Tensor
 import os
 import torch
 import numpy as np
