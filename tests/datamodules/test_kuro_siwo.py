@@ -23,6 +23,11 @@ def band_order(request):
     return request.param
 
 
+@pytest.fixture(params=[{"sar": ["vv", "vh", 0.2]}])
+def stacking_band_order(request):
+    """Parameterized band configuration with different configurations."""
+    return request.param
+
 @pytest.fixture
 def datamodule(
     monkeypatch: MonkeyPatch,
@@ -57,7 +62,7 @@ def datamodule(
 
 @pytest.fixture
 def stacked_datamodule(
-    monkeypatch: MonkeyPatch, band_order: dict[str, Sequence[str | float]]
+    monkeypatch: MonkeyPatch, stacking_band_order: dict[str, Sequence[str | float]]
 ):
     """Initialize KuroSiwo datamodule with test configuration."""
     monkeypatch.setattr(GeoBenchKuroSiwo, "paths", ["kuro_siwo.tortilla"])
@@ -67,7 +72,7 @@ def stacked_datamodule(
         eval_batch_size=2,
         num_workers=0,
         pin_memory=False,
-        band_order=band_order,
+        band_order=stacking_band_order,
         root=os.path.join("tests", "data", "kuro_siwo"),
         return_stacked_image=True,
     )
@@ -166,13 +171,16 @@ class TestKuroSiwoDataModule:
         assert "image" in train_batch
         assert "mask" in train_batch
 
-        # for stacked mode, multiply sar channels by 3 (pre_1, pre_2, post) plus the dem channels
-        num_channels = 3 * len(stacked_datamodule.band_order["sar"]) + len(
-            stacked_datamodule.band_order["dem"]
-        )
+        # for stacked mode, multiply sar channels by 3 (pre_1, pre_2, post) (currently does not support dem channel stacking)
+        # num_channels = 3 * len(stacked_datamodule.band_order["sar"]) + len(
+        #    stacked_datamodule.band_order["dem"]
+        #)
+        num_channels = len(stacked_datamodule.band_order["sar"])
+        num_time_steps = 3
         assert train_batch["image"].shape == (
             stacked_datamodule.batch_size,
             num_channels,
+            num_time_steps,
             stacked_datamodule.img_size,
             stacked_datamodule.img_size,
         )

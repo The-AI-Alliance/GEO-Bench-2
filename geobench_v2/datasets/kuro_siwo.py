@@ -71,7 +71,7 @@ class GeoBenchKuroSiwo(GeoBenchBaseDataset):
         data_normalizer: Type[nn.Module] = MultiModalNormalizer,
         transforms: Type[nn.Module] = None,
         return_stacked_image: bool = False,
-        time_step: Sequence[str] = ["pre_1","pre_1","post"],
+        time_step: Sequence[str] = ["pre_1","pre_2","post"],
         download: bool = False,
     ) -> None:
         """Initialize Kuro Siwo Dataset.
@@ -206,7 +206,7 @@ class GeoBenchKuroSiwo(GeoBenchBaseDataset):
                 if key in sample
             ]
             images_sizes = [item.shape for item in stacked_images]
-            assert len(set(images_sizes)) == 1, "currently only supports stacking of images/modalities with the same number of bands"
+            assert len(set(images_sizes)) == 1, f"{images_sizes=} currently only supports stacking of images/modalities with the same number of bands"
             sample = { #TODO: stack dem for each sar timestamp
                 "image": torch.stack(stacked_images, dim=1), #[C, T, H, W]
                 "mask": sample["mask"]

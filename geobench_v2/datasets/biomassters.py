@@ -8,7 +8,6 @@ from torch import Tensor
 from pathlib import Path
 from typing import Type, Dict
 import torch.nn as nn
-
 from .sensor_util import DatasetBandRegistry
 from .base import GeoBenchBaseDataset
 from .normalization import MultiModalNormalizer

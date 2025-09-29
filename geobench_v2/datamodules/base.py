@@ -5,7 +5,7 @@
 
 from abc import ABC, abstractmethod
 from collections.abc import Callable, Sequence
-from typing import Any
+from typing import Any, Literal
 import cartopy.crs as ccrs
 import cartopy.feature as cfeature
 import kornia.augmentation as K

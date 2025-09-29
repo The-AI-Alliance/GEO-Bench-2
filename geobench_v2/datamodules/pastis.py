@@ -103,6 +103,14 @@ class GeoBenchPASTISDataModule(GeoBenchSegmentationDataModule):
         else:
             batch = next(iter(self.test_dataloader()))
 
+
+        for k, v in batch.items():
+            orig_dim = v.dim()
+            if orig_dim == 4: #CxTxHxW -> TxCxHxW
+                batch[k] = batch[k].permute(1, 0, 2, 3)
+            elif orig_dim == 5: #BxCxTxHxW -> BxTxCxHxW
+                batch[k] = batch[k].permute(0, 2, 1, 3, 4)
+
         if hasattr(self.data_normalizer, "unnormalize"):
             batch = self.data_normalizer.unnormalize(batch)
 
@@ -131,7 +139,7 @@ class GeoBenchPASTISDataModule(GeoBenchSegmentationDataModule):
 
             tensor = batch[f"image_{mod}"]
             if tensor.ndim == 5:
-                # time series data [B, T, C, H, W] -> [b, t, h, w, c]
+                # time series data [B, T, C H, W] -> [b, t, h, w, c]
                 mod_images = tensor[indices][:, :, mod_plot_indices, :, :]
                 mod_images = (
                     rearrange(mod_images, "b t c h w -> b t h w c").cpu().numpy()

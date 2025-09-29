@@ -36,8 +36,8 @@ class GeoBenchSpaceNet7(GeoBenchBaseDataset):
     dataset_band_config = DatasetBandRegistry.SPACENET7
 
     normalization_stats = {
-        "means": {"r": 116.94474029541016, "g": 103.55889129638672, "b": 76.77427673339844, "nir": 0.0},
-        "stds": {"r": 61.655845642089844, "g": 49.64897537231445, "b": 45.88066864013672, "nir": 255.0},
+        "means": {"red": 116.94474029541016, "green": 103.55889129638672, "blue": 76.77427673339844, "nir": 0.0},
+        "stds": {"red": 61.655845642089844, "green": 49.64897537231445, "blue": 45.88066864013672, "nir": 255.0},
     }
 
     band_default_order = ("red", "green", "blue")

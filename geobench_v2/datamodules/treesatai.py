@@ -4,7 +4,7 @@
 """TreeSatAI dataset."""
 
 from collections.abc import Callable, Sequence
-from typing import Any
+from typing import Any, Literal
 import pandas as pd
 from torch import Tensor
 import torch

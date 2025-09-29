@@ -4,7 +4,7 @@
 """DynamicEarthNet DataModule."""
 
 from collections.abc import Callable, Sequence
-from typing import Any
+from typing import Any, Literal
 from geobench_v2.datasets import GeoBenchDynamicEarthNet
 import pandas as pd
 from torch import Tensor
@@ -103,6 +103,11 @@ class GeoBenchDynamicEarthNetDataModule(GeoBenchSegmentationDataModule):
                 batch = next(iter(self.val_dataloader()))
             else:
                 batch = next(iter(self.test_dataloader()))
+
+        for k, v in batch.items():
+            orig_dim = v.dim()
+            if orig_dim == 5: #BxCxTxHxW -> BxTxCxHxW
+                batch[k] = v.permute(0, 2, 1, 3, 4)
 
         if hasattr(self.data_normalizer, "unnormalize"):
             batch = self.data_normalizer.unnormalize(batch)

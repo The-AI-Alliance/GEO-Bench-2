@@ -606,6 +606,7 @@ class DatasetBandRegistry:
                 default_order=["hh", "hv", "vv", "vh"],
                 plot_bands=["vv", "vh"],
             ),
+        },
         default_order={
             "rgbn": ["red", "green", "blue", "nir"],
             "sar": ["hh", "hv", "vv", "vh"],
@@ -627,13 +628,29 @@ class DatasetBandRegistry:
     SPACENET8 = SensorBandRegistry.RGB
 
     # flair 2 has rgbn and elevation bands
-    FLAIR2 = ModalityConfig(
-        bands={
-            **SensorBandRegistry.RGBN.bands,
-            "elevation": BandConfig("elevation", ["elevation"], wavelength=None),
+    FLAIR2 = MultiModalConfig(
+        modalities={
+            "aerial": SensorBandRegistry.RGBN,
+            "elevation": ModalityConfig(
+                bands={
+                    "elevation": BandConfig("elevation", ["elevation"], wavelength=None)
+                },
+                default_order=["elevation"],
+                plot_bands=["elevation"],
+            ),
         },
-        default_order=["r", "g", "b", "nir", "elevation"],
-        plot_bands=["r", "g", "b"],
+        default_order={
+            "aerial": ["red", "green", "blue", "nir"],
+            "elevation": ["elevation"],
+        },
+        band_to_modality={
+            "red": "aerial",
+            "green": "aerial",
+            "blue": "aerial",
+            "nir": "aerial",
+            "elevation": "elevation",
+        },
+        plot_bands=["red", "green", "blue", "elevation"],
     )
 
     # CLOUDSEN12 has cloudsen12-l1c Sentinel2 data is actually just a single ModalityConfig

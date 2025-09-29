@@ -128,7 +128,7 @@ class GeoBenchDynamicEarthNet(GeoBenchBaseDataset):
         root: Path,
         split: str,
         band_order: dict[str, Sequence[float | str]] = {
-            "planet": ["r", "g", "b", "nir"]
+            "planet": ["red", "green", "blue", "nir"]
         },
         data_normalizer: Type[nn.Module] = MultiModalNormalizer,
         transforms: nn.Module | None = None,
@@ -248,7 +248,7 @@ class GeoBenchDynamicEarthNet(GeoBenchBaseDataset):
                 ),
                 "mask": sample["mask"],
             }
-            sample["mask"] = torch.squeeze(sample["mask"])
+        sample["mask"] = torch.squeeze(sample["mask"])
 
         if "lon" in self.metadata:
             sample["lon"] = torch.tensor(lon)

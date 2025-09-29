@@ -45,15 +45,15 @@ class GeoBenchSpaceNet6(GeoBenchBaseDataset):
     dataset_band_config = DatasetBandRegistry.SPACENET6
 
     band_default_order = {
-        "rgbn": ("r", "g", "b", "nir"),
+        "rgbn": ("red", "green", "blue", "nir"),
         "sar": ("hh", "hv", "vv", "vh"),
     }
 
     normalization_stats: dict[str, dict[str, float]] = {
         "means": {
-            "r": 101.56404876708984,
-            "g": 140.59695434570312,
-            "b": 146.70387268066406,
+            "red": 101.56404876708984,
+            "green": 140.59695434570312,
+            "blue": 146.70387268066406,
             "nir": 340.8776550292969,
             "hh": 24.750904083251953,
             "hv": 31.68429183959961,
@@ -61,9 +61,9 @@ class GeoBenchSpaceNet6(GeoBenchBaseDataset):
             "vh": 22.68701171875,
         },
         "stds": {
-            "r": 109.73048400878906,
-            "g": 124.5447998046875,
-            "b": 149.98680114746094,
+            "red": 109.73048400878906,
+            "green": 124.5447998046875,
+            "blue": 149.98680114746094,
             "nir": 297.4772033691406,
             "hh": 12.217103004455566,
             "hv": 14.078553199768066,

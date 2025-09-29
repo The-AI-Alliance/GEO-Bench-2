@@ -8,7 +8,7 @@ from collections.abc import Sequence
 from torch import Tensor
 from pathlib import Path
 import numpy as np
-from typing import Any,  Union, Type, Literal, Dict
+from typing import Any,  Union, Type, Literal, Dict, cast
 import h5py
 import torch
 import os
@@ -18,6 +18,7 @@ import torch.nn as nn
 from .sensor_util import DatasetBandRegistry
 from .base import GeoBenchBaseDataset
 from .normalization import MultiModalNormalizer
+from torchgeo.datasets import PASTIS
 
 
 
@@ -204,9 +205,7 @@ class GeoBenchPASTIS(GeoBenchBaseDataset):
         sample.update(img_dict)
 
         if self.label_type == "semantic_seg":
-            sample["mask"] = self._load_semantic_targets(
-                sample["mask"] = self._load_semantic_targets(sample_row.read(3))
-            )
+            sample["mask"] = self._load_semantic_targets(sample_row.read(3))
         elif self.label_type == "instance_seg":
             sample["mask"], sample["boxes"], sample["label"] = (
                 self._load_instance_targets(sample_row.read(3), sample_row.read(4))
@@ -265,9 +264,10 @@ class GeoBenchPASTIS(GeoBenchBaseDataset):
         if "dates" in self.metadata:
             sample["dates"] = torch.from_numpy(sample_dates)
 
+        
         return sample
 
-   def _return_byte_stream(self, path: str):
+    def _return_byte_stream(self, path: str):
         """Return a byte stream for a given path.
 
         Args:

@@ -5,7 +5,7 @@
 
 import os
 from collections.abc import Sequence
-from typing import  Type
+from typing import  Type, Literal
 import numpy as np
 import torch
 from PIL import Image

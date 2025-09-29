@@ -5,7 +5,6 @@
 
 from collections.abc import Mapping, Sequence
 from torch import Tensor
-from torchgeo.datasets import SpaceNet6
 from pathlib import Path
 from typing import Type, Literal, cast
 import torch.nn as nn
@@ -49,11 +48,14 @@ class GeoBenchFLAIR2(GeoBenchBaseDataset):
     dataset_band_config = DatasetBandRegistry.FLAIR2
 
     normalization_stats: dict[str, dict[str, float]] = {
-        "means": {"r": 110.30502319335938, "g": 114.79083251953125, "b": 105.6126937866211, "nir": 104.3409194946289, "elevation": 17.69650650024414},
-        "stds": {"r": 50.71001052856445, "g": 44.31645584106445, "b": 43.294822692871094, "nir": 39.049617767333984, "elevation": 29.94267463684082},
+        "means": {"red": 110.30502319335938, "green": 114.79083251953125, "blue": 105.6126937866211, "nir": 104.3409194946289, "elevation": 17.69650650024414},
+        "stds": {"red": 50.71001052856445, "green": 44.31645584106445, "blue": 43.294822692871094, "nir": 39.049617767333984, "elevation": 29.94267463684082},
     }
 
-    band_default_order = ("r", "g", "b", "nir", "elevation")
+    band_default_order = {
+        "aerial": ["red", "green", "blue", "nir"],
+        "elevation": ["elevation"],
+    }
 
     valid_metadata = ("lat", "lon")
 
@@ -61,7 +63,7 @@ class GeoBenchFLAIR2(GeoBenchBaseDataset):
         self,
         root,
         split: Literal["train", "val", "validation", "test"],
-        band_order: Sequence[float | str] = ["r", "g", "b"],
+        band_order: Mapping[str, list[str]] = band_default_order,
         data_normalizer: Type[nn.Module] = MultiModalNormalizer,
         transforms: nn.Module | None = None,
         metadata: Sequence[str] | None = None,
@@ -115,9 +117,16 @@ class GeoBenchFLAIR2(GeoBenchBaseDataset):
         aerial_path = sample_row.read(0)
         mask_path = sample_row.read(1)
 
+        data_dict = {}
         with rasterio.open(aerial_path) as f:
-            image = f.read()
-        image = torch.from_numpy(image).float()
+            data = f.read()
+            image = data[:-1, :, :]
+            data_dict["aerial"] = torch.from_numpy(image).float()
+            if "elevation" in self.band_order:
+                elevation = data[-1, :, :]
+                data_dict["elevation"] = (
+                    torch.from_numpy(elevation).unsqueeze(0).float()
+                )
 
         with rasterio.open(mask_path) as f:
             mask = f.read(1)
@@ -127,7 +136,7 @@ class GeoBenchFLAIR2(GeoBenchBaseDataset):
         # shift the classes to start from 0 so class values will be 0-12
         mask -= 1
 
-        image_dict = self.rearrange_bands(image, self.band_order)
+        image_dict = self.rearrange_bands(data_dict, self.band_order)
 
         image_dict = self.data_normalizer(image_dict)
         sample.update(image_dict)

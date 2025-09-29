@@ -5,7 +5,7 @@
 
 import os
 from collections.abc import Callable, Sequence
-from typing import Any
+from typing import Any, Literal
 import torch
 from torch import Tensor
 import matplotlib.pyplot as plt

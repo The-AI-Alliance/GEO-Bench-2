@@ -5,7 +5,6 @@
 
 from collections.abc import Sequence
 from torch import Tensor
-from torchgeo.datasets import SpaceNet6
 from pathlib import Path
 from typing import Type, Literal
 import torch.nn as nn
@@ -39,8 +38,8 @@ class GeoBenchFieldsOfTheWorld(GeoBenchBaseDataset):
 
     # Define normalization stats using canonical names
     normalization_stats: dict[str, dict[str, float]] = {
-        "means": {"r": 862.0840454101562, "g": 853.3894653320312, "b": 592.0079956054688, "nir": 2984.3017578125},
-        "stds": {"r": 681.1666870117188,"g": 508.64013671875, "b": 454.0238952636719, "nir": 1043.6527099609375},
+        "means": {"red": 862.0840454101562, "green": 853.3894653320312, "blue": 592.0079956054688, "nir": 2984.3017578125},
+        "stds": {"red": 681.1666870117188,"green": 508.64013671875, "blue": 454.0238952636719, "nir": 1043.6527099609375},
     }
 
     classes = ("background", "field", "field-boundary")
@@ -58,6 +57,8 @@ class GeoBenchFieldsOfTheWorld(GeoBenchBaseDataset):
         label_type: Literal["instance_seg", "semantic_seg"] = "semantic_seg",
         transforms: nn.Module | None = None,
         metadata: Sequence[str] | None = None,
+        return_stacked_image: bool = False,
+        return_window: Sequence[str]= ["win_a", "win_b"],
         download: bool = False,
     ) -> None:
         """Initialize Fields of the World Dataset.
@@ -73,6 +74,8 @@ class GeoBenchFieldsOfTheWorld(GeoBenchBaseDataset):
                 which applies z-score normalization to each band.
              label_type: The type of label to return, supports 'instance_seg' or 'semantic_seg'
             transforms: The transforms to apply to the data, defaults to None
+            return_stacked_image: if true, returns a single image tensor with all modalities stacked in band_order
+            return_window: select which windows to return
             metadata: metadata names to be returned under specified keys as part of the sample in the
                 __getitem__ method. If None, no metadata is returned.
             download: Whether to download the dataset
@@ -86,8 +89,14 @@ class GeoBenchFieldsOfTheWorld(GeoBenchBaseDataset):
             metadata=metadata,
             download=download,
         )
-
+        for i in return_window:
+            assert i in ["win_a", "win_b"], (
+                "return_window can only include items from ['win_a, , 'win_b']"
+                )
+        self.return_window = return_window
         self.label_type = label_type
+        self.return_stacked_image = return_stacked_image
+        
 
     def __getitem__(self, idx: int) -> dict[str, Tensor]:
         """Return the image and mask at the given index.
@@ -126,7 +135,20 @@ class GeoBenchFieldsOfTheWorld(GeoBenchBaseDataset):
         win_a = self.rearrange_bands(win_a, self.band_order)
         win_a = self.data_normalizer(win_a)
 
-        sample.update(win_a)
+        win_b = self.rearrange_bands(win_b, self.band_order)
+        win_b = self.data_normalizer(win_b)
+
+        if "win_a" in self.return_window:
+            sample["image_a"] = win_a["image"]
+        if "win_b" in self.return_window:
+            sample["image_b"] = win_b["image"]
+
+        if self.return_stacked_image:
+            sample = {
+                "image": torch.cat(
+                    [sample[key] for key in self.sample], 0
+                )
+            }
 
         sample["mask"] = mask
 

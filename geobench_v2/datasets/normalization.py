@@ -1195,6 +1195,7 @@ class MultiModalNormalizer(nn.Module, ABC):
                         (e.g., "s1", "s2") to such sequences. Determines the channel order
                         and identifies fill value channels.
         """
+        super().__init__()
         self.stats = stats
         self.band_order = band_order
         self.means = {}
@@ -1279,7 +1280,7 @@ class MultiModalNormalizer(nn.Module, ABC):
         orig_dim = target_tensor.dim()
         if orig_dim == 3:  # [C, H, W]
             reshaped = tensor_to_reshape.view(-1, 1, 1)
-        elif orig_dim == 4:  # [T, C, H, W]
+        elif orig_dim == 4:  # [B, C, H, W]
             reshaped = tensor_to_reshape.view(1, -1, 1, 1)
         elif orig_dim == 5:  # [B, T, C, H, W]
             reshaped = tensor_to_reshape.view(1, 1, -1, 1, 1)
@@ -1291,6 +1292,8 @@ class MultiModalNormalizer(nn.Module, ABC):
         expanded = None
         if tensor_to_reshape.dtype == torch.bool:
             expanded = reshaped.expand_as(target_tensor)
+
+        # print(f'{orig_dim=} {tensor_to_reshape.shape=} {target_tensor.shape=}')
 
         return reshaped, expanded
 

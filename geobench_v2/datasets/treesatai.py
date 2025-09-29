@@ -7,7 +7,7 @@ import os
 from collections.abc import Sequence
 from torch import Tensor
 from pathlib import Path
-from typing import Type, Dict
+from typing import Type, Dict, Literal
 import torch.nn as nn
 from shapely import wkt
 from .sensor_util import DatasetBandRegistry
@@ -43,9 +43,9 @@ class GeoBenchTreeSatAI(GeoBenchBaseDataset):
     normalization_stats: dict[str, dict[str, float]] = {
         "means": {
             "nir": 154.289794921875,
-            "g": 92.13509368896484,
-            "b": 85.36317443847656,
-            "r": 79.30790710449219,
+            "green": 92.13509368896484,
+            "blue": 85.36317443847656,
+            "red": 79.30790710449219,
             "vv": -6.364912509918213,
             "vh": -12.508633613586426,
             "vv/vh": 0.4892385005950928,
@@ -64,9 +64,9 @@ class GeoBenchTreeSatAI(GeoBenchBaseDataset):
         },
         "stds": {
             "nir": 49.029109954833984,
-            "g": 33.52909469604492,
-            "b": 27.931865692138672,
-            "r": 33.36391830444336,
+            "green": 33.52909469604492,
+            "blue": 27.931865692138672,
+            "red": 33.36391830444336,
             "vv": 3.5287060737609863,
             "vh": 3.2120885848999023,
             "vv/vh": 0.2582942247390747,

@@ -117,7 +117,7 @@ class TestBioMasstersDataModule:
 
         expected_dims["mask"] = (
             datamodule.batch_size,
-            1,
+            # 1,
             datamodule.img_size,
             datamodule.img_size,
         )
@@ -131,21 +131,22 @@ class TestBioMasstersDataModule:
         """Test time series output dimensions."""
         train_batch = next(iter(ts_datamodule.train_dataloader()))
 
-        # For time series data, dimensions should be [batch, time, channels, height, width]
+        # For time series data, dimensions should be [batch, channels, time, height, width]
         for modality, band_names in ts_datamodule.band_order.items():
             key = f"image_{modality}"
             assert train_batch[key].dim() == 5
             assert train_batch[key].shape[0] == ts_datamodule.batch_size
+            
+            assert train_batch[key].shape[1] == len(band_names)
             assert (
-                train_batch[key].shape[1] == ts_datamodule.train_dataset.num_time_steps
+                train_batch[key].shape[2] == ts_datamodule.train_dataset.num_time_steps
             )
-            assert train_batch[key].shape[2] == len(band_names)
             assert train_batch[key].shape[3] == ts_datamodule.img_size
             assert train_batch[key].shape[4] == ts_datamodule.img_size
 
-        assert train_batch["mask"].shape == (
+        assert train_batch["mask"].shape == ( #BxHxW
             ts_datamodule.batch_size,
-            1,
+            # 1,
             ts_datamodule.img_size,
             ts_datamodule.img_size,
         )

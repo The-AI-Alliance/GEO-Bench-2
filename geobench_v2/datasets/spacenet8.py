@@ -7,7 +7,7 @@ from collections.abc import Sequence
 from torch import Tensor
 from torchgeo.datasets import SpaceNet8
 from pathlib import Path
-from typing import Type
+from typing import Type, Literal, cast
 from shapely import wkt
 
 from .sensor_util import DatasetBandRegistry
@@ -42,8 +42,8 @@ class GeoBenchSpaceNet8(GeoBenchBaseDataset):
     dataset_band_config = DatasetBandRegistry.SPACENET8
 
     normalization_stats: dict[str, dict[str, float]] = {
-        "means": {"r": 65.36776733398438, "g": 84.85777282714844, "b": 57.087120056152344},
-        "stds": {"r": 44.107696533203125, "g": 37.45336151123047, "b": 35.882049560546875},
+        "means": {"red": 65.36776733398438, "green": 84.85777282714844, "blue": 57.087120056152344},
+        "stds": {"red": 44.107696533203125, "green": 37.45336151123047, "blue": 35.882049560546875},
     }
 
     band_default_order = ("red", "green", "blue")
