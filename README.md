@@ -47,7 +47,7 @@ requirements for users.
 
 ## License
 This code is licensed under the Apache License 2.0. By contributing to this repository, you agree that your contributions will be licensed under the Apache 2.0 License unless otherwise stated.
-Additionally, each dataset used in conjunction with this code is distributed under the original license stipulated by the dataset's authors. To the best of our knowledge, all datasets have been provided under open licenses by the original dataset authors. Please see the documentation page for license details of each dataset.
+
 
 ## Credits
 This project was developed as part of the AI Alliance with involvement from IBM and ServiceNow.
