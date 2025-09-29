@@ -396,9 +396,6 @@ class TestZScoreNormalizer:
         )
 
 
-
-
-
 class TestMultiModalNormalizer:
     """Tests the MultiModalNormalizer class with potential clip then z-score logic.
 
