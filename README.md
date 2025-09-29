@@ -12,7 +12,7 @@
 GEO-Bench-2 is a framework for robust evaluation of Geospatial Foundation Models (GeoFMs) which expands on the work of GEO-Bench. It has been carefully curated for evaluation of state-of-the-art model features such as such as multi-modality and multi-temporality.
 This library aims to facilitate extensive benchmarking of GeoFMs on the GEo-Bench-2 datasets, including features such band re-ordering, changing normalizations, and more.
 
-For details of the GEO-Bench-2 methodology, please see: #TODO
+For details on the GEO-Bench-2 methodology, please see: #TODO:link to paper
 
 The [Geo-Bench-2-Leaderbaord](https://github.com/The-AI-Alliance/GEO-Bench-2-Leaderboard) tracks the performance of state-of-the-art models on GeoBench-2 datasets. It further acts as a public repository of model performance. We strongly encourage users of the this library to submit experimental results to the leaderboard.
 
@@ -30,7 +30,7 @@ pip install -e .
 ```
 
 ## Download
-
+To download the datasets individually, please set `download=True` for each dtamodule. All the datasets can also be downloaded directly from this link #TODO
 
 ## Documentation
 
@@ -46,8 +46,8 @@ requirements for users.
 3. Generate a super tiny dataset version of dummy data that is used for unit testing all implemented functionality
 
 ## License
-This project is licensed under the Apache License 2.0.
-By contributing to this repository, you agree that your contributions will be licensed under the Apache 2.0 License unless otherwise stated.
+This code is licensed under the Apache License 2.0. By contributing to this repository, you agree that your contributions will be licensed under the Apache 2.0 License unless otherwise stated.
+Additionally, each dataset used in conjunction with this code is distributed under the original license stipulated by the dataset's authors. To the best of our knowledge, all datasets have been provided under open licenses by the original dataset authors. Please see the documentation page for license details of each dataset.
 
 ## Credits
 This project was developed as part of the AI Alliance with involvement from IBM and ServiceNow.
