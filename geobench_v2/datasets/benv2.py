@@ -10,11 +10,11 @@ from collections.abc import Mapping, Sequence
 from torch import Tensor
 from torchgeo.datasets import SpaceNet6
 from pathlib import Path
-from typing import Type, Dict
+from typing import Type, Dict, Literal
 import torch.nn as nn
 from .sensor_util import DatasetBandRegistry
 from .base import GeoBenchBaseDataset
-from .normalization import MultiModalNormalizer, ZScoreNormalizer
+from .normalization import MultiModalNormalizer
 import torch.nn as nn
 import rasterio
 import numpy as np

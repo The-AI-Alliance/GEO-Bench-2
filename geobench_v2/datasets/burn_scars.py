@@ -11,7 +11,7 @@ from shapely import wkt
 from torch import Tensor
 from .base import GeoBenchBaseDataset
 from typing import Sequence, Type, Literal
-from .normalization import MultiModalNormalizer, ZScoreNormalizer
+from .normalization import MultiModalNormalizer
 from .sensor_util import DatasetBandRegistry
 import pdb
 

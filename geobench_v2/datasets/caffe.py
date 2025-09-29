@@ -17,7 +17,7 @@ import torch.nn as nn
 import rasterio
 from shapely import wkt
 from .sensor_util import DatasetBandRegistry
-from .normalization import MultiModalNormalizer, ZScoreNormalizer
+from .normalization import MultiModalNormalizer
 from .base import GeoBenchBaseDataset
 
 

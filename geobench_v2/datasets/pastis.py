@@ -6,7 +6,6 @@ import io
 import re
 from collections.abc import Sequence
 from torch import Tensor
-# from torchgeo.datasets import PASTIS
 from pathlib import Path
 import numpy as np
 from typing import Any,  Union, Type, Literal, Dict
@@ -17,10 +16,9 @@ import json
 import pandas as pd
 import torch.nn as nn
 from .sensor_util import DatasetBandRegistry
-# from .data_util import DataUtilsMixin
 from .base import GeoBenchBaseDataset
-from .normalization import MultiModalNormalizer, DataNormalizer
-#import einops
+from .normalization import MultiModalNormalizer
+
 
 
 class GeoBenchPASTIS(GeoBenchBaseDataset):

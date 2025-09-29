@@ -14,8 +14,7 @@ from torch import Tensor
 from torchgeo.datasets import NonGeoDataset
 from .sensor_util import DatasetBandRegistry
 from .base import GeoBenchBaseDataset
-from .data_util import DataUtilsMixin, 
-from .normalization import MultiModalNormalizer, ZScoreNormalizer
+from .normalization import MultiModalNormalizer
 import tacoreader
 import numpy as np
 from shapely import wkt

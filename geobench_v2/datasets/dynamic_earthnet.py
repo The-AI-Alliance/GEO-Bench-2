@@ -17,7 +17,8 @@ import rasterio
 from shapely import wkt
 from .base import GeoBenchBaseDataset
 from .sensor_util import DatasetBandRegistry
-from .normalization import DataUtilsMixin, MultiModalNormalizer
+from .data_util import DataUtilsMixin
+from .normalization import  MultiModalNormalizer
 
 
 class GeoBenchDynamicEarthNet(GeoBenchBaseDataset):

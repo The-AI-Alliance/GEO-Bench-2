@@ -11,7 +11,7 @@ import torch.nn as nn
 
 from .sensor_util import DatasetBandRegistry
 from .base import GeoBenchBaseDataset
-from .normalization import MultiModalNormalizer, ZScoreNormalizer
+from .normalization import MultiModalNormalizer
 import torch.nn as nn
 import rasterio
 import numpy as np
