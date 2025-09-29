@@ -172,7 +172,7 @@ class DataNormalizer(nn.Module, ABC):
         """Extract mean, std tensors and a boolean mask identifying fill value channels."""
         means, stds, is_fill = [], [], []
         for band in bands:
-            if isinstance(band, (int, float)):
+            if isinstance(band, (int | float)):
                 means.append(0.0)
                 stds.append(1.0)
                 is_fill.append(True)
@@ -1274,7 +1274,7 @@ class MultiModalNormalizer(nn.Module, ABC):
 
     def _reshape_and_expand(
         self, tensor_to_reshape: Tensor, target_tensor: Tensor
-    ) -> tuple[Tensor, Optional[Tensor]]:
+    ) -> tuple[Tensor, Tensor | None]:
         """Reshape 1D stat/mask tensor and optionally expand boolean masks for broadcasting."""
         orig_dim = target_tensor.dim()
         if orig_dim == 3:  # [C, H, W]

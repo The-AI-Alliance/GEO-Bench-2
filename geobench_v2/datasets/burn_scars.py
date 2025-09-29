@@ -12,7 +12,7 @@ from torch import Tensor
 from .base import GeoBenchBaseDataset
 from .normalization import MultiModalNormalizer
 from .sensor_util import DatasetBandRegistry
-import pdb
+
 
 class GeoBenchBurnScars(GeoBenchBaseDataset):
     """GeoBench Burn Scars dataset."""

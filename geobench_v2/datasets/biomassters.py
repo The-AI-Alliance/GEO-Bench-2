@@ -11,7 +11,6 @@ from .sensor_util import DatasetBandRegistry
 from .base import GeoBenchBaseDataset
 from .normalization import MultiModalNormalizer
 import rasterio
-import numpy as np
 import torch
 import einops
 
@@ -137,7 +136,8 @@ class GeoBenchBioMassters(GeoBenchBaseDataset):
         )
         self.num_time_steps = num_time_steps
 
-        if return_stacked_image: assert rename_modalities is None, "Cannot return a stacked image if modalities are renamed"
+        if return_stacked_image: 
+            assert rename_modalities is None, "Cannot return a stacked image if modalities are renamed"
         self.return_stacked_image = return_stacked_image
         self.rename_modalities = rename_modalities
 

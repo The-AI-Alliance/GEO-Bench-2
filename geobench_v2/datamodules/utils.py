@@ -23,6 +23,7 @@ class MultiModalSegmentationAugmentation(nn.Module):
 
     @torch.no_grad()  # disable gradients for efficiency
     def forward(self, batch) -> dict:
+        """Forward method to apply augmentations to multi-modal segmentation datasets."""
         #unpack dict of input images
         nested_keys = {}
         dims = []
@@ -108,6 +109,7 @@ class MultiModalClassificationAugmentation(nn.Module):
 
     @torch.no_grad()  # disable gradients for efficiency
     def forward(self, batch) -> dict:
+        """Forward method to apply augmentations to multi-temporal classification dataset."""
         #unpack dict of input images
         nested_keys = {}
         original_keys = list(batch.keys())
@@ -147,6 +149,7 @@ class MultiTemporalSegmentationAugmentation(nn.Module):
 
     @torch.no_grad()  # disable gradients for efficiency
     def forward(self, batch) -> dict:
+        """Forward method to apply augmentations to multi-temporal segmentation datasets."""
         if len(batch["mask"].shape) != 3:
             raise ValueError("Mask does not contain the expected dimensions")
         for key in batch:

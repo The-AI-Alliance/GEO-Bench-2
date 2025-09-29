@@ -6,7 +6,6 @@
 from collections.abc import Sequence
 import torch
 from torch import Tensor
-from pathlib import Path
 import torch.nn as nn
 import rasterio
 from shapely import wkt

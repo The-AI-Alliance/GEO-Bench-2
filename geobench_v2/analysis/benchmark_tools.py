@@ -62,8 +62,10 @@ def dataset_discriminativity(score_lists, tie_half=True, eps=1e-12):
 
 
 def bootstrap_dataset_discriminativity(score_lists,
-                                       n_iter=100, ci=0.95,
-                                       tie_half=True, eps=1e-12,
+                                       n_iter=100, 
+                                       ci=0.95,
+                                       tie_half=True, 
+                                       eps=1e-12,
                                        random_state=None):
     """Stratified bootstrapped discriminativity.
     
@@ -73,8 +75,11 @@ def bootstrap_dataset_discriminativity(score_lists,
     Args:
         score_lists : list[list[float]]
             score_lists[k] holds the seed-level scores for algorithm k.
+        n_iter: number of iterations for bootstrapping
+        ci: confidence interval
         tie_half: bool, describes whether to split ties
         eps: epsilon value
+        random_state: if not None, fixed random state to be used
 
     Returns:
         dict with mean, (lower, upper) CI, and all bootstrap samples.

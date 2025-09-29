@@ -8,7 +8,6 @@
 
 from collections.abc import Mapping, Sequence
 from torch import Tensor
-from torchgeo.datasets import SpaceNet6
 from pathlib import Path
 from typing import Literal, cast
 import torch.nn as nn

@@ -5,9 +5,7 @@
 import io
 import re
 from collections.abc import Sequence
-from torch import Tensor
 from pathlib import Path
-import numpy as np
 from typing import Literal, cast
 import h5py
 import torch

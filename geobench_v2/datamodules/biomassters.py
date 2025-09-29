@@ -7,7 +7,6 @@ import os
 from collections.abc import Callable, Sequence
 from typing import Any
 import torch
-from torch import Tensor
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd

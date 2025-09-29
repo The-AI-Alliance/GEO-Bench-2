@@ -15,6 +15,7 @@ import torch
 import torch.nn as nn
 from torchgeo.datasets.utils import percentile_normalization
 from typing import Any, Literal
+import tacoreader
 
 
 class GeoBenchBENV2DataModule(GeoBenchClassificationDataModule):

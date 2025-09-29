@@ -7,7 +7,7 @@ from collections.abc import Callable, Sequence
 from typing import Any, Literal
 from geobench_v2.datasets import GeoBenchDynamicEarthNet
 import pandas as pd
-from torch import Tensor
+import numpy as np
 import os
 import tacoreader
 import matplotlib.pyplot as plt

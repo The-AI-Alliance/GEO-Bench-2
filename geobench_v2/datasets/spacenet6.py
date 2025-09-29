@@ -3,7 +3,7 @@
 
 """SpaceNet6 dataset."""
 
-from collections.abc import Mapping, Sequence
+from collections.abc import Sequence
 from torch import Tensor
 from pathlib import Path
 from typing import Literal, cast

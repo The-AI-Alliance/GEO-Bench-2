@@ -5,7 +5,6 @@
 
 from abc import ABC
 from collections.abc import Sequence
-from typing import Union
 import torch
 from torch import Tensor
 from .sensor_util import ModalityConfig, MultiModalConfig
