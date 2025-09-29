@@ -14,6 +14,8 @@ This library aims to facilitate extensive benchmarking of GeoFMs on the GEo-Benc
 
 For details of the GEO-Bench-2 methodology, please see: #TODO
 
+The [Geo-Bench-2-Leaderbaord](https://github.com/The-AI-Alliance/GEO-Bench-2-Leaderboard) tracks the performance of state-of-the-art models on GeoBench-2 datasets. It further acts as a public repository of model performance. We strongly encourage users of the this library to submit experimental results to the leaderboard.
+
 ## Installation
 
 For a stable release, install with `pip install geobenchv2==<version>`.
@@ -26,9 +28,6 @@ git clone https://https://github.com/The-AI-Alliance/GEO-Bench-2.git
 cd GEO-Bench-2
 pip install -e .
 ```
-
-## Leaderboard
-The [Geo-Bench-2-Leaderbaord](https://github.com/The-AI-Alliance/GEO-Bench-2-Leaderboard) tracks the performance of state-of-the-art models on GeoBench-2 datasets. It further acts as a public repository of model performance. We strongly encourage users of the this library to submit experimental results to the leaderboard.
 
 ## Documentation
 
