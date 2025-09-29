@@ -14,14 +14,14 @@ requires-python = ">=3.10"
 license = {file = "LICENSE"}
 authors = [
     {name = "Nils Lehmann", email = "n.lehmann@tum.de"},
-    {name = "Naomi Simumba", email = "naomi.simumba1@ibm.com"}
-    {name = "Paolo Fraccaro", email = "paolo.fraccaro@ibm.com"}
+    {name = "Naomi Simumba", email = "naomi.simumba1@ibm.com"},
+    {name = "Paolo Fraccaro", email = "paolo.fraccaro@ibm.com"},
     {name = "Alexandre Lacoste", email = "alexandre.lacoste@servicenow.com"},
 ]
 maintainers = [
     {name = "Nils Lehmann", email = "n.lehmann@tum.de"},
-    {name = "Naomi Simumba", email = "naomi.simumba1@ibm.com"}
-    {name = "Paolo Fraccaro", email = "paolo.fraccaro@ibm.com"}
+    {name = "Naomi Simumba", email = "naomi.simumba1@ibm.com"},
+    {name = "Paolo Fraccaro", email = "paolo.fraccaro@ibm.com"},
     {name = "Alexandre Lacoste", email = "alexandre.lacoste@servicenow.com"},
 ]
 keywords = ["earth observation", "benchmark", "satellite data", "GeoFM"]
@@ -57,8 +57,8 @@ dependencies = [
     # torchvision 0.13+ required for torchvision.models._api.WeightsEnum
     "torchvision>=0.16.1",
     # torchgeo
-    #"torchgeo @ git+https://github.com/microsoft/torchgeo.git"
-    "torchgeo>=0.7.1",
+    "torchgeo @ git+https://github.com/microsoft/torchgeo.git",
+    #"torchgeo>=0.7.1",
     "geopandas>=1.1.0",
     "h5py>=3.14.0",
     "cartopy>=0.25.0",
