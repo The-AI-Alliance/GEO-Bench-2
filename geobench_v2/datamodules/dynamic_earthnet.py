@@ -3,20 +3,23 @@
 
 """DynamicEarthNet DataModule."""
 
+import os
 from collections.abc import Callable, Sequence
 from typing import Any, Literal
-from geobench_v2.datasets import GeoBenchDynamicEarthNet
-import pandas as pd
-import numpy as np
-import os
-import tacoreader
+
 import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+import tacoreader
 import torch
-from .base import GeoBenchSegmentationDataModule
-from .utils import TimeSeriesResize
 import torch.nn as nn
 from einops import rearrange
 from torchgeo.datasets.utils import percentile_normalization
+
+from geobench_v2.datasets import GeoBenchDynamicEarthNet
+
+from .base import GeoBenchSegmentationDataModule
+from .utils import TimeSeriesResize
 
 
 # TODO add timeseries argument

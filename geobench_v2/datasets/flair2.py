@@ -4,15 +4,17 @@
 """Flair 2 Aerial Dataset."""
 
 from collections.abc import Mapping, Sequence
-from torch import Tensor
 from typing import Literal, cast
-import torch.nn as nn
-from .sensor_util import DatasetBandRegistry
-from .base import GeoBenchBaseDataset
-from .normalization import MultiModalNormalizer
+
 import rasterio
 import torch
+import torch.nn as nn
 from shapely import wkt
+from torch import Tensor
+
+from .base import GeoBenchBaseDataset
+from .normalization import MultiModalNormalizer
+from .sensor_util import DatasetBandRegistry
 
 
 class GeoBenchFLAIR2(GeoBenchBaseDataset):

@@ -3,18 +3,21 @@
 
 """Fields of the World DataModule."""
 
+import os
 from collections.abc import Callable, Sequence
 from typing import Any
-import torch
+
+import matplotlib.pyplot as plt
 import pandas as pd
 import tacoreader
-import os
-import matplotlib.pyplot as plt
-from geobench_v2.datasets import GeoBenchFieldsOfTheWorld
-from .base import GeoBenchSegmentationDataModule
+import torch
 import torch.nn as nn
 from matplotlib.colors import ListedColormap
 from torchgeo.datasets.utils import percentile_normalization
+
+from geobench_v2.datasets import GeoBenchFieldsOfTheWorld
+
+from .base import GeoBenchSegmentationDataModule
 
 
 class GeoBenchFieldsOfTheWorldDataModule(GeoBenchSegmentationDataModule):

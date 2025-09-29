@@ -4,16 +4,18 @@
 """Fields of the World Dataset."""
 
 from collections.abc import Sequence
-from torch import Tensor
 from pathlib import Path
 from typing import Literal
-import torch.nn as nn
-from shapely import wkt
-from .sensor_util import DatasetBandRegistry
-from .base import GeoBenchBaseDataset
-from .normalization import MultiModalNormalizer
+
 import rasterio
 import torch
+import torch.nn as nn
+from shapely import wkt
+from torch import Tensor
+
+from .base import GeoBenchBaseDataset
+from .normalization import MultiModalNormalizer
+from .sensor_util import DatasetBandRegistry
 
 
 class GeoBenchFieldsOfTheWorld(GeoBenchBaseDataset):

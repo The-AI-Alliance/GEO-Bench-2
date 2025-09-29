@@ -4,11 +4,13 @@
 """HLS Burn Scars Dataset."""
 
 from collections.abc import Sequence
+
 import rasterio
 import torch
 import torch.nn as nn
 from shapely import wkt
 from torch import Tensor
+
 from .base import GeoBenchBaseDataset
 from .normalization import MultiModalNormalizer
 from .sensor_util import DatasetBandRegistry

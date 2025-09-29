@@ -4,15 +4,17 @@
 """Kuro Siwo dataset."""
 
 from collections.abc import Sequence
-from torch import Tensor
 from typing import Literal, cast
+
+import numpy as np
+import rasterio
+import torch
 import torch.nn as nn
-from .sensor_util import DatasetBandRegistry
+from torch import Tensor
+
 from .base import GeoBenchBaseDataset
 from .normalization import MultiModalNormalizer
-import rasterio
-import numpy as np
-import torch
+from .sensor_util import DatasetBandRegistry
 
 
 class GeoBenchKuroSiwo(GeoBenchBaseDataset):

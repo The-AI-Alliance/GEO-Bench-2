@@ -3,19 +3,23 @@
 
 """SpaceNet8 DataModule."""
 
+import os
 from collections.abc import Callable, Sequence
 from typing import Any
+
 import matplotlib.pyplot as plt
 import pandas as pd
-import os
+import tacoreader
 import torch
-from torchgeo.datasets.utils import percentile_normalization
+import torch.nn as nn
 from einops import rearrange
 from matplotlib.colors import ListedColormap
+from torchgeo.datasets.utils import percentile_normalization
+
 from geobench_v2.datasets import GeoBenchSpaceNet8
+
 from .base import GeoBenchSegmentationDataModule
-import torch.nn as nn
-import tacoreader
+
 
 class GeoBenchSpaceNet8DataModule(GeoBenchSegmentationDataModule):
     """GeoBench SpaceNet8 Data Module."""

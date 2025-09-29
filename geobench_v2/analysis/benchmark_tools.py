@@ -5,9 +5,10 @@
 
 import math
 import random
-from scipy import stats
+from itertools import combinations, product
+
 import pandas as pd
-from itertools import product, combinations
+from scipy import stats
 
 REPEATED_SEEDS_DEFAULT = 5
 

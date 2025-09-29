@@ -7,7 +7,7 @@ import json
 from abc import ABC, abstractmethod
 from collections.abc import Sequence
 from pathlib import Path
-from typing import Any, cast, Optional
+from typing import Any, cast
 
 import torch
 import torch.nn as nn

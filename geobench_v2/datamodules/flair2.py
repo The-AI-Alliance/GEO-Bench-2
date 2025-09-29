@@ -3,20 +3,22 @@
 
 """Flair 2 Aerial DataModule."""
 
+import os
 from collections.abc import Callable, Sequence
 from typing import Any
-import torch
-import pandas as pd
-import numpy as np
-import os
-import matplotlib.pyplot as plt
-from geobench_v2.datasets import GeoBenchFLAIR2
-from .base import GeoBenchSegmentationDataModule
-import torch.nn as nn
-from torchgeo.datasets.utils import percentile_normalization
-from einops import rearrange
-import tacoreader
 
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+import tacoreader
+import torch
+import torch.nn as nn
+from einops import rearrange
+from torchgeo.datasets.utils import percentile_normalization
+
+from geobench_v2.datasets import GeoBenchFLAIR2
+
+from .base import GeoBenchSegmentationDataModule
 
 
 class GeoBenchFLAIR2DataModule(GeoBenchSegmentationDataModule):

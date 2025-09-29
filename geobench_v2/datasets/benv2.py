@@ -6,16 +6,18 @@
 
 """BigEarthNet V2 Dataset."""
 
-from collections.abc import Mapping, Sequence
-from torch import Tensor
+from collections.abc import Sequence
 from pathlib import Path
 from typing import Literal, cast
-import torch.nn as nn
-from .sensor_util import DatasetBandRegistry
-from .base import GeoBenchBaseDataset
-from .normalization import MultiModalNormalizer
+
 import rasterio
 import torch
+import torch.nn as nn
+from torch import Tensor
+
+from .base import GeoBenchBaseDataset
+from .normalization import MultiModalNormalizer
+from .sensor_util import DatasetBandRegistry
 
 
 class GeoBenchBENV2(GeoBenchBaseDataset):

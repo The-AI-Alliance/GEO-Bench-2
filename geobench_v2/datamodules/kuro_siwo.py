@@ -3,18 +3,21 @@
 
 """KuroSiwo DataModule."""
 
+import os
 from collections.abc import Callable, Sequence
 from typing import Any, Literal
-import pandas as pd
-import os
+
 import matplotlib.pyplot as plt
-import torch
+import pandas as pd
 import tacoreader
-from torchgeo.datasets.utils import percentile_normalization
-from einops import rearrange
-from geobench_v2.datasets import GeoBenchKuroSiwo
-from .base import GeoBenchSegmentationDataModule
+import torch
 import torch.nn as nn
+from einops import rearrange
+from torchgeo.datasets.utils import percentile_normalization
+
+from geobench_v2.datasets import GeoBenchKuroSiwo
+
+from .base import GeoBenchSegmentationDataModule
 
 
 class GeoBenchKuroSiwoDataModule(GeoBenchSegmentationDataModule):

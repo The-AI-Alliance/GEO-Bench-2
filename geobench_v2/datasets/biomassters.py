@@ -4,15 +4,17 @@
 """Biomassters dataset."""
 
 from collections.abc import Sequence
-from torch import Tensor
 from pathlib import Path
-import torch.nn as nn
-from .sensor_util import DatasetBandRegistry
-from .base import GeoBenchBaseDataset
-from .normalization import MultiModalNormalizer
+
+import einops
 import rasterio
 import torch
-import einops
+import torch.nn as nn
+from torch import Tensor
+
+from .base import GeoBenchBaseDataset
+from .normalization import MultiModalNormalizer
+from .sensor_util import DatasetBandRegistry
 
 
 class GeoBenchBioMassters(GeoBenchBaseDataset):
@@ -143,6 +145,7 @@ class GeoBenchBioMassters(GeoBenchBaseDataset):
 
         # data does not have georeferencing information, yet is a Gtiff, that the tacoreader can only read with rasterio
         import warnings
+
         from rasterio.errors import NotGeoreferencedWarning
 
         warnings.filterwarnings("ignore", category=NotGeoreferencedWarning)

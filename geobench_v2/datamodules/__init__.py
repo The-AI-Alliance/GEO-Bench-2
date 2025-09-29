@@ -9,7 +9,6 @@ from .base import (
     GeoBenchObjectDetectionDataModule,
     GeoBenchSegmentationDataModule,
 )
-
 from .benv2 import GeoBenchBENV2DataModule
 from .biomassters import GeoBenchBioMasstersDataModule
 from .burn_scars import GeoBenchBurnScarsDataModule
@@ -28,11 +27,12 @@ from .spacenet7 import GeoBenchSpaceNet7DataModule
 from .spacenet8 import GeoBenchSpaceNet8DataModule
 from .substation import GeoBenchSubstationDataModule
 from .treesatai import GeoBenchTreeSatAIDataModule
+from .utils import (
+    MultiModalClassificationAugmentation,
+    MultiModalSegmentationAugmentation,
+    MultiTemporalSegmentationAugmentation,
+)
 from .wind_turbine import GeoBenchWindTurbineDataModule
-
-from .utils import (MultiTemporalSegmentationAugmentation, 
-                    MultiModalSegmentationAugmentation,
-                    MultiModalClassificationAugmentation)
 
 __all__ = (
     "GeoBenchDataModule",

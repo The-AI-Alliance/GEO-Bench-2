@@ -3,11 +3,12 @@
 
 """DataModule utils."""
 
-import torch.nn as nn
-import torch
-import kornia.augmentation as K
-import einops
 import gc
+
+import einops
+import kornia.augmentation as K
+import torch
+import torch.nn as nn
 
 
 class MultiModalSegmentationAugmentation(nn.Module): 

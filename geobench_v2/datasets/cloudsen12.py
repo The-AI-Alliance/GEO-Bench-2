@@ -4,17 +4,19 @@
 """Cloud12Sen Dataset."""
 
 
-import numpy as np
-import rasterio
 from collections.abc import Sequence
 from typing import Literal
+
+import numpy as np
+import rasterio
 import torch
 import torch.nn as nn
+from shapely import wkt
 from torch import Tensor
-from .sensor_util import DatasetBandRegistry
+
 from .base import GeoBenchBaseDataset
 from .normalization import MultiModalNormalizer
-from shapely import wkt
+from .sensor_util import DatasetBandRegistry
 
 
 class GeoBenchCloudSen12(GeoBenchBaseDataset):

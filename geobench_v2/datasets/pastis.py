@@ -7,14 +7,16 @@ import re
 from collections.abc import Sequence
 from pathlib import Path
 from typing import Literal, cast
+
 import h5py
 import torch
 import torch.nn as nn
-from .sensor_util import DatasetBandRegistry
-from .base import GeoBenchBaseDataset
-from .normalization import MultiModalNormalizer
+from torch import Tensor
 from torchgeo.datasets import PASTIS
 
+from .base import GeoBenchBaseDataset
+from .normalization import MultiModalNormalizer
+from .sensor_util import DatasetBandRegistry
 
 
 class GeoBenchPASTIS(GeoBenchBaseDataset):

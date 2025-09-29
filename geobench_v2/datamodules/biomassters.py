@@ -6,16 +6,19 @@
 import os
 from collections.abc import Callable, Sequence
 from typing import Any
-import torch
+
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import tacoreader
+import torch
 import torch.nn as nn
 from einops import rearrange
-from .base import GeoBenchSegmentationDataModule
 from torchgeo.datasets.utils import percentile_normalization
+
 from geobench_v2.datasets import GeoBenchBioMassters
+
+from .base import GeoBenchSegmentationDataModule
 
 
 class GeoBenchBioMasstersDataModule(GeoBenchSegmentationDataModule):

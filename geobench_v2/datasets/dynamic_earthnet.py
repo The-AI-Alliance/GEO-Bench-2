@@ -4,16 +4,18 @@
 """DynamicEarthNet Dataset."""
 
 from collections.abc import Sequence
-from torch import Tensor
 from pathlib import Path
 from typing import Literal
+
+import rasterio
 import torch
 import torch.nn as nn
-import rasterio
 from shapely import wkt
+from torch import Tensor
+
 from .base import GeoBenchBaseDataset
+from .normalization import MultiModalNormalizer
 from .sensor_util import DatasetBandRegistry
-from .normalization import  MultiModalNormalizer
 
 
 class GeoBenchDynamicEarthNet(GeoBenchBaseDataset):

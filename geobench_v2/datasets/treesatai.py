@@ -5,17 +5,19 @@
 
 import os
 from collections.abc import Sequence
-from torch import Tensor
 from pathlib import Path
+
+import h5py
+import numpy as np
+import rasterio
+import torch
 import torch.nn as nn
 from shapely import wkt
-from .sensor_util import DatasetBandRegistry
+from torch import Tensor
+
 from .base import GeoBenchBaseDataset
 from .normalization import MultiModalNormalizer
-import rasterio
-import numpy as np
-import h5py
-import torch
+from .sensor_util import DatasetBandRegistry
 
 
 class GeoBenchTreeSatAI(GeoBenchBaseDataset):

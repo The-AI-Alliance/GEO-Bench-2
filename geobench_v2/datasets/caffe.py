@@ -4,14 +4,16 @@
 """CaFFe Dataset."""
 
 from collections.abc import Sequence
-import torch
-from torch import Tensor
-import torch.nn as nn
+
 import rasterio
+import torch
+import torch.nn as nn
 from shapely import wkt
-from .sensor_util import DatasetBandRegistry
-from .normalization import MultiModalNormalizer
+from torch import Tensor
+
 from .base import GeoBenchBaseDataset
+from .normalization import MultiModalNormalizer
+from .sensor_util import DatasetBandRegistry
 
 
 class GeoBenchCaFFe(GeoBenchBaseDataset):

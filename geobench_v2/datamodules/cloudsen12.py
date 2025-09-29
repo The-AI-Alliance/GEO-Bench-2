@@ -3,18 +3,21 @@
 
 """Cloud12Sen DataModule."""
 
+import os
 from collections.abc import Callable, Sequence
 from typing import Any
+
+import matplotlib.pyplot as plt
 import pandas as pd
 import tacoreader
-from torch import Tensor
-import os
-import matplotlib.pyplot as plt
 import torch
-from geobench_v2.datasets import GeoBenchCloudSen12
-from .base import GeoBenchSegmentationDataModule
 import torch.nn as nn
+from torch import Tensor
 from torchgeo.datasets.utils import percentile_normalization
+
+from geobench_v2.datasets import GeoBenchCloudSen12
+
+from .base import GeoBenchSegmentationDataModule
 
 
 class GeoBenchCloudSen12DataModule(GeoBenchSegmentationDataModule):

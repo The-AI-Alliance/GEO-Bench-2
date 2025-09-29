@@ -4,18 +4,21 @@
 """GeoBench BigEarthNetV2 DataModule."""
 
 import os
-from .base import GeoBenchClassificationDataModule
-from collections.abc import Callable,  Sequence
-from geobench_v2.datasets import GeoBenchBENV2
+from collections.abc import Callable, Sequence
+from typing import Any, Literal
+
 import matplotlib.pyplot as plt
-from einops import rearrange
 import numpy as np
 import pandas as pd
+import tacoreader
 import torch
 import torch.nn as nn
+from einops import rearrange
 from torchgeo.datasets.utils import percentile_normalization
-from typing import Any, Literal
-import tacoreader
+
+from geobench_v2.datasets import GeoBenchBENV2
+
+from .base import GeoBenchClassificationDataModule
 
 
 class GeoBenchBENV2DataModule(GeoBenchClassificationDataModule):

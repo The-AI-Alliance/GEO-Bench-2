@@ -3,20 +3,23 @@
 
 """TreeSatAI dataset."""
 
+import os
 from collections.abc import Callable, Sequence
 from typing import Any, Literal
-import pandas as pd
-from torch import Tensor
-import torch
-import numpy as np
-from einops import rearrange
-from torchgeo.datasets.utils import percentile_normalization
-import os
+
 import matplotlib.pyplot as plt
-from geobench_v2.datasets import GeoBenchTreeSatAI
-from .base import GeoBenchClassificationDataModule
-import torch.nn as nn
+import numpy as np
+import pandas as pd
 import tacoreader
+import torch
+import torch.nn as nn
+from einops import rearrange
+from torch import Tensor
+from torchgeo.datasets.utils import percentile_normalization
+
+from geobench_v2.datasets import GeoBenchTreeSatAI
+
+from .base import GeoBenchClassificationDataModule
 
 
 class GeoBenchTreeSatAIDataModule(GeoBenchClassificationDataModule):

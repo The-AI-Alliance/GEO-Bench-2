@@ -5,22 +5,23 @@
 
 from abc import ABC, abstractmethod
 from collections.abc import Callable, Sequence
+from typing import Any, Literal
+
 import cartopy.crs as ccrs
 import cartopy.feature as cfeature
 import kornia.augmentation as K
+import pandas as pd
+import torch.nn as nn
 from lightning import LightningDataModule
 from matplotlib import pyplot as plt
 from matplotlib.lines import Line2D
-import pandas as pd
-import torch.nn as nn
 from torch import Tensor
 from torch.utils.data import DataLoader, Dataset
-from typing import Any, Literal
-from .utils import (MultiTemporalSegmentationAugmentation, 
-                    MultiModalClassificationAugmentation,
-                    )
 
-
+from .utils import (
+    MultiModalClassificationAugmentation,
+    MultiTemporalSegmentationAugmentation,
+)
 
 # TODO come up with an expected metadata file scheme
 # with common names etc. so a standardization

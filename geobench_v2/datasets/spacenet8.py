@@ -4,17 +4,19 @@
 """SpaceNet8 dataset."""
 
 from collections.abc import Sequence
-from torch import Tensor
 from pathlib import Path
 from typing import Literal, cast
-from shapely import wkt
-from .sensor_util import DatasetBandRegistry
-from .normalization import MultiModalNormalizer
-from .base import GeoBenchBaseDataset
-import torch.nn as nn
-import rasterio
+
 import numpy as np
+import rasterio
 import torch
+import torch.nn as nn
+from shapely import wkt
+from torch import Tensor
+
+from .base import GeoBenchBaseDataset
+from .normalization import MultiModalNormalizer
+from .sensor_util import DatasetBandRegistry
 
 
 class GeoBenchSpaceNet8(GeoBenchBaseDataset):

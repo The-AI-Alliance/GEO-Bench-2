@@ -4,20 +4,23 @@
 
 """SpaceNet6 Datamodule."""
 
+import os
 from collections.abc import Callable, Sequence
 from typing import Any
+
+import matplotlib.pyplot as plt
+import numpy as np
 import pandas as pd
 import tacoreader
-import os
 import torch
-import numpy as np
-from torchgeo.datasets.utils import percentile_normalization
-from einops import rearrange
-import matplotlib.pyplot as plt
-from matplotlib.colors import ListedColormap
-from geobench_v2.datasets import GeoBenchSpaceNet6
-from .base import GeoBenchSegmentationDataModule
 import torch.nn as nn
+from einops import rearrange
+from matplotlib.colors import ListedColormap
+from torchgeo.datasets.utils import percentile_normalization
+
+from geobench_v2.datasets import GeoBenchSpaceNet6
+
+from .base import GeoBenchSegmentationDataModule
 
 
 class GeoBenchSpaceNet6DataModule(GeoBenchSegmentationDataModule):

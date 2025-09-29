@@ -4,17 +4,19 @@
 """SpaceNet6 dataset."""
 
 from collections.abc import Sequence
-from torch import Tensor
 from pathlib import Path
 from typing import Literal, cast
+
+import numpy as np
+import rasterio
+import torch
 import torch.nn as nn
 from shapely import wkt
-from .sensor_util import DatasetBandRegistry
+from torch import Tensor
+
 from .base import GeoBenchBaseDataset
 from .normalization import MultiModalNormalizer
-import rasterio
-import numpy as np
-import torch
+from .sensor_util import DatasetBandRegistry
 
 
 class GeoBenchSpaceNet6(GeoBenchBaseDataset):

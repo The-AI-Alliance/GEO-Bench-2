@@ -6,15 +6,18 @@
 import os
 from collections.abc import Callable, Sequence
 from typing import Any
-import pandas as pd
-from torch import Tensor
+
 import matplotlib.pyplot as plt
-import torch
+import pandas as pd
 import tacoreader
-from torchgeo.datasets.utils import percentile_normalization
-from geobench_v2.datasets.caffe import GeoBenchCaFFe
-from .base import GeoBenchSegmentationDataModule
+import torch
 import torch.nn as nn
+from torch import Tensor
+from torchgeo.datasets.utils import percentile_normalization
+
+from geobench_v2.datasets.caffe import GeoBenchCaFFe
+
+from .base import GeoBenchSegmentationDataModule
 
 
 class GeoBenchCaFFeDataModule(GeoBenchSegmentationDataModule):
