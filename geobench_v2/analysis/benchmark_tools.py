@@ -12,6 +12,7 @@ from scipy import stats
 
 REPEATED_SEEDS_DEFAULT = 5
 
+
 def discriminativity(scores_i, scores_j, *, tie_half=True, eps=1e-12):
     """Returns Discriminativity d_ij^l = 1 − H₂[p(A_i > A_j)] (binary entropy in bits).
 
@@ -33,7 +34,7 @@ def discriminativity(scores_i, scores_j, *, tie_half=True, eps=1e-12):
             ties += 1
 
     if tie_half:
-        better += 0.5 * ties            # split ties
+        better += 0.5 * ties  # split ties
     p = max(min(better / total, 1 - eps), eps)
 
     h2 = -p * math.log2(p) - (1 - p) * math.log2(1 - p)
@@ -55,21 +56,19 @@ def dataset_discriminativity(score_lists, tie_half=True, eps=1e-12):
         float in [0, 1]
     """
     pairs = combinations(range(len(score_lists)), 2)
-    vals = [discriminativity(score_lists[i], score_lists[j],
-                             tie_half=tie_half, eps=eps)
-            for i, j in pairs]
-            
+    vals = [
+        discriminativity(score_lists[i], score_lists[j], tie_half=tie_half, eps=eps)
+        for i, j in pairs
+    ]
+
     return sum(vals) / len(vals) if vals else 0.0
 
 
-def bootstrap_dataset_discriminativity(score_lists,
-                                       n_iter=100, 
-                                       ci=0.95,
-                                       tie_half=True, 
-                                       eps=1e-12,
-                                       random_state=None):
+def bootstrap_dataset_discriminativity(
+    score_lists, n_iter=100, ci=0.95, tie_half=True, eps=1e-12, random_state=None
+):
     """Stratified bootstrapped discriminativity.
-    
+
     Resample seeds **within each algorithm** with
     replacement, recompute D_l, repeat n_iter times.
 
@@ -95,15 +94,14 @@ def bootstrap_dataset_discriminativity(score_lists,
     k = int((1 - ci) / 2 * n_iter)
     return {
         "mean": sum(boot) / n_iter,
-        "ci": (boot[k], boot[-k - 1]),   # two-sided percentile CI
-        "samples": boot                  # keep if you want the full distribution
+        "ci": (boot[k], boot[-k - 1]),  # two-sided percentile CI
+        "samples": boot,  # keep if you want the full distribution
     }
 
 
 def compute_entropy_based_discriminativity(
-    results: pd.DataFrame,
-    num_repetitions: int = REPEATED_SEEDS_DEFAULT,
-    ):
+    results: pd.DataFrame, num_repetitions: int = REPEATED_SEEDS_DEFAULT
+):
     """Computes variance based discriminativity per dataset.
 
     Args:
@@ -114,47 +112,55 @@ def compute_entropy_based_discriminativity(
         pd.DataFrame with results
     """
     datasets = results["dataset"].tolist()
-    datasets = sorted(set(datasets))    
-    list_of_dataset= []
+    datasets = sorted(set(datasets))
+    list_of_dataset = []
     list_of_scores = []
     list_of_bootstrapped_mean = []
     list_of_bootstrapped_ci = []
     for dataset in datasets:
         results_for_dataset = results.loc[results["dataset"] == dataset].copy()
-        counts = results_for_dataset[["experiment_name", "Seed"]].groupby("experiment_name").count()
+        counts = (
+            results_for_dataset[["experiment_name", "Seed"]]
+            .groupby("experiment_name")
+            .count()
+        )
 
-        #only include experiments which have the required number of repetitions
+        # only include experiments which have the required number of repetitions
         experiment_names = counts.loc[counts["Seed"] == num_repetitions].index.tolist()
-        results_for_dataset = results_for_dataset.loc[results_for_dataset["experiment_name"].isin(experiment_names)].copy()
-        results_for_dataset = results_for_dataset.groupby("experiment_name")['test metric'].apply(list).reset_index(name='metric')
+        results_for_dataset = results_for_dataset.loc[
+            results_for_dataset["experiment_name"].isin(experiment_names)
+        ].copy()
+        results_for_dataset = (
+            results_for_dataset.groupby("experiment_name")["test metric"]
+            .apply(list)
+            .reset_index(name="metric")
+        )
         metrics = results_for_dataset["metric"].tolist()
 
         # Compute discriminativity for dataset
         result = dataset_discriminativity(metrics, tie_half=True, eps=1e-12)
-        bootstrapped_uncertainty = bootstrap_dataset_discriminativity(metrics,
-                                       n_iter=100, ci=0.95,
-                                       tie_half=True, eps=1e-12,
-                                       random_state=None)
+        bootstrapped_uncertainty = bootstrap_dataset_discriminativity(
+            metrics, n_iter=100, ci=0.95, tie_half=True, eps=1e-12, random_state=None
+        )
         list_of_dataset.append(dataset)
         list_of_scores.append(result)
         list_of_bootstrapped_mean.append(bootstrapped_uncertainty["mean"])
         list_of_bootstrapped_ci.append(bootstrapped_uncertainty["ci"])
 
-    output = pd.DataFrame({
-        "dataset": list_of_dataset,
-        "discriminativity": list_of_scores,
-        "bootstrapped_mean": list_of_bootstrapped_mean,
-        "bootstrapped_ci": list_of_bootstrapped_ci,
-
-    })
+    output = pd.DataFrame(
+        {
+            "dataset": list_of_dataset,
+            "discriminativity": list_of_scores,
+            "bootstrapped_mean": list_of_bootstrapped_mean,
+            "bootstrapped_ci": list_of_bootstrapped_ci,
+        }
+    )
     return output
 
 
-
 def compute_variance_based_discriminativity(
-    results: pd.DataFrame,
-    num_repetitions: int = REPEATED_SEEDS_DEFAULT,
-    ):
+    results: pd.DataFrame, num_repetitions: int = REPEATED_SEEDS_DEFAULT
+):
     """Computes variance based discriminativity per dataset.
 
     Args:
@@ -165,24 +171,34 @@ def compute_variance_based_discriminativity(
         pd.DataFrame with results
     """
     datasets = results["dataset"].tolist()
-    datasets = sorted(set(datasets))    
-    list_of_dataset= []
+    datasets = sorted(set(datasets))
+    list_of_dataset = []
     list_of_stats = []
     list_of_p_values = []
     list_of_log_p_values = []
     for dataset in datasets:
         results_for_dataset = results.loc[results["dataset"] == dataset].copy()
-        counts = results_for_dataset[["experiment_name", "Seed"]].groupby("experiment_name").count()
+        counts = (
+            results_for_dataset[["experiment_name", "Seed"]]
+            .groupby("experiment_name")
+            .count()
+        )
 
-        #only include experiments which have the required number of repetitions
+        # only include experiments which have the required number of repetitions
         experiment_names = counts.loc[counts["Seed"] == num_repetitions].index.tolist()
-        results_for_dataset = results_for_dataset.loc[results_for_dataset["experiment_name"].isin(experiment_names)].copy()
-        results_for_dataset = results_for_dataset.groupby("experiment_name")['test metric'].apply(list).reset_index(name='metric')
+        results_for_dataset = results_for_dataset.loc[
+            results_for_dataset["experiment_name"].isin(experiment_names)
+        ].copy()
+        results_for_dataset = (
+            results_for_dataset.groupby("experiment_name")["test metric"]
+            .apply(list)
+            .reset_index(name="metric")
+        )
         metrics = results_for_dataset["metric"].tolist()
 
         list_of_dataset.append(dataset)
-        # Conduct the Kruskal-Wallis Test 
-        if len(experiment_names) ==1 :
+        # Conduct the Kruskal-Wallis Test
+        if len(experiment_names) == 1:
             list_of_stats.append("NA")
             list_of_p_values.append("NA")
             list_of_log_p_values.append("NA")
@@ -193,12 +209,12 @@ def compute_variance_based_discriminativity(
             list_of_p_values.append(result.pvalue)
             list_of_log_p_values.append(math.log(result.pvalue))
 
-    output = pd.DataFrame({
-        "dataset": list_of_dataset,
-        "p_value": list_of_p_values,
-        "log_p_value": list_of_log_p_values,
-        "statistic": list_of_stats,
-
-    })
+    output = pd.DataFrame(
+        {
+            "dataset": list_of_dataset,
+            "p_value": list_of_p_values,
+            "log_p_value": list_of_log_p_values,
+            "statistic": list_of_stats,
+        }
+    )
     return output
-

@@ -35,7 +35,6 @@ class GeoBenchDynamicEarthNet(GeoBenchBaseDataset):
         "d08bceb12f4294d815dd9ea26f31d9ae6315d9afc816301863a08a65addd4e73",
     ]
 
-
     dataset_band_config = DatasetBandRegistry.DYNAMICEARTHNET
 
     band_default_order = {
@@ -230,17 +229,19 @@ class GeoBenchDynamicEarthNet(GeoBenchBaseDataset):
         if self.transforms is not None:
             sample = self.transforms(sample)
 
-        if ("planet" in self.band_order):# and ():
-            #convert from T, C, H, W -> C, T, H, W
+        if "planet" in self.band_order:  # and ():
+            # convert from T, C, H, W -> C, T, H, W
             sample["image_planet"] = sample["image_planet"].permute(1, 0, 2, 3)
 
-        if (self.temporal_setting == "single"):
+        if self.temporal_setting == "single":
             sample["image_planet"] = sample["image_planet"].squeeze(1)
 
         if self.return_stacked_image:
             if ("s2" in self.band_order) and (self.temporal_setting != "single"):
-                raise ValueError("To stack Sentinel 2 (s2) with Planet, please use temporal_setting = single")
-            sample = { 
+                raise ValueError(
+                    "To stack Sentinel 2 (s2) with Planet, please use temporal_setting = single"
+                )
+            sample = {
                 "image": torch.cat(
                     [sample[f"image_{key}"] for key in self.band_order.keys()], 0
                 ),

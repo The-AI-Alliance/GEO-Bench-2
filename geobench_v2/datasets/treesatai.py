@@ -130,7 +130,7 @@ class GeoBenchTreeSatAI(GeoBenchBaseDataset):
     def __init__(
         self,
         root: Path,
-        rename_modalities: dict | None = None, 
+        rename_modalities: dict | None = None,
         split: dict[str, list[str]] = {"aerial": ["red", "green", "blue", "nir"]},
         band_order: dict[str, Sequence[str]] = {"aerial": ["r", "g", "b"]},
         data_normalizer: type[nn.Module] = MultiModalNormalizer,
@@ -171,13 +171,14 @@ class GeoBenchTreeSatAI(GeoBenchBaseDataset):
             download=download,
         )
 
-        if return_stacked_image: 
-            assert rename_modalities is None, "Cannot return a stacked image if modalities are renamed"
+        if return_stacked_image:
+            assert rename_modalities is None, (
+                "Cannot return a stacked image if modalities are renamed"
+            )
         self.return_stacked_image = return_stacked_image
         self.rename_modalities = rename_modalities
         self.include_ts = include_ts
         self.num_time_steps = num_time_steps
-        
 
         if include_ts:
             if num_time_steps is None:
@@ -246,8 +247,9 @@ class GeoBenchTreeSatAI(GeoBenchBaseDataset):
                         sample[new_sub_key] = sample[f"image_{key}"]
                         del sample[f"image_{key}"]
                     else:
-                        raise ValueError("rename_modalities must include names that exist in the dataset")
-
+                        raise ValueError(
+                            "rename_modalities must include names that exist in the dataset"
+                        )
 
         point = wkt.loads(sample_row.iloc[0]["stac:centroid"])
         lon, lat = point.x, point.y

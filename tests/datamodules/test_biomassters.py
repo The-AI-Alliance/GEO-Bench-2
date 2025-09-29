@@ -117,7 +117,6 @@ class TestBioMasstersDataModule:
 
         expected_dims["mask"] = (
             datamodule.batch_size,
-            # 1,
             datamodule.img_size,
             datamodule.img_size,
         )
@@ -136,7 +135,7 @@ class TestBioMasstersDataModule:
             key = f"image_{modality}"
             assert train_batch[key].dim() == 5
             assert train_batch[key].shape[0] == ts_datamodule.batch_size
-            
+
             assert train_batch[key].shape[1] == len(band_names)
             assert (
                 train_batch[key].shape[2] == ts_datamodule.train_dataset.num_time_steps
@@ -144,7 +143,7 @@ class TestBioMasstersDataModule:
             assert train_batch[key].shape[3] == ts_datamodule.img_size
             assert train_batch[key].shape[4] == ts_datamodule.img_size
 
-        assert train_batch["mask"].shape == ( #BxHxW
+        assert train_batch["mask"].shape == (  # BxHxW
             ts_datamodule.batch_size,
             # 1,
             ts_datamodule.img_size,

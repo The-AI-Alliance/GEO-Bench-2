@@ -19,7 +19,6 @@ class DataUtilsMixin(ABC):
     dataset_band_config: ModalityConfig | MultiModalConfig
     normalization_stats: dict[str, dict[str, float]]
 
-
     # @property
     # def normalization_stats(self) -> dict[str, dict[str, dict[str, float]]]:
     #     """Per-modality normalization statistics."""

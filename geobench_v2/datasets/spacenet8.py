@@ -42,8 +42,16 @@ class GeoBenchSpaceNet8(GeoBenchBaseDataset):
     dataset_band_config = DatasetBandRegistry.SPACENET8
 
     normalization_stats: dict[str, dict[str, float]] = {
-        "means": {"red": 65.36776733398438, "green": 84.85777282714844, "blue": 57.087120056152344},
-        "stds": {"red": 44.107696533203125, "green": 37.45336151123047, "blue": 35.882049560546875},
+        "means": {
+            "red": 65.36776733398438,
+            "green": 84.85777282714844,
+            "blue": 57.087120056152344,
+        },
+        "stds": {
+            "red": 44.107696533203125,
+            "green": 37.45336151123047,
+            "blue": 35.882049560546875,
+        },
     }
 
     band_default_order = ("red", "green", "blue")
@@ -65,7 +73,7 @@ class GeoBenchSpaceNet8(GeoBenchBaseDataset):
         split: Literal["train", "val", "validation", "test"],
         band_order: list[str] = band_default_order,
         data_normalizer: type[nn.Module] = MultiModalNormalizer,
-        transforms:  nn.Module | None = None,
+        transforms: nn.Module | None = None,
         metadata: Sequence[str] | None = None,
         return_stacked_image: bool = False,
         time_step: Sequence[str] = ["pre", "post"],
@@ -103,13 +111,15 @@ class GeoBenchSpaceNet8(GeoBenchBaseDataset):
             download=download,
         )
         self.return_stacked_image = return_stacked_image
-        
+
         if len(time_step) == 0:
             raise ValueError(
-                    "time_step must include at least one item from  ['pre', 'post']"
-                )
+                "time_step must include at least one item from  ['pre', 'post']"
+            )
         for i in time_step:
-            assert i in ["pre", "post"], "time_step must include at least one item from  ['pre', 'post']"
+            assert i in ["pre", "post"], (
+                "time_step must include at least one item from  ['pre', 'post']"
+            )
         self.time_step = time_step
 
     def __getitem__(self, index: int) -> dict[str, Tensor]:
@@ -152,15 +162,25 @@ class GeoBenchSpaceNet8(GeoBenchBaseDataset):
 
         if self.return_stacked_image:
             if len(self.time_step) > 1:
-                sample = { #[C, T, H, W] == [C, T, H, W]
+                sample = {  # [C, T, H, W] == [C, T, H, W]
                     "image": torch.stack(
-                        [img for key, img in sample.items() if key.startswith("image_")], dim=1
+                        [
+                            img
+                            for key, img in sample.items()
+                            if key.startswith("image_")
+                        ],
+                        dim=1,
                     )
                 }
             else:
-                sample = {  #[C, H, W]
+                sample = {  # [C, H, W]
                     "image": torch.cat(
-                        [img for key, img in sample.items() if key.startswith("image_")], 0
+                        [
+                            img
+                            for key, img in sample.items()
+                            if key.startswith("image_")
+                        ],
+                        0,
                     )
                 }
 

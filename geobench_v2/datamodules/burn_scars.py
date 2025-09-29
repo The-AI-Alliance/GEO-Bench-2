@@ -176,7 +176,6 @@ class GeoBenchBurnScarsDataModule(GeoBenchSegmentationDataModule):
         plt.tight_layout()
         return fig, batch
 
-
     def visualize_geolocation_distribution(self) -> None:
         """Visualize the geolocation distribution of the dataset."""
         pass

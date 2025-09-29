@@ -27,7 +27,7 @@ class GeoBenchBioMassters(GeoBenchBaseDataset):
 
     url = "https://hf.co/datasets/aialliance/biomassters/resolve/main/{}"
     paths = [
-        "geobench_biomassters.0000.part.tortilla",
+        "geobench_biomassters.0000.part.tortilla"
         # "geobench_biomassters.0001.part.tortilla",
         # "geobench_biomassters.0002.part.tortilla",
         # "geobench_biomassters.0003.part.tortilla",
@@ -36,7 +36,9 @@ class GeoBenchBioMassters(GeoBenchBaseDataset):
         # "geobench_biomassters.0006.part.tortilla",
     ]
 
-    sha256str: Sequence[str] = ["77682ec73a9d496eb694b6a6e65c2ee793ed9f326e6b37a9dea1b065177334ff"]
+    sha256str: Sequence[str] = [
+        "77682ec73a9d496eb694b6a6e65c2ee793ed9f326e6b37a9dea1b065177334ff"
+    ]
 
     dataset_band_config = DatasetBandRegistry.BIOMASSTERS
 
@@ -92,7 +94,7 @@ class GeoBenchBioMassters(GeoBenchBaseDataset):
             "s1": ["VV_asc", "VH_asc"],
             "s2": ["B04", "B03", "B02", "B08"],
         },
-        rename_modalities: dict | None = None, 
+        rename_modalities: dict | None = None,
         data_normalizer: type[nn.Module] = MultiModalNormalizer,
         transforms: nn.Module | None = None,
         metadata: Sequence[str] | None = None,
@@ -138,8 +140,10 @@ class GeoBenchBioMassters(GeoBenchBaseDataset):
         )
         self.num_time_steps = num_time_steps
 
-        if return_stacked_image: 
-            assert rename_modalities is None, "Cannot return a stacked image if modalities are renamed"
+        if return_stacked_image:
+            assert rename_modalities is None, (
+                "Cannot return a stacked image if modalities are renamed"
+            )
         self.return_stacked_image = return_stacked_image
         self.rename_modalities = rename_modalities
 
@@ -170,7 +174,7 @@ class GeoBenchBioMassters(GeoBenchBaseDataset):
 
         spatial_mask = None
 
-        #s1 data should always be read
+        # s1 data should always be read
         sample_s1_row = sample_row[sample_row["modality"] == "S1"]
         s1_data = []
         for i in sample_s1_row.index[: self.num_time_steps]:
@@ -237,10 +241,9 @@ class GeoBenchBioMassters(GeoBenchBaseDataset):
                         "t h w -> t c h w",
                         c=img_dict["image_s1"].shape[1],
                     )
-                ] = 0.0                
-            
+                ] = 0.0
 
-        if "s2" in self.band_order: 
+        if "s2" in self.band_order:
             if spatial_mask is not None:
                 if img_dict["image_s2"].dim() == 3:  # [C, H, W]
                     img_dict["image_s2"][:, spatial_mask] = 0.0
@@ -253,7 +256,6 @@ class GeoBenchBioMassters(GeoBenchBaseDataset):
                             c=img_dict["image_s2"].shape[1],
                         )
                     ] = 0.0
-                   
 
         sample.update(img_dict)
 
@@ -274,17 +276,16 @@ class GeoBenchBioMassters(GeoBenchBaseDataset):
             sample = self.transforms(sample)
 
         for key in sample:
-            if "image" in key and sample[key].dim() == 4: # [T, C, H, W]    
-                sample[key] = sample[key].permute(1, 0, 2, 3) #C, T, H, W
-
+            if "image" in key and sample[key].dim() == 4:  # [T, C, H, W]
+                sample[key] = sample[key].permute(1, 0, 2, 3)  # C, T, H, W
 
         if self.return_stacked_image:
-            sample = { 
-                    "image": torch.cat(
-                        [sample[f"image_{key}"] for key in self.band_order.keys()], 0
-                    ),
-                    "mask": sample["mask"],
-                }
+            sample = {
+                "image": torch.cat(
+                    [sample[f"image_{key}"] for key in self.band_order.keys()], 0
+                ),
+                "mask": sample["mask"],
+            }
         sample["mask"] = torch.squeeze(sample["mask"])
 
         if self.rename_modalities is not None:
@@ -302,6 +303,8 @@ class GeoBenchBioMassters(GeoBenchBaseDataset):
                         sample[new_sub_key] = sample[f"image_{key}"]
                         del sample[f"image_{key}"]
                     else:
-                        raise ValueError("rename_modalities must include names that exist in the dataset")
+                        raise ValueError(
+                            "rename_modalities must include names that exist in the dataset"
+                        )
 
         return sample

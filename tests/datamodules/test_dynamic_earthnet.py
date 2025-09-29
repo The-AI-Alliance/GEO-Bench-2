@@ -87,7 +87,8 @@ class TestDynamicEarthNetDataModule:
                     datamodule.img_size,
                 )
             else:
-                expected_dims[f"image_{modality}"] = ( #BxCxTxHxW
+                # BxCxTxHxW
+                expected_dims[f"image_{modality}"] = (
                     datamodule.batch_size,
                     len(band_names),
                     num_time_steps,
@@ -95,9 +96,9 @@ class TestDynamicEarthNetDataModule:
                     datamodule.img_size,
                 )
 
-        expected_dims["mask"] = ( #BxHxW
+        # BxHxW
+        expected_dims["mask"] = (
             datamodule.batch_size,
-            # 1,
             datamodule.img_size,
             datamodule.img_size,
         )

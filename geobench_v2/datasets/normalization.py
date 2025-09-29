@@ -1160,9 +1160,6 @@ class ClipOnlyNormalizer(DataNormalizer):
         return "    " + ", ".join(parts)
 
 
-
-
-
 class MultiModalNormalizer(nn.Module, ABC):
     """Normalization module applying sequential clipping and z-score normalization.
 
@@ -1240,9 +1237,7 @@ class MultiModalNormalizer(nn.Module, ABC):
                 is_fill.append(False)
         return torch.tensor(means), torch.tensor(stds), torch.tensor(is_fill)
 
-    def _get_clip_values(
-        self, bands: Sequence[str | float]
-    ) -> tuple[Tensor, Tensor]:
+    def _get_clip_values(self, bands: Sequence[str | float]) -> tuple[Tensor, Tensor]:
         """Extract clip min/max tensors. Uses +/- infinity if clipping is not defined."""
         clip_mins, clip_maxs = [], []
         has_clip_min_stats = "clip_min" in self.stats
@@ -1395,4 +1390,3 @@ class MultiModalNormalizer(nn.Module, ABC):
             result[key] = unnormalized_tensor
 
         return result
-

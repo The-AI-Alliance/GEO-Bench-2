@@ -54,7 +54,7 @@ class ModalityConfig:
         for canon, band_config in self.bands.items():
             if band_spec == canon or band_spec in band_config.aliases:
                 return canon
-        return None 
+        return None
 
 
 @dataclass
@@ -298,7 +298,7 @@ class SensorBandRegistry:
                 "green", ["b03", "green"], wavelength=0.560, resolution=30
             ),
             "B04": BandConfig("red", ["b04", "red"], wavelength=0.665, resolution=30),
-            "B8A": BandConfig( "nir_narrow", ["b8a"], wavelength=0.850, resolution=60),
+            "B8A": BandConfig("nir_narrow", ["b8a"], wavelength=0.850, resolution=60),
             "B11": BandConfig(
                 "swir1",
                 ["short_wave_infrared_1", "b11"],
@@ -316,7 +316,6 @@ class SensorBandRegistry:
         native_resolution=10,
         plot_bands=["B04", "B03", "B02"],
     )
-
 
     @classmethod
     def get_modality_config(cls, modality: str | SensorType) -> ModalityConfig:

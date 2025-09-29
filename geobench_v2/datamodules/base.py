@@ -74,7 +74,7 @@ class GeoBenchDataModule(LightningDataModule, ABC):
                 "Please provide one of the follow for eval_augmentations: Callable or None or 'default' or 'multi_temporal_default'"
             )
         if isinstance(eval_augmentations, str):
-            assert eval_augmentations  in ("default", "multi_temporal_default"), (
+            assert eval_augmentations in ("default", "multi_temporal_default"), (
                 "Please provide one of the follow for eval_augmentations: Callable or None or 'default' or 'multi_temporal_default'"
             )
 
@@ -158,9 +158,7 @@ class GeoBenchDataModule(LightningDataModule, ABC):
 
     @abstractmethod
     def visualize_batch(
-        self, 
-        batch: dict[str, Any] | None = None, 
-        split: str = "train"
+        self, batch: dict[str, Any] | None = None, split: str = "train"
     ) -> tuple[Any, dict[str, Any]]:
         """Visualize a batch of data.
 
@@ -323,7 +321,6 @@ class GeoBenchDataModule(LightningDataModule, ABC):
     #     """Visualize the target distribution of the dataset."""
     #     # for single vector targets this should be easy, but how to make this easier for pixel-wise targets, also store in metadata?
     #     pass
-
 
     @abstractmethod
     def visualize_geolocation_distribution(self) -> None:
@@ -511,13 +508,17 @@ class GeoBenchClassificationDataModule(GeoBenchDataModule):
             self.train_augmentations = nn.Identity()
 
         if (self.eval_augmentations in ["default", "multi_temporal_default"]) or (
-            self.eval_augmentations is None):
+            self.eval_augmentations is None
+        ):
             self.eval_augmentations = nn.Identity()
 
         if "rename_modalities" in self.kwargs:
-            self.train_augmentations = MultiModalClassificationAugmentation(transforms=self.train_augmentations)
-            self.eval_augmentations = MultiModalClassificationAugmentation(transforms=self.eval_augmentations)
-
+            self.train_augmentations = MultiModalClassificationAugmentation(
+                transforms=self.train_augmentations
+            )
+            self.eval_augmentations = MultiModalClassificationAugmentation(
+                transforms=self.eval_augmentations
+            )
 
     def setup_image_size_transforms(self) -> tuple[nn.Module, nn.Module, nn.Module]:
         """Setup image resizing transforms for train, val, test.
@@ -548,9 +549,7 @@ class GeoBenchClassificationDataModule(GeoBenchDataModule):
         raise NotImplementedError
 
     def visualize_batch(
-        self, 
-        batch: dict[str, Any] | None = None, 
-        split: str = "train"
+        self, batch: dict[str, Any] | None = None, split: str = "train"
     ) -> tuple[Any, dict[str, Any]]:
         """Visualize a batch of data.
 
@@ -638,20 +637,23 @@ class GeoBenchSegmentationDataModule(GeoBenchDataModule):
             )
         elif self.train_augmentations == "multi_temporal_default":
             transforms = K.AugmentationSequential(
-                        K.VideoSequential(
-                            K.RandomHorizontalFlip(p=0.5),
-                            K.RandomVerticalFlip(p=0.5),
-                            data_format="BCTHW",
-                        ),
-                        data_keys=None,
-                        keepdim=True,
-                    )
-            self.train_augmentations = MultiTemporalSegmentationAugmentation(transforms=transforms)
+                K.VideoSequential(
+                    K.RandomHorizontalFlip(p=0.5),
+                    K.RandomVerticalFlip(p=0.5),
+                    data_format="BCTHW",
+                ),
+                data_keys=None,
+                keepdim=True,
+            )
+            self.train_augmentations = MultiTemporalSegmentationAugmentation(
+                transforms=transforms
+            )
         elif self.train_augmentations is None:
             self.train_augmentations = nn.Identity()
 
         if (self.eval_augmentations in ["default", "multi_temporal_default"]) or (
-            self.eval_augmentations is None):
+            self.eval_augmentations is None
+        ):
             self.eval_augmentations = nn.Identity()
 
     def setup_image_size_transforms(self) -> tuple[nn.Module, nn.Module, nn.Module]:
@@ -683,9 +685,7 @@ class GeoBenchSegmentationDataModule(GeoBenchDataModule):
         raise NotImplementedError
 
     def visualize_batch(
-        self, 
-        batch: dict[str, Any] | None = None, 
-        split: str = "train"
+        self, batch: dict[str, Any] | None = None, split: str = "train"
     ) -> tuple[Any, dict[str, Any]]:
         """Visualize a batch of data.
 
@@ -784,7 +784,8 @@ class GeoBenchObjectDetectionDataModule(GeoBenchDataModule):
             self.train_augmentations = nn.Identity()
 
         if (self.eval_augmentations in ["default", "multi_temporal_default"]) or (
-            self.eval_augmentations is None):
+            self.eval_augmentations is None
+        ):
             self.eval_augmentations = nn.Identity()
 
     def setup_image_size_transforms(self) -> tuple[nn.Module, nn.Module, nn.Module]:
@@ -816,9 +817,7 @@ class GeoBenchObjectDetectionDataModule(GeoBenchDataModule):
         raise NotImplementedError
 
     def visualize_batch(
-        self, 
-        batch: dict[str, Any] | None = None, 
-        split: str = "train"
+        self, batch: dict[str, Any] | None = None, split: str = "train"
     ) -> tuple[Any, dict[str, Any]]:
         """Visualize a batch of data.
 

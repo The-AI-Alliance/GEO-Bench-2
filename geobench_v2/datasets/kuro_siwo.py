@@ -30,9 +30,7 @@ class GeoBenchKuroSiwo(GeoBenchBaseDataset):
 
     url = "https://hf.co/datasets/aialliance/kuro_siwo/resolve/main/{}"
 
-    paths = [
-        "geobench_kuro_siwo.tortilla"
-    ]
+    paths = ["geobench_kuro_siwo.tortilla"]
 
     sha256str = ["0b546c54df70cb7548081df688cc2317f00f7b81e541e09fa0ddcd787d647eef"]
 
@@ -46,7 +44,7 @@ class GeoBenchKuroSiwo(GeoBenchBaseDataset):
     # "dem_mean":93.4313,
     # "dem_std":1410.8382,
 
-    normalization_stats: dict[str, dict[str, float]]  = {
+    normalization_stats: dict[str, dict[str, float]] = {
         "means": {"vv": 0.0953, "vh": 0.0264, "dem": 93.4313},
         "stds": {"vv": 0.0427, "vh": 0.0215, "dem": 1410.8382},
     }
@@ -70,7 +68,7 @@ class GeoBenchKuroSiwo(GeoBenchBaseDataset):
         data_normalizer: type[nn.Module] = MultiModalNormalizer,
         transforms: type[nn.Module] = None,
         return_stacked_image: bool = False,
-        time_step: Sequence[str] = ["pre_1","pre_2","post"],
+        time_step: Sequence[str] = ["pre_1", "pre_2", "post"],
         download: bool = False,
     ) -> None:
         """Initialize Kuro Siwo Dataset.
@@ -102,12 +100,12 @@ class GeoBenchKuroSiwo(GeoBenchBaseDataset):
         self.return_stacked_image = return_stacked_image
         if len(time_step) == 0:
             raise ValueError(
-                    "time_step must include at least one item from  ['pre_1, , 'pre_2', 'post']"
-                )
-        for i in time_step:
-            assert i in ['pre_1', 'pre_2', 'post'], (
                 "time_step must include at least one item from  ['pre_1, , 'pre_2', 'post']"
-                )
+            )
+        for i in time_step:
+            assert i in ["pre_1", "pre_2", "post"], (
+                "time_step must include at least one item from  ['pre_1, , 'pre_2', 'post']"
+            )
         self.time_step = time_step
 
     def __getitem__(self, index: int) -> dict[str, Tensor]:
@@ -205,12 +203,14 @@ class GeoBenchKuroSiwo(GeoBenchBaseDataset):
                 if key in sample
             ]
             images_sizes = [item.shape for item in stacked_images]
-            assert len(set(images_sizes)) == 1, f"{images_sizes=} currently only supports stacking of images/modalities with the same number of bands"
-            sample = { #TODO: stack dem for each sar timestamp
-                "image": torch.stack(stacked_images, dim=1), #[C, T, H, W]
-                "mask": sample["mask"]
-                }
-            _,t,_,_ = sample["image"].shape
+            assert len(set(images_sizes)) == 1, (
+                f"{images_sizes=} currently only supports stacking of images/modalities with the same number of bands"
+            )
+            sample = {  # TODO: stack dem for each sar timestamp
+                "image": torch.stack(stacked_images, dim=1),  # [C, T, H, W]
+                "mask": sample["mask"],
+            }
+            _, t, _, _ = sample["image"].shape
             if t == 1:
                 sample["image"] = sample["image"].squeeze(1)
 

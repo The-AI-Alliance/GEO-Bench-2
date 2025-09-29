@@ -28,7 +28,10 @@ class GeoBenchCaFFe(GeoBenchBaseDataset):
 
     band_default_order = ("gray",)
 
-    normalization_stats: dict[str, dict[str, float]] = {"means": {"gray": 62.682498931884766}, "stds": {"gray": 79.8001937866211}}
+    normalization_stats: dict[str, dict[str, float]] = {
+        "means": {"gray": 62.682498931884766},
+        "stds": {"gray": 79.8001937866211},
+    }
 
     mask_dirs = ("zones", "zones")
 
@@ -115,5 +118,3 @@ class GeoBenchCaFFe(GeoBenchBaseDataset):
             sample = self.transforms(sample)
 
         return sample
-
-

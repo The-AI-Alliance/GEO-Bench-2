@@ -7,5 +7,5 @@ from .benchmark_tools import (
 
 __all__ = (
     "compute_variance_based_discriminativity",
-    "compute_entropy_based_discriminativity"
+    "compute_entropy_based_discriminativity",
 )

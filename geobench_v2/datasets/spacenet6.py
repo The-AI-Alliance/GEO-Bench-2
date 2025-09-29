@@ -68,7 +68,7 @@ class GeoBenchSpaceNet6(GeoBenchBaseDataset):
             "hh": 12.217103004455566,
             "hv": 14.078553199768066,
             "vv": 13.503046035766602,
-            "vh": 11.729385375976562
+            "vh": 11.729385375976562,
         },
     }
 
@@ -82,14 +82,13 @@ class GeoBenchSpaceNet6(GeoBenchBaseDataset):
         self,
         root: Path,
         split: Literal["train", "val", "validation", "test"],
-        rename_modalities: dict | None = None, 
+        rename_modalities: dict | None = None,
         band_order: Sequence[str] = band_default_order,
         data_normalizer: type[nn.Module] = MultiModalNormalizer,
         transforms: nn.Module | None = None,
         return_stacked_image: bool = False,
         metadata: Sequence[str] | None = None,
         download: bool = False,
-        
     ) -> None:
         """Initialize SpaceNet6 dataset.
 
@@ -123,11 +122,12 @@ class GeoBenchSpaceNet6(GeoBenchBaseDataset):
             metadata=metadata,
             download=download,
         )
-        if return_stacked_image: 
-            assert rename_modalities is None, "Cannot return a stacked image if modalities are renamed"
+        if return_stacked_image:
+            assert rename_modalities is None, (
+                "Cannot return a stacked image if modalities are renamed"
+            )
         self.return_stacked_image = return_stacked_image
         self.rename_modalities = rename_modalities
-
 
     def __getitem__(self, index: int) -> dict[str, Tensor]:
         """Return an index within the dataset.
@@ -210,7 +210,9 @@ class GeoBenchSpaceNet6(GeoBenchBaseDataset):
                         sample[new_sub_key] = sample[f"image_{key}"]
                         del sample[f"image_{key}"]
                     else:
-                        raise ValueError("rename_modalities must include names that exist in the dataset")
+                        raise ValueError(
+                            "rename_modalities must include names that exist in the dataset"
+                        )
 
         point = wkt.loads(sample_row.iloc[0]["stac:centroid"])
         lon, lat = point.x, point.y

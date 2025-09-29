@@ -80,7 +80,6 @@ class GeoBenchSpaceNet2DataModule(GeoBenchSegmentationDataModule):
         )
         return self.data_df
 
-
     def visualize_batch(
         self, batch: dict[str, Any] | None = None, split: str = "train"
     ) -> tuple[Any, dict[str, Any]]:
@@ -200,8 +199,6 @@ class GeoBenchSpaceNet2DataModule(GeoBenchSegmentationDataModule):
 
         return fig, batch
 
-
     def visualize_geolocation_distribution(self) -> None:
         """Visualize the geolocation distribution of the dataset."""
         pass
-

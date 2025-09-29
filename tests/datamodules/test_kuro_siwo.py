@@ -28,6 +28,7 @@ def stacking_band_order(request):
     """Parameterized band configuration with different configurations."""
     return request.param
 
+
 @pytest.fixture
 def datamodule(
     monkeypatch: MonkeyPatch,
@@ -171,10 +172,8 @@ class TestKuroSiwoDataModule:
         assert "image" in train_batch
         assert "mask" in train_batch
 
-        # for stacked mode, multiply sar channels by 3 (pre_1, pre_2, post) (currently does not support dem channel stacking)
-        # num_channels = 3 * len(stacked_datamodule.band_order["sar"]) + len(
-        #    stacked_datamodule.band_order["dem"]
-        #)
+        # for stacked mode, multiply sar channels by 3 (pre_1, pre_2, post)
+        # currently does not support dem channel stacking
         num_channels = len(stacked_datamodule.band_order["sar"])
         num_time_steps = 3
         assert train_batch["image"].shape == (

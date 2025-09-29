@@ -29,7 +29,7 @@ class GeoBenchDynamicEarthNetDataModule(GeoBenchSegmentationDataModule):
     # TODO img_size will change to 512
     def __init__(
         self,
-        img_size: int = 512, 
+        img_size: int = 512,
         band_order: Sequence[float | str] = GeoBenchDynamicEarthNet.band_default_order,
         batch_size: int = 32,
         eval_batch_size: int = 64,
@@ -108,7 +108,7 @@ class GeoBenchDynamicEarthNetDataModule(GeoBenchSegmentationDataModule):
 
         for k, v in batch.items():
             orig_dim = v.dim()
-            if orig_dim == 5: #BxCxTxHxW -> BxTxCxHxW
+            if orig_dim == 5:  # BxCxTxHxW -> BxTxCxHxW
                 batch[k] = v.permute(0, 2, 1, 3, 4)
 
         if hasattr(self.data_normalizer, "unnormalize"):
@@ -284,7 +284,6 @@ class GeoBenchDynamicEarthNetDataModule(GeoBenchSegmentationDataModule):
         fig.subplots_adjust(left=0.02, right=0.98, bottom=0.02, top=1.0 - legend_h_frac)
 
         return fig, batch
-
 
     def visualize_geospatial_distribution(
         self,

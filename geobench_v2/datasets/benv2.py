@@ -125,7 +125,7 @@ class GeoBenchBENV2(GeoBenchBaseDataset):
         self,
         root: Path,
         split: Literal["train", "val", "validation", "test"],
-        rename_modalities: dict | None = None, 
+        rename_modalities: dict | None = None,
         band_order: dict[str, Sequence[float | str]] = {"s2": ["B04", "B03", "B02"]},
         data_normalizer: type[nn.Module] = MultiModalNormalizer,
         transforms: nn.Module | None = None,
@@ -165,8 +165,10 @@ class GeoBenchBENV2(GeoBenchBaseDataset):
             metadata=metadata,
             download=download,
         )
-        if return_stacked_image: 
-            assert rename_modalities is None, "Cannot return a stacked image if modalities are renamed"
+        if return_stacked_image:
+            assert rename_modalities is None, (
+                "Cannot return a stacked image if modalities are renamed"
+            )
         self.return_stacked_image = return_stacked_image
         self.rename_modalities = rename_modalities
         self.class2idx = {c: i for i, c in enumerate(self.label_names)}
@@ -229,9 +231,11 @@ class GeoBenchBENV2(GeoBenchBaseDataset):
                         sample[new_sub_key] = sample[f"image_{key}"]
                         del sample[f"image_{key}"]
                     else:
-                        raise ValueError("rename_modalities must include names that exist in the dataset")
+                        raise ValueError(
+                            "rename_modalities must include names that exist in the dataset"
+                        )
 
-        sample["label"] = self._load_target(sample_row.iloc[0]["labels"])                                
+        sample["label"] = self._load_target(sample_row.iloc[0]["labels"])
 
         if "lon" in self.metadata:
             sample["lon"] = torch.tensor(sample_row.iloc[0]["lon"])

@@ -27,7 +27,8 @@ class GeoBenchBENV2DataModule(GeoBenchClassificationDataModule):
     def __init__(
         self,
         img_size: int = 120,
-        band_order: Sequence[float | str] | dict[str, Sequence[float | str]] = GeoBenchBENV2.band_default_order,
+        band_order: Sequence[float | str]
+        | dict[str, Sequence[float | str]] = GeoBenchBENV2.band_default_order,
         batch_size: int = 32,
         eval_batch_size: int = 64,
         num_workers: int = 0,

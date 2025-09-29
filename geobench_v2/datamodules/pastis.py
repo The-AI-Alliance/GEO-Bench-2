@@ -103,12 +103,11 @@ class GeoBenchPASTISDataModule(GeoBenchSegmentationDataModule):
         else:
             batch = next(iter(self.test_dataloader()))
 
-
         for k, v in batch.items():
             orig_dim = v.dim()
-            if orig_dim == 4: #CxTxHxW -> TxCxHxW
+            if orig_dim == 4:  # CxTxHxW -> TxCxHxW
                 batch[k] = batch[k].permute(1, 0, 2, 3)
-            elif orig_dim == 5: #BxCxTxHxW -> BxTxCxHxW
+            elif orig_dim == 5:  # BxCxTxHxW -> BxTxCxHxW
                 batch[k] = batch[k].permute(0, 2, 1, 3, 4)
 
         if hasattr(self.data_normalizer, "unnormalize"):

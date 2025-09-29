@@ -83,7 +83,6 @@ class GeoBenchFieldsOfTheWorldDataModule(GeoBenchSegmentationDataModule):
         )
         return self.data_df
 
-
     def visualize_batch(
         self, batch: dict[str, Any] | None = None, split: str = "train"
     ) -> tuple[Any, dict[str, Any]]:
@@ -204,8 +203,6 @@ class GeoBenchFieldsOfTheWorldDataModule(GeoBenchSegmentationDataModule):
             plt.subplots_adjust(bottom=0.1)
 
         return fig, batch
-
-
 
     def visualize_geolocation_distribution(self) -> None:
         """Visualize the geolocation distribution of the dataset."""

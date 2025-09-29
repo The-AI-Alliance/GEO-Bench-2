@@ -47,8 +47,20 @@ class GeoBenchFLAIR2(GeoBenchBaseDataset):
     dataset_band_config = DatasetBandRegistry.FLAIR2
 
     normalization_stats: dict[str, dict[str, float]] = {
-        "means": {"red": 110.30502319335938, "green": 114.79083251953125, "blue": 105.6126937866211, "nir": 104.3409194946289, "elevation": 17.69650650024414},
-        "stds": {"red": 50.71001052856445, "green": 44.31645584106445, "blue": 43.294822692871094, "nir": 39.049617767333984, "elevation": 29.94267463684082},
+        "means": {
+            "red": 110.30502319335938,
+            "green": 114.79083251953125,
+            "blue": 105.6126937866211,
+            "nir": 104.3409194946289,
+            "elevation": 17.69650650024414,
+        },
+        "stds": {
+            "red": 50.71001052856445,
+            "green": 44.31645584106445,
+            "blue": 43.294822692871094,
+            "nir": 39.049617767333984,
+            "elevation": 29.94267463684082,
+        },
     }
 
     band_default_order = {

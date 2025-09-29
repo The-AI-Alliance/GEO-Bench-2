@@ -2,6 +2,7 @@
 # Licensed under the Apache License 2.0.
 
 """PASTIS Dataset."""
+
 import io
 import re
 from collections.abc import Sequence
@@ -28,6 +29,7 @@ class GeoBenchPASTIS(GeoBenchBaseDataset):
     - Variable Band Selection
     - Return band wavelengths
     """
+
     url = "https://hf.co/datasets/aialliance/pastis/resolve/main/{}"
 
     paths = [
@@ -66,7 +68,7 @@ class GeoBenchPASTIS(GeoBenchBaseDataset):
         "s1_desc": ("VV_desc", "VH_desc", "VV/VH_desc"),
     }
 
-    normalization_stats: dict[str, dict[str, float]]  = {
+    normalization_stats: dict[str, dict[str, float]] = {
         "means": {
             "B02": 1369.9984130859375,
             "B03": 1583.14794921875,
@@ -83,7 +85,7 @@ class GeoBenchPASTIS(GeoBenchBaseDataset):
             "VV/VH_asc": 6.581782817840576,
             "VV_desc": -10.348858833312988,
             "VH_desc": -16.90220069885254,
-            "VV/VH_desc": 6.553304672241211
+            "VV/VH_desc": 6.553304672241211,
         },
         "stds": {
             "B02": 2247.75537109375,
@@ -115,7 +117,7 @@ class GeoBenchPASTIS(GeoBenchBaseDataset):
         self,
         root: Path,
         split: Literal["train", "val", "validation", "test"],
-        rename_modalities: dict | None = None, 
+        rename_modalities: dict | None = None,
         band_order: dict[str, Sequence[float | str]] = {"s2": ["B04", "B03", "B02"]},
         data_normalizer: type[nn.Module] = MultiModalNormalizer,
         num_time_steps: int = 1,
@@ -174,8 +176,10 @@ class GeoBenchPASTIS(GeoBenchBaseDataset):
 
         self.label_type = label_type
         self.num_time_steps = num_time_steps
-        if return_stacked_image: 
-            assert rename_modalities is None, "Cannot return a stacked image if modalities are renamed"
+        if return_stacked_image:
+            assert rename_modalities is None, (
+                "Cannot return a stacked image if modalities are renamed"
+            )
         self.return_stacked_image = return_stacked_image
         self.rename_modalities = rename_modalities
 
@@ -219,13 +223,13 @@ class GeoBenchPASTIS(GeoBenchBaseDataset):
             sample = self.transforms(sample)
 
         for key in sample:
-            if "image" in key and len(sample[key].shape) == 4: # [T, C, H, W]    
-                sample[key] = sample[key].permute(1, 0, 2, 3) #C, T, H, W
+            if "image" in key and len(sample[key].shape) == 4:  # [T, C, H, W]
+                sample[key] = sample[key].permute(1, 0, 2, 3)  # C, T, H, W
 
         if self.return_stacked_image:
             sample = {
                 "image": torch.cat(
-                    [sample[f"image_{key}"] for key in self.band_order.keys()], 0 
+                    [sample[f"image_{key}"] for key in self.band_order.keys()], 0
                 ),
                 "mask": sample["mask"],
             }
@@ -239,12 +243,20 @@ class GeoBenchPASTIS(GeoBenchBaseDataset):
                     for old_sub_key in value:
                         if old_sub_key in self.band_order:
                             new_sub_key = value[old_sub_key]
-                            if new_sub_key in sample[key]: 
-                            # Note that this overwrites key order in self.band_order, 
-                            # so order of self.rename_modalities should follow final desired order
-                                sample[key][new_sub_key] = torch.cat([sample[key][new_sub_key], sample[f"image_{old_sub_key}"]], 0) 
+                            if new_sub_key in sample[key]:
+                                # Note that this overwrites key order in self.band_order,
+                                # so order of self.rename_modalities should follow final desired order
+                                sample[key][new_sub_key] = torch.cat(
+                                    [
+                                        sample[key][new_sub_key],
+                                        sample[f"image_{old_sub_key}"],
+                                    ],
+                                    0,
+                                )
                             else:
-                                sample[key][new_sub_key] = sample[f"image_{old_sub_key}"]
+                                sample[key][new_sub_key] = sample[
+                                    f"image_{old_sub_key}"
+                                ]
                             del sample[f"image_{old_sub_key}"]
                 else:
                     if key in self.band_order:
@@ -252,8 +264,9 @@ class GeoBenchPASTIS(GeoBenchBaseDataset):
                         sample[new_sub_key] = sample[f"image_{key}"]
                         del sample[f"image_{key}"]
                     else:
-                        raise ValueError("rename_modalities must include names that exist in the dataset")
-
+                        raise ValueError(
+                            "rename_modalities must include names that exist in the dataset"
+                        )
 
         if "lon" in self.metadata:
             sample["lon"] = torch.Tensor([sample_row.lon.iloc[0]]).squeeze()
@@ -262,7 +275,6 @@ class GeoBenchPASTIS(GeoBenchBaseDataset):
         if "dates" in self.metadata:
             sample["dates"] = torch.from_numpy(sample_dates)
 
-        
         return sample
 
     def _return_byte_stream(self, path: str):

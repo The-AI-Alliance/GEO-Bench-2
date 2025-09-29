@@ -3,7 +3,6 @@
 
 """Cloud12Sen Dataset."""
 
-
 from collections.abc import Sequence
 from typing import Literal
 
@@ -51,7 +50,7 @@ class GeoBenchCloudSen12(GeoBenchBaseDataset):
 
     band_default_order = DatasetBandRegistry.CLOUDSEN12.default_order
 
-    normalization_stats: dict[str, dict[str, float]]  = {
+    normalization_stats: dict[str, dict[str, float]] = {
         "means": {
             "B01": 2030.244384765625,
             "B02": 2074.817138671875,
@@ -64,7 +63,7 @@ class GeoBenchCloudSen12(GeoBenchBaseDataset):
             "B8A": 3377.544677734375,
             "B09": 4038.193115234375,
             "B11": 2448.748046875,
-            "B12": 1907.728515625
+            "B12": 1907.728515625,
         },
         "stds": {
             "B01": 2723.43603515625,

@@ -47,7 +47,6 @@ class GeoBenchBurnScars(GeoBenchBaseDataset):
     #     },
     # }
 
-
     normalization_stats: dict[str, dict[str, float]] = {
         "means": {
             "B02": 0.0,
@@ -57,14 +56,7 @@ class GeoBenchBurnScars(GeoBenchBaseDataset):
             "B11": 0.0,
             "B12": 0.0,
         },
-        "stds": {
-            "B02": 1,
-            "B03": 1,
-            "B04": 1,
-            "B8A": 1,
-            "B11": 1,
-            "B12": 1,
-        },
+        "stds": {"B02": 1, "B03": 1, "B04": 1, "B8A": 1, "B11": 1, "B12": 1},
     }
 
     classes = ("Background", "Burn Scar")
@@ -136,9 +128,8 @@ class GeoBenchBurnScars(GeoBenchBaseDataset):
         image_dict = self.data_normalizer(image_dict)
 
         sample.update(image_dict)
-        mask[mask==-1] = 2 #change no data values to 2
+        mask[mask == -1] = 2  # change no data values to 2
         sample["mask"] = mask
-        
 
         point = wkt.loads(sample_row.iloc[0]["stac:centroid"])
         lon, lat = point.x, point.y

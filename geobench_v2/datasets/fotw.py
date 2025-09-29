@@ -38,8 +38,18 @@ class GeoBenchFieldsOfTheWorld(GeoBenchBaseDataset):
 
     # Define normalization stats using canonical names
     normalization_stats: dict[str, dict[str, float]] = {
-        "means": {"red": 862.0840454101562, "green": 853.3894653320312, "blue": 592.0079956054688, "nir": 2984.3017578125},
-        "stds": {"red": 681.1666870117188,"green": 508.64013671875, "blue": 454.0238952636719, "nir": 1043.6527099609375},
+        "means": {
+            "red": 862.0840454101562,
+            "green": 853.3894653320312,
+            "blue": 592.0079956054688,
+            "nir": 2984.3017578125,
+        },
+        "stds": {
+            "red": 681.1666870117188,
+            "green": 508.64013671875,
+            "blue": 454.0238952636719,
+            "nir": 1043.6527099609375,
+        },
     }
 
     classes = ("background", "field", "field-boundary")
@@ -58,7 +68,7 @@ class GeoBenchFieldsOfTheWorld(GeoBenchBaseDataset):
         transforms: nn.Module | None = None,
         metadata: Sequence[str] | None = None,
         return_stacked_image: bool = False,
-        return_window: Sequence[str]= ["win_a", "win_b"],
+        return_window: Sequence[str] = ["win_a", "win_b"],
         download: bool = False,
     ) -> None:
         """Initialize Fields of the World Dataset.
@@ -92,11 +102,10 @@ class GeoBenchFieldsOfTheWorld(GeoBenchBaseDataset):
         for i in return_window:
             assert i in ["win_a", "win_b"], (
                 "return_window can only include items from ['win_a, , 'win_b']"
-                )
+            )
         self.return_window = return_window
         self.label_type = label_type
         self.return_stacked_image = return_stacked_image
-        
 
     def __getitem__(self, idx: int) -> dict[str, Tensor]:
         """Return the image and mask at the given index.
@@ -144,11 +153,7 @@ class GeoBenchFieldsOfTheWorld(GeoBenchBaseDataset):
             sample["image_b"] = win_b["image"]
 
         if self.return_stacked_image:
-            sample = {
-                "image": torch.cat(
-                    [sample[key] for key in self.sample], 0
-                )
-            }
+            sample = {"image": torch.cat([sample[key] for key in self.sample], 0)}
 
         sample["mask"] = mask
 

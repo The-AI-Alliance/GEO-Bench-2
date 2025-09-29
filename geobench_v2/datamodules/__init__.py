@@ -60,5 +60,5 @@ __all__ = (
     "GeoBenchBurnScarsDataModule",
     "MultiModalClassificationAugmentation",
     "MultiModalSegmentationAugmentation",
-    "MultiTemporalSegmentationAugmentation", 
+    "MultiTemporalSegmentationAugmentation",
 )
