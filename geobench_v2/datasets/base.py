@@ -6,9 +6,9 @@
 import hashlib
 import os
 import urllib.request
-from collections.abc import Callable, Sequence
+from collections.abc import Callable, Sequence, Mapping
 from typing import Literal
-
+from pathlib import Path
 import rasterio
 import tacoreader
 import torch
@@ -18,6 +18,7 @@ from torchgeo.datasets import DatasetNotFoundError, NonGeoDataset
 from torchvision.datasets.utils import download_url
 
 from .data_util import DataUtilsMixin
+from .normalization import MultiModalNormalizer
 from .normalization import DataNormalizer
 
 
@@ -33,13 +34,12 @@ class GeoBenchBaseDataset(NonGeoDataset, DataUtilsMixin):
 
     def __init__(
         self,
-        root: str,
-        split: Literal["train", "validation", "test"],
-        band_order: Sequence[str] | dict[str, Sequence[str]] = None,
-        data_normalizer: type[DataNormalizer]
-        | Callable[[dict[str, Tensor]], dict[str, Tensor]] = nn.Identity,
-        transforms: nn.Module = None,
-        metadata: Sequence[str] | None = None,
+        root: Path,
+        split: str,
+        band_order: Sequence[str] | Mapping[str, Sequence[str]],
+        data_normalizer: type[nn.Module] = MultiModalNormalizer,
+        transforms: nn.Module | None = None,
+        metadata: list[str] | None = None,
         download: bool = False,
     ) -> None:
         """Initialize the dataset.
@@ -49,7 +49,7 @@ class GeoBenchBaseDataset(NonGeoDataset, DataUtilsMixin):
             split: The dataset split, supports 'train', 'val', 'test'
             band_order: List of bands to return
             data_normalizer: Normalization strategy. Can be:
-                             - A class type inheriting from DataNormalizer (e.g., ZScoreNormalizer)
+                             - A class type inheriting from DataNormalizer (e.g., MultiModalNormalizer)
                                or a basic callable class (e.g., nn.Identity - default).
                                It will be initialized appropriately (using stats/band_order if needed).
                              - An initialized callable instance (e.g., a custom nn.Module or nn.Identity()).
@@ -61,8 +61,6 @@ class GeoBenchBaseDataset(NonGeoDataset, DataUtilsMixin):
         """
         super().__init__()
         self.root = root
-        self.split = split
-        self.band_order = band_order
         self.transforms = transforms
         if metadata is None:
             self.metadata = []

@@ -1,32 +1,42 @@
 # GEO-Bench 2
 
 ![1-earth](https://github.com/The-AI-Alliance/GEO-Bench-2/assets/5478516/738b5aa6-b46d-48bc-bdde-fd71605b9bac)
+[![huggingface](https://img.shields.io/badge/Hugging_Face-join-FFD21E?logo=huggingface)](https://hf.co/datasets/aialliance/)
+[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
+[![Language: Python](https://img.shields.io/badge/language-Python%203.10%2B-green?logo=python&logoColor=green)](https://www.python.org)
+[![pypi](https://badge.fury.io/py/geobenchv2.svg)](https://pypi.org/project/geobenchv2)
+[![docs](https://readthedocs.org/projects/pip/badge/)](https://geo-bench-2.readthedocs.io/en/latest/)
+
+## Overview
+
+GEO-Bench-2 is a framework for robust evaluation of Geospatial Foundation Models (GeoFMs) which expands on the work of GEO-Bench. It has been carefully curated for evaluation of state-of-the-art model features such as such as multi-modality and multi-temporality.
+This library aims to facilitate extensive benchmarking of GeoFMs on the GEo-Bench-2 datasets, including features such band re-ordering, changing normalizations, and more.
+
+For details on the GEO-Bench-2 methodology, please see: #TODO:link to paper
+
+The [Geo-Bench-2-Leaderbaord](https://github.com/The-AI-Alliance/GEO-Bench-2-Leaderboard) tracks the performance of state-of-the-art models on GeoBench-2 datasets. It further acts as a public repository of model performance. We strongly encourage users of the this library to submit experimental results to the leaderboard.
 
 ## Installation
 
-```shell
+For a stable release, install with `pip install geobenchv2==<version>`.
+
+For the the most recent version of the main branch, install with `pip install git+https://https://github.com/The-AI-Alliance/GEO-Bench-2.git`.
+
+To use the library as a developer, install in editable mode with:
+```
+git clone https://https://github.com/The-AI-Alliance/GEO-Bench-2.git
+cd GEO-Bench-2
 pip install -e .
 ```
 
-## Unit Tests
-
-Before we can use CI when the repo is public, we can still run unit tests to make sure things work as expected.
-
-Pytests are contained in the `tests` directory and are configured to use dataset paths that work at the moment, with paths on our toolkit workstation.
+## Download
+To download the datasets individually, please set `download=True` for each dtamodule. All the datasets can also be downloaded directly from this link #TODO
 
 ## Documentation
 
-At the moment the documentation can only be built locally. To do so, install the optional dependency group for documentation from the project root with:
-
-```shell
-pip install -e ".[docs]"
-```
-
-After that, navigate to the `docs` folder and run `make clean` followed by `make html`. This will generate the documentation locally. Open `docs/_build/html/index.html` in your browser.
+The latest documentation can be found at this [link](https://geo-bench-2.readthedocs.io/en/latest/)
 
 ## Generating the Benchmark
-
-An underlying motivation of this effort is to reuse existing code and structures and only extend those existing frameworks for our purposes. This is why the dataset benchmark heavily relies on the [TorchGeo](https://github.com/microsoft/torchgeo) library for dataset loading and processing. 
 
 The directory `./generate_benchmark` contains a script for each included dataset that has three purposes:
 
@@ -36,7 +46,14 @@ requirements for users.
 3. Generate a super tiny dataset version of dummy data that is used for unit testing all implemented functionality
 
 ## License
+This code is licensed under the Apache License 2.0. By contributing to this repository, you agree that your contributions will be licensed under the Apache 2.0 License unless otherwise stated.
+
+
+## Credits
+This project was developed as part of the AI Alliance with involvement from IBM and ServiceNow.
+
 
 ## Citation
+Please add the following citation whereevr this library is used: #TODO
 
 

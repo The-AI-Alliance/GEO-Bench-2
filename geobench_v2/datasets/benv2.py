@@ -6,7 +6,7 @@
 
 """BigEarthNet V2 Dataset."""
 
-from collections.abc import Mapping, Sequence
+from collections.abc import Sequence
 from pathlib import Path
 from typing import Literal, cast
 
@@ -16,7 +16,7 @@ import torch.nn as nn
 from torch import Tensor
 
 from .base import GeoBenchBaseDataset
-from .normalization import ZScoreNormalizer
+from .normalization import MultiModalNormalizer
 from .sensor_util import DatasetBandRegistry
 
 
@@ -37,7 +37,7 @@ class GeoBenchBENV2(GeoBenchBaseDataset):
     ]
 
     band_default_order = {
-        "s2": [
+        "s2": (
             "B01",
             "B02",
             "B03",
@@ -50,44 +50,44 @@ class GeoBenchBENV2(GeoBenchBaseDataset):
             "B09",
             "B11",
             "B12",
-        ],
-        "s1": ["VV", "VH"],
+        ),
+        "s1": ("VV", "VH"),
     }
 
     dataset_band_config = DatasetBandRegistry.BENV2
 
     normalization_stats: dict[str, dict[str, float]] = {
         "means": {
-            "B01": 0.0,
-            "B02": 0.0,
-            "B03": 0.0,
-            "B04": 0.0,
-            "B05": 0.0,
-            "B06": 0.0,
-            "B07": 0.0,
-            "B08": 0.0,
-            "B8A": 0.0,
-            "B09": 0.0,
-            "B11": 0.0,
-            "B12": 0.0,
-            "VH": 0.0,
-            "VV": 0.0,
+            "B01": 355.96197509765625,
+            "B02": 414.3730773925781,
+            "B03": 594.096435546875,
+            "B04": 559.0433959960938,
+            "B05": 919.4099731445312,
+            "B06": 1794.6605224609375,
+            "B07": 2091.45947265625,
+            "B08": 2241.517822265625,
+            "B8A": 2288.0302734375,
+            "B09": 2289.5380859375,
+            "B11": 1556.958740234375,
+            "B12": 973.8273315429688,
+            "VH": -12.091922760009766,
+            "VV": -18.96333885192871,
         },
         "stds": {
-            "B01": 3000.0,
-            "B02": 3000.0,
-            "B03": 3000.0,
-            "B04": 3000.0,
-            "B05": 3000.0,
-            "B06": 3000.0,
-            "B07": 3000.0,
-            "B08": 3000.0,
-            "B8A": 3000.0,
-            "B09": 3000.0,
-            "B11": 3000.0,
-            "B12": 3000.0,
-            "VH": 3000.0,
-            "VV": 3000.0,
+            "B01": 512.3419799804688,
+            "B02": 541.94921875,
+            "B03": 532.579833984375,
+            "B04": 607.0200805664062,
+            "B05": 646.341064453125,
+            "B06": 1041.35009765625,
+            "B07": 1231.787841796875,
+            "B08": 1340.4661865234375,
+            "B8A": 1316.02880859375,
+            "B09": 1267.3955078125,
+            "B11": 984.2933349609375,
+            "B12": 753.2081909179688,
+            "VH": 4.574888229370117,
+            "VV": 5.396073818206787,
         },
     }
 
@@ -125,8 +125,9 @@ class GeoBenchBENV2(GeoBenchBaseDataset):
         self,
         root: Path,
         split: Literal["train", "val", "validation", "test"],
-        band_order: Mapping[str, list[str]] = band_default_order,
-        data_normalizer: type[nn.Module] = ZScoreNormalizer,
+        rename_modalities: dict | None = None,
+        band_order: dict[str, Sequence[float | str]] = {"s2": ["B04", "B03", "B02"]},
+        data_normalizer: type[nn.Module] = MultiModalNormalizer,
         transforms: nn.Module | None = None,
         metadata: Sequence[str] | None = None,
         return_stacked_image: bool = False,
@@ -141,13 +142,14 @@ class GeoBenchBENV2(GeoBenchBaseDataset):
                 specify ['B04', 'B03', 'B02], the dataset would return the red, green, and blue bands.
                 This is useful for models that expect a certain band order, or
                 test the impact of band order on model performance.
-            data_normalizer: The data normalizer to apply to the data, defaults to :class:`data_util.ZScoreNormalizer`,
+            data_normalizer: The data normalizer to apply to the data, defaults to :class:`data_util.MultiModalNormalizer`,
                 which applies z-score normalization to each band.
             transforms: Transforms to apply to the data
             metadata: metadata names to be returned under specified keys as part of the sample in the
                 __getitem__ method. If None, no metadata is returned.
             return_stacked_image: If True, return the stacked modalities across channel dimension instead of the individual modalities.
             download: Whether to download the dataset
+            rename_modalities: dictionary with information to rename modalities in output e.g. {image: {s1:  S1RTC, s2: S2L2A}}
         """
         split_norm: Literal["train", "validation", "test"]
         if split == "val":
@@ -163,9 +165,12 @@ class GeoBenchBENV2(GeoBenchBaseDataset):
             metadata=metadata,
             download=download,
         )
-
+        if return_stacked_image:
+            assert rename_modalities is None, (
+                "Cannot return a stacked image if modalities are renamed"
+            )
         self.return_stacked_image = return_stacked_image
-
+        self.rename_modalities = rename_modalities
         self.class2idx = {c: i for i, c in enumerate(self.label_names)}
 
     def __getitem__(self, index: int) -> dict[str, Tensor]:
@@ -196,6 +201,7 @@ class GeoBenchBENV2(GeoBenchBaseDataset):
                 s2_img = src.read()
             data["s2"] = torch.from_numpy(s2_img).float()
 
+        # Rearrange bands and normalize
         img = self.rearrange_bands(data, self.band_order)
         img = self.data_normalizer(img)
         sample.update(img)
@@ -209,6 +215,25 @@ class GeoBenchBENV2(GeoBenchBaseDataset):
 
         if self.transforms is not None:
             sample = self.transforms(sample)
+
+        if self.rename_modalities is not None:
+            for key, value in self.rename_modalities.items():
+                if isinstance(value, dict):
+                    sample[key] = {}
+                    for old_sub_key in value:
+                        if old_sub_key in self.band_order:
+                            new_sub_key = value[old_sub_key]
+                            sample[key][new_sub_key] = sample[f"image_{old_sub_key}"]
+                            del sample[f"image_{old_sub_key}"]
+                else:
+                    if key in self.band_order:
+                        new_sub_key = value
+                        sample[new_sub_key] = sample[f"image_{key}"]
+                        del sample[f"image_{key}"]
+                    else:
+                        raise ValueError(
+                            "rename_modalities must include names that exist in the dataset"
+                        )
 
         sample["label"] = self._load_target(sample_row.iloc[0]["labels"])
 

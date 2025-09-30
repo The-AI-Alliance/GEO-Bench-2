@@ -27,7 +27,8 @@ class GeoBenchBENV2DataModule(GeoBenchClassificationDataModule):
     def __init__(
         self,
         img_size: int = 120,
-        band_order: dict[str, Sequence[float | str]] = GeoBenchBENV2.band_default_order,
+        band_order: Sequence[float | str]
+        | dict[str, Sequence[float | str]] = GeoBenchBENV2.band_default_order,
         batch_size: int = 32,
         eval_batch_size: int = 64,
         num_workers: int = 0,
@@ -41,13 +42,13 @@ class GeoBenchBENV2DataModule(GeoBenchClassificationDataModule):
 
         Args:
             img_size: Image size
-            band_order: The order of bands to return in the sample
+            band_order: band order
             batch_size: Batch size
             eval_batch_size: Evaluation batch size
             num_workers: Number of workers
             collate_fn: Collate function
-            train_augmentations: Augmentations to apply during training
-            eval_augmentations: Augmentations to apply during evaluation
+            eval_augmentations: augmentations for validation and test splits
+            train_augmentations: augmentations for train split
             pin_memory: Pin memory
             **kwargs: Additional keyword arguments
         """

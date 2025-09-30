@@ -7,7 +7,7 @@ import io
 import re
 from collections.abc import Sequence
 from pathlib import Path
-from typing import Literal
+from typing import Literal, cast
 
 import h5py
 import torch
@@ -16,7 +16,7 @@ from torch import Tensor
 from torchgeo.datasets import PASTIS
 
 from .base import GeoBenchBaseDataset
-from .normalization import ZScoreNormalizer
+from .normalization import MultiModalNormalizer
 from .sensor_util import DatasetBandRegistry
 
 
@@ -54,66 +54,48 @@ class GeoBenchPASTIS(GeoBenchBaseDataset):
 
     dataset_band_config = DatasetBandRegistry.PASTIS
 
-    band_default_order = (
-        "B01",
-        "B02",
-        "B03",
-        "B04",
-        "B05",
-        "B06",
-        "B07",
-        "B08",
-        "B8A",
-        "B09",
-        "B10",
-        "B11",
-        "B12",
-    )
-
     band_default_order = {
         "s2": ("B02", "B03", "B04", "B05", "B06", "B07", "B08", "B8A", "B11", "B12"),
         "s1_asc": ("VV_asc", "VH_asc", "VV/VH_asc"),
         "s1_desc": ("VV_desc", "VH_desc", "VV/VH_desc"),
     }
 
-    valid_splits = ("train", "val", "test")
-
     normalization_stats: dict[str, dict[str, float]] = {
         "means": {
-            "B02": 1392.5018310546875,
-            "B03": 1605.011474609375,
-            "B04": 1649.772216796875,
-            "B05": 1951.032470703125,
-            "B06": 2935.529052734375,
-            "B07": 3294.7822265625,
-            "B08": 3429.625,
-            "B8A": 3553.476318359375,
-            "B11": 2575.755615234375,
-            "B12": 1719.2239990234375,
-            "VV_asc": -10.314891815185547,
-            "VH_asc": -16.891693115234375,
-            "VV/VH_asc": 6.576767921447754,
-            "VV_desc": -10.33873176574707,
-            "VH_desc": -16.899442672729492,
-            "VV/VH_desc": 6.560678482055664
+            "B02": 1369.9984130859375,
+            "B03": 1583.14794921875,
+            "B04": 1627.649658203125,
+            "B05": 1930.8377685546875,
+            "B06": 2921.8388671875,
+            "B07": 3284.9306640625,
+            "B08": 3421.798828125,
+            "B8A": 3544.233642578125,
+            "B11": 2564.71435546875,
+            "B12": 1708.5986328125,
+            "VV_asc": -10.283859252929688,
+            "VH_asc": -16.86566734313965,
+            "VV/VH_asc": 6.581782817840576,
+            "VV_desc": -10.348858833312988,
+            "VH_desc": -16.90220069885254,
+            "VV/VH_desc": 6.553304672241211,
         },
         "stds": {
-            "B02": 2273.633544921875,
-            "B03": 2203.701904296875,
-            "B04": 2280.4736328125,
-            "B05": 2167.027099609375,
-            "B06": 1952.1614990234375,
-            "B07": 1922.79833984375,
-            "B08": 1912.768798828125,
-            "B8A": 1894.3756103515625,
-            "B11": 1426.388916015625,
-            "B12": 1200.4859619140625,
-            "VV_asc": 3.130173683166504,
-            "VH_asc": 3.055800199508667,
-            "VV/VH_asc": 3.3437912464141846,
-            "VV_desc": 3.252969741821289,
-            "VH_desc": 3.0515613555908203,
-            "VV/VH_desc": 3.3415229320526123
+            "B02": 2247.75537109375,
+            "B03": 2179.169921875,
+            "B04": 2255.17626953125,
+            "B05": 2142.72216796875,
+            "B06": 1928.7330322265625,
+            "B07": 1900.8660888671875,
+            "B08": 1890.31640625,
+            "B8A": 1873.0811767578125,
+            "B11": 1409.2015380859375,
+            "B12": 1189.0947265625,
+            "VV_asc": 3.0927364826202393,
+            "VH_asc": 3.026491403579712,
+            "VV/VH_asc": 3.3431670665740967,
+            "VV_desc": 3.216468334197998,
+            "VH_desc": 3.0307400226593018,
+            "VV/VH_desc": 3.3312063217163086,
         },
     }
 
@@ -126,9 +108,10 @@ class GeoBenchPASTIS(GeoBenchBaseDataset):
     def __init__(
         self,
         root: Path,
-        split: str,
+        split: Literal["train", "val", "validation", "test"],
+        rename_modalities: dict | None = None,
         band_order: dict[str, Sequence[float | str]] = {"s2": ["B04", "B03", "B02"]},
-        data_normalizer: type[nn.Module] = ZScoreNormalizer,
+        data_normalizer: type[nn.Module] = MultiModalNormalizer,
         num_time_steps: int = 1,
         transforms: nn.Module | None = None,
         metadata: Sequence[str] | None = None,
@@ -151,21 +134,35 @@ class GeoBenchPASTIS(GeoBenchBaseDataset):
                 if set to 10, the latest 10 time steps will be returned. If a time series has fewer time steps than
                 specified, it will be padded with zeros. A value of 1 will return a [C, H, W] tensor, while a value
                 of 10 will return a [T, C, H, W] tensor.
-            data_normalizer: The data normalizer to apply to the data, defaults to :class:`data_util.ZScoreNormalizer`,
+            data_normalizer: The data normalizer to apply to the data, defaults to :class:`data_util.MultiModalNormalizer`,
                 which applies z-score normalization to each band.
             transforms: The transforms to apply to the data, defaults to None
             metadata: metadata names to be returned under specified keys as part of the sample in the
                 __getitem__ method. If None, no metadata is returned.
             label_type: The type of label to return, either 'instance_seg' or 'semantic_seg'
             return_stacked_image: if true, returns a single image tensor with all modalities stacked in band_order
+            rename_modalities: dictionary with information to rename modalities in output e.g. {image: {sar:  S1RTC, rgbn: S2L2A}}
+            download: Whether to download the dataset
             temporal_aggregation: whether apply temporal aggregation [mean, median]
 
         Raises:
             AssertionError: If an invalid split is specified
         """
+        split_norm: Literal["train", "validation", "test"]
+        if split == "val":
+            split_norm = "validation"
+        else:
+            split_norm = cast(Literal["train", "validation", "test"], split)
+
+        band_order = self.validate_band_order(band_order)
+        if metadata is None:
+            metadata = []
+        else:
+            metadata = metadata
+
         super().__init__(
             root=root,
-            split=split,
+            split=split_norm,
             band_order=band_order,
             data_normalizer=data_normalizer,
             transforms=transforms,
@@ -185,9 +182,13 @@ class GeoBenchPASTIS(GeoBenchBaseDataset):
 
         self.transforms = transforms
         self.num_time_steps = num_time_steps
-
         self.label_type = label_type
+        if return_stacked_image:
+            assert rename_modalities is None, (
+                "Cannot return a stacked image if modalities are renamed"
+            )
         self.return_stacked_image = return_stacked_image
+        self.rename_modalities = rename_modalities
 
         if metadata is None:
             self.metadata = []
@@ -212,7 +213,6 @@ class GeoBenchPASTIS(GeoBenchBaseDataset):
         """
         sample: dict[str, Tensor] = {}
         sample_row = self.data_df.read(index)
-
         data = {
             "s2": self._load_image(sample_row.read(0)),
             "s1_asc": self._load_image(sample_row.read(1)),
@@ -237,13 +237,16 @@ class GeoBenchPASTIS(GeoBenchBaseDataset):
             )
 
         dates = sample_row["dates"].iloc[0]
-
         if len(dates) < self.num_time_steps:
             sample_dates = [0] * (self.num_time_steps - len(dates)) + dates
         else:
             sample_dates = dates[-self.num_time_steps :]
         if self.transforms:
             sample = self.transforms(sample)
+
+        for key in sample:
+            if "image" in key and len(sample[key].shape) == 4:  # [T, C, H, W]
+                sample[key] = sample[key].permute(1, 0, 2, 3)  # C, T, H, W
 
         if self.return_stacked_image:
             sample = {
@@ -252,6 +255,40 @@ class GeoBenchPASTIS(GeoBenchBaseDataset):
                 ),
                 "mask": sample["mask"],
             }
+            if self.num_time_steps == 1:
+                sample["image"] = sample["image"].squeeze(1)
+
+        if self.rename_modalities is not None:
+            for key, value in self.rename_modalities.items():
+                if isinstance(value, dict):
+                    sample[key] = {}
+                    for old_sub_key in value:
+                        if old_sub_key in self.band_order:
+                            new_sub_key = value[old_sub_key]
+                            if new_sub_key in sample[key]:
+                                # Note that this overwrites key order in self.band_order,
+                                # so order of self.rename_modalities should follow final desired order
+                                sample[key][new_sub_key] = torch.cat(
+                                    [
+                                        sample[key][new_sub_key],
+                                        sample[f"image_{old_sub_key}"],
+                                    ],
+                                    0,
+                                )
+                            else:
+                                sample[key][new_sub_key] = sample[
+                                    f"image_{old_sub_key}"
+                                ]
+                            del sample[f"image_{old_sub_key}"]
+                else:
+                    if key in self.band_order:
+                        new_sub_key = value
+                        sample[new_sub_key] = sample[f"image_{key}"]
+                        del sample[f"image_{key}"]
+                    else:
+                        raise ValueError(
+                            "rename_modalities must include names that exist in the dataset"
+                        )
 
         if "lon" in self.metadata:
             sample["lon"] = torch.Tensor([sample_row.lon.iloc[0]]).squeeze()
