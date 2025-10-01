@@ -12,11 +12,12 @@ import torch
 import torch.nn as nn
 from einops import rearrange
 from torchgeo.datasets.utils import percentile_normalization
-
+import tacoreader
 from geobench_v2.datasets import GeoBenchNZCattle
 
 from .base import GeoBenchObjectDetectionDataModule
-
+import os
+import pandas as pd
 
 def nzcattle_collate_fn(batch: Sequence[dict[str, Any]]) -> dict[str, Any]:
     """Collate function for nzCattle dataset.
@@ -109,7 +110,8 @@ class GeoBenchNZCattleDataModule(GeoBenchObjectDetectionDataModule):
         else:
             batch = next(iter(self.test_dataloader()))
 
-        batch = self.data_normalizer.unnormalize(batch)
+        if hasattr(self.data_normalizer, "unnormalize"):
+            batch = self.data_normalizer.unnormalize(batch)
 
         images = batch["image"]
         boxes_batch = batch["bbox_xyxy"]
@@ -253,3 +255,14 @@ class GeoBenchNZCattleDataModule(GeoBenchObjectDetectionDataModule):
     def visualize_geolocation_distribution(self) -> None:
         """Visualize the geolocation distribution of the dataset."""
         pass
+    
+    def load_metadata(self) -> pd.DataFrame:
+        """Load metadata file.
+
+        Returns:
+            pandas DataFrame with metadata.
+        """
+        self.data_df = tacoreader.load(
+            [os.path.join(self.kwargs["root"], f) for f in GeoBenchNZCattle.paths]
+        )
+        return self.data_df
