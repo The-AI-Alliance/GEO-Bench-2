@@ -173,9 +173,6 @@ class GeoBenchPASTIS(GeoBenchBaseDataset):
         if split == "validation":
             split = "val"
 
-        assert split in self.valid_splits, (
-            f"Invalid split {split}. Must be one of {self.valid_splits}"
-        )
         self.split = split
 
         self.band_order = self.validate_band_order(band_order)
