@@ -59,8 +59,6 @@ def datamodule(
         root=tmp_path,
         metadata=["lon", "lat"],
         return_stacked_image=False,
-        label_type="instance_seg",
-        collate_fn=collate,
         num_time_steps= 2,
         pin_memory=False,
         download=True,
