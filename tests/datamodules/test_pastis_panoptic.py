@@ -94,20 +94,20 @@ class TestPASTISPanopticDataModule:
         # Check dimensions - these are time-series shapes [batch_size, bands, time_steps, H, W]
         # or [batch_size, bands, H, W] depending on how they're processed
         assert batch["image_s2"].shape[0] == datamodule.batch_size
-        assert batch["image_s2"].shape[1] == datamodule.train_dataset.num_time_steps
-        assert batch["image_s2"].shape[2] == len(datamodule.band_order["s2"])
+        assert batch["image_s2"].shape[1] == len(datamodule.band_order["s2"])
+        assert batch["image_s2"].shape[2] == datamodule.train_dataset.num_time_steps
         assert batch["image_s2"].shape[3] == datamodule.img_size
         assert batch["image_s2"].shape[4] == datamodule.img_size
         
         assert batch["image_s1_asc"].shape[0] == datamodule.batch_size
-        assert batch["image_s1_asc"].shape[1] == datamodule.train_dataset.num_time_steps
-        assert batch["image_s1_asc"].shape[2] == len(datamodule.band_order["s1_asc"])
+        assert batch["image_s1_asc"].shape[1] == len(datamodule.band_order["s1_asc"])
+        assert batch["image_s1_asc"].shape[2] == datamodule.train_dataset.num_time_steps
         assert batch["image_s1_asc"].shape[3] == datamodule.img_size
         assert batch["image_s1_asc"].shape[4] == datamodule.img_size
         
         assert batch["image_s1_desc"].shape[0] == datamodule.batch_size
-        assert batch["image_s1_desc"].shape[1] == datamodule.train_dataset.num_time_steps
-        assert batch["image_s1_desc"].shape[2] == len(datamodule.band_order["s1_desc"])
+        assert batch["image_s1_desc"].shape[1] == len(datamodule.band_order["s1_desc"])
+        assert batch["image_s1_desc"].shape[2] == datamodule.train_dataset.num_time_steps
         assert batch["image_s1_desc"].shape[3] == datamodule.img_size
         assert batch["image_s1_desc"].shape[4] == datamodule.img_size
 
