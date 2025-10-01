@@ -81,7 +81,7 @@ class GeoBenchBaseDataset(NonGeoDataset, DataUtilsMixin):
 
         if isinstance(data_normalizer, type):
             print(f"Initializing normalizer from class: {data_normalizer.__name__}")
-            if issubclass(data_normalizer, DataNormalizer):
+            if issubclass(data_normalizer, MultiModalNormalizer) | issubclass(data_normalizer, DataNormalizer):
                 self.data_normalizer = data_normalizer(
                     self.normalization_stats, self.band_order
                 )
