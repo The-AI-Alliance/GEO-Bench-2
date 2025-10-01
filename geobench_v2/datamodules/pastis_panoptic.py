@@ -13,14 +13,16 @@ import pandas as pd
 import torch
 import torch.nn as nn
 from einops import rearrange
-from torch import Tensor
-from torchgeo.datasets.utils import percentile_normalization
 
+from torchgeo.datasets.utils import percentile_normalization
+import tacoreader
 from geobench_v2.datasets import GeoBenchPASTIS
 
-from .base import GeoBenchSegmentationDataModule, GeoBenchObjectDetectionDataModule
+from .base import GeoBenchObjectDetectionDataModule
 import skimage
 from matplotlib import patches
+
+import pdb
 
 def pastis_collate_fn(batch: Sequence[dict[str, Any]]) -> dict[str, Any]:
     """Collate function for Pastis dataset.
@@ -85,6 +87,7 @@ class GeoBenchPASTISPanopticDataModule(GeoBenchObjectDetectionDataModule):
             **kwargs: Additional keyword arguments to
                 :class:`~geobench_v2.datasets.pastis.GeoBenchPASTIS`.
         """
+        if collate_fn is None: collate_fn = pastis_collate_fn
         
         super().__init__(
             dataset_class=GeoBenchPASTIS,
@@ -93,10 +96,11 @@ class GeoBenchPASTISPanopticDataModule(GeoBenchObjectDetectionDataModule):
             batch_size=batch_size,
             eval_batch_size=eval_batch_size,
             num_workers=num_workers,
-            collate_fn=collate_fn,
             train_augmentations=train_augmentations,
             eval_augmentations=eval_augmentations,
             pin_memory=pin_memory,
+            label_type="instance_seg",
+            collate_fn = collate_fn,
             **kwargs,
         )
 
@@ -106,9 +110,11 @@ class GeoBenchPASTISPanopticDataModule(GeoBenchObjectDetectionDataModule):
         Returns:
             pandas DataFrame with metadata.
         """
-        return pd.read_parquet(
-            os.path.join(self.kwargs["root"], "geobench_pastis.parquet")
+        self.data_df = tacoreader.load(
+            [os.path.join(self.kwargs["root"], f) for f in GeoBenchPASTIS.paths]
         )
+        
+        return self.data_df
     
     def visualize_batch(
         self, batch: dict[str, Any] | None = None, split: str = "train"
@@ -145,8 +151,9 @@ class GeoBenchPASTISPanopticDataModule(GeoBenchObjectDetectionDataModule):
 
         batch_size = batch["mask"].shape[0] if hasattr(batch["mask"], "shape") else len(batch["mask"])
 
-        n_samples = min(8, batch_size)
-        indices = torch.randperm(batch_size)[:n_samples]
+        n_samples = 8
+
+        indices = torch.arange(batch_size)[:n_samples]
 
         # Collect modality images and determine timesteps per modality
         modalities = {}
@@ -212,9 +219,9 @@ class GeoBenchPASTISPanopticDataModule(GeoBenchObjectDetectionDataModule):
                     fontsize=10,
                 )
 
-        masks = [x for y, x in enumerate(batch["mask"]) if y in indices.tolist()]
-        labels= [x for y, x in enumerate(batch["label"]) if y in indices.tolist()]
-        boxes = [x for y, x in enumerate(batch["boxes"]) if y in indices.tolist()]
+        masks = [x for x in batch["mask"]]
+        labels= [x for x in batch["label"]]
+        boxes = [x for x in batch["boxes"]]
 
         unique_classes = torch.arange(len(self.class_names)).tolist()
         # use tab20 colormap to color the unique classes found
