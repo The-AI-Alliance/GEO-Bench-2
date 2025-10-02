@@ -28,7 +28,7 @@ class GeoBenchBENV2(GeoBenchBaseDataset):
     paths: Sequence[str] = ["geobench_benv2.tortilla"]
 
     sha256str: Sequence[str] = [
-        "330876e91199cb179113224c6e4e9632f8971446fe29ffbb035e5b8bbdee8319"
+        "821c2f429c3e85c158c758bbb215bf61170a2451a11284efaf0f89cef97e468a"
     ]
 
     band_default_order = {

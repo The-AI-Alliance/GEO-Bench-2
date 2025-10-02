@@ -2,11 +2,11 @@ import pytest
 import torch
 
 from geobench_v2.datasets.normalization import (
+    ClipOnlyNormalizer,
+    ClipZScoreNormalizer,
+    RescaleNormalizer,
     SatMAENormalizer,
     ZScoreNormalizer,
-    ClipOnlyNormalizer,
-    RescaleNormalizer,
-    ClipZScoreNormalizer,
 )
 
 

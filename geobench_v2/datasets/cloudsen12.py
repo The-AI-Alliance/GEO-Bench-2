@@ -25,7 +25,7 @@ class GeoBenchCloudSen12(GeoBenchBaseDataset):
 
     paths = ["geobench_cloudsen12.tortilla"]
 
-    sha256str = ["8c1509160c74be95f7934bf9cdcca1b1893d8fb1a7df70c5de1944160f741e04"]
+    sha256str = ["16b3c03d7b15cf42f6ef0cee6d453b6ad8ebbe7744674c4b58657511f7f5d0c0"]
 
     classes = ("clear", "thick cloud", "thin cloud", "cloud shadow")
 

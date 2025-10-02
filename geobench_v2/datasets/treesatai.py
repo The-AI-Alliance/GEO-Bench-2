@@ -27,7 +27,7 @@ class GeoBenchTreeSatAI(GeoBenchBaseDataset):
 
     paths = ["geobench_treesatai.tortilla"]
 
-    sha256str = ["04435ade7d429418cf2e51db9ec493a9ca196e79aff661425d82b066bdd3a759"]
+    sha256str = ["0ddb8068720242ad4f5931ea91f3459ed695ad490bbaa48905afe72dd9623aee"]
 
     dataset_band_config = DatasetBandRegistry.TREESATAI
 
