@@ -22,9 +22,11 @@ from .base import GeoBenchSegmentationDataModule
 from .utils import TimeSeriesResize
 
 
+# TODO add timeseries argument
 class GeoBenchDynamicEarthNetDataModule(GeoBenchSegmentationDataModule):
     """GeoBench DynamicEarthNet Data Module."""
 
+    # TODO img_size will change to 512
     def __init__(
         self,
         img_size: int = 512,
@@ -103,6 +105,11 @@ class GeoBenchDynamicEarthNetDataModule(GeoBenchSegmentationDataModule):
                 batch = next(iter(self.val_dataloader()))
             else:
                 batch = next(iter(self.test_dataloader()))
+
+        for k, v in batch.items():
+            orig_dim = v.dim()
+            if orig_dim == 5:  # BxCxTxHxW -> BxTxCxHxW
+                batch[k] = v.permute(0, 2, 1, 3, 4)
 
         if hasattr(self.data_normalizer, "unnormalize"):
             batch = self.data_normalizer.unnormalize(batch)

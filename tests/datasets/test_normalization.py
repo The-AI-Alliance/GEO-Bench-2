@@ -5,6 +5,7 @@ from geobench_v2.datasets.normalization import (
     ClipOnlyNormalizer,
     ClipZScoreNormalizer,
     RescaleNormalizer,
+    MultiModalNormalizer,
     SatMAENormalizer,
     ZScoreNormalizer,
 )
@@ -512,3 +513,162 @@ class TestRescaleAndClipNormalizers:
         stats = {"means": {"B1": 10.0}, "stds": {"B1": 2.0}}
         with pytest.raises(ValueError):
             _ = ClipZScoreNormalizer(stats, ["B1"])
+class TestMultiModalNormalizer:
+    """Tests the MultiModalNormalizer class with potential clipping then z-score logic.
+
+    Verifies correct normalization (clip then z-score) and denormalization (inverse z-score only)
+    behavior, handling of fill values, and both single-tensor and multi-modal dictionary inputs.
+    """
+
+    TEST_STATS = {
+        "means": {"B1": 100.0, "B2": -10.0, "B3": 50.0},
+        "stds": {"B1": 20.0, "B2": 5.0, "B3": 10.0},
+        # clip_* present but ignored by ZScoreNormalizer
+        # "clip_min": {"B1": 70.0},
+        # "clip_max": {"B1": 130.0},
+    }
+
+    TEST_VALUES_B1_IN = [60.0, 70.0, 100.0, 130.0, 140.0]
+    TEST_VALUES_B2_IN = [-20.0, -15.0, -10.0, -5.0, 0.0]
+    TEST_VALUES_B3_IN = [30.0, 40.0, 50.0, 60.0, 70.0]
+
+    # Pure z-score (no clipping) -> (x - mean)/std
+    TEST_VALUES_B1_NORM = [-2.0, -1.5, 0.0, 1.5, 2.0]
+    TEST_VALUES_B2_NORM = [-2.0, -1.0, 0.0, 1.0, 2.0]
+    TEST_VALUES_B3_NORM = [-2.0, -1.0, 0.0, 1.0, 2.0]
+
+    # Roundtrip should recover ORIGINAL (not clipped) values
+    TEST_VALUES_B1_ROUNDTRIP = TEST_VALUES_B1_IN
+    TEST_VALUES_B2_ROUNDTRIP = TEST_VALUES_B2_IN
+    TEST_VALUES_B3_ROUNDTRIP = TEST_VALUES_B3_IN
+
+    FILL_VALUE = -999.0
+
+    INPUT_VALS = torch.tensor(
+        [TEST_VALUES_B1_IN, TEST_VALUES_B2_IN, [FILL_VALUE] * 5, TEST_VALUES_B3_IN]
+    )
+
+    EXPECTED_NORM = torch.tensor(
+        [
+            TEST_VALUES_B1_NORM,
+            TEST_VALUES_B2_NORM,
+            [FILL_VALUE] * 5,
+            TEST_VALUES_B3_NORM,
+        ]
+    )
+
+    EXPECTED_ROUNDTRIP = torch.tensor(
+        [
+            TEST_VALUES_B1_ROUNDTRIP,
+            TEST_VALUES_B2_ROUNDTRIP,
+            [FILL_VALUE] * 5,
+            TEST_VALUES_B3_ROUNDTRIP,
+        ]
+    )
+
+    BAND_ORDER = ["B1", "B2", FILL_VALUE, "B3"]
+
+    @pytest.fixture
+    def stats(self):
+        """Return the test statistics."""
+        return self.TEST_STATS.copy()
+
+    def test_normalization_values(self, stats):
+        """Verify normalization applies clip then z-score correctly per band."""
+        normalizer = MultiModalNormalizer(stats, self.BAND_ORDER)
+
+        input_tensor = self.INPUT_VALS.unsqueeze(-1).unsqueeze(-1)
+        test_tensor = input_tensor.permute(1, 0, 2, 3)
+        # Use the pre-calculated EXPECTED_NORM
+        expected_tensor = (
+            self.EXPECTED_NORM.unsqueeze(-1).unsqueeze(-1).permute(1, 0, 2, 3)
+        )
+
+        result = normalizer({"image": test_tensor})
+        normalized_tensor = result["image"]
+
+        assert normalized_tensor.shape == expected_tensor.shape
+        assert torch.allclose(normalized_tensor, expected_tensor, atol=1e-5), (
+            "Normalization failed"
+        )
+
+    def test_denormalization_roundtrip(self, stats):
+        """Verify denormalization reverses only the z-score step."""
+        normalizer = MultiModalNormalizer(stats, self.BAND_ORDER)
+
+        input_tensor = self.INPUT_VALS.unsqueeze(-1).unsqueeze(-1)
+        test_tensor = input_tensor.permute(1, 0, 2, 3)
+
+        # Use the pre-calculated EXPECTED_ROUNDTRIP (clipped values)
+        expected_tensor = (
+            self.EXPECTED_ROUNDTRIP.unsqueeze(-1).unsqueeze(-1).permute(1, 0, 2, 3)
+        )
+
+        normalized_result = normalizer({"image": test_tensor})
+        denormalized_result = normalizer.unnormalize(normalized_result)
+        denormalized_tensor = denormalized_result["image"]
+
+        tolerance = 1e-5
+
+        if not torch.allclose(denormalized_tensor, expected_tensor, atol=tolerance):
+            print("\nMultiModal Denorm roundtrip failed")
+            print("Input (Original):")
+            print(test_tensor.squeeze())
+            print("Expected (Roundtrip - Clipped):")
+            print(expected_tensor.squeeze())
+            print("Actual (Denormalized):")
+            print(denormalized_tensor.squeeze())
+            print("Difference:")
+            print((denormalized_tensor - expected_tensor).squeeze())
+
+        assert torch.allclose(denormalized_tensor, expected_tensor, atol=tolerance), (
+            "MultiModal Denormalization roundtrip failed"
+        )
+
+    def test_multimodal_input_dict(self, stats):
+        """Test sequential normalization and denormalization with dict input."""
+        band_order_dict = {"mod1": ["B1", self.FILL_VALUE], "mod2": ["B2", "B3"]}
+        normalizer = MultiModalNormalizer(stats, band_order_dict)
+
+        input_mod1 = (
+            torch.tensor([[self.TEST_VALUES_B1_IN[0]], [self.FILL_VALUE]])
+            .unsqueeze(-1)
+            .unsqueeze(-1)
+            .permute(1, 0, 2, 3)
+        )
+        input_mod2 = (
+            torch.tensor([[self.TEST_VALUES_B2_IN[0]], [self.TEST_VALUES_B3_IN[0]]])
+            .unsqueeze(-1)
+            .unsqueeze(-1)
+            .permute(1, 0, 2, 3)
+        )
+
+        input_data = {"image_mod1": input_mod1, "image_mod2": input_mod2}
+
+        expected_mod1 = torch.tensor(
+            [[[[self.TEST_VALUES_B1_NORM[0]]], [[self.FILL_VALUE]]]]
+        )
+        expected_mod2 = torch.tensor(
+            [[[[self.TEST_VALUES_B2_NORM[0]]], [[self.TEST_VALUES_B3_NORM[0]]]]]
+        )
+
+        normalized_result = normalizer(input_data)
+        assert torch.allclose(normalized_result["image_mod1"], expected_mod1, atol=1e-6)
+        assert torch.allclose(normalized_result["image_mod2"], expected_mod2, atol=1e-6)
+
+        denormalized_result = normalizer.unnormalize(normalized_result)
+
+        # Roundtrip returns original (no clipping)
+        expected_roundtrip_mod1 = torch.tensor(
+            [[[[self.TEST_VALUES_B1_IN[0]]], [[self.FILL_VALUE]]]]
+        )
+        expected_roundtrip_mod2 = torch.tensor(
+            [[[[self.TEST_VALUES_B2_IN[0]]], [[self.TEST_VALUES_B3_IN[0]]]]]
+        )
+
+        assert torch.allclose(
+            denormalized_result["image_mod1"], expected_roundtrip_mod1, atol=1e-5
+        )
+        assert torch.allclose(
+            denormalized_result["image_mod2"], expected_roundtrip_mod2, atol=1e-5
+        )

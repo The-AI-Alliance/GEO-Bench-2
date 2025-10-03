@@ -12,7 +12,7 @@ from shapely import wkt
 from torch import Tensor
 
 from .base import GeoBenchBaseDataset
-from .normalization import ZScoreNormalizer
+from .normalization import MultiModalNormalizer
 from .sensor_util import DatasetBandRegistry
 
 
@@ -29,8 +29,8 @@ class GeoBenchCaFFe(GeoBenchBaseDataset):
     band_default_order = ("gray",)
 
     normalization_stats: dict[str, dict[str, float]] = {
-        "means": {"gray": 0.0},
-        "stds": {"gray": 255.0},
+        "means": {"gray": 62.682498931884766},
+        "stds": {"gray": 79.8001937866211},
     }
 
     mask_dirs = ("zones", "zones")
@@ -44,11 +44,11 @@ class GeoBenchCaFFe(GeoBenchBaseDataset):
         root,
         split="train",
         band_order: Sequence[float | str] = band_default_order,
-        data_normalizer: type[nn.Module] = ZScoreNormalizer,
+        data_normalizer: type[nn.Module] = MultiModalNormalizer,
         transforms: nn.Module | None = None,
         metadata: Sequence[str] | None = None,
         download: bool = False,
-    ):
+    ) -> None:
         """Initialize Caffe dataset.
 
         Args:
@@ -56,7 +56,7 @@ class GeoBenchCaFFe(GeoBenchBaseDataset):
             split: The dataset split, supports 'train', 'validation', 'test'
             band_order: The order of bands to return, defaults to ['gray'], if one would
                 specify ['gray', 'gray', 'gray], the dataset would return the gray band three times.
-            data_normalizer: The data normalizer to apply to the data, defaults to :class:`data_util.ClipZScoreNormalizer`,
+            data_normalizer: The data normalizer to apply to the data, defaults to :class:`data_util.MultiModalNormalizer`,
                 which applies z-score normalization to each band.
             transforms: The transforms to apply to the data, defaults to None.
             metadata: The metadata to return, defaults to None.
@@ -97,7 +97,6 @@ class GeoBenchCaFFe(GeoBenchBaseDataset):
 
         with rasterio.open(mask_path) as f:
             mask = f.read(1)
-
         mask = torch.from_numpy(mask).long()
 
         image_dict = self.rearrange_bands(image, self.band_order)

@@ -13,16 +13,18 @@ readme = "README.md"
 requires-python = ">=3.10"
 license = {file = "LICENSE"}
 authors = [
-    {name = "Alexandre Lacoste", email = "alexandre.lacoste@servicenow.com"},
     {name = "Nils Lehmann", email = "n.lehmann@tum.de"},
-    {name = "Naomi Simumba", email = "naomi.simumba1@ibm.com"}
+    {name = "Naomi Simumba", email = "naomi.simumba1@ibm.com"},
+    {name = "Paolo Fraccaro", email = "paolo.fraccaro@ibm.com"},
+    {name = "Alexandre Lacoste", email = "alexandre.lacoste@servicenow.com"},
 ]
 maintainers = [
-    {name = "Alexandre Lacoste", email = "alexandre.lacoste@servicenow.com"},
     {name = "Nils Lehmann", email = "n.lehmann@tum.de"},
-    {name = "Naomi Simumba", email = "naomi.simumba1@ibm.com"}
+    {name = "Naomi Simumba", email = "naomi.simumba1@ibm.com"},
+    {name = "Paolo Fraccaro", email = "paolo.fraccaro@ibm.com"},
+    {name = "Alexandre Lacoste", email = "alexandre.lacoste@servicenow.com"},
 ]
-keywords = ["earth_observation", "benchmark"]
+keywords = ["earth observation", "benchmark", "satellite data", "GeoFM"]
 
 classifiers = [
     "Development Status :: 3 - Alpha",
@@ -55,7 +57,7 @@ dependencies = [
     # torchvision 0.13+ required for torchvision.models._api.WeightsEnum
     "torchvision>=0.16.1",
     # torchgeo
-    #"torchgeo @ git+https://github.com/microsoft/torchgeo.git"
+    #"torchgeo @ git+https://github.com/microsoft/torchgeo.git",
     "torchgeo>=0.7.1",
     "geopandas>=1.1.0",
     "h5py>=3.14.0",
@@ -112,8 +114,14 @@ all = [
     "GeoBenchV2[docs,tests,generate_benchmark]",
 ]
 
-[project.scripts]
-geobench = "geobench_v2.main:main"
+[project.urls]
+Documentation = "https://geo-bench-2.readthedocs.io/en/latest/"
+Issues = "https://github.com/The-AI-Alliance/GEO-Bench-2/issues"
+Source = "https://github.com/The-AI-Alliance/GEO-Bench-2"
+# Download = #TODO downlaod link in HF
+
+# [project.scripts]
+# geobench = "geobench_v2.main:main"
 
 [tool.pytest.ini_options]
 # Skip slow tests by default
