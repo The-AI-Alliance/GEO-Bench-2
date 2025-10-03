@@ -1,5 +1,4 @@
 #!/usr/bin/env bash
-# filepath: /home/nils/projects/GEO-Bench-2/download_geobenchV2.sh
 set -euo pipefail
 
 # Default download root directory
@@ -86,6 +85,11 @@ download_dataset() {
             hf download "aialliance/spacenet7" "spacenet7_stats_satmae.json" --repo-type=dataset --local-dir "$target_dir"
             hf download "aialliance/spacenet7" "spacenet7_stats_clip_rescale.json" --repo-type=dataset --local-dir "$target_dir"
             ;;
+        "substation")
+            hf download "aialliance/substation" "geobench_substation.tortilla" --repo-type=dataset --local-dir "$target_dir" 
+            hf download "aialliance/substation" "substation_stats_satmae.json" --repo-type=dataset --local-dir "$target_dir"
+            hf download "aialliance/substation" "substation_stats_clip_rescale.json" --repo-type=dataset --local-dir "$target_dir"
+            ;;
         "treesatai")
             hf download "aialliance/treesatai" "geobench_treesatai.tortilla" --repo-type=dataset --local-dir "$target_dir" 
             hf download "aialliance/treesatai" "treesatai_stats_satmae.json" --repo-type=dataset --local-dir "$target_dir"
@@ -98,7 +102,7 @@ download_dataset() {
             ;;
         *)
             echo "Error: Unknown dataset '$dataset_name'"
-            echo "Available: benv2, biomassters, burn_scars, caffe, cloudsen12, dynamic_earthnet, everwatch, flair2, fotw, kuro_siwo, pastis, spacenet2, spacenet7, treesatai, wind_turbine"
+            echo "Available: benv2, biomassters, burn_scars, caffe, cloudsen12, dynamic_earthnet, everwatch, flair2, fotw, kuro_siwo, pastis, spacenet2, spacenet7, substation, treesatai, wind_turbine"
             exit 1
             ;;
     esac
@@ -107,7 +111,7 @@ download_dataset() {
 }
 
 
-ALL_DATASETS=("benv2" "biomassters" "burn_scars" "caffe" "cloudsen12" "dynamic_earthnet" "everwatch" "flair2" "fotw" "kuro_siwo" "pastis" "spacenet2" "spacenet7" "treesatai" "wind_turbine")
+ALL_DATASETS=("benv2" "biomassters" "burn_scars" "caffe" "cloudsen12" "dynamic_earthnet" "everwatch" "flair2" "fotw" "kuro_siwo" "pastis" "spacenet2" "spacenet7" "substation" "treesatai" "wind_turbine")
 
 # Main execution
 if [[ $# -eq 0 ]]; then
