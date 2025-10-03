@@ -98,7 +98,7 @@ download_dataset() {
             ;;
         *)
             echo "Error: Unknown dataset '$dataset_name'"
-            echo "Available: biomassters, burn_scars, caffe, cloudsen12, dynamic_earthnet, everwatch, flair2, fotw, kuro_siwo, pastis, spacenet2, spacenet7, treesatai, wind_turbine"
+            echo "Available: benv2, biomassters, burn_scars, caffe, cloudsen12, dynamic_earthnet, everwatch, flair2, fotw, kuro_siwo, pastis, spacenet2, spacenet7, treesatai, wind_turbine"
             exit 1
             ;;
     esac
@@ -107,7 +107,7 @@ download_dataset() {
 }
 
 
-ALL_DATASETS=("biomassters" "burn_scars" "caffe" "cloudsen12" "dynamic_earthnet" "everwatch" "flair2" "fotw" "kuro_siwo" "pastis" "spacenet2" "spacenet7" "treesatai" "wind_turbine")
+ALL_DATASETS=("benv2" "biomassters" "burn_scars" "caffe" "cloudsen12" "dynamic_earthnet" "everwatch" "flair2" "fotw" "kuro_siwo" "pastis" "spacenet2" "spacenet7" "treesatai" "wind_turbine")
 
 # Main execution
 if [[ $# -eq 0 ]]; then
@@ -123,9 +123,11 @@ elif [[ "$1" == "all" ]]; then
         download_dataset "$dataset"
     done
 else
-    # Download specific dataset
-    echo "Downloading $1 to: $DOWNLOAD_ROOT"
-    download_dataset "$1"
+    # Download specific dataset(s) - loop through all arguments
+    echo "Downloading specified datasets to: $DOWNLOAD_ROOT"
+    for dataset_arg in "$@"; do
+        download_dataset "$dataset_arg"
+    done
 fi
 
 echo "Downloads completed!"

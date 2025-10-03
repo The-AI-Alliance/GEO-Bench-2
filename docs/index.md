@@ -39,7 +39,6 @@ Global Sample Distribution
 ```{toctree}
 :maxdepth: 1
 
-dataset_tour/index
 dataset_notebooks/index
 normalization/index
 api/index

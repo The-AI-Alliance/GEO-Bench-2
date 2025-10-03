@@ -415,7 +415,7 @@ def compare_normalization_methods(
             plot_title = f"{modality_prefix.upper()} Modality"
 
         band_names = []
-        modality_config = None
+        modality_config = datamodule.dataset_band_config
 
         if hasattr(datamodule, "dataset_band_config") and hasattr(
             datamodule.dataset_band_config, "modalities"
