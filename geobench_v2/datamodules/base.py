@@ -18,6 +18,11 @@ from matplotlib.lines import Line2D
 from torch import Tensor
 from torch.utils.data import DataLoader, Dataset
 
+from .utils import (
+    MultiModalClassificationAugmentation,
+    MultiTemporalSegmentationAugmentation,
+)
+
 # TODO come up with an expected metadata file scheme
 # with common names etc. so a standardization
 # - datamodules have functions to create nice visualizations of data distribution etc
@@ -33,7 +38,7 @@ class GeoBenchDataModule(LightningDataModule, ABC):
         self,
         dataset_class: Dataset,
         img_size: int,
-        band_order: dict[str, Sequence[float | str]],
+        band_order: Sequence[float | str] | dict[str, Sequence[float | str]],
         batch_size: int = 32,
         eval_batch_size: int = 64,
         num_workers: int = 0,
@@ -65,12 +70,12 @@ class GeoBenchDataModule(LightningDataModule, ABC):
         """
         super().__init__()
         if isinstance(train_augmentations, str):
-            assert train_augmentations == "default", (
-                "Please provide one of the follow for eval_augmentations: Callable or None or 'default'"
+            assert train_augmentations in ("default", "multi_temporal_default"), (
+                "Please provide one of the follow for eval_augmentations: Callable or None or 'default' or 'multi_temporal_default'"
             )
         if isinstance(eval_augmentations, str):
-            assert eval_augmentations == "default", (
-                "Please provide one of the follow for eval_augmentations: Callable or None or 'default'"
+            assert eval_augmentations in ("default", "multi_temporal_default"), (
+                "Please provide one of the follow for eval_augmentations: Callable or None or 'default' or 'multi_temporal_default'"
             )
 
         self.dataset_class = dataset_class
@@ -136,9 +141,9 @@ class GeoBenchDataModule(LightningDataModule, ABC):
 
     @abstractmethod
     def setup_image_size_transforms(self) -> tuple[nn.Module, nn.Module, nn.Module]:
-        """Setup image resizing transforms for train, val, and test.
+        """Setup image resizing transforms for train, val, test.
 
-        Image resizing and normalization happens on the dataset level on individual data samples.
+        Image resizing and normalization happens on dataset level on individual data samples.
         """
         raise NotImplementedError
 
@@ -162,13 +167,13 @@ class GeoBenchDataModule(LightningDataModule, ABC):
             split: One of 'train', 'validation', 'test'.
 
         Returns:
-            The matplotlib figure and the batch of data.
+            The matplotlib figure and the batch of data
         """
         raise NotImplementedError
 
     @abstractmethod
     def define_augmentations(self) -> None:
-        """Define augmentations for the dataset and task, applied on a batch of data.
+        """Define augmentations for the dataset and task, that are applied on a batch of data.
 
         Augmentations will be applied in `on_after_batch_transfer` in the LightningDataModule.
         """
@@ -317,6 +322,11 @@ class GeoBenchDataModule(LightningDataModule, ABC):
     #     # for single vector targets this should be easy, but how to make this easier for pixel-wise targets, also store in metadata?
     #     pass
 
+    @abstractmethod
+    def visualize_geolocation_distribution(self) -> None:
+        """Visualize the geolocation distribution of the dataset."""
+        raise NotImplementedError
+
     def train_dataloader(self) -> DataLoader:
         """Return train dataloader.
 
@@ -382,11 +392,8 @@ class GeoBenchDataModule(LightningDataModule, ABC):
                 split = "train"
             else:
                 split = "eval"
-
             aug = self._valid_attribute(f"{split}_augmentations")
-
             batch = aug(batch)
-
         return batch
 
     def _valid_attribute(self, args) -> Any:
@@ -431,7 +438,7 @@ class GeoBenchClassificationDataModule(GeoBenchDataModule):
         self,
         dataset_class: Dataset,
         img_size: int,
-        band_order: dict[str, Sequence[float | str]],
+        band_order: Sequence[float | str] | dict[str, Sequence[float | str]],
         batch_size: int = 32,
         eval_batch_size: int = 64,
         num_workers: int = 0,
@@ -487,11 +494,31 @@ class GeoBenchClassificationDataModule(GeoBenchDataModule):
                 data_keys=None,
                 keepdim=True,
             )
+        elif self.train_augmentations == "multi_temporal_default":
+            self.train_augmentations = K.AugmentationSequential(
+                K.VideoSequential(
+                    K.RandomHorizontalFlip(p=0.5),
+                    K.RandomVerticalFlip(p=0.5),
+                    data_format="BCTHW",
+                ),
+                data_keys=None,
+                keepdim=True,
+            )
         elif self.train_augmentations is None:
             self.train_augmentations = nn.Identity()
 
-        if (self.eval_augmentations == "default") or (self.eval_augmentations is None):
+        if (self.eval_augmentations in ["default", "multi_temporal_default"]) or (
+            self.eval_augmentations is None
+        ):
             self.eval_augmentations = nn.Identity()
+
+        if "rename_modalities" in self.kwargs:
+            self.train_augmentations = MultiModalClassificationAugmentation(
+                transforms=self.train_augmentations
+            )
+            self.eval_augmentations = MultiModalClassificationAugmentation(
+                transforms=self.eval_augmentations
+            )
 
     def setup_image_size_transforms(self) -> tuple[nn.Module, nn.Module, nn.Module]:
         """Setup image resizing transforms for train, val, test.
@@ -528,7 +555,7 @@ class GeoBenchClassificationDataModule(GeoBenchDataModule):
 
         Args:
             batch: batch of data to visualize, if None a batch will be fetched from the dataloader
-            split: One of 'train', 'validation', 'test'
+            split: One of 'train', 'validation', 'test'.
 
         Returns:
             The matplotlib figure and the batch of data
@@ -551,7 +578,7 @@ class GeoBenchSegmentationDataModule(GeoBenchDataModule):
         self,
         dataset_class: Dataset,
         img_size: int,
-        band_order: dict[str, Sequence[float | str]],
+        band_order: Sequence[float | str] | dict[str, Sequence[float | str]],
         batch_size: int = 32,
         eval_batch_size: int = 64,
         num_workers: int = 0,
@@ -608,16 +635,31 @@ class GeoBenchSegmentationDataModule(GeoBenchDataModule):
                 data_keys=None,
                 keepdim=True,
             )
+        elif self.train_augmentations == "multi_temporal_default":
+            transforms = K.AugmentationSequential(
+                K.VideoSequential(
+                    K.RandomHorizontalFlip(p=0.5),
+                    K.RandomVerticalFlip(p=0.5),
+                    data_format="BCTHW",
+                ),
+                data_keys=None,
+                keepdim=True,
+            )
+            self.train_augmentations = MultiTemporalSegmentationAugmentation(
+                transforms=transforms
+            )
         elif self.train_augmentations is None:
             self.train_augmentations = nn.Identity()
 
-        if (self.eval_augmentations == "default") or (self.eval_augmentations is None):
+        if (self.eval_augmentations in ["default", "multi_temporal_default"]) or (
+            self.eval_augmentations is None
+        ):
             self.eval_augmentations = nn.Identity()
 
     def setup_image_size_transforms(self) -> tuple[nn.Module, nn.Module, nn.Module]:
-        """Setup image resizing transforms for train, val, test.
+        """Setup image resizing transforms for train, val, and test.
 
-        Image resizing and normalization happens on dataset level on individual data samples.
+        Image resizing and normalization happens on the dataset level on individual data samples.
         """
         return (
             K.AugmentationSequential(
@@ -649,7 +691,7 @@ class GeoBenchSegmentationDataModule(GeoBenchDataModule):
 
         Args:
             batch: batch of data to visualize, if None a batch will be fetched from the dataloader
-            split: One of 'train', 'validation', 'test'
+            split: One of 'train', 'validation', 'test'.
 
         Returns:
             The matplotlib figure and the batch of data
@@ -672,7 +714,7 @@ class GeoBenchObjectDetectionDataModule(GeoBenchDataModule):
         self,
         dataset_class: Dataset,
         img_size: int,
-        band_order: dict[str, Sequence[float | str]],
+        band_order: Sequence[float | str] | dict[str, Sequence[float | str]],
         batch_size: int = 32,
         eval_batch_size: int = 64,
         num_workers: int = 0,
@@ -725,13 +767,25 @@ class GeoBenchObjectDetectionDataModule(GeoBenchDataModule):
             self.train_augmentations = K.AugmentationSequential(
                 K.RandomHorizontalFlip(p=0.5),
                 K.RandomVerticalFlip(p=0.5),
+                data_keys=["image", "bbox_xyxy", "label"],
+                keepdim=True,
+            )
+        elif self.train_augmentations == "multi_temporal_default":
+            self.train_augmentations = K.AugmentationSequential(
+                K.VideoSequential(
+                    K.RandomHorizontalFlip(p=0.5),
+                    K.RandomVerticalFlip(p=0.5),
+                    data_format="BCTHW",
+                ),
                 data_keys=None,
                 keepdim=True,
             )
         elif self.train_augmentations is None:
             self.train_augmentations = nn.Identity()
 
-        if (self.eval_augmentations == "default") or (self.eval_augmentations is None):
+        if (self.eval_augmentations in ["default", "multi_temporal_default"]) or (
+            self.eval_augmentations is None
+        ):
             self.eval_augmentations = nn.Identity()
 
     def setup_image_size_transforms(self) -> tuple[nn.Module, nn.Module, nn.Module]:
@@ -769,7 +823,7 @@ class GeoBenchObjectDetectionDataModule(GeoBenchDataModule):
 
         Args:
             batch: batch of data to visualize, if None a batch will be fetched from the dataloader
-            split: One of 'train', 'validation', 'test'
+            split: One of 'train', 'validation', 'test'.
 
         Returns:
             The matplotlib figure and the batch of data

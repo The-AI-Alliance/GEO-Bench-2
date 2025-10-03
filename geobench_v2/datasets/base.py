@@ -18,7 +18,7 @@ from torchgeo.datasets import DatasetNotFoundError, NonGeoDataset
 from torchvision.datasets.utils import download_url
 
 from .data_util import DataUtilsMixin
-from .normalization import ZScoreNormalizer
+from .normalization import MultiModalNormalizer
 
 
 class GeoBenchBaseDataset(NonGeoDataset, DataUtilsMixin):
@@ -36,7 +36,7 @@ class GeoBenchBaseDataset(NonGeoDataset, DataUtilsMixin):
         root: Path,
         split: str,
         band_order: Sequence[str] | Mapping[str, Sequence[str]],
-        data_normalizer: type[nn.Module] = ZScoreNormalizer,
+        data_normalizer: type[nn.Module] = MultiModalNormalizer,
         transforms: nn.Module | None = None,
         metadata: list[str] | None = None,
         download: bool = False,
@@ -48,7 +48,7 @@ class GeoBenchBaseDataset(NonGeoDataset, DataUtilsMixin):
             split: The dataset split, supports 'train', 'validation', 'test', 'extra_test'. Also accepts 'val' as an alias for 'validation'.
             band_order: List of bands to return
             data_normalizer: Normalization strategy. Can be:
-                             - A class type inheriting from DataNormalizer (e.g., ZScoreNormalizer)
+                             - A class type inheriting from DataNormalizer (e.g., MultiModalNormalizer)
                                or a basic callable class (e.g., nn.Identity - default).
                                It will be initialized appropriately (using stats/band_order if needed).
                              - An initialized callable instance (e.g., a custom nn.Module or nn.Identity()).
@@ -60,8 +60,6 @@ class GeoBenchBaseDataset(NonGeoDataset, DataUtilsMixin):
         """
         super().__init__()
         self.root = root
-        self.split = split
-        self.band_order = band_order
         self.transforms = transforms
         self.download = download
         self.dataset_verification()
@@ -91,7 +89,6 @@ class GeoBenchBaseDataset(NonGeoDataset, DataUtilsMixin):
         self.data_normalizer = data_normalizer(
             self.normalization_stats, self.band_order
         )
-        self.transforms = transforms
 
     def __getitem__(self, index: int) -> dict[str, Any]:
         """Return an index within the dataset.

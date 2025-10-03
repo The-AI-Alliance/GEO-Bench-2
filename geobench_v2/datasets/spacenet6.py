@@ -3,7 +3,7 @@
 
 """SpaceNet6 dataset."""
 
-from collections.abc import Mapping, Sequence
+from collections.abc import Sequence
 from pathlib import Path
 from typing import Literal, cast
 
@@ -15,7 +15,7 @@ from shapely import wkt
 from torch import Tensor
 
 from .base import GeoBenchBaseDataset
-from .normalization import ZScoreNormalizer
+from .normalization import MultiModalNormalizer
 from .sensor_util import DatasetBandRegistry
 
 
@@ -45,30 +45,30 @@ class GeoBenchSpaceNet6(GeoBenchBaseDataset):
     dataset_band_config = DatasetBandRegistry.SPACENET6
 
     band_default_order = {
-        "rgbn": ["red", "green", "blue", "nir"],
-        "sar": ["hh", "hv", "vv", "vh"],
+        "rgbn": ("red", "green", "blue", "nir"),
+        "sar": ("hh", "hv", "vv", "vh"),
     }
 
     normalization_stats: dict[str, dict[str, float]] = {
         "means": {
-            "red": 0.0,
-            "green": 0.0,
-            "blue": 0.0,
-            "nir": 0.0,
-            "hh": 0.0,
-            "hv": 0.0,
-            "vv": 0.0,
-            "vh": 0.0,
+            "red": 101.56404876708984,
+            "green": 140.59695434570312,
+            "blue": 146.70387268066406,
+            "nir": 340.8776550292969,
+            "hh": 24.750904083251953,
+            "hv": 31.68429183959961,
+            "vv": 29.68717384338379,
+            "vh": 22.68701171875,
         },
         "stds": {
-            "red": 1000.0,
-            "green": 1000.0,
-            "blue": 1000.0,
-            "nir": 1000.0,
-            "hh": 100.0,
-            "hv": 100.0,
-            "vv": 100.0,
-            "vh": 100.0,
+            "red": 109.73048400878906,
+            "green": 124.5447998046875,
+            "blue": 149.98680114746094,
+            "nir": 297.4772033691406,
+            "hh": 12.217103004455566,
+            "hv": 14.078553199768066,
+            "vv": 13.503046035766602,
+            "vh": 11.729385375976562,
         },
     }
 
@@ -82,8 +82,9 @@ class GeoBenchSpaceNet6(GeoBenchBaseDataset):
         self,
         root: Path,
         split: Literal["train", "val", "validation", "test"],
-        band_order: Mapping[str, list[str]] = band_default_order,
-        data_normalizer: type[nn.Module] = ZScoreNormalizer,
+        rename_modalities: dict | None = None,
+        band_order: Sequence[str] = band_default_order,
+        data_normalizer: type[nn.Module] = MultiModalNormalizer,
         transforms: nn.Module | None = None,
         return_stacked_image: bool = False,
         metadata: Sequence[str] | None = None,
@@ -98,11 +99,13 @@ class GeoBenchSpaceNet6(GeoBenchBaseDataset):
                 specify ['red', 'green', 'blue', 'nir', 'nir'], the dataset would return images with 5 channels
                 in that order. This is useful for models that expect a certain band order, or
                 test the impact of band order on model performance.
-            data_normalizer: The data normalizer to apply to the data, defaults to :class:`data_util.ZScoreNormalizer`,
+            data_normalizer: The data normalizer to apply to the data, defaults to :class:`data_util.MultiModalNormalizer`,
                 which applies z-score normalization to each band.
             transforms: image transformations to apply to the data, defaults to None
             metadata: metadata names to be returned as part of the sample in the
             return_stacked_image: if true, returns a single image tensor with all modalities stacked in band_order
+            rename_modalities: dictionary with information to rename modalities in output e.g. {image: {sar:  S1RTC, rgbn: S2L2A}}
+            transforms: image transformations to apply to the data, defaults to None
             download: Whether to download the dataset
         """
         split_norm: Literal["train", "validation", "test"]
@@ -119,8 +122,12 @@ class GeoBenchSpaceNet6(GeoBenchBaseDataset):
             metadata=metadata,
             download=download,
         )
-
+        if return_stacked_image:
+            assert rename_modalities is None, (
+                "Cannot return a stacked image if modalities are renamed"
+            )
         self.return_stacked_image = return_stacked_image
+        self.rename_modalities = rename_modalities
 
     def __getitem__(self, index: int) -> dict[str, Tensor]:
         """Return an index within the dataset.
@@ -187,6 +194,25 @@ class GeoBenchSpaceNet6(GeoBenchBaseDataset):
 
         if self.transforms is not None:
             sample = self.transforms(sample)
+
+        if self.rename_modalities is not None:
+            for key, value in self.rename_modalities.items():
+                if isinstance(value, dict):
+                    sample[key] = {}
+                    for old_sub_key in value:
+                        if old_sub_key in self.band_order:
+                            new_sub_key = value[old_sub_key]
+                            sample[key][new_sub_key] = sample[f"image_{old_sub_key}"]
+                            del sample[f"image_{old_sub_key}"]
+                else:
+                    if key in self.band_order:
+                        new_sub_key = value
+                        sample[new_sub_key] = sample[f"image_{key}"]
+                        del sample[f"image_{key}"]
+                    else:
+                        raise ValueError(
+                            "rename_modalities must include names that exist in the dataset"
+                        )
 
         point = wkt.loads(sample_row.iloc[0]["stac:centroid"])
         lon, lat = point.x, point.y

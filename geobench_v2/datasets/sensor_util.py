@@ -27,7 +27,7 @@ class ModalityConfig:
     """Configuration for a satellite/sensor modality."""
 
     bands: dict[str, BandConfig]
-    default_order: list[str]
+    default_order: Sequence[str]
     native_resolution: int | None = None
     plot_bands: Sequence[str] | None = None
 
@@ -62,9 +62,9 @@ class MultiModalConfig:
     """Configuration for multi-modal datasets combining multiple sensors."""
 
     modalities: dict[str, ModalityConfig]
-    default_order: dict[str, Sequence[str]]
-    band_to_modality: dict[str, str]
-    plot_bands: Sequence[str] | None = None
+    default_order: list[str]  # Default band order across all modalities
+    band_to_modality: dict[str, str]  # Maps band names to their modality
+    plot_bands: Sequence[str] | None = None  # Bands to be plotted
 
 
 class SensorType(Enum):
@@ -672,46 +672,6 @@ class DatasetBandRegistry:
         ],
         plot_bands=["B04", "B03", "B02"],
         native_resolution=10,
-    )
-
-    FLOGA = MultiModalConfig(
-        modalities={
-            "s2": ModalityConfig(
-                bands={
-                    k: v
-                    for k, v in SensorBandRegistry.SENTINEL2.bands.items()
-                    if k in ["B02", "B03", "B04", "B08"] and v.resolution == 10
-                },
-                default_order=["B02", "B03", "B04", "B08"],
-                native_resolution=10,
-            ),
-            "modis": ModalityConfig(
-                bands={
-                    k: v
-                    for k, v in SensorBandRegistry.MODIS.bands.items()
-                    if k in ["M01", "M02", "M03", "M04", "M05", "M06", "M07"]
-                },
-                default_order=["M01", "M02", "M03", "M04", "M05", "M06", "M07"],
-                native_resolution=500,
-            ),
-        },
-        default_order={
-            "s2": ["B02", "B03", "B04", "B08"],
-            "modis": ["M01", "M02", "M03", "M04", "M05", "M06", "M07"],
-        },
-        band_to_modality={
-            "B02": "s2",
-            "B03": "s2",
-            "B04": "s2",
-            "B08": "s2",
-            "M01": "modis",
-            "M02": "modis",
-            "M03": "modis",
-            "M04": "modis",
-            "M05": "modis",
-            "M06": "modis",
-            "M07": "modis",
-        },
     )
 
     KURO_SIWO = MultiModalConfig(
