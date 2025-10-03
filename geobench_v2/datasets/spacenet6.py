@@ -20,18 +20,7 @@ from .sensor_util import DatasetBandRegistry
 
 
 class GeoBenchSpaceNet6(GeoBenchBaseDataset):
-    """SpaceNet6 dataset with enhanced functionality.
-
-    Allows:
-    - Variable Band Selection
-    - Return band wavelengths
-
-    Classes are:
-
-    0. Background
-    1. No Building
-    2. Building
-    """
+    """GeoBench version of SpaceNet6 dataset."""
 
     url = "https://hf.co/datasets/aialliance/spacenet6/resolve/main/{}"
 

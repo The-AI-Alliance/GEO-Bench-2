@@ -18,26 +18,19 @@ from .sensor_util import DatasetBandRegistry
 
 
 class GeoBenchBioMassters(GeoBenchBaseDataset):
-    """BioMassters dataset.
-
-    There are always 12 S1 time steps available but the number of S2 time steps can vary.
-
-    Dataset does not include geospatial information.
-    """
+    """GeoBench version of BioMassters dataset."""
 
     url = "https://hf.co/datasets/aialliance/biomassters/resolve/main/{}"
     paths = [
-        "geobench_biomassters.0000.part.tortilla"
-        # "geobench_biomassters.0001.part.tortilla",
-        # "geobench_biomassters.0002.part.tortilla",
-        # "geobench_biomassters.0003.part.tortilla",
-        # "geobench_biomassters.0004.part.tortilla",
-        # "geobench_biomassters.0005.part.tortilla",
-        # "geobench_biomassters.0006.part.tortilla",
+        "geobench_biomassters.0000.part.tortilla",
+        "geobench_biomassters.0001.part.tortilla",
+        "geobench_biomassters.0002.part.tortilla",
     ]
 
     sha256str: Sequence[str] = [
-        "77682ec73a9d496eb694b6a6e65c2ee793ed9f326e6b37a9dea1b065177334ff"
+        "52bdd8f76107ef14498c54c751c0cddb9ab073fc03cff0102b05406af127b747",
+        "52b3217ad7b44667f147fc2033769e42f2c47b502126f3ff9413c7f75b2de82f",
+        "7da0898b25ff4ca23a8bbe06dcf383ae70068b78c95132ae26abdabbba4c13d4",
     ]
 
     dataset_band_config = DatasetBandRegistry.BIOMASSTERS

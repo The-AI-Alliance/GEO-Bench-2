@@ -20,18 +20,13 @@ from .sensor_util import DatasetBandRegistry
 
 
 class GeoBenchSpaceNet7(GeoBenchBaseDataset):
-    """SpaceNet7 dataset with enhanced functionality.
-
-    Allows:
-    - Variable Band Selection
-    - Return band wavelengths
-    """
+    """GeoBench version of SpaceNet7 dataset."""
 
     url = "https://hf.co/datasets/aialliance/spacenet7/resolve/main/{}"
 
     paths = ["geobench_spacenet7.tortilla"]
 
-    sha256str = ["dc2364926ce2b247d183f77fadf778f3a679d6be6ef891ffed92cff230722ee4"]
+    sha256str = ["f202abe270b729f7f2651de64cb5c6b41c5f9915109ec12b6c467afa2abcb5b6"]
 
     dataset_band_config = DatasetBandRegistry.SPACENET7
 

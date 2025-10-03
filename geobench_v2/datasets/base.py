@@ -18,11 +18,11 @@ from torchgeo.datasets import DatasetNotFoundError, NonGeoDataset
 from torchvision.datasets.utils import download_url
 
 from .data_util import DataUtilsMixin
-from .normalization import MultiModalNormalizer
+from .normalization import DataNormalizer, MultiModalNormalizer
 
 
 class GeoBenchBaseDataset(NonGeoDataset, DataUtilsMixin):
-    """Base dataset for classification tasks."""
+    """Base dataset for Geobench datasets."""
 
     url = ""
     paths: Sequence[str] = []
@@ -85,10 +85,24 @@ class GeoBenchBaseDataset(NonGeoDataset, DataUtilsMixin):
             (self.data_df["tortilla:data_split"] == self.split)
         ].reset_index(drop=True)
 
-        # Initialize normalizer
-        self.data_normalizer = data_normalizer(
-            self.normalization_stats, self.band_order
-        )
+        if isinstance(data_normalizer, type):
+            print(f"Initializing normalizer from class: {data_normalizer.__name__}")
+            if issubclass(data_normalizer, (DataNormalizer, MultiModalNormalizer)):
+                self.data_normalizer = data_normalizer(
+                    self.normalization_stats, self.band_order
+                )
+            else:
+                self.data_normalizer = data_normalizer()
+
+        elif callable(data_normalizer):
+            print(
+                f"Using provided pre-initialized normalizer instance: {data_normalizer.__class__.__name__}"
+            )
+            self.data_normalizer = data_normalizer
+        else:
+            raise TypeError(
+                f"data_normalizer must be a DataNormalizer subclass type or a callable instance. Got {type(data_normalizer)}"
+            )
 
     def __getitem__(self, index: int) -> dict[str, Any]:
         """Return an index within the dataset.

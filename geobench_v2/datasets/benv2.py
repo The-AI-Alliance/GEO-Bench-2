@@ -21,19 +21,14 @@ from .sensor_util import DatasetBandRegistry
 
 
 class GeoBenchBENV2(GeoBenchBaseDataset):
-    """BigEarthNet V2 Dataset with enhanced functionality.
-
-    Allows:
-    - Variable Band Selection
-    - Return band wavelengths
-    """
+    """GeoBench Version of BigEarthNet V2 Dataset."""
 
     url = "https://hf.co/datasets/aialliance/benv2/resolve/main/{}"
 
     paths: Sequence[str] = ["geobench_benv2.tortilla"]
 
     sha256str: Sequence[str] = [
-        "330876e91199cb179113224c6e4e9632f8971446fe29ffbb035e5b8bbdee8319"
+        "821c2f429c3e85c158c758bbb215bf61170a2451a11284efaf0f89cef97e468a"
     ]
 
     band_default_order = {

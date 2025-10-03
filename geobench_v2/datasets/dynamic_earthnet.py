@@ -19,7 +19,7 @@ from .sensor_util import DatasetBandRegistry
 
 
 class GeoBenchDynamicEarthNet(GeoBenchBaseDataset):
-    """DynamicEarthNet dataset."""
+    """GeoBench version of DynamicEarthNet dataset."""
 
     url = "https://hf.co/datasets/aialliance/dynamic_earthnet/resolve/main/{}"
 
@@ -30,9 +30,9 @@ class GeoBenchDynamicEarthNet(GeoBenchBaseDataset):
     ]
 
     sha256str = [
-        "ddc7848db890933337d494a3086a5179630132dd7d76cd92cf0ae98bec66c986",
-        "de6b49c217f35f6f1c37fd7e889fc2c9db28f542207c797627de8fa3fd211b4f",
-        "d08bceb12f4294d815dd9ea26f31d9ae6315d9afc816301863a08a65addd4e73",
+        "3459ed6e7b528a6356f2ac8249d75c7c199230c4df28ec60e19f67684c4fefe5",
+        "31b757804a687c2761fa991de48d98312f0b35140c5d54a5074b4267da1aaf8c",
+        "b8e3bc71aaf0422564e91117ca6192fa441ab9405b115c84a5e32b586b41d8c2",
     ]
 
     dataset_band_config = DatasetBandRegistry.DYNAMICEARTHNET

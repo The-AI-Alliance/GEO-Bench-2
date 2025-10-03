@@ -18,21 +18,20 @@ from .sensor_util import DatasetBandRegistry
 
 
 class GeoBenchKuroSiwo(GeoBenchBaseDataset):
-    """Kuro Siwo Flood Change Detection Dataset.
+    """GeoBench version of Kuro Siwo dataset.
 
     Classes:
     1. NO-Water
     2. Permanent Water
     3. Flood
     0. No-Data
-
     """
 
     url = "https://hf.co/datasets/aialliance/kuro_siwo/resolve/main/{}"
 
     paths = ["geobench_kuro_siwo.tortilla"]
 
-    sha256str = ["0b546c54df70cb7548081df688cc2317f00f7b81e541e09fa0ddcd787d647eef"]
+    sha256str = ["4830fe6f23bf9750dee0c765850724b55026bf5d47cb67162d3ef7dcb04c3bbd"]
 
     dataset_band_config = DatasetBandRegistry.KURO_SIWO
 
