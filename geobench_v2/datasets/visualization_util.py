@@ -586,8 +586,13 @@ DATASET_COLORS = {
 def plot_global_sample_distribution(
     taco_paths: dict[str, list[str]], labels=None, output_path="global_distribution.png"
 ):
-    """Plots the distribution of samples across the globe for a dictionary of TACO DataFrames,
-    with a zoomed-in subplot for Europe and visual links between the two.
+    """Plots the distribution of samples across the globe.
+
+    Args:
+        taco_paths: Dictionary mapping dataset labels to lists of paths to TACO files.
+        labels: Optional list of dataset labels to include. If None, all keys from taco_paths
+                are used.
+        output_path: Path to save the output plot.
     """
     fig = plt.figure(figsize=(20, 7))
     gs = GridSpec(1, 2, width_ratios=[2.2, 1.3], wspace=0.12)
@@ -715,6 +720,14 @@ def plot_global_sample_distribution(
 
 
 def extract_continent_names(df):
+    """Extract continent names for each point in the DataFrame based on lat/lon.
+
+    Args:
+        df: DataFrame with 'lat' and 'lon' columns.
+
+    Returns:
+        GeoDataFrame with an additional 'continent_name' column.
+    """
     geometry = [Point(xy) for xy in zip(df["lon"], df["lat"])]
     gdf_points = gpd.GeoDataFrame(df, geometry=geometry, crs="EPSG:4326")
     url = (
