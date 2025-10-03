@@ -24,7 +24,7 @@ class GeoBenchSpaceNet2(GeoBenchBaseDataset):
 
     url = "https://hf.co/datasets/aialliance/spacenet2/resolve/main/{}"
 
-    paths = ["geobench_spacenet2.0000.tortilla"]
+    paths = ["geobench_spacenet2.tortilla"]
 
     sha256str = ["e48e57654c1755a6b1c79bcfe172035a27b815ebe1738d1ce95d96d5c37214b6"]
 

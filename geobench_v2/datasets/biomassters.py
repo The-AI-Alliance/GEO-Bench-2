@@ -23,7 +23,7 @@ class GeoBenchBioMassters(GeoBenchBaseDataset):
     url = "https://hf.co/datasets/aialliance/biomassters/resolve/main/{}"
 
     paths = [
-        "geobench_biomassters.0000.part.tortilla"
+        "geobench_biomassters.0000.part.tortilla",
         "geobench_biomassters.0001.part.tortilla",
         "geobench_biomassters.0002.part.tortilla",
     ]
