@@ -18,8 +18,7 @@ from torchgeo.datasets import DatasetNotFoundError, NonGeoDataset
 from torchvision.datasets.utils import download_url
 
 from .data_util import DataUtilsMixin
-from .normalization import DataNormalizer, ZScoreNormalizer, MultiModalNormalizer
-
+from .normalization import DataNormalizer, MultiModalNormalizer
 
 
 class GeoBenchBaseDataset(NonGeoDataset, DataUtilsMixin):

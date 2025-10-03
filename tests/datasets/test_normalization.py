@@ -4,8 +4,8 @@ import torch
 from geobench_v2.datasets.normalization import (
     ClipOnlyNormalizer,
     ClipZScoreNormalizer,
-    RescaleNormalizer,
     MultiModalNormalizer,
+    RescaleNormalizer,
     SatMAENormalizer,
     ZScoreNormalizer,
 )
@@ -513,6 +513,8 @@ class TestRescaleAndClipNormalizers:
         stats = {"means": {"B1": 10.0}, "stds": {"B1": 2.0}}
         with pytest.raises(ValueError):
             _ = ClipZScoreNormalizer(stats, ["B1"])
+
+
 class TestMultiModalNormalizer:
     """Tests the MultiModalNormalizer class with potential clipping then z-score logic.
 

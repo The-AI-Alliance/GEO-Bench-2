@@ -19,7 +19,7 @@ from .sensor_util import DatasetBandRegistry
 
 
 class GeoBenchCloudSen12(GeoBenchBaseDataset):
-    """Geobench version of CloudSen12 dataset."""
+    """Geobench version of CloudSen12 dataset.
 
     CloudSen12 is a dataset for cloud segmentation that provides humanly annotated Sentinel-2 L1C imagery.
     The dataset contains four semantic segmentation classes:
