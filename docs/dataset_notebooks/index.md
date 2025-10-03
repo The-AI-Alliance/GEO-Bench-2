@@ -20,9 +20,7 @@ fotw
 kuro_siwo
 pastis
 spacenet2
-spacenet6
 spacenet7
-spacenet8
 substation
 treesatai
 wind_turbine
