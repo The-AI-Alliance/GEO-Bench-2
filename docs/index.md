@@ -35,6 +35,15 @@ pip install geobenchv2
 Global Sample Distribution
 ```
 
+## Geographical Distribution across Continents
+
+```{figure} _static/global_coverage_bar.png
+:alt: Global Sample Distribution Continets
+:width: 100%
+:align: center
+
+Global Coverage Distribution Continets
+```
 
 ```{toctree}
 :maxdepth: 1
