@@ -7,7 +7,7 @@
 **Dataset Name:** BigEarthNetV2  
 **Original Source:** https://bigearth.net/
 **Related Publication(s):** https://arxiv.org/abs/2407.03653  
-**Original Creators / Contacts:** TBD (verify from paper / website)  
+**Original Creators / Contacts:** Kai Norman Clasen; Leonard Hackel; Tom Burgert; Gencer Sumbul; Begüm Demir; Volker Markl  
 **Copyright Owners:** TBD  
 
 ### Licensing
@@ -20,7 +20,6 @@
 This dataset is redistributed under the **same license terms** as declared by the original providers.  
 We (ServiceNow Research, IBM Research, TUM, and AI Alliance) do not claim ownership or grant new rights beyond those already specified.  
 
-
 ### Attribution Requirements
 
 When using this dataset:  
@@ -32,8 +31,8 @@ When using this dataset:
 
 **Dataset Name:** BioMassters  
 **Original Source:** https://nascetti-a.github.io/BioMasster/ 
-**Related Publication(s):** https://proceedings.neurips.cc/paper_files/paper/2023/hash/40daf2a00278c4bea1b26cd4c8a654f8-Abstract-Datasets_and_Benchmarks.html
-**Original Creators / Contacts:** TBD  
+**Related Publication(s):** https://proceedings.neurips.cc/paper_files/paper/2023/hash/40daf2a00278c4bea1b26cd4c8a654f8-Abstract-Datasets_and_Benchmarks.html  
+**Original Creators / Contacts:** TBD (authors not extracted in provided script output)  
 **Copyright Owners:** TBD  
 
 ### Licensing
@@ -57,7 +56,7 @@ We (ServiceNow Research, IBM Research, TUM, and AI Alliance) do not claim owners
 **Dataset Name:** CaFFe  
 **Original Source:** TBD  
 **Related Publication(s):** https://essd.copernicus.org/articles/14/4287/2022/  
-**Original Creators / Contacts:** https://doi.pangaea.de/10.1594/PANGAEA.940950 
+**Original Creators / Contacts:** Nora Gourmelon; Thorsten Seehaus; Matthias Braun; Andreas Maier; Vincent Christlein  
 **Copyright Owners:** TBD  
 
 ### Licensing
@@ -72,7 +71,7 @@ We (ServiceNow Research, IBM Research, TUM, and AI Alliance) do not claim owners
 
 ### Attribution Requirements
 
-1. Cite [Gourmelon et al. 2022](https://essd.copernicus.org/articles/14/4287/2022/  )
+1. Cite [Gourmelon et al. 2022](https://essd.copernicus.org/articles/14/4287/2022/)
 
 ---
 
@@ -81,7 +80,7 @@ We (ServiceNow Research, IBM Research, TUM, and AI Alliance) do not claim owners
 **Dataset Name:** Dynamic EarthNet  
 **Original Source:** https://mediatum.ub.tum.de/1650201  
 **Related Publication(s):** https://arxiv.org/abs/2203.12560  
-**Original Creators / Contacts:** TBD  
+**Original Creators / Contacts:** Aysim Toker; Lukas Kondmann; Mark Weber; Marvin Eisenberger; Andrés Camero; Jingliang Hu; Ariadna Pregel Hoderlein; Çağlar Şenaras; Timothy Davis; Daniel Cremers; Giovanni Marchisio; Xiao Xiang Zhu; Laura Leal-Taixé  
 **Copyright Owners:** TBD  
 
 ### Licensing
@@ -107,7 +106,7 @@ We (ServiceNow Research, IBM Research, TUM, and AI Alliance) do not claim owners
 **Dataset Name:** EverWatch  
 **Original Source:** TBD (Zenodo / project site)  
 **Related Publication(s):** https://zenodo.org/records/11165946  
-**Original Creators / Contacts:** TBD  
+**Original Creators / Contacts:** Lindsey Garner; Ben Weinstein; Michael Rickershauser; Melissa Baldino; Holly Coates; Mary Commins; Tracey Faber; Jonah Gula; Shayly Van Ert; Peter Frederick; Ethan White; S.K. Morgan Ernest  
 **Copyright Owners:** TBD  
 
 ### Licensing
@@ -122,7 +121,7 @@ We (ServiceNow Research, IBM Research, TUM, and AI Alliance) do not claim owners
 
 ### Attribution Requirements
 
-1. Cite [Garner et al. 2024](https://zenodo.org/records/11165946  )
+1. Cite [Garner et al. 2024](https://zenodo.org/records/11165946)
 
 ---
 
@@ -131,8 +130,8 @@ We (ServiceNow Research, IBM Research, TUM, and AI Alliance) do not claim owners
 **Dataset Name:** FLAIR2  
 **Original Source:** https://ignf.github.io/FLAIR/ 
 **Related Publication(s):** https://arxiv.org/abs/2305.14467  
-**Original Creators / Contacts:** TBD  
-**Copyright Owners:** TBD  
+**Original Creators / Contacts:** Anatol Garioud; Apolline De Wit; Marc Poupée; Marion Valette; Sébastien Giordano; Boris Wattrelos  
+Copyright Owners:** TBD  
 
 ### Licensing
 
@@ -155,8 +154,8 @@ We (ServiceNow Research, IBM Research, TUM, and AI Alliance) do not claim owners
 **Dataset Name:** Fields of the World  
 **Original Source:** https://fieldsofthe.world/  
 **Related Publication(s):** https://arxiv.org/abs/2409.16252  
-**Original Creators / Contacts:** TBD  
-**Copyright Owners:** TBD  
+**Original Creators / Contacts:** Hannah Kerner; Snehal Chaudhari; Aninda Ghosh; Caleb Robinson; Adeel Ahmad; Eddie Choi; Nathan Jacobs; Chris Holmes; Matthias Mohr; Rahul Dodhia; Juan M. Lavista Ferres; Jennifer Marcus  
+Copyright Owners:** TBD  
 
 ### Licensing
 
@@ -179,8 +178,8 @@ We (ServiceNow Research, IBM Research, TUM, and AI Alliance) do not claim owners
 **Dataset Name:** KuroSiwo  
 **Original Source:** https://github.com/Orion-AI-Lab/KuroSiwo 
 **Related Publication(s):** https://arxiv.org/abs/2311.12056  
-**Original Creators / Contacts:** TBD  
-**Copyright Owners:** TBD  
+**Original Creators / Contacts:** Nikolaos Ioannis Bountos; Maria Sdraka; Angelos Zavras; Ilektra Karasante; Andreas Karavias; Themistocles Herekakis; Angeliki Thanasou; Dimitrios Michail; Ioannis Papoutsis  
+Copyright Owners:** TBD  
 
 ### Licensing
 
@@ -194,17 +193,17 @@ We (ServiceNow Research, IBM Research, TUM, and AI Alliance) do not claim owners
 
 ### Attribution Requirements
 
-1. Cite [Bountos et al. 2024](https://arxiv.org/abs/2311.12056  )
+1. Cite [Bountos et al. 2024](https://arxiv.org/abs/2311.12056)
 
 ---
 
 ## PASTIS (R)
 
 **Dataset Name:** PASTIS (R)  
-**Original Source:** https://huggingface.co/datasets/IGNF/PASTIS-HD
+**Original Source:** https://huggingface.co/datasets/IGNF/PASTIS-HD  
 **Related Publication(s):** https://arxiv.org/abs/2112.07558  
-**Original Creators / Contacts:** TBD  
-**Copyright Owners:** TBD  
+**Original Creators / Contacts:** Vivien Sainte Fare Garnot; Loic Landrieu; Nesrine Chehata  
+Copyright Owners:** TBD  
 
 ### Licensing
 
@@ -218,7 +217,8 @@ We (ServiceNow Research, IBM Research, TUM, and AI Alliance) do not claim owners
 
 ### Attribution Requirements
 
-1. Cite [Garnot et al. 2022](https://arxiv.org/abs/2112.07558  )
+1. Cite [Garnot et al. 2022](https://arxiv.org/abs/2112.07558)
+
 ---
 
 ## SpaceNet2
@@ -226,8 +226,8 @@ We (ServiceNow Research, IBM Research, TUM, and AI Alliance) do not claim owners
 **Dataset Name:** SpaceNet2  
 **Original Source:** TBD (SpaceNet official site)  
 **Related Publication(s):** https://arxiv.org/abs/2102.11958  
-**Original Creators / Contacts:** TBD (SpaceNet consortium members)  
-**Copyright Owners:** TBD  
+**Original Creators / Contacts:** Adam Van Etten; Daniel Hogan  
+Copyright Owners:** TBD  
 
 ### Licensing
 
@@ -241,7 +241,7 @@ We (ServiceNow Research, IBM Research, TUM, and AI Alliance) do not claim owners
 
 ### Attribution Requirements
 
-1. Cite [Van Etten et al. 2021](https://arxiv.org/abs/2102.11958  )
+1. Cite [Van Etten et al. 2021](https://arxiv.org/abs/2102.11958)
 
 ---
 
@@ -250,8 +250,8 @@ We (ServiceNow Research, IBM Research, TUM, and AI Alliance) do not claim owners
 **Dataset Name:** SpaceNet7  
 **Original Source:** TBD (SpaceNet official site)  
 **Related Publication(s):** https://openaccess.thecvf.com/content/CVPR2021/html/Van_Etten_The_Multi-Temporal_Urban_Development_SpaceNet_Dataset_CVPR_2021_paper.html  
-**Original Creators / Contacts:** TBD (SpaceNet consortium)  
-**Copyright Owners:** TBD  
+**Original Creators / Contacts:** TBD (authors not added—list not provided in script output)  
+Copyright Owners:** TBD  
 
 ### Licensing
 
@@ -274,8 +274,8 @@ We (ServiceNow Research, IBM Research, TUM, and AI Alliance) do not claim owners
 **Dataset Name:** TreeSatAI Time Series  
 **Original Source:** TBD  
 **Related Publication(s):** https://essd.copernicus.org/articles/15/681/2023/  
-**Original Creators / Contacts:** TBD  
-**Copyright Owners:** TBD  
+**Original Creators / Contacts:** Steve Ahlswede; Christian Schulz; Christiano Gava; Patrick Helber; Benjamin Bischke; Michael Förster; Florencia Arias; Jörn Hees; Begüm Demir; Birgit Kleinschmit  
+Copyright Owners:** TBD  
 
 ### Licensing
 
@@ -295,11 +295,11 @@ We (ServiceNow Research, IBM Research, TUM, and AI Alliance) do not claim owners
 
 ## BurnScars
 
-**Dataset Name:** BurnScars
-**Original Source:** https://huggingface.co/datasets/ibm-nasa-geospatial/hls_burn_scars
+**Dataset Name:** BurnScars  
+**Original Source:** https://huggingface.co/datasets/ibm-nasa-geospatial/hls_burn_scars  
 **Related Publication(s):** TBD  
-**Original Creators / Contacts:** TBD  
-**Copyright Owners:** TBD  
+**Original Creators / Contacts:** Phillips, Christopher and Roy, Sujit and Ankur, Kumar and Ramachandran, Rahul
+Copyright Owners:** TBD  
 
 ### Licensing
 
@@ -313,28 +313,23 @@ We (ServiceNow Research, IBM Research, TUM, and AI Alliance) do not claim owners
 
 ### Attribution Requirements
 
-When using this dataset:  
-1. Cite the [HF Repo](https://huggingface.co/datasets/ibm-nasa-geospatial/hls_burn_scars)
-
-Notes / Gaps:  
-- Need confirmation whether MODIS ancillary layers are actually distributed (would invoke NASA / USGS attribution).  
-- Need authoritative license statement before public release.
+1. Cite the dataset repository once full citation is available.
 
 ---
 
 ## CloudSen12
 
 **Dataset Name:** CloudSen12  
-**Original Source:** https://huggingface.co/datasets/tacofoundation/cloudsen12
-**Related Publication(s):** https://www.sciencedirect.com/science/article/pii/S2352340924008163
-**Original Creators / Contacts:** TBD  
-**Copyright Owners:** TBD  
+**Original Source:** https://huggingface.co/datasets/tacofoundation/cloudsen12  
+**Related Publication(s):** https://www.sciencedirect.com/science/article/pii/S2352340924008163  
+**Original Creators / Contacts:** Cesar Aybar, Lesly Bautista, David Montero, Julio Contreras, Daryl Ayala, Fernando Prudencio, Jhomira Loja, Luis Ysuhuaylas, Fernando Herrera, Karen Gonzales, Jeanett Valladares, Lucy A. Flores, Evelin Mamani, Maria Quiñonez, Rai Fajardo, Wendy Espinoza, Antonio Limas, Roy Yali, Alejandro Alcántara, Martin Leyva, Raúl Loayza-Muro, Bram Willems, Gonzalo Mateo-García and  Luis Gómez-Chova
+Copyright Owners:** TBD  
 
 ### Licensing
 
 - **Annotation License:** CC0 1.0 (per internal table; VERIFY)  
 - **Image License:** Copernicus Sentinel-2 (Open Access)  
-- **Declared By Original Provider:** https://huggingface.co/datasets/tacofoundation/cloudsen12
+- **Declared By Original Provider:** https://huggingface.co/datasets/tacofoundation/cloudsen12  
 
 **Redistribution Status in GeoBench-2**  
 This dataset is redistributed under the **same license terms** as declared by the original providers.  
@@ -342,16 +337,17 @@ We (ServiceNow Research, IBM Research, TUM, and AI Alliance) do not claim owners
 
 ### Attribution Requirements
 
-1. Cite [Aybar et al. 2025](https://www.sciencedirect.com/science/article/pii/S2352340924008163)
+1. Cite the CloudSen12 paper (once full reference verified).
+
 ---
 
 ## Power Substations
 
 **Dataset Name:** Power Substations  
-**Original Source:** check by Paolo
+**Original Source:** check by Paolo  
 **Related Publication(s):** TBD  
-**Original Creators / Contacts:** TBD  
-**Copyright Owners:** TBD  
+**Original Creators / Contacts:** TBD (not yet verified)  
+Copyright Owners:** TBD  
 
 ### Licensing
 
@@ -365,25 +361,23 @@ We (ServiceNow Research, IBM Research, TUM, and AI Alliance) do not claim owners
 
 ### Attribution Requirements
 
-When using this dataset:  
 1. Cite the original dataset creators (once verified).  
-
 
 ---
 
 ## NzCattle 
 
 **Dataset Name:** NzCattle (provisional)  
-**Original Source:** https://zenodo.org/records/5908869 
-**Related Publication(s):** https://zenodo.org/records/5908869
-**Original Creators / Contacts:** TBD  
-**Copyright Owners:** TBD  
+**Original Source:** https://zenodo.org/records/5908869  
+**Related Publication(s):** https://zenodo.org/records/5908869  
+**Original Creators / Contacts:** Diab Abuaiadah; Alexander Switzer  
+Copyright Owners:** TBD  
 
 ### Licensing
 
 - **Annotation License:** CC BY 4.0  
 - **Image License:** Aerial / drone RGB imagery  
-- **Declared By Original Provider:** https://zenodo.org/records/5908869
+- **Declared By Original Provider:** https://zenodo.org/records/5908869  
 
 **Redistribution Status in GeoBench-2**  
 This dataset is redistributed under the **same license terms** as declared by the original providers.  
@@ -391,5 +385,6 @@ We (ServiceNow Research, IBM Research, TUM, and AI Alliance) do not claim owners
 
 ### Attribution Requirements
 
-When using this dataset:  
 1. Cite [Abuaiadah and Switzer 2022](https://zenodo.org/records/5908869)
+
+---
