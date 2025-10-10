@@ -210,7 +210,7 @@ class GeoBenchDataModule(LightningDataModule, ABC):
         """
         if not hasattr(self, "data_df") or self.data_df is None:
             self.load_metadata()
-
+            
         data_df = self.data_df.copy()
 
         # Standardize coordinate columns
@@ -246,15 +246,10 @@ class GeoBenchDataModule(LightningDataModule, ABC):
         else:
             central_lon = (min_lon + max_lon) / 2
             central_lat = (min_lat + max_lat) / 2
-            if lat_extent > 60:
-                projection = ccrs.AlbersEqualArea(
-                    central_longitude=central_lon, central_latitude=central_lat
-                )
-            else:
-                projection = ccrs.LambertConformal(
-                    central_longitude=central_lon, central_latitude=central_lat
-                )
 
+            projection = ccrs.AlbersEqualArea(
+                    central_longitude=central_lon, central_latitude=central_lat
+                )
         ax = plt.axes(projection=projection)
         ax.set_extent([min_lon, max_lon, min_lat, max_lat], crs=ccrs.PlateCarree())
 
@@ -774,7 +769,7 @@ class GeoBenchObjectDetectionDataModule(GeoBenchDataModule):
             self.train_augmentations = K.AugmentationSequential(
                 K.RandomHorizontalFlip(p=0.5),
                 K.RandomVerticalFlip(p=0.5),
-                data_keys=["image", "bbox_xyxy", "label"],
+                data_keys=None,
                 keepdim=True,
             )
         elif self.train_augmentations == "multi_temporal_default":
