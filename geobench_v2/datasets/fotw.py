@@ -30,7 +30,7 @@ class GeoBenchFieldsOfTheWorld(GeoBenchBaseDataset):
 
     paths = ["geobench_fotw.tortilla"]
 
-    sha256str = ["3bdca4e56ee3f1944fb86f9818ed5fa44c418be395f3d1fd4bed82fd749949ab"]
+    sha256str = ["2584cdada3dd3c275792d2376c8bbca782a7b1faea54924c9627906f0296854c"]
 
     dataset_band_config = DatasetBandRegistry.FOTW
 
