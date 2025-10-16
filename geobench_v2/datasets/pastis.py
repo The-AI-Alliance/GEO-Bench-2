@@ -118,10 +118,11 @@ class GeoBenchPASTIS(GeoBenchBaseDataset):
         label_type: Literal["instance_seg", "semantic_seg"] = "semantic_seg",
         return_stacked_image: bool = False,
         temporal_aggregation: Literal["mean", "median"] = None,
-        temporal_output_format: Literal["TCHW", "CTHW"] = "TCHW",
+        temporal_output_format: Literal["TCHW", "CTHW"] = "CTHW",
         download: bool = False,
     ) -> None:
-        """Initialize PASTIS Dataset.
+        """
+        Initialize PASTIS Dataset.
 
         Args:
             root: Path to the dataset root directory
@@ -144,7 +145,7 @@ class GeoBenchPASTIS(GeoBenchBaseDataset):
             rename_modalities: dictionary with information to rename modalities in output e.g. {image: {sar:  S1RTC, rgbn: S2L2A}}
             download: Whether to download the dataset
             temporal_aggregation: whether apply temporal aggregation [mean, median]
-
+            temporal_output_format: what temporal format the data should be in [TCHW, CTHW]
         Raises:
             AssertionError: If an invalid split is specified
         """
