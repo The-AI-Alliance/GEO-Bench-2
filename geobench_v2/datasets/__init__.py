@@ -22,6 +22,7 @@ from .spacenet8 import GeoBenchSpaceNet8
 from .substation import GeoBenchSubstation
 from .treesatai import GeoBenchTreeSatAI
 from .wind_turbine import GeoBenchWindTurbine
+from .so2sat import GeoBenchSo2Sat
 
 __all__ = (
     "GeoBenchCaFFe",
@@ -43,4 +44,5 @@ __all__ = (
     "GeoBenchBurnScars",
     "GeoBenchNZCattle",
     "GeoBenchSubstation",
+    "GeoBenchSo2Sat"
 )

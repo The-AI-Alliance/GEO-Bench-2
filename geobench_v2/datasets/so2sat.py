@@ -109,8 +109,6 @@ class GeoBenchSo2Sat(GeoBenchBaseDataset):
 
     multilabel: bool = False
 
-    valid_metadata: Sequence[str] = ("lat", "lon")
-
     def __init__(
         self,
         root: Path,
