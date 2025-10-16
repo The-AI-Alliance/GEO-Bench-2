@@ -47,9 +47,9 @@ class GeoBenchPASTIS(GeoBenchBaseDataset):
     ]
 
     sha256str = [
-        "7ab6748fe26c4d9ece6ccc2139d1e305505f3cb51e966024795b127d0b84bf35",
-        "92b25a4220e35104ae2e79916d506c949da16dcba136d5f37452bafc0ca8ce13",
-        "f3038a4f7ced1c5faf89368ee10dae408e612fd29a60f500140ce8d315503dbb",
+        "56b1490c6dc7345fdff79e94d9132753ee28d8504bb061d8db39d19e888f7ca3",
+        "7d0463a695a0822a1f25638598b2d54daf28f387d6a80d353be7c323069060db",
+        "22d27389b1ccee4f250f4a187d034d12dbf15c5610a5dd8d502ee8783e94c81e",
     ]
 
     dataset_band_config = DatasetBandRegistry.PASTIS
@@ -241,17 +241,8 @@ class GeoBenchPASTIS(GeoBenchBaseDataset):
         if self.transforms:
             sample = self.transforms(sample)
 
-        for key in sample:
-            if "image" in key and len(sample[key].shape) == 4:  # [T, C, H, W]
-                sample[key] = sample[key].permute(1, 0, 2, 3)  # C, T, H, W
-
         if self.return_stacked_image:
-            sample = {
-                "image": torch.cat(
-                    [sample[f"image_{key}"] for key in self.band_order.keys()], 0
-                ),
-                "mask": sample["mask"],
-            }
+            sample['image'] = torch.cat([sample[f"image_{key}"] for key in self.band_order.keys()], 0)
             if self.num_time_steps == 1:
                 sample["image"] = sample["image"].squeeze(1)
 
