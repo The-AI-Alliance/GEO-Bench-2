@@ -3,8 +3,7 @@
 
 """Kuro Siwo dataset."""
 
-from collections.abc import Mapping, Sequence
-from pathlib import Path
+from collections.abc import Sequence
 from typing import Literal, cast
 
 import numpy as np
@@ -14,26 +13,25 @@ import torch.nn as nn
 from torch import Tensor
 
 from .base import GeoBenchBaseDataset
-from .normalization import ZScoreNormalizer
+from .normalization import MultiModalNormalizer
 from .sensor_util import DatasetBandRegistry
 
 
 class GeoBenchKuroSiwo(GeoBenchBaseDataset):
-    """Kuro Siwo Flood Change Detection Dataset.
+    """GeoBench version of Kuro Siwo dataset.
 
     Classes:
-    0. NO-Water
-    1. Permanent Water
-    2. Flood
-    3. No-Data
-
+    1. NO-Water
+    2. Permanent Water
+    3. Flood
+    0. No-Data
     """
 
     url = "https://hf.co/datasets/aialliance/kuro_siwo/resolve/main/{}"
 
     paths = ["geobench_kuro_siwo.tortilla"]
 
-    sha256str = ["0b546c54df70cb7548081df688cc2317f00f7b81e541e09fa0ddcd787d647eef"]
+    sha256str = ["4830fe6f23bf9750dee0c765850724b55026bf5d47cb67162d3ef7dcb04c3bbd"]
 
     dataset_band_config = DatasetBandRegistry.KURO_SIWO
 
@@ -54,7 +52,6 @@ class GeoBenchKuroSiwo(GeoBenchBaseDataset):
 
     num_classes = len(classes)
 
-    # TODO should move no-data to 0 and have that as ignore_index
     CLASS_MAPPING = {
         0: 1,  # No Water -> 1
         1: 2,  # Permanent Water -> 2
@@ -64,13 +61,13 @@ class GeoBenchKuroSiwo(GeoBenchBaseDataset):
 
     def __init__(
         self,
-        root: Path,
-        split: Literal["train", "val", "validation", "test"],
-        band_order: Mapping[str, list[str]] = band_default_order,
-        data_normalizer: type[nn.Module] = ZScoreNormalizer,
-        transforms: type[nn.Module] | None = None,
+        root: str,
+        split: Literal["train", "val", "test"],
+        band_order: dict[str, Sequence[str]] = band_default_order,
+        data_normalizer: type[nn.Module] = MultiModalNormalizer,
+        transforms: type[nn.Module] = None,
         return_stacked_image: bool = False,
-        time_step: Sequence[str] = ("pre_1", "pre_2", "post"),
+        time_step: Sequence[str] = ["pre_1", "pre_2", "post"],
         download: bool = False,
     ) -> None:
         """Initialize Kuro Siwo Dataset.
@@ -83,16 +80,16 @@ class GeoBenchKuroSiwo(GeoBenchBaseDataset):
             transforms: Data transforms
             return_stacked_image: if true, returns a single image tensor with all modalities stacked in band_order
             time_step: Time step for dataset
-            download: whether to download the dataset, if not already present
+            download: whether to download the dataset
         """
-        parent_split: Literal["train", "validation", "test"]
+        split_norm: Literal["train", "validation", "test"]
         if split == "val":
-            parent_split = "validation"
+            split_norm = "validation"
         else:
-            parent_split = cast(Literal["train", "validation", "test"], split)
+            split_norm = cast(Literal["train", "validation", "test"], split)
         super().__init__(
             root=root,
-            split=parent_split,
+            split=split_norm,
             band_order=band_order,
             data_normalizer=data_normalizer,
             transforms=transforms,
@@ -138,10 +135,8 @@ class GeoBenchKuroSiwo(GeoBenchBaseDataset):
         sample["invalid_data"] = invalid_data_tensor
         invalid_mask = invalid_data_tensor
 
-        band_order_map = cast(Mapping[str, list[str]], self.band_order)
-
         def process_sar_image(image) -> Tensor:
-            image = self.rearrange_bands({"sar": image}, list(band_order_map["sar"]))
+            image = self.rearrange_bands({"sar": image}, self.band_order["sar"])
             nan_mask = torch.isnan(image["image"])
             normalized = self.data_normalizer({"image_sar": image["image"]})
             normalized = torch.where(
@@ -151,7 +146,7 @@ class GeoBenchKuroSiwo(GeoBenchBaseDataset):
             )
             return normalized * invalid_mask
 
-        if "sar" in band_order_map:
+        if "sar" in self.band_order:
             with rasterio.open(pre_event_1_path) as src:
                 pre_event_1_img = src.read()
                 pre_event_1_img = torch.from_numpy(pre_event_1_img)
@@ -161,7 +156,6 @@ class GeoBenchKuroSiwo(GeoBenchBaseDataset):
             with rasterio.open(post_event_path) as src:
                 post_event_img = src.read()
                 post_event_img = torch.from_numpy(post_event_img)
-
             if "pre_1" in self.time_step:
                 sample["image_pre_1"] = process_sar_image(pre_event_1_img)
             if "pre_2" in self.time_step:
@@ -169,15 +163,13 @@ class GeoBenchKuroSiwo(GeoBenchBaseDataset):
             if "post" in self.time_step:
                 sample["image_post"] = process_sar_image(post_event_img)
 
-        if "dem" in band_order_map:
+        if "dem" in self.band_order:
             with rasterio.open(dem_path) as src:
                 dem = src.read()
                 dem_nans = torch.from_numpy(np.isnan(dem))
 
             image_dem = torch.from_numpy(dem)
-            image_dem = self.rearrange_bands(
-                {"dem": image_dem}, list(band_order_map["dem"])
-            )
+            image_dem = self.rearrange_bands({"dem": image_dem}, self.band_order["dem"])
             image_dem = self.data_normalizer({"image_dem": image_dem["image"]})
             image_dem = torch.where(
                 dem_nans,
@@ -205,10 +197,20 @@ class GeoBenchKuroSiwo(GeoBenchBaseDataset):
             }
             stacked_images = [
                 sample[key]
-                for modality in band_order_map
+                for modality in self.band_order
                 for key in modality_keys.get(modality, [])
                 if key in sample
             ]
-            sample = {"image": torch.cat(stacked_images, dim=0), "mask": sample["mask"]}
+            images_sizes = [item.shape for item in stacked_images]
+            assert len(set(images_sizes)) == 1, (
+                f"{images_sizes=} currently only supports stacking of images/modalities with the same number of bands"
+            )
+            sample = {  # TODO: stack dem for each sar timestamp
+                "image": torch.stack(stacked_images, dim=1),  # [C, T, H, W]
+                "mask": sample["mask"],
+            }
+            _, t, _, _ = sample["image"].shape
+            if t == 1:
+                sample["image"] = sample["image"].squeeze(1)
 
         return sample

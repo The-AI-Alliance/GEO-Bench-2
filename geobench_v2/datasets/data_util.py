@@ -17,10 +17,14 @@ class DataUtilsMixin(ABC):
 
     # Declared attribute provided by datasets using this mixin
     dataset_band_config: ModalityConfig | MultiModalConfig
-
     normalization_stats: dict[str, dict[str, float]]
 
-    def get_source_order(self) -> list[str] | dict[str, list[str]]:
+    # @property
+    # def normalization_stats(self) -> dict[str, dict[str, dict[str, float]]]:
+    #     """Per-modality normalization statistics."""
+    #     pass
+
+    def get_source_order(self) -> Sequence[str] | dict[str, Sequence[str]]:
         """Derive source order from dataset configuration."""
         if isinstance(self.dataset_band_config, MultiModalConfig):
             return {
@@ -112,7 +116,7 @@ class DataUtilsMixin(ABC):
     def rearrange_bands(
         self,
         data: Tensor | dict[str, Tensor],
-        target_order: list[str | float] | dict[str, list[str | float]],
+        target_order: Sequence[str | float] | dict[str, Sequence[str | float]],
     ) -> dict[str, Tensor]:
         """Rearrange bands using dataset configuration."""
         if not isinstance(self.dataset_band_config, MultiModalConfig):

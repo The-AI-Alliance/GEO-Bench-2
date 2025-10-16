@@ -15,33 +15,37 @@ from shapely import wkt
 from torch import Tensor
 
 from .base import GeoBenchBaseDataset
-from .normalization import ZScoreNormalizer
+from .normalization import MultiModalNormalizer
 from .sensor_util import DatasetBandRegistry
 
 
 class GeoBenchSpaceNet7(GeoBenchBaseDataset):
-    """SpaceNet7 dataset with enhanced functionality.
-
-    Allows:
-    - Variable Band Selection
-    - Return band wavelengths
-    """
+    """GeoBench version of SpaceNet7 dataset."""
 
     url = "https://hf.co/datasets/aialliance/spacenet7/resolve/main/{}"
 
-    # paths = ["SpaceNet7.tortilla"]
     paths = ["geobench_spacenet7.tortilla"]
 
-    sha256str = ["dc2364926ce2b247d183f77fadf778f3a679d6be6ef891ffed92cff230722ee4"]
+    sha256str = ["f202abe270b729f7f2651de64cb5c6b41c5f9915109ec12b6c467afa2abcb5b6"]
 
     dataset_band_config = DatasetBandRegistry.SPACENET7
 
-    normalization_stats: dict[str, dict[str, float]] = {
-        "means": {"red": 0.0, "green": 0.0, "blue": 0.0, "nir": 0.0},
-        "stds": {"red": 255.0, "green": 255.0, "blue": 255.0, "nir": 255.0},
+    normalization_stats = {
+        "means": {
+            "red": 116.94474029541016,
+            "green": 103.55889129638672,
+            "blue": 76.77427673339844,
+            "nir": 0.0,
+        },
+        "stds": {
+            "red": 61.655845642089844,
+            "green": 49.64897537231445,
+            "blue": 45.88066864013672,
+            "nir": 255.0,
+        },
     }
 
-    band_default_order = ["red", "green", "blue"]
+    band_default_order = ("red", "green", "blue")
 
     classes = ("background", "no-building", "building")
 
@@ -53,9 +57,9 @@ class GeoBenchSpaceNet7(GeoBenchBaseDataset):
         self,
         root: Path,
         split: Literal["train", "val", "validation", "test"],
-        band_order: Sequence[str] = band_default_order,
-        data_normalizer: type[nn.Module] = ZScoreNormalizer,
-        transforms: nn.Module | None = None,
+        band_order: list[str] = band_default_order,
+        data_normalizer: type[nn.Module] = MultiModalNormalizer,
+        transforms: nn.Module = None,
         metadata: Sequence[str] | None = None,
         download: bool = False,
     ) -> None:
@@ -68,7 +72,7 @@ class GeoBenchSpaceNet7(GeoBenchBaseDataset):
                 specify ['red', 'green', 'blue', 'blue', 'blue'], the dataset would return images with 5 channels
                 in that order. This is useful for models that expect a certain band order, or
                 test the impact of band order on model performance.
-            data_normalizer: The data normalizer to apply to the data, defaults to :class:`data_util.ZScoreNormalizer`,
+            data_normalizer: The data normalizer to apply to the data, defaults to :class:`data_util.MultiModalNormalizer`,
             transforms: The transforms to apply to the data, defaults to None
             metadata: metadata names to be returned as part of the sample in the
                 __getitem__ method. If None, no metadata is returned.
@@ -88,6 +92,7 @@ class GeoBenchSpaceNet7(GeoBenchBaseDataset):
             metadata=metadata,
             download=download,
         )
+        # TODO how to setup for time-series prediction
 
     def __getitem__(self, index: int) -> dict[str, Tensor]:
         """Return an index within the dataset.
@@ -114,12 +119,10 @@ class GeoBenchSpaceNet7(GeoBenchBaseDataset):
         # add 1 to mask to have a true background class
         mask = torch.from_numpy(mask).long().squeeze(0) + 1
 
-        image_dict = self.rearrange_bands(
-            image, cast(Sequence[str | float], self.band_order)
-        )
-        image_dict = self.data_normalizer(image_dict)
+        image = self.rearrange_bands(image, self.band_order)
+        image = self.data_normalizer(image)
 
-        sample.update(image_dict)
+        sample.update(image)
 
         sample["mask"] = mask
 

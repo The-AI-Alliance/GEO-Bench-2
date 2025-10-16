@@ -87,17 +87,18 @@ class TestDynamicEarthNetDataModule:
                     datamodule.img_size,
                 )
             else:
+                # BxCxTxHxW
                 expected_dims[f"image_{modality}"] = (
                     datamodule.batch_size,
-                    num_time_steps,
                     len(band_names),
+                    num_time_steps,
                     datamodule.img_size,
                     datamodule.img_size,
                 )
 
+        # BxHxW
         expected_dims["mask"] = (
             datamodule.batch_size,
-            1,
             datamodule.img_size,
             datamodule.img_size,
         )
@@ -107,7 +108,7 @@ class TestDynamicEarthNetDataModule:
                 f"Wrong shape for {key}: got {train_batch[key].shape}, expected {expected_shape}"
             )
 
-        # check that constant values are correct
+        # check that constant values  in band order are correct
         for modality, band_names in datamodule.band_order.items():
             for i, band in enumerate(band_names):
                 if isinstance(band, (int | float)):
@@ -115,12 +116,12 @@ class TestDynamicEarthNetDataModule:
                     if modality == "s2":
                         assert torch.isclose(
                             train_batch[key][:, i], torch.tensor(band)
-                        ).all(), f"Constant value mismatch for {key} channel {i}"
+                        ).all(), f"Constant value mismatch for {key} channel {i}."
                     else:
                         # for planet, we need to check the time dimension
                         assert torch.isclose(
-                            train_batch[key][:, :, i], torch.tensor(band)
-                        ).all(), f"Constant value mismatch for {key} channel {i}"
+                            train_batch[key][:, i, :], torch.tensor(band)
+                        ).all(), f"Constant value mismatch for {key} channel {i}."
 
         assert "lon" in train_batch
         assert "lat" in train_batch

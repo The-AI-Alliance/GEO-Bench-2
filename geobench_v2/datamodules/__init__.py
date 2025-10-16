@@ -27,6 +27,11 @@ from .spacenet7 import GeoBenchSpaceNet7DataModule
 from .spacenet8 import GeoBenchSpaceNet8DataModule
 from .substation import GeoBenchSubstationDataModule
 from .treesatai import GeoBenchTreeSatAIDataModule
+from .utils import (
+    MultiModalClassificationAugmentation,
+    MultiModalSegmentationAugmentation,
+    MultiTemporalSegmentationAugmentation,
+)
 from .wind_turbine import GeoBenchWindTurbineDataModule
 
 __all__ = (
@@ -53,4 +58,7 @@ __all__ = (
     "GeoBenchNZCattleDataModule",
     "GeoBenchSubstationDataModule",
     "GeoBenchBurnScarsDataModule",
+    "MultiModalClassificationAugmentation",
+    "MultiModalSegmentationAugmentation",
+    "MultiTemporalSegmentationAugmentation",
 )

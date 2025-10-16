@@ -4,7 +4,6 @@
 """Flair 2 Aerial Dataset."""
 
 from collections.abc import Mapping, Sequence
-from pathlib import Path
 from typing import Literal, cast
 
 import rasterio
@@ -14,22 +13,22 @@ from shapely import wkt
 from torch import Tensor
 
 from .base import GeoBenchBaseDataset
-from .normalization import ZScoreNormalizer
+from .normalization import MultiModalNormalizer
 from .sensor_util import DatasetBandRegistry
 
 
 class GeoBenchFLAIR2(GeoBenchBaseDataset):
-    """Implementation of FLAIR 2 Aerial dataset."""
+    """GeoBench version of FLAIR 2 dataset."""
 
     url = "https://hf.co/datasets/aialliance/flair2/resolve/main/{}"
 
-    sha256str = ["96d18b1e7673fa2233145d69fd67db530c53bf68027b30466f7c94fd456df689"]
+    sha256str = ["f446098513d85591b8abae03e8d98447d2ab5173271f85c11f40edcdb1e2e1a9"]
 
     paths: Sequence[str] = ["geobench_flair2.tortilla"]
 
     classes = (
         "building",
-        "pervious surface",
+        "previous surface",
         "impervious surface",
         "bare soil",
         "water",
@@ -48,13 +47,19 @@ class GeoBenchFLAIR2(GeoBenchBaseDataset):
     dataset_band_config = DatasetBandRegistry.FLAIR2
 
     normalization_stats: dict[str, dict[str, float]] = {
-        "means": {"red": 0.0, "green": 0.0, "blue": 0.0, "nir": 0.0, "elevation": 0.0},
+        "means": {
+            "red": 110.30502319335938,
+            "green": 114.79083251953125,
+            "blue": 105.6126937866211,
+            "nir": 104.3409194946289,
+            "elevation": 17.69650650024414,
+        },
         "stds": {
-            "red": 255.0,
-            "green": 255.0,
-            "blue": 255.0,
-            "nir": 255.0,
-            "elevation": 255.0,
+            "red": 50.71001052856445,
+            "green": 44.31645584106445,
+            "blue": 43.294822692871094,
+            "nir": 39.049617767333984,
+            "elevation": 29.94267463684082,
         },
     }
 
@@ -67,10 +72,10 @@ class GeoBenchFLAIR2(GeoBenchBaseDataset):
 
     def __init__(
         self,
-        root: Path,
+        root,
         split: Literal["train", "val", "validation", "test"],
         band_order: Mapping[str, list[str]] = band_default_order,
-        data_normalizer: type[nn.Module] = ZScoreNormalizer,
+        data_normalizer: type[nn.Module] = MultiModalNormalizer,
         transforms: nn.Module | None = None,
         metadata: Sequence[str] | None = None,
         download: bool = False,
@@ -82,7 +87,7 @@ class GeoBenchFLAIR2(GeoBenchBaseDataset):
             split: The dataset split, supports 'train', 'test'
             band_order: The order of bands to return, defaults to ['r', 'g', 'b'], if one would
                 specify ['r', 'g', 'b', 'nir'], the dataset would return images with 4 channels
-            data_normalizer: The data normalizer to apply to the data, defaults to :class:`data_util.ZScoreNormalizer`,
+            data_normalizer: The data normalizer to apply to the data, defaults to :class:`data_util.MultiModalNormalizer`,
                 which applies z-score normalization to each band.
             transforms: The transforms to apply to the data, defaults to None
             metadata: metadata names to be returned as part of the sample in the

@@ -15,22 +15,12 @@ from shapely import wkt
 from torch import Tensor
 
 from .base import GeoBenchBaseDataset
-from .normalization import ZScoreNormalizer
+from .normalization import MultiModalNormalizer
 from .sensor_util import DatasetBandRegistry
 
 
 class GeoBenchSpaceNet8(GeoBenchBaseDataset):
-    """SpaceNet8 dataset with enhanced functionality.
-
-    Allows:
-    - Variable Band Selection
-    - Return band wavelengths
-
-    3 classes: background, building or road (not flooded), building or road (flooded)
-    0. ackground
-    # TODO
-    but maybe also 5 classes?
-    """
+    """GeoBench version of SpaceNet8 dataset."""
 
     url = "https://hf.co/datasets/aialliance/spacenet8/resolve/main/{}"
 
@@ -42,11 +32,19 @@ class GeoBenchSpaceNet8(GeoBenchBaseDataset):
     dataset_band_config = DatasetBandRegistry.SPACENET8
 
     normalization_stats: dict[str, dict[str, float]] = {
-        "means": {"red": 0.0, "green": 0.0, "blue": 0.0},
-        "stds": {"red": 255.0, "green": 255.0, "blue": 255.0},
+        "means": {
+            "red": 65.36776733398438,
+            "green": 84.85777282714844,
+            "blue": 57.087120056152344,
+        },
+        "stds": {
+            "red": 44.107696533203125,
+            "green": 37.45336151123047,
+            "blue": 35.882049560546875,
+        },
     }
 
-    band_default_order = ["red", "green", "blue"]
+    band_default_order = ("red", "green", "blue")
 
     classes = (
         "background",
@@ -63,8 +61,8 @@ class GeoBenchSpaceNet8(GeoBenchBaseDataset):
         self,
         root: Path,
         split: Literal["train", "val", "validation", "test"],
-        band_order: Sequence[str] = band_default_order,
-        data_normalizer: type[nn.Module] = ZScoreNormalizer,
+        band_order: list[str] = band_default_order,
+        data_normalizer: type[nn.Module] = MultiModalNormalizer,
         transforms: nn.Module | None = None,
         metadata: Sequence[str] | None = None,
         return_stacked_image: bool = False,
@@ -80,7 +78,7 @@ class GeoBenchSpaceNet8(GeoBenchBaseDataset):
                 specify ['red', 'green', 'blue', 'blue', 'blue'], the dataset would return images with 5 channels
                 in that order. This is useful for models that expect a certain band order, or
                 test the impact of band order on model performance.
-            data_normalizer: The data normalizer to apply to the data, defaults to :class:`data_util.ZScoreNormalizer`,
+            data_normalizer: The data normalizer to apply to the data, defaults to :class:`data_util.MultiModalNormalizer`,
             transforms: The transforms to apply to the data, defaults to None
             metadata: metadata names to be returned as part of the sample in the
                 __getitem__ method. If None, no metadata is returned.
@@ -106,11 +104,11 @@ class GeoBenchSpaceNet8(GeoBenchBaseDataset):
 
         if len(time_step) == 0:
             raise ValueError(
-                "time_step must include at least one item from  ['pre, 'post']"
+                "time_step must include at least one item from  ['pre', 'post']"
             )
         for i in time_step:
             assert i in ["pre", "post"], (
-                "time_step must include at least one item from  ['pre, 'post']"
+                "time_step must include at least one item from  ['pre', 'post']"
             )
         self.time_step = time_step
 
@@ -153,11 +151,28 @@ class GeoBenchSpaceNet8(GeoBenchBaseDataset):
             sample["image_post"] = image_post["image"]
 
         if self.return_stacked_image:
-            sample = {
-                "image": torch.cat(
-                    [img for key, img in sample.items() if key.startswith("image_")], 0
-                )
-            }
+            if len(self.time_step) > 1:
+                sample = {  # [C, T, H, W] == [C, T, H, W]
+                    "image": torch.stack(
+                        [
+                            img
+                            for key, img in sample.items()
+                            if key.startswith("image_")
+                        ],
+                        dim=1,
+                    )
+                }
+            else:
+                sample = {  # [C, H, W]
+                    "image": torch.cat(
+                        [
+                            img
+                            for key, img in sample.items()
+                            if key.startswith("image_")
+                        ],
+                        0,
+                    )
+                }
 
         sample["mask"] = mask
 

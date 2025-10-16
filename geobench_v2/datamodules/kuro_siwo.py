@@ -23,6 +23,8 @@ from .base import GeoBenchSegmentationDataModule
 class GeoBenchKuroSiwoDataModule(GeoBenchSegmentationDataModule):
     """GeoBench KuroSiwo Data Module."""
 
+    #
+
     def __init__(
         self,
         img_size: int = 224,
