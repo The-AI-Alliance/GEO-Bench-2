@@ -104,8 +104,10 @@ class GeoBenchSo2Sat(GeoBenchBaseDataset):
         "Bare soil or sand",
         "Water"
     )
-
-    num_classes: int = len(classes)
+    
+    label_names = classes
+    
+    num_classes: int = len(label_names)
 
     multilabel: bool = False
 
@@ -155,7 +157,6 @@ class GeoBenchSo2Sat(GeoBenchBaseDataset):
             )
         self.return_stacked_image = return_stacked_image
         self.rename_modalities = rename_modalities
-        self.class2idx = {c: i for i, c in enumerate(self.label_names)}
 
     def __getitem__(self, index: int) -> dict[str, Tensor]:
         """Return an index within the dataset.
@@ -219,12 +220,7 @@ class GeoBenchSo2Sat(GeoBenchBaseDataset):
                             "rename_modalities must include names that exist in the dataset"
                         )
 
-        sample["label"] = self._load_target(sample_row.iloc[0]["labels"])
-
-        if "lon" in self.metadata:
-            sample["lon"] = torch.tensor(sample_row.iloc[0]["lon"])
-        if "lat" in self.metadata:
-            sample["lat"] = torch.tensor(sample_row.iloc[0]["lat"])
+        sample["label"] = sample_row.iloc[0]["labels"]
 
         return sample
 
@@ -237,6 +233,7 @@ class GeoBenchSo2Sat(GeoBenchBaseDataset):
         Returns:
             the target label
         """
+
         indices = [self.class2idx[label_names] for label_names in label_names]
 
         image_target = torch.zeros(self.num_classes, dtype=torch.long)
