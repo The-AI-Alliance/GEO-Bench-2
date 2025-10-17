@@ -223,19 +223,3 @@ class GeoBenchSo2Sat(GeoBenchBaseDataset):
         sample["label"] = sample_row.iloc[0]["labels"]
 
         return sample
-
-    def _load_target(self, label_names: list[str]) -> Tensor:
-        """Load the target mask for a single image.
-
-        Args:
-            label_names: list of labels
-
-        Returns:
-            the target label
-        """
-
-        indices = [self.class2idx[label_names] for label_names in label_names]
-
-        image_target = torch.zeros(self.num_classes, dtype=torch.long)
-        image_target[indices] = 1
-        return image_target
