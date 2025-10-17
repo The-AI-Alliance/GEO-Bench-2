@@ -1,6 +1,20 @@
-# GEO-Bench-2
+# GEO-Bench-2:
 
-Welcome to the GeoBenchV2 documentation.
+The emergence of **Geospatial Foundation Models (GeoFMs)** holds great promise for advancing **Earth Observation (EO)**, enabling more general and scalable solutions for a variety of tasks. However, the rapidly evolving nature of this field has meant that evaluation protocols have been difficult to standardize.
+
+**GEO-Bench-2** is an effort to address this challenge by providing a **comprehensive and community-focused benchmarking framework** tailored to various EO applications. Expanding upon its predecessor, this framework is designed to facilitate consistent, insightful, and fair comparison of GeoFMs.
+
+---
+
+## What GEO-Bench-2 Offers
+
+We aim to simplify and standardize the evaluation process through several key features:
+
+* **Diverse and Permissively Licensed Data:** We include a curated selection of **19 datasets** covering core EO tasks, including **classification, segmentation, regression, object detection, and instance segmentation**, ensuring broad usability.
+* **Targeted Evaluation via "Capabilities":** Datasets are grouped into **"capabilities"** based on shared characteristics (e.g., resolution, band usage, temporality). This feature supports flexible benchmarking, allowing users to assess a model's strengths on specific types of EO data.
+* **Robust Metrics and Efficiency:** We utilize the **normalized interquartile mean (IQM)** for more robust model comparison and incorporate subsampling strategies to help make large-scale evaluation more efficient.
+* **Ease of Use with TerraTorch:** Integration with the TerraTorch open-source toolkit. However, all datasets and datamodules can also be used independently of TerraTorch
+
 
 ## Installation
 
