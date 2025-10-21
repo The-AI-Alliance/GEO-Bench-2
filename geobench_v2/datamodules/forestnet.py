@@ -123,8 +123,6 @@ class GeoBenchForestnetDataModule(GeoBenchClassificationDataModule):
         images = batch["image"][indices]
         
         plot_bands = [self.band_order.index(x) for x in self.dataset_band_config.plot_bands]
-        print(self.band_order)
-        print(plot_bands)
 
         for i in range(n_samples):
             ax = fig.add_subplot(gs[i, 0])
