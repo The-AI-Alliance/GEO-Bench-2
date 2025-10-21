@@ -33,6 +33,7 @@ from .utils import (
     MultiTemporalSegmentationAugmentation,
 )
 from .wind_turbine import GeoBenchWindTurbineDataModule
+from .forestnet import GeoBenchForestnetDataModule
 
 __all__ = (
     "GeoBenchDataModule",
@@ -61,4 +62,5 @@ __all__ = (
     "MultiModalClassificationAugmentation",
     "MultiModalSegmentationAugmentation",
     "MultiTemporalSegmentationAugmentation",
+    "GeoBenchForestnetDataModule",
 )
