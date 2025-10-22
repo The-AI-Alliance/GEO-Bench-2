@@ -118,7 +118,7 @@ class GeoBenchPASTIS(GeoBenchBaseDataset):
         label_type: Literal["instance_seg", "semantic_seg"] = "semantic_seg",
         return_stacked_image: bool = False,
         temporal_aggregation: Literal["mean", "median"] = None,
-        temporal_output_format: Literal["TCHW", "CTHW"] = "TCHW",
+        temporal_output_format: Literal["TCHW", "CTHW"] = "CTHW",
         download: bool = False,
     ) -> None:
         """Initialize PASTIS Dataset.
@@ -219,10 +219,6 @@ class GeoBenchPASTIS(GeoBenchBaseDataset):
         img_dict = self.rearrange_bands(data, self.band_order)
 
         img_dict = self.data_normalizer(img_dict)
-        
-        if self.temporal_output_format == "CTHW":
-            for key in img_dict.keys():
-                img_dict[key] = img_dict[key].permute((1,0,2,3))
 
         sample.update(img_dict)
 
@@ -242,9 +238,20 @@ class GeoBenchPASTIS(GeoBenchBaseDataset):
             sample = self.transforms(sample)
 
         if self.return_stacked_image:
-            sample['image'] = torch.cat([sample[f"image_{key}"] for key in self.band_order.keys()], 0)
+            sample = {
+                "image": torch.cat(
+                    [sample[f"image_{key}"] for key in self.band_order.keys()], 1
+                ),
+                "mask": sample["mask"],
+            }
+
             if self.num_time_steps == 1:
                 sample["image"] = sample["image"].squeeze(1)
+
+        if self.temporal_output_format == "CTHW":
+            for key in sample:
+                if "image" in key and len(sample[key].shape) == 4:  # [T, C, H, W]
+                    sample[key] = sample[key].permute(1, 0, 2, 3)  # C, T, H, W
 
         if self.rename_modalities is not None:
             for key, value in self.rename_modalities.items():
