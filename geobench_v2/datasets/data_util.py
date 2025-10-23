@@ -19,11 +19,6 @@ class DataUtilsMixin(ABC):
     dataset_band_config: ModalityConfig | MultiModalConfig
     normalization_stats: dict[str, dict[str, float]]
 
-    # @property
-    # def normalization_stats(self) -> dict[str, dict[str, dict[str, float]]]:
-    #     """Per-modality normalization statistics."""
-    #     pass
-
     def get_source_order(self) -> Sequence[str] | dict[str, Sequence[str]]:
         """Derive source order from dataset configuration."""
         if isinstance(self.dataset_band_config, MultiModalConfig):
