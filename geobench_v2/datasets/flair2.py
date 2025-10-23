@@ -18,7 +18,15 @@ from .sensor_util import DatasetBandRegistry
 
 
 class GeoBenchFLAIR2(GeoBenchBaseDataset):
-    """GeoBench version of FLAIR 2 dataset."""
+    """GeoBench version of FLAIR 2 dataset.
+
+    Land cover semantic segmentation dataset using
+    aerial RGB+NIR, DEM, and Sentinel-2 imagery, with 13-class pixel-level labels.
+
+    If you use this dataset in your research, please cite the following paper:
+
+    * https://arxiv.org/abs/2305.14467
+    """
 
     url = "https://hf.co/datasets/aialliance/flair2/resolve/main/{}"
 

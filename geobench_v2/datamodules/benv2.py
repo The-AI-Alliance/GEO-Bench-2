@@ -50,7 +50,7 @@ class GeoBenchBENV2DataModule(GeoBenchClassificationDataModule):
             eval_augmentations: augmentations for validation and test splits
             train_augmentations: augmentations for train split
             pin_memory: Pin memory
-            **kwargs: Additional keyword arguments
+            **kwargs: Additional keyword arguments for :class:`geobench_v2.datasets.benv2.GeoBenchBENV2`
         """
         super().__init__(
             dataset_class=GeoBenchBENV2,

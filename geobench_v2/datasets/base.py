@@ -22,7 +22,7 @@ from .normalization import DataNormalizer, MultiModalNormalizer
 
 
 class GeoBenchBaseDataset(NonGeoDataset, DataUtilsMixin):
-    """Base dataset for Geobench datasets."""
+    """Base dataset for GeoBench datasets."""
 
     url = ""
     paths: Sequence[str] = []

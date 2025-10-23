@@ -20,7 +20,15 @@ from .sensor_util import DatasetBandRegistry
 
 
 class GeoBenchSpaceNet2(GeoBenchBaseDataset):
-    """GeoBench version of SpaceNet2 dataset."""
+    """GeoBench version of SpaceNet2 dataset.
+
+    Building footprint segmentation dataset using high-resolution optical imagery,
+    with binary building masks.
+
+    If you use this dataset in your research, please cite the following paper:
+
+    * https://arxiv.org/abs/2102.11958
+    """
 
     url = "https://hf.co/datasets/aialliance/spacenet2/resolve/main/{}"
 

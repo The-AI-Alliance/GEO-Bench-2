@@ -20,7 +20,15 @@ from .sensor_util import DatasetBandRegistry
 
 
 class GeoBenchSpaceNet7(GeoBenchBaseDataset):
-    """GeoBench version of SpaceNet7 dataset."""
+    """GeoBench version of SpaceNet7 dataset.
+
+    Multi-temporal building segmentation and tracking dataset using PlanetScope imagery,
+    with fine grained building footprint masks.
+
+    If you use this dataset in your research, please cite the following paper:
+
+    * https://openaccess.thecvf.com/content/CVPR2021/html/Van_Etten_The_Multi-Temporal_Urban_Development_SpaceNet_Dataset_CVPR_2021_paper.html
+    """
 
     url = "https://hf.co/datasets/aialliance/spacenet7/resolve/main/{}"
 

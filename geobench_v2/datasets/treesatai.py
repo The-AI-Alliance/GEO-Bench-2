@@ -21,7 +21,15 @@ from .sensor_util import DatasetBandRegistry
 
 
 class GeoBenchTreeSatAI(GeoBenchBaseDataset):
-    """GeoBench version of TreeSatAI dataset."""
+    """GeoBench version of TreeSatAI dataset.
+
+    Tree species classification dataset using multi-temporal Sentinel-2 imagery,
+    with multi-class 13-class species labels.
+
+    If you use this dataset in your research, please cite the following paper:
+
+    * https://essd.copernicus.org/articles/15/681/2023/
+    """
 
     url = "https://hf.co/datasets/aialliance/treesatai/resolve/main/{}"
 

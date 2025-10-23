@@ -21,9 +21,12 @@ from .sensor_util import DatasetBandRegistry
 class GeoBenchFieldsOfTheWorld(GeoBenchBaseDataset):
     """Fields of the World Dataset with enhanced functionality.
 
-    Allows:
-    - Variable Band Selection
-    - Return band wavelengths
+    Field boundary segmentation dataset using multi-temporal Sentinel-2 imagery,
+    with field mask annotations across diverse regions.
+
+    If you use this dataset in your research, please cite the following paper:
+
+    * https://arxiv.org/abs/2409.16252
     """
 
     url = "https://hf.co/datasets/aialliance/fotw/resolve/main/{}"

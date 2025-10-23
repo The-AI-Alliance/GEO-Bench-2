@@ -17,7 +17,15 @@ from .sensor_util import DatasetBandRegistry
 
 
 class GeoBenchBurnScars(GeoBenchBaseDataset):
-    """GeoBench Burn Scars dataset."""
+    """GeoBench Burn Scars dataset.
+
+    Burned area segmentation dataset using Harmonized Landsat-Sentinel
+    (HLS: Landsat 8/9 + Sentinel-2) imagery, with multi-source burn scar annotations.
+
+    If you use this dataset in your research, please cite the following paper:
+
+    *
+    """
 
     url = "https://hf.co/datasets/aialliance/burn_scars/resolve/main/{}"
     paths = ["geobench_burn_scars.tortilla"]

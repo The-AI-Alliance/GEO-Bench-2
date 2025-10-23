@@ -56,8 +56,7 @@ class GeoBenchDynamicEarthNetDataModule(GeoBenchSegmentationDataModule):
                 at the sample level and should include normalization. See :meth:`define_augmentations`
                 for the default transformation.
             pin_memory: Pin memory
-            **kwargs: Additional keyword arguments to
-                :class:`~geobench_v2.datasets.DynamicEarthNet.GeoBenchDynamicEarthNet`.
+            **kwargs: Additional keyword arguments for :class:`geobench_v2.datasets.dynamic_earthnet.GeoBenchDynamicEarthNet`
         """
         super().__init__(
             dataset_class=GeoBenchDynamicEarthNet,

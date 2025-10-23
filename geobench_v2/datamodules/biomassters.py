@@ -50,7 +50,7 @@ class GeoBenchBioMasstersDataModule(GeoBenchSegmentationDataModule):
             train_augmentations: Augmentations to apply during training
             eval_augmentations: Augmentations to apply during evaluation
             pin_memory: Pin memory
-            **kwargs: Additional keyword arguments
+            **kwargs: Additional keyword arguments for :class:`geobench_v2.datasets.biomassters.GeoBenchBioMassters`
         """
         super().__init__(
             dataset_class=GeoBenchBioMassters,

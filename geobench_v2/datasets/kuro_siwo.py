@@ -20,11 +20,12 @@ from .sensor_util import DatasetBandRegistry
 class GeoBenchKuroSiwo(GeoBenchBaseDataset):
     """GeoBench version of Kuro Siwo dataset.
 
-    Classes:
-    1. NO-Water
-    2. Permanent Water
-    3. Flood
-    0. No-Data
+    Flood segmentation dataset using Sentinel-1 SAR, DEM,
+    and slope data, with 4-class flood extent masks.
+
+    If you use this dataset in your research, please cite the following paper:
+
+    * https://arxiv.org/abs/2311.12056
     """
 
     url = "https://hf.co/datasets/aialliance/kuro_siwo/resolve/main/{}"

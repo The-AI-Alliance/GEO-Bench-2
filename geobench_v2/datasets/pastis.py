@@ -21,7 +21,15 @@ from .sensor_util import DatasetBandRegistry
 
 
 class GeoBenchPASTIS(GeoBenchBaseDataset):
-    """GeoBench version of PASTIS dataset."""
+    """GeoBench version of PASTIS dataset.
+
+    Crop type and parcel segmentation dataset using
+    multi-temporal Sentinel-1 and Sentinel-2 imagery, with 19-class parcel-level labels.
+
+    If you use this dataset in your research, please cite the following paper:
+
+    * https://arxiv.org/abs/2112.07558
+    """
 
     url = "https://hf.co/datasets/aialliance/pastis/resolve/main/{}"
 

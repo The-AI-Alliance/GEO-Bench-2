@@ -18,7 +18,15 @@ from .sensor_util import DatasetBandRegistry
 
 
 class GeoBenchBioMassters(GeoBenchBaseDataset):
-    """GeoBench version of BioMassters dataset."""
+    """GeoBench version of BioMassters dataset.
+
+    Biomass regression dataset using Sentinel-1 SAR and Sentinel-2 optical imagery,
+    with reference pixel wise biomass annotation from LiDAR and field data.
+
+    If you use this dataset, please cite the following paper:
+
+    * https://openreview.net/pdf?id=hrWsIC4Cmz
+    """
 
     url = "https://hf.co/datasets/aialliance/biomassters/resolve/main/{}"
     paths = [

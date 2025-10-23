@@ -19,7 +19,15 @@ from .sensor_util import DatasetBandRegistry
 
 
 class GeoBenchDynamicEarthNet(GeoBenchBaseDataset):
-    """GeoBench version of DynamicEarthNet dataset."""
+    """GeoBench version of DynamicEarthNet dataset.
+
+    ulti-temporal land cover segmentation dataset using Sentinel-2 and
+    PlanetScope imagery, with 7-class semantic segmentation labels.
+
+    If you use this dataset in your research, please cite the following paper:
+
+    * https://arxiv.org/abs/2203.12560
+    """
 
     url = "https://hf.co/datasets/aialliance/dynamic_earthnet/resolve/main/{}"
 

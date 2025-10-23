@@ -21,7 +21,17 @@ from .sensor_util import DatasetBandRegistry
 
 
 class GeoBenchBENV2(GeoBenchBaseDataset):
-    """GeoBench Version of BigEarthNet V2 Dataset."""
+    """GeoBench Version of BigEarthNet V2 Dataset.
+
+    Multi-label land cover classification dataset using Sentinel-1 SAR (VV, VH)
+    and Sentinel-2 optical (12 bands) imagery, with
+    CORINE Land Cover-based hierarchical multi-label annotations.
+
+
+    If you use this dataset in your research, please cite the following paper:
+
+    * https://arxiv.org/abs/2407.03653
+    """
 
     url = "https://hf.co/datasets/aialliance/benv2/resolve/main/{}"
 
