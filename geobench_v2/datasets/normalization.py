@@ -1162,8 +1162,7 @@ class ClipOnlyNormalizer(DataNormalizer):
 
 
 class MultiModalNormalizer(ZScoreNormalizer):
-    """
-    Deprecated. Use :class:`ZScoreNormalizer` instead.
+    """Deprecated. Use :class:`ZScoreNormalizer` instead.
 
     This class is kept for backward compatibility. It will be removed in a future release.
     """
