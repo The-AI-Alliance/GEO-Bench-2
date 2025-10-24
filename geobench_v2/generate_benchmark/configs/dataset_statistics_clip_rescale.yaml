@@ -413,11 +413,11 @@ datamodules:
       input_keys: ["image_s2", "image_s1"]
       target_key: "label"
       range_vals:
-        image_s2: [-1, 1]
-        image_s1: [-1, 1]
+        image_s2: [0, 1]
+        image_s1: [0, 1]
       clip_min_vals:
-        image_s1: -1
-        image_s2: -1
+        image_s1: 0
+        image_s2: 0
       clip_max_vals:
         image_s1: 1
         image_s2: 1
