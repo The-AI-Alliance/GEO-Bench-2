@@ -17,10 +17,12 @@ from .cloudsen12 import GeoBenchCloudSen12DataModule
 from .dynamic_earthnet import GeoBenchDynamicEarthNetDataModule
 from .everwatch import GeoBenchEverWatchDataModule
 from .flair2 import GeoBenchFLAIR2DataModule
+from .forestnet import GeoBenchForestnetDataModule
 from .fotw import GeoBenchFieldsOfTheWorldDataModule
 from .kuro_siwo import GeoBenchKuroSiwoDataModule
 from .nzcattle import GeoBenchNZCattleDataModule
 from .pastis import GeoBenchPASTISDataModule
+from .so2sat import GeoBenchSo2SatDataModule
 from .spacenet2 import GeoBenchSpaceNet2DataModule
 from .spacenet6 import GeoBenchSpaceNet6DataModule
 from .spacenet7 import GeoBenchSpaceNet7DataModule
@@ -32,8 +34,6 @@ from .utils import (
     MultiModalSegmentationAugmentation,
     MultiTemporalSegmentationAugmentation,
 )
-from .so2sat import GeoBenchSo2SatDataModule
-from .forestnet import GeoBenchForestnetDataModule
 
 __all__ = (
     "GeoBenchDataModule",

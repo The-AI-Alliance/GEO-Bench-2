@@ -6,11 +6,11 @@
 from collections.abc import Sequence
 from pathlib import Path
 from typing import Literal, cast
-from shapely import wkt
 
 import rasterio
 import torch
 import torch.nn as nn
+from shapely import wkt
 from torch import Tensor
 
 from .base import GeoBenchBaseDataset
