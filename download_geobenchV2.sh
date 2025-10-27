@@ -115,7 +115,7 @@ download_dataset() {
 }
 
 
-ALL_DATASETS=("benv2" "biomassters" "burn_scars" "caffe" "cloudsen12" "dynamic_earthnet" "everwatch" "flair2" "fotw" "kuro_siwo" "pastis" "spacenet2" "spacenet7" "substation" "treesatai" "wind_turbine")
+ALL_DATASETS=("benv2" "biomassters" "burn_scars" "caffe" "cloudsen12" "dynamic_earthnet" "everwatch" "flair2" "fotw" "kuro_siwo" "pastis" "spacenet2" "spacenet7" "substation" "treesatai" "wind_turbine" "so2sat")
 
 # Main execution
 if [[ $# -eq 0 ]]; then
