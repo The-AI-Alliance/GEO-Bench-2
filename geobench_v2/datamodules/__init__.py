@@ -34,6 +34,7 @@ from .utils import (
 )
 from .wind_turbine import GeoBenchWindTurbineDataModule
 from .so2sat import GeoBenchSo2SatDataModule
+from .forestnet import GeoBenchForestnetDataModule
 
 __all__ = (
     "GeoBenchDataModule",
@@ -63,4 +64,5 @@ __all__ = (
     "MultiModalSegmentationAugmentation",
     "MultiTemporalSegmentationAugmentation",
     "GeoBenchSo2SatDataModule"
+    "GeoBenchForestnetDataModule",
 )

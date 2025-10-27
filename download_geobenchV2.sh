@@ -107,6 +107,14 @@ download_dataset() {
         *)
             echo "Error: Unknown dataset '$dataset_name'"
             echo "Available: benv2, biomassters, burn_scars, caffe, cloudsen12, dynamic_earthnet, everwatch, flair2, fotw, kuro_siwo, pastis, spacenet2, spacenet7, substation, treesatai, wind_turbine, so2sat"
+            "forestnet")
+            hf download "aialliance/forestnet" "geobench_forestnet.tortilla" --repo-type=dataset --local-dir "$target_dir" 
+            hf download "aialliance/forestnet" "forestnet_stats_satmae.json" --repo-type=dataset --local-dir "$target_dir"
+            hf download "aialliance/forestnet" "forestnet_stats_clip_rescale.json" --repo-type=dataset --local-dir "$target_dir"
+            ;;
+        *)
+            echo "Error: Unknown dataset '$dataset_name'"
+            echo "Available: benv2, biomassters, burn_scars, caffe, cloudsen12, dynamic_earthnet, everwatch, flair2, fotw, kuro_siwo, pastis, spacenet2, spacenet7, substation, treesatai, wind_turbine, forestnet"
             exit 1
             ;;
     esac
@@ -116,6 +124,7 @@ download_dataset() {
 
 
 ALL_DATASETS=("benv2" "biomassters" "burn_scars" "caffe" "cloudsen12" "dynamic_earthnet" "everwatch" "flair2" "fotw" "kuro_siwo" "pastis" "spacenet2" "spacenet7" "substation" "treesatai" "wind_turbine" "so2sat")
+ALL_DATASETS=("benv2" "biomassters" "burn_scars" "caffe" "cloudsen12" "dynamic_earthnet" "everwatch" "flair2" "fotw" "kuro_siwo" "pastis" "spacenet2" "spacenet7" "substation" "treesatai" "wind_turbine" "forestnet")
 
 # Main execution
 if [[ $# -eq 0 ]]; then

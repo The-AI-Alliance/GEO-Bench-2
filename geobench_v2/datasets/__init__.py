@@ -23,6 +23,7 @@ from .substation import GeoBenchSubstation
 from .treesatai import GeoBenchTreeSatAI
 from .wind_turbine import GeoBenchWindTurbine
 from .so2sat import GeoBenchSo2Sat
+from .forestnet import GeoBenchForestnet
 
 __all__ = (
     "GeoBenchCaFFe",
@@ -45,4 +46,5 @@ __all__ = (
     "GeoBenchNZCattle",
     "GeoBenchSubstation",
     "GeoBenchSo2Sat"
+    "GeoBenchForestnet"
 )
