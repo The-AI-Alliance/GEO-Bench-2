@@ -1,7 +1,7 @@
 # Copyright (c) 2025 GeoBenchV2. All rights reserved.
 # Licensed under the Apache License 2.0.
 
-"""m-So2Sat Dataset."""
+"""So2Sat Dataset."""
 
 from collections.abc import Sequence
 from pathlib import Path
@@ -18,14 +18,13 @@ from .sensor_util import DatasetBandRegistry
 
 
 class GeoBenchSo2Sat(GeoBenchBaseDataset):
-    """m-So2Sat Dataset with enhanced functionality.
+    """GeoBench Version of So2Sat Dataset.
 
-    Allows:
-    - Variable Band Selection
-    - Return band wavelengths
+    Local Climate Zone classification dataset using Sentinel-1 SAR (VV, VH)
+    and Sentinel-2 optical (10 bands) imagery.
     """
 
-    url = "https://hf.co/datasets/aialliance/mso2sat/resolve/main/{}"
+    url = "https://hf.co/datasets/aialliance/so2sat/resolve/main/{}"
 
     paths: Sequence[str] = ["geobench_so2sat.tortilla"]
 
