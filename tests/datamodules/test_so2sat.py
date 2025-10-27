@@ -41,7 +41,7 @@ def datamodule(
     monkeypatch.setattr(
         GeoBenchSo2Sat,
         "sha256str",
-        ["66753350ce9397fb7d683460312f9a3d6ba82d60ee63b26912cbd807ec75fcbc"],
+        ["69cd62aeb1d4ea59cef3921ff41b64b8d36007e5a14837f2c9bf8f26b61345b6"],
     )
     dm = GeoBenchSo2SatDataModule(
         img_size=64,
