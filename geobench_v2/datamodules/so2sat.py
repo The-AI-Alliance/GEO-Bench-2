@@ -50,7 +50,7 @@ class GeoBenchSo2SatDataModule(GeoBenchClassificationDataModule):
             eval_augmentations: augmentations for validation and test splits
             train_augmentations: augmentations for train split
             pin_memory: Pin memory
-            **kwargs: Additional keyword arguments
+            **kwargs: Additional keyword arguments for :class:`geobench_v2.datasets.so2sat.GeoBenchSo2Sat
         """
         super().__init__(
             dataset_class=GeoBenchSo2Sat,
