@@ -44,6 +44,7 @@ pip install geobenchv2
 | EverWatch              | Bird object detection                | Aerial RGB                                   | 4429 / 500 / 196      | 9                 | CC0                  | [Garner et al. 2024](https://zenodo.org/records/11165946)        |
 | m-nzcattle             | Cattle object detection              | Aerial RGB                                   | 524 / 66 / 65         | 2                 | CC-BY-4.0            | [NZ Cattle](https://zenodo.org/records/5908869)                |
 | Substation             | Power substation segmentation        | Sentinel-2 Optical + OSM                     | 4000 / 500 / 500      | 2 (binary)        | CC-BY-4.0 / ODbL 1.0 | [Lindsay et al. 2024](https://arxiv.org/abs/2409.17363)        |
+| So2Sat  | Local Climate Zones          | Sentinel-1 SAR (VV,VH) + Sentinel-2 Optical        | 19992/986/986  | 17                | CC-BY-4.0   | [Lacoste et al. 2023](https://arxiv.org/abs/2306.03831)      |
 
 
 ## Geographical Distribution of Datasets
