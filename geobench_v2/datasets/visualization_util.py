@@ -588,9 +588,13 @@ DATASET_COLORS = {
 
 def plot_global_sample_distribution(
     taco_paths: dict[str, list[str]], labels=None, output_path="global_distribution.png"
-):
+) -> None:
     """Plots the distribution of samples across the globe, with a Europe zoom above the global map and legend below.
-    Only two connecting lines from the top corners of the Europe box to the bottom corners of the Europe subplot above.
+
+    Args:
+        taco_paths: dict[str, list[str]] mapping dataset labels to lists of TACO file
+        labels: Optional list of dataset labels to include. If None, all keys from taco_paths are used.
+        output_path: Path to save the output figure
     """
     fig = plt.figure(figsize=(20, 14))
 

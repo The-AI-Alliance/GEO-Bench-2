@@ -5,7 +5,7 @@
 
 from collections.abc import Sequence
 from pathlib import Path
-from typing import Literal, cast
+from typing import Literal
 
 import rasterio
 import torch
@@ -78,11 +78,10 @@ class GeoBenchForestnet(GeoBenchBaseDataset):
         self,
         root: Path,
         split: Literal["train", "val", "validation", "test"],
-        rename_modalities: dict | None = None,
         band_order: dict[str, Sequence[float | str]] = band_default_order,
         data_normalizer: type[nn.Module] = MultiModalNormalizer,
         transforms: nn.Module | None = None,
-        metadata: [str] = None,
+        metadata: list[str] = None,
         download: bool = False,
     ) -> None:
         """Initialize Forestnet Dataset.
@@ -98,14 +97,7 @@ class GeoBenchForestnet(GeoBenchBaseDataset):
             metadata: metadata names to be returned under specified keys as part of the sample in the
                 __getitem__ method. If None, no metadata is returned.
             download: Whether to download the dataset
-            rename_modalities: dictionary with information to rename modalities in output e.g. {image: {s1:  S1RTC, s2: S2L2A}}
         """
-        split_norm: Literal["train", "validation", "test"]
-        if split == "val":
-            split_norm = "validation"
-        else:
-            split_norm = cast(Literal["train", "validation", "test"], split)
-
         super().__init__(
             root=root,
             split=split,

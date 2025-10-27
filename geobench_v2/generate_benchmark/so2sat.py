@@ -188,8 +188,6 @@ def main():
 
     create_tortilla(args.root, metadata_df, args.save_dir, tortilla_name)
 
-    result_df_path = os.path.join(args.save_dir, tortilla_name)
-
     create_unittest_subset(
         data_dir=args.save_dir,
         tortilla_pattern=tortilla_name,
