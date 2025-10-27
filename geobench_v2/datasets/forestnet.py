@@ -20,7 +20,7 @@ from .sensor_util import DatasetBandRegistry
 
 class GeoBenchForestnet(GeoBenchBaseDataset):
     """GeoBench Version of Forestnet Dataset.
-    
+
     The Forestnet dataset is a classification dataset using Landsat data to identify deforestation events in Indonesia.
 
     """
@@ -33,44 +33,45 @@ class GeoBenchForestnet(GeoBenchBaseDataset):
         "6ee7cb7135b4ca5d0cde52e781f5960ed0e648dcceab598982fa612802cd3ad1"
     ]
 
-    classes: Sequence[str] = ("Oil palm plantation",
-                              "Timber plantation",
-                              "Other large-scale plantations",
-                              "Grassland/shrubland",
-                              "Small-scale agriculture",
-                              "Small-scale mixed plantation",
-                              "Small-scale oil palm plantation",
-                              "Mining",
-                              "Fish pond",
-                              "Logging road",
-                              "Secondary forest",
-                              "Other")
+    classes: Sequence[str] = (
+        "Oil palm plantation",
+        "Timber plantation",
+        "Other large-scale plantations",
+        "Grassland/shrubland",
+        "Small-scale agriculture",
+        "Small-scale mixed plantation",
+        "Small-scale oil palm plantation",
+        "Mining",
+        "Fish pond",
+        "Logging road",
+        "Secondary forest",
+        "Other",
+    )
 
     dataset_band_config = DatasetBandRegistry.FORESTNET
     band_default_order = dataset_band_config.default_order
 
     normalization_stats: dict[str, dict[str, float]] = {
         "means": {
-                    "B02": 72.37593078613281,
-                    "B03": 83.18157196044922,
-                    "B04": 77.08612823486328,
-                    "B8A": 123.54252624511719,
-                    "B11": 91.04833221435547,
-                    "B12": 74.30968475341797,
-                },
+            "B02": 72.37593078613281,
+            "B03": 83.18157196044922,
+            "B04": 77.08612823486328,
+            "B8A": 123.54252624511719,
+            "B11": 91.04833221435547,
+            "B12": 74.30968475341797,
+        },
         "stds": {
-
-                    "B02": 16.283870697021484,
-                    "B03": 15.35866928100586,
-                    "B04": 16.66645622253418,
-                    "B8A": 16.948505401611328,
-                    "B11": 14.280089378356934,
-                    "B12": 13.285400390625,
-                },
+            "B02": 16.283870697021484,
+            "B03": 15.35866928100586,
+            "B04": 16.66645622253418,
+            "B8A": 16.948505401611328,
+            "B11": 14.280089378356934,
+            "B12": 13.285400390625,
+        },
     }
-    
+
     label_names = classes
-    
+
     num_classes: int = len(label_names)
 
     def __init__(

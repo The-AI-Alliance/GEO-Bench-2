@@ -18,11 +18,11 @@ from torchgeo.datasets import DatasetNotFoundError, NonGeoDataset
 from torchvision.datasets.utils import download_url
 
 from .data_util import DataUtilsMixin
-from .normalization import DataNormalizer, MultiModalNormalizer
+from .normalization import DataNormalizer, ZScoreNormalizer
 
 
 class GeoBenchBaseDataset(NonGeoDataset, DataUtilsMixin):
-    """Base dataset for Geobench datasets."""
+    """Base dataset for GeoBench datasets."""
 
     url = ""
     paths: Sequence[str] = []
@@ -36,7 +36,7 @@ class GeoBenchBaseDataset(NonGeoDataset, DataUtilsMixin):
         root: Path,
         split: str,
         band_order: Sequence[str] | Mapping[str, Sequence[str]],
-        data_normalizer: type[nn.Module] = MultiModalNormalizer,
+        data_normalizer: type[nn.Module] = ZScoreNormalizer,
         transforms: nn.Module | None = None,
         metadata: list[str] | None = None,
         download: bool = False,
@@ -48,7 +48,7 @@ class GeoBenchBaseDataset(NonGeoDataset, DataUtilsMixin):
             split: The dataset split, supports 'train', 'validation', 'test', 'extra_test'. Also accepts 'val' as an alias for 'validation'.
             band_order: List of bands to return
             data_normalizer: Normalization strategy. Can be:
-                             - A class type inheriting from DataNormalizer (e.g., MultiModalNormalizer)
+                             - A class type inheriting from DataNormalizer (e.g., ZScoreNormalizer)
                                or a basic callable class (e.g., nn.Identity - default).
                                It will be initialized appropriately (using stats/band_order if needed).
                              - An initialized callable instance (e.g., a custom nn.Module or nn.Identity()).
@@ -87,7 +87,7 @@ class GeoBenchBaseDataset(NonGeoDataset, DataUtilsMixin):
 
         if isinstance(data_normalizer, type):
             print(f"Initializing normalizer from class: {data_normalizer.__name__}")
-            if issubclass(data_normalizer, (DataNormalizer, MultiModalNormalizer)):
+            if issubclass(data_normalizer, (DataNormalizer, ZScoreNormalizer)):
                 self.data_normalizer = data_normalizer(
                     self.normalization_stats, self.band_order
                 )

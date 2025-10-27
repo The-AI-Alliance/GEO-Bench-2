@@ -316,7 +316,7 @@ class SensorBandRegistry:
         native_resolution=10,
         plot_bands=["B04", "B03", "B02"],
     )
-    
+
     LANDSAT8 = ModalityConfig(
         bands={
             "B02": BandConfig("blue", ["b02", "blue"], wavelength=0.490, resolution=30),
@@ -419,17 +419,19 @@ class DatasetBandRegistry:
             "VH": "s1",
         },
     )
-        
+
     SO2SAT = MultiModalConfig(
-        # s2 does not have B01, B09 and B10 band 
+        # s2 does not have B01, B09 and B10 band
         modalities={
             "s2": ModalityConfig(
                 bands={
                     k: v
                     for k, v in SensorBandRegistry.SENTINEL2.bands.items()
                     if k
-                    not in [ 
-                        "B01", "B09", "B10"  # all bands except b10
+                    not in [
+                        "B01",
+                        "B09",
+                        "B10",  # all bands except b10
                     ]
                 },
                 default_order=[
@@ -480,7 +482,6 @@ class DatasetBandRegistry:
         },
     )
 
-    
     PASTIS = MultiModalConfig(
         modalities={
             "s2": ModalityConfig(

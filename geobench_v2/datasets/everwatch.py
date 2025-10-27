@@ -23,7 +23,15 @@ from .sensor_util import DatasetBandRegistry
 
 
 class GeoBenchEverWatch(GeoBenchBaseDataset):
-    """GeoBench version of EverWatch dataset."""
+    """GeoBench version of EverWatch dataset.
+
+    Bird object detection dataset using high-resolution
+    aerial RGB imagery, with bounding box annotations for multiple bird species.
+
+    If you use this dataset in your research, please cite the following resource:
+
+    * https://zenodo.org/records/11165946
+    """
 
     url = "https://hf.co/datasets/aialliance/everwatch/resolve/main/{}"
 

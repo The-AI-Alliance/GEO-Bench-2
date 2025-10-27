@@ -565,106 +565,106 @@ def compare_normalization_methods(
 
 
 DATASET_COLORS = {
-    "biomassters": "#98df8a",  # light green
-    "benv2": "#1f77b4",  # blue
-    "burn_scars": "#aec7e8",  # light blue
-    "caffe": "#ff7f0e",  # orange
-    "cloudsen12": "#2ca02c",  # green
-    "dynamic_earthnet": "#d62728",  # red
-    "everwatch": "#ff9896",  # light red
-    "flair2": "#9467bd",  # purple
-    "fotw": "#8c564b",  # brown
-    "kuro_siwo": "#e377c2",  # pink
-    "pastis": "#7f7f7f",  # gray
-    "spacenet2": "#17becf",  # teal
-    "spacenet7": "#bcbd22",  # olive
-    "treesatai": "#ffbb78",  # light orange
-    "wind_turbine": "#c5b0d5",  # light purple
+    "biomassters": "#E69F00",
+    "benv2": "#0072B2",
+    "burn_scars": "#CC79A7",
+    "caffe": "#009E73",
+    "cloudsen12": "#D55E00",
+    "dynamic_earthnet": "#F0E442",
+    "everwatch": "#56B4E9",
+    "flair2": "#9400D3",
+    "fotw": "#A52A2A",
+    "kuro_siwo": "#FFC0CB",
+    "pastis": "#2F4F4F",
+    "spacenet2": "#40E0D0",
+    "spacenet7": "#808000",
+    "treesatai": "#FF4500",
+    "wind_turbine": "#4682B4",
+    "substation": "#8A2BE2",
+    "nzcattle": "#DAA520",
+    "forestnet": "#228B22",
 }
 
 
 def plot_global_sample_distribution(
     taco_paths: dict[str, list[str]], labels=None, output_path="global_distribution.png"
 ):
-    """Plots the distribution of samples across the globe.
-
-    Args:
-        taco_paths: Dictionary mapping dataset labels to lists of paths to TACO files.
-        labels: Optional list of dataset labels to include. If None, all keys from taco_paths
-                are used.
-        output_path: Path to save the output plot.
+    """Plots the distribution of samples across the globe, with a Europe zoom above the global map and legend below.
+    Only two connecting lines from the top corners of the Europe box to the bottom corners of the Europe subplot above.
     """
-    fig = plt.figure(figsize=(20, 7))
-    gs = GridSpec(1, 2, width_ratios=[2.2, 1.3], wspace=0.12)
+    fig = plt.figure(figsize=(20, 14))
 
-    # Gglobal map
-    ax_global = fig.add_subplot(gs[0, 0], projection=ccrs.PlateCarree())
+    gs = GridSpec(2, 1, height_ratios=[1.8, 2.2], hspace=0.04)
+
+    lon_min, lon_max = -25, 45
+    lat_min, lat_max = 34, 72
+
+    # Europe zoom (top)
+    ax_europe = fig.add_subplot(gs[0, 0], projection=ccrs.PlateCarree())
+    ax_europe.coastlines()
+    ax_europe.set_extent([lon_min, lon_max, lat_min, lat_max], crs=ccrs.PlateCarree())
+
+    # Global map (bottom)
+    ax_global = fig.add_subplot(gs[1, 0], projection=ccrs.PlateCarree())
     ax_global.coastlines()
     ax_global.set_global()
-    ax_global.set_title("Global Sample Distribution")
-
-    # have a zoom over europe
-    ax_europe = fig.add_subplot(gs[0, 1], projection=ccrs.PlateCarree())
-    ax_europe.coastlines()
-    ax_europe.set_extent([-25, 45, 34, 72], crs=ccrs.PlateCarree())
 
     legend_handles = []
     for label, path_list in taco_paths.items():
         df = tacoreader.load(path_list)
-
         df = df.sample(n=500)
-
         if "lon" not in df.columns:
             continue
+
+        color = DATASET_COLORS[label]
+
         # Global scatter
         ax_global.scatter(
             df["lon"],
             df["lat"],
-            s=1,
-            alpha=0.3,
-            color=DATASET_COLORS[label],
+            s=2,
+            alpha=0.7,
+            color=color,
             label=label,
             transform=ccrs.PlateCarree(),
         )
         # Europe scatter (only points in Europe extent)
         europe_mask = (
-            (df["lon"] >= -25)
-            & (df["lon"] <= 45)
-            & (df["lat"] >= 34)
-            & (df["lat"] <= 72)
+            (df["lon"] >= lon_min)
+            & (df["lon"] <= lon_max)
+            & (df["lat"] >= lat_min)
+            & (df["lat"] <= lat_max)
         )
         ax_europe.scatter(
             df.loc[europe_mask, "lon"],
             df.loc[europe_mask, "lat"],
-            s=1,
-            alpha=0.3,
-            color=DATASET_COLORS[label],
+            s=2,
+            alpha=0.5,
+            color=color,
             label=label,
             transform=ccrs.PlateCarree(),
         )
-        # legend globe
+
         handle = mlines.Line2D(
             [],
             [],
-            color=DATASET_COLORS[label],
+            color=color,
             marker="o",
             linestyle="None",
-            markersize=12,
+            markersize=14,
             alpha=1.0,
             label=label,
         )
         legend_handles.append(handle)
 
-    lon_min, lon_max = -25, 45
-    lat_min, lat_max = 34, 72
+    # Rectangle for Europe zoom on global map
     width = lon_max - lon_min
     height = lat_max - lat_min
-
     europe_rect = Rectangle(
         (lon_min, lat_min),
         width,
         height,
-        linewidth=1.5,
+        linewidth=2.5,
         edgecolor="black",
         facecolor="none",
         linestyle="dotted",
@@ -673,50 +673,49 @@ def plot_global_sample_distribution(
     europe_rect.set_transform(ccrs.PlateCarree())
     ax_global.add_patch(europe_rect)
 
-    # draw connections
-    rect_corners = [
-        (lon_min, lat_min),  # lower-left
-        (lon_max, lat_max),  # upper-right
-        (lon_min, lat_max),  # upper-left
-    ]
-    europe_axes_corners = [
-        (0.0, 0.0),  # lower-left in axes fraction
-        (1.0, 1.0),  # upper-right
-        (0.0, 1.0),  # upper-left
-    ]
+    # Connecting lines
+    rect_top_left = (lon_min, lat_max)
+    rect_top_right = (lon_max, lat_max)
+    europe_axes_bottom_left = (0.0, 0.0)
+    europe_axes_bottom_right = (1.0, 0.0)
 
-    for (lon, lat), (xf, yf) in zip(rect_corners, europe_axes_corners):
+    for rect_xy, europe_xy in [
+        (rect_top_left, europe_axes_bottom_left),
+        (rect_top_right, europe_axes_bottom_right),
+    ]:
         con = ConnectionPatch(
-            xyA=(lon, lat),
-            xyB=(xf, yf),
+            xyA=rect_xy,
+            xyB=europe_xy,
             coordsA="data",
             coordsB="axes fraction",
             axesA=ax_global,
             axesB=ax_europe,
             linestyle="dotted",
-            linewidth=1.2,
+            linewidth=2.0,
             color="black",
             alpha=0.7,
-            zorder=5,
+            zorder=100,
         )
-        ax_europe.add_artist(con)
+        fig.add_artist(con)
 
-    n_items = len(legend_handles)
-    ncol = min(n_items, 7) if n_items > 0 else 1
+    fig.tight_layout(rect=[0, 0.1, 1, 0.96])
+
     fig.legend(
         handles=legend_handles,
         loc="lower center",
-        ncol=ncol,
+        ncol=4,
         frameon=False,
-        bbox_to_anchor=(0.5, -0.01),
-        fontsize=11,
+        bbox_to_anchor=(0.5, -0.08),
+        fontsize=24,
         title="Datasets",
-        title_fontsize=12,
+        title_fontsize=22,
+        handletextpad=0.1,
+        columnspacing=0.2,
     )
 
-    plt.tight_layout(rect=(0, 0.05, 1, 1))
-    plt.savefig(output_path, dpi=150)
+    plt.savefig(output_path, dpi=150, bbox_inches="tight", pad_inches=0.2)
     plt.close(fig)
+    print(f"Saved global distribution map as {output_path}")
 
 
 def extract_continent_names(df):
@@ -760,17 +759,19 @@ def plot_continent_bar(
         all_samples.append(gdf_points["continent_name"])
 
     all_continents_series = pd.concat(all_samples)
-    continent_counts = all_continents_series.value_counts().sort_index()
+    continent_counts = all_continents_series.value_counts()
     total_samples = continent_counts.sum()
-    continent_percentages = (continent_counts / total_samples * 100).sort_index()
+    continent_percentages = continent_counts / total_samples * 100
+
+    continent_percentages = continent_percentages.sort_values(ascending=False)
 
     fig, ax = plt.subplots(figsize=(10, 6))
     bars = ax.bar(
         continent_percentages.index, continent_percentages.values, color="skyblue"
     )
-    ax.set_xticklabels(continent_percentages.index, rotation=45)
-    ax.set_ylabel("Percentage of Samples (%)")
-    ax.set_title("Aggregate Sample Percentage by Continent")
+    ax.set_xticklabels(continent_percentages.index, rotation=45, fontsize=14)
+    ax.set_ylabel("Pct of Total Samples (%)", fontsize=14)
+    ax.set_title("Aggregate Sample Percentage by Continent", fontsize=18)
 
     for bar in bars:
         height = bar.get_height()
@@ -781,10 +782,12 @@ def plot_continent_bar(
             textcoords="offset points",
             ha="center",
             va="bottom",
-            fontsize=11,
+            fontsize=12,
         )
 
-    plt.tight_layout()
-    plt.savefig(output_path, dpi=150)
+    for spine in ["top", "right"]:
+        ax.spines[spine].set_visible(False)
+
+    plt.savefig(output_path, dpi=150, bbox_inches="tight", pad_inches=0.1)
     plt.close(fig)
     print(f"Saved aggregate continent bar chart as {output_path}")

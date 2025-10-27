@@ -32,7 +32,6 @@ from .utils import (
     MultiModalSegmentationAugmentation,
     MultiTemporalSegmentationAugmentation,
 )
-from .wind_turbine import GeoBenchWindTurbineDataModule
 from .so2sat import GeoBenchSo2SatDataModule
 from .forestnet import GeoBenchForestnetDataModule
 
@@ -56,13 +55,12 @@ __all__ = (
     "GeoBenchTreeSatAIDataModule",
     "GeoBenchBioMasstersDataModule",
     "GeoBenchDynamicEarthNetDataModule",
-    "GeoBenchWindTurbineDataModule",
     "GeoBenchNZCattleDataModule",
     "GeoBenchSubstationDataModule",
     "GeoBenchBurnScarsDataModule",
     "MultiModalClassificationAugmentation",
     "MultiModalSegmentationAugmentation",
     "MultiTemporalSegmentationAugmentation",
-    "GeoBenchSo2SatDataModule"
+    "GeoBenchSo2SatDataModule",
     "GeoBenchForestnetDataModule",
 )

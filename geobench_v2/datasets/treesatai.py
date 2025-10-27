@@ -16,12 +16,20 @@ from shapely import wkt
 from torch import Tensor
 
 from .base import GeoBenchBaseDataset
-from .normalization import MultiModalNormalizer
+from .normalization import ZScoreNormalizer
 from .sensor_util import DatasetBandRegistry
 
 
 class GeoBenchTreeSatAI(GeoBenchBaseDataset):
-    """GeoBench version of TreeSatAI dataset."""
+    """GeoBench version of TreeSatAI dataset.
+
+    Tree species classification dataset using multi-temporal Sentinel-2 imagery,
+    with multi-class 13-class species labels.
+
+    If you use this dataset in your research, please cite the following paper:
+
+    * https://essd.copernicus.org/articles/15/681/2023/
+    """
 
     url = "https://hf.co/datasets/aialliance/treesatai/resolve/main/{}"
 
@@ -124,7 +132,7 @@ class GeoBenchTreeSatAI(GeoBenchBaseDataset):
         rename_modalities: dict | None = None,
         split: dict[str, list[str]] = {"aerial": ["red", "green", "blue", "nir"]},
         band_order: dict[str, Sequence[str]] = {"aerial": ["r", "g", "b"]},
-        data_normalizer: type[nn.Module] = MultiModalNormalizer,
+        data_normalizer: type[nn.Module] = ZScoreNormalizer,
         transforms: nn.Module | None = None,
         metadata: Sequence[str] | None = None,
         include_ts: bool = False,
@@ -141,7 +149,7 @@ class GeoBenchTreeSatAI(GeoBenchBaseDataset):
                 specify ['red', 'green', 'blue', 'nir', 'nir'], the dataset would return images with 5 channels
                 in that order. This is useful for models that expect a certain band order, or
                 test the impact of band order on model performance.
-            data_normalizer: The data normalizer to apply to the data, defaults to :class:`data_util.MultiModalNormalizer`,
+            data_normalizer: The data normalizer to apply to the data, defaults to :class:`data_util.ZScoreNormalizer`,
                 which applies z-score normalization to each band.
             transforms: image transformations to apply to the data, defaults to None
             metadata: metadata names to be returned as part of the sample in the

@@ -23,5 +23,4 @@ spacenet2
 spacenet7
 substation
 treesatai
-wind_turbine
 ```

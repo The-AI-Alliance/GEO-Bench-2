@@ -16,12 +16,22 @@ import torch.nn as nn
 from torch import Tensor
 
 from .base import GeoBenchBaseDataset
-from .normalization import MultiModalNormalizer
+from .normalization import ZScoreNormalizer
 from .sensor_util import DatasetBandRegistry
 
 
 class GeoBenchBENV2(GeoBenchBaseDataset):
-    """GeoBench Version of BigEarthNet V2 Dataset."""
+    """GeoBench Version of BigEarthNet V2 Dataset.
+
+    Multi-label land cover classification dataset using Sentinel-1 SAR (VV, VH)
+    and Sentinel-2 optical (12 bands) imagery, with
+    CORINE Land Cover-based hierarchical multi-label annotations.
+
+
+    If you use this dataset in your research, please cite the following paper:
+
+    * https://arxiv.org/abs/2407.03653
+    """
 
     url = "https://hf.co/datasets/aialliance/benv2/resolve/main/{}"
 
@@ -122,7 +132,7 @@ class GeoBenchBENV2(GeoBenchBaseDataset):
         split: Literal["train", "val", "validation", "test"],
         rename_modalities: dict | None = None,
         band_order: dict[str, Sequence[float | str]] = {"s2": ["B04", "B03", "B02"]},
-        data_normalizer: type[nn.Module] = MultiModalNormalizer,
+        data_normalizer: type[nn.Module] = ZScoreNormalizer,
         transforms: nn.Module | None = None,
         metadata: Sequence[str] | None = None,
         return_stacked_image: bool = False,
@@ -137,7 +147,7 @@ class GeoBenchBENV2(GeoBenchBaseDataset):
                 specify ['B04', 'B03', 'B02], the dataset would return the red, green, and blue bands.
                 This is useful for models that expect a certain band order, or
                 test the impact of band order on model performance.
-            data_normalizer: The data normalizer to apply to the data, defaults to :class:`data_util.MultiModalNormalizer`,
+            data_normalizer: The data normalizer to apply to the data, defaults to :class:`data_util.ZScoreNormalizer`,
                 which applies z-score normalization to each band.
             transforms: Transforms to apply to the data
             metadata: metadata names to be returned under specified keys as part of the sample in the

@@ -13,12 +13,20 @@ import torch.nn as nn
 from torch import Tensor
 
 from .base import GeoBenchBaseDataset
-from .normalization import MultiModalNormalizer
+from .normalization import ZScoreNormalizer
 from .sensor_util import DatasetBandRegistry
 
 
 class GeoBenchBioMassters(GeoBenchBaseDataset):
-    """GeoBench version of BioMassters dataset."""
+    """GeoBench version of BioMassters dataset.
+
+    Biomass regression dataset using Sentinel-1 SAR and Sentinel-2 optical imagery,
+    with reference pixel wise biomass annotation from LiDAR and field data.
+
+    If you use this dataset, please cite the following paper:
+
+    * https://openreview.net/pdf?id=hrWsIC4Cmz
+    """
 
     url = "https://hf.co/datasets/aialliance/biomassters/resolve/main/{}"
     paths = [
@@ -88,7 +96,7 @@ class GeoBenchBioMassters(GeoBenchBaseDataset):
             "s2": ["B04", "B03", "B02", "B08"],
         },
         rename_modalities: dict | None = None,
-        data_normalizer: type[nn.Module] = MultiModalNormalizer,
+        data_normalizer: type[nn.Module] = ZScoreNormalizer,
         transforms: nn.Module | None = None,
         metadata: Sequence[str] | None = None,
         num_time_steps: int = 1,
@@ -104,7 +112,7 @@ class GeoBenchBioMassters(GeoBenchBaseDataset):
                 specify ['red', 'green', 'blue', 'nir', 'nir'], the dataset would return images with 5 channels
                 in that order. This is useful for models that expect a certain band order, or
                 test the impact of band order on model performance.
-            data_normalizer: The data normalizer to apply to the data, defaults to :class:`data_util.MultiModalNormalizer`,
+            data_normalizer: The data normalizer to apply to the data, defaults to :class:`data_util.ZScoreNormalizer`,
                 which applies z-score normalization to each band.
             transforms:The transforms to apply to the data, defaults to None.
             metadata: metadata names to be returned under specified keys as part of the sample in the

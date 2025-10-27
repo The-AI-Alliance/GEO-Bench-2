@@ -97,6 +97,13 @@ class TestCaFFeDataModule:
         fig.savefig(os.path.join("tests", "data", "caffe", "test_batch.png"))
         plt.close(fig)
 
+    def test_geospatial_distribution(self, datamodule):
+        """Test geospatil distribution plot."""
+        fig = datamodule.visualize_geospatial_distribution()
+        assert isinstance(fig, plt.Figure)
+        fig.savefig(os.path.join("tests", "data", "caffe", "test_geospatial.png"))
+        plt.close(fig)
+
     def test_not_downloaded(self, tmp_path: Path) -> None:
         with pytest.raises(DatasetNotFoundError, match="Dataset not found"):
             GeoBenchCaFFe(tmp_path, split="train")

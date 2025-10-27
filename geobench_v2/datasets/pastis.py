@@ -16,12 +16,20 @@ from torch import Tensor
 from torchgeo.datasets import PASTIS
 
 from .base import GeoBenchBaseDataset
-from .normalization import MultiModalNormalizer
+from .normalization import ZScoreNormalizer
 from .sensor_util import DatasetBandRegistry
 
 
 class GeoBenchPASTIS(GeoBenchBaseDataset):
-    """GeoBench version of PASTIS dataset."""
+    """GeoBench version of PASTIS dataset.
+
+    Crop type and parcel segmentation dataset using
+    multi-temporal Sentinel-1 and Sentinel-2 imagery, with 19-class parcel-level labels.
+
+    If you use this dataset in your research, please cite the following paper:
+
+    * https://arxiv.org/abs/2112.07558
+    """
 
     url = "https://hf.co/datasets/aialliance/pastis/resolve/main/{}"
 
@@ -112,7 +120,7 @@ class GeoBenchPASTIS(GeoBenchBaseDataset):
         split: Literal["train", "val", "validation", "test"],
         rename_modalities: dict | None = None,
         band_order: dict[str, Sequence[float | str]] = {"s2": ["B04", "B03", "B02"]},
-        data_normalizer: type[nn.Module] = MultiModalNormalizer,
+        data_normalizer: type[nn.Module] = ZScoreNormalizer,
         num_time_steps: int = 1,
         transforms: nn.Module | None = None,
         metadata: Sequence[str] | None = None,
@@ -133,7 +141,7 @@ class GeoBenchPASTIS(GeoBenchBaseDataset):
                 if set to 10, the latest 10 time steps will be returned. If a time series has fewer time steps than
                 specified, it will be padded with zeros. A value of 1 will return a [C, H, W] tensor, while a value
                 of 10 will return a [T, C, H, W] tensor.
-            data_normalizer: The data normalizer to apply to the data, defaults to :class:`data_util.MultiModalNormalizer`,
+            data_normalizer: The data normalizer to apply to the data, defaults to :class:`data_util.ZScoreNormalizer`,
                 which applies z-score normalization to each band.
             transforms: The transforms to apply to the data, defaults to None
             metadata: metadata names to be returned under specified keys as part of the sample in the

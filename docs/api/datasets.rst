@@ -79,10 +79,6 @@ TreeSatAI
 
 .. autoclass:: GeoBenchTreeSatAI
 
-Wind Turbine
-------------
-
-.. autoclass:: GeoBenchWindTurbine
 
 Burn Scars
 ----------
