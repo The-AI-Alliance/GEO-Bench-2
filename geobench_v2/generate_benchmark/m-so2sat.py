@@ -2,6 +2,7 @@
 # Licensed under the Apache License 2.0.
 
 """Generate Benchmark version of So2Sat dataset."""
+
 import ast
 import argparse
 import concurrent.futures
@@ -28,8 +29,10 @@ from geobench_v2.generate_benchmark.utils import (
 )
 
 import warnings
-warnings.filterwarnings('ignore')
+
+warnings.filterwarnings("ignore")
 import pdb
+
 
 def generate_metadata_df(root_dir: str) -> pd.DataFrame:
     """Generate metadata DataFrame for mSo2Sat dataset.
@@ -42,18 +45,18 @@ def generate_metadata_df(root_dir: str) -> pd.DataFrame:
         DataFrame with metadata including geolocation for each patch
     """
 
-    file_list = glob.glob(f'{root_dir}*hdf5')
-    splits_file = root_dir + 'default_partition.json'
+    file_list = glob.glob(f"{root_dir}*hdf5")
+    splits_file = root_dir + "default_partition.json"
 
     with open(splits_file) as f:
         splits = json.load(f)
 
-    metadata_df = pd.DataFrame({'path': file_list})
-    metadata_df['file'] = [x.split('/')[-1] for x in metadata_df['path'].values]
-    metadata_df['id'] = [x.split('.')[0] for x in metadata_df['file'].values]
-    metadata_df['split'] = 'train'
-    metadata_df['split'].values[metadata_df['id'].isin(splits['valid'])] = 'validation'
-    metadata_df['split'].values[metadata_df['id'].isin(splits['test'])] = 'test'
+    metadata_df = pd.DataFrame({"path": file_list})
+    metadata_df["file"] = [x.split("/")[-1] for x in metadata_df["path"].values]
+    metadata_df["id"] = [x.split(".")[0] for x in metadata_df["file"].values]
+    metadata_df["split"] = "train"
+    metadata_df["split"].values[metadata_df["id"].isin(splits["valid"])] = "validation"
+    metadata_df["split"].values[metadata_df["id"].isin(splits["test"])] = "test"
 
     return metadata_df
 
@@ -62,16 +65,14 @@ def create_tortilla(root_dir, metadata_df, save_dir, tortilla_name):
     """Create a tortilla version of the dataset."""
     tortilla_dir = os.path.join(save_dir, "tortilla")
     os.makedirs(tortilla_dir, exist_ok=True)
-    
+
     for idx, row in tqdm(
         metadata_df.iterrows(), total=len(metadata_df), desc="Creating tortilla"
     ):
+        sample_id = row["id"]
 
-        sample_id = row['id']
-
-        file_path = row['path']
+        file_path = row["path"]
         with h5py.File(file_path, "r") as h5file:
-
             keys = sorted(h5file.keys())
             keys = np.array([key for key in keys if key != "label"])
             bands = [np.array(h5file[key]) for key in keys]
@@ -80,46 +81,50 @@ def create_tortilla(root_dir, metadata_df, save_dir, tortilla_name):
             attr_dict = pickle.loads(ast.literal_eval(h5file.attrs["pickle"]))
             class_index = attr_dict["label"]
 
-        modalities = {"s1": ['03 - VV.Real',
-                             '01 - VH.Real',
-                             # '02 - VH.Imaginary',
-                             # '04 - VV.Imaginary',
-                             # '05 - VH.LEE Filtered',
-                             # '06 - VV.LEE Filtered',
-                             # '07 - VH.LEE Filtered.Real',
-                             # '08 - VV.LEE Filtered.Imaginary'
-                            ],
-                      "s2": ['02 - Blue',
-                             '03 - Green',
-                             '04 - Red',
-                             '05 - Vegetation Red Edge',
-                             '06 - Vegetation Red Edge',
-                             '07 - VH.LEE Filtered.Real',
-                             '08 - NIR',
-                             '08A - Vegetation Red Edge',
-                             '11 - SWIR',
-                             '12 - SWIR']}
+        modalities = {
+            "s1": [
+                "03 - VV.Real",
+                "01 - VH.Real",
+                # '02 - VH.Imaginary',
+                # '04 - VV.Imaginary',
+                # '05 - VH.LEE Filtered',
+                # '06 - VV.LEE Filtered',
+                # '07 - VH.LEE Filtered.Real',
+                # '08 - VV.LEE Filtered.Imaginary'
+            ],
+            "s2": [
+                "02 - Blue",
+                "03 - Green",
+                "04 - Red",
+                "05 - Vegetation Red Edge",
+                "06 - Vegetation Red Edge",
+                "07 - VH.LEE Filtered.Real",
+                "08 - NIR",
+                "08A - Vegetation Red Edge",
+                "11 - SWIR",
+                "12 - SWIR",
+            ],
+        }
 
         modality_samples = []
 
-        for modality in ['s1', 's2']:
-
-            indexes= [i for i,val in enumerate(keys) if val in modalities[modality]]
+        for modality in ["s1", "s2"]:
+            indexes = [i for i, val in enumerate(keys) if val in modalities[modality]]
             data = image[indexes]
 
             profile = {
-                'driver': 'GTiff',
-                'height': data.shape[1],
-                'width': data.shape[2],
-                'count': data.shape[0],
-                'dtype': data.dtype.name,
-                'nodata': None  # optional
+                "driver": "GTiff",
+                "height": data.shape[1],
+                "width": data.shape[2],
+                "count": data.shape[0],
+                "dtype": data.dtype.name,
+                "nodata": None,  # optional
             }
 
-            tmp_file_path = save_dir + row['id'] + '_' + modality + '.tiff'
-            with rasterio.open(tmp_file_path, 'w', **profile) as dst:
+            tmp_file_path = save_dir + row["id"] + "_" + modality + ".tiff"
+            with rasterio.open(tmp_file_path, "w", **profile) as dst:
                 dst.write(data)
-            
+
             sample = tacotoolbox.tortilla.datamodel.Sample(
                 id=modality,
                 path=tmp_file_path,
@@ -162,7 +167,7 @@ def create_tortilla(root_dir, metadata_df, save_dir, tortilla_name):
         final_samples, os.path.join(save_dir, tortilla_name), quiet=True
     )
 
-    
+
 def main():
     """Generate mSo2Sat Benchmark."""
     parser = argparse.ArgumentParser()

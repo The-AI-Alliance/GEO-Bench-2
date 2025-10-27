@@ -44,5 +44,5 @@ __all__ = (
     "GeoBenchNZCattle",
     "GeoBenchSubstation",
     "GeoBenchSo2Sat",
-    "GeoBenchForestnet"
+    "GeoBenchForestnet",
 )

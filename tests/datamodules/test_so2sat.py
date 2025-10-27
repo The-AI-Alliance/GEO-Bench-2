@@ -16,6 +16,7 @@ from geobench_v2.datasets import GeoBenchSo2Sat
 from geobench_v2.datamodules import GeoBenchSo2SatDataModule
 import torch
 
+
 @pytest.fixture(
     params=[
         {"s2": ["B02", "B03", "B04", 0.0], "s1": ["VV", "VH", -1.0]},
@@ -82,15 +83,15 @@ class TestSo2SatDataModule:
             )
             for modality, band_names in datamodule.band_order.items()
         }
-        
+
         for key, expected_shape in expected_dims.items():
             assert train_batch[key].shape == expected_shape, (
                 f"Wrong shape for {key}: got {train_batch[key].shape}, expected {expected_shape}"
             )
-        
-        assert len(train_batch['label']) == datamodule.batch_size, (
-                f"Wrong shape for label: got {len(train_batch['label'])}, expected {datamodule.batch_size}"
-            )
+
+        assert len(train_batch["label"]) == datamodule.batch_size, (
+            f"Wrong shape for label: got {len(train_batch['label'])}, expected {datamodule.batch_size}"
+        )
 
     def test_batch_visualization(self, datamodule):
         """Test batch visualization."""
@@ -103,5 +104,4 @@ class TestSo2SatDataModule:
 
     def test_not_downloaded(self, tmp_path: Path) -> None:
         with pytest.raises(DatasetNotFoundError, match="Dataset not found"):
-
             GeoBenchSo2Sat(tmp_path, split="train")

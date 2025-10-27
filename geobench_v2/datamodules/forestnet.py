@@ -22,6 +22,7 @@ from .base import GeoBenchClassificationDataModule
 
 from torch import Tensor
 
+
 class GeoBenchForestnetDataModule(GeoBenchClassificationDataModule):
     """GeoBench Forestnet Data Module."""
 
@@ -119,10 +120,12 @@ class GeoBenchForestnetDataModule(GeoBenchClassificationDataModule):
         for i in range(n_samples):
             # present_labels = torch.where(labels[i] == 1)[0].cpu().tolist()
             sample_labels.append([labels[i]])
-        
+
         images = batch["image"][indices]
-        
-        plot_bands = [self.band_order.index(x) for x in self.dataset_band_config.plot_bands]
+
+        plot_bands = [
+            self.band_order.index(x) for x in self.dataset_band_config.plot_bands
+        ]
 
         for i in range(n_samples):
             ax = fig.add_subplot(gs[i, 0])
@@ -130,7 +133,7 @@ class GeoBenchForestnetDataModule(GeoBenchClassificationDataModule):
 
             img = percentile_normalization(plot_img, lower=2, upper=98)
 
-            ax.imshow(img.permute(1,2,0))
+            ax.imshow(img.permute(1, 2, 0))
             ax.set_title(f"Landsat 8" if i == 0 else "", fontsize=20)
             ax.axis("off")
 
