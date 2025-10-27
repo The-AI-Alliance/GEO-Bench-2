@@ -1,7 +1,7 @@
 # Copyright (c) 2025 GeoBenchV2. All rights reserved.
 # Licensed under the Apache License 2.0.
 
-"""m-So2Sat Dataset."""
+"""Forestnet Dataset."""
 
 from collections.abc import Sequence
 from pathlib import Path
@@ -19,7 +19,9 @@ from .sensor_util import DatasetBandRegistry
 
 
 class GeoBenchForestnet(GeoBenchBaseDataset):
-    """Forestnet Dataset with enhanced functionality.
+    """GeoBench Version of Forestnet Dataset.
+    
+    The Forestnet dataset is a classification dataset using Landsat data to identify deforestation events in Indonesia.
 
     """
 
