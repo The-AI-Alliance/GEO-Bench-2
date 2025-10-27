@@ -24,6 +24,7 @@ pip install geobenchv2
 | SpaceNet2              | Building footprint segmentation      | VHR Optical RGB                              | 4000 / 1000 / 2000    | 2 (binary)        | CC-BY-4.0   | [Van Etten et al. 2018](https://arxiv.org/abs/2102.11958)     |
 | SpaceNet7              | Building segmentation/tracking       | Planet RGB time series                       | N/A                   | 2 (binary)        | CC-BY-4.0   | [Van Etten et al. 2021](https://openaccess.thecvf.com/content/CVPR2021/html/Van_Etten_The_Multi-Temporal_Urban_Development_SpaceNet_Dataset_CVPR_2021_paper.html)     |
 | TreeSatAI Time Series  | Tree species classification          | Multi-temporal Sentinel-2 (10 bands)         | N/A                   | 13                | CC-BY-4.0   | [Ahlswede et al. 2023](https://essd.copernicus.org/articles/15/681/2023/)      |
+| So2Sat  | Local Climate Zones          | Sentinel-1 SAR (VV,VH) + Sentinel-2 Optical        | 19992/986/986  | 17                | CC-BY-4.0   | [Lacoste et al. 2023](https://arxiv.org/abs/2306.03831)      |
 
 ## Geographical Distribution of Datasets
 
