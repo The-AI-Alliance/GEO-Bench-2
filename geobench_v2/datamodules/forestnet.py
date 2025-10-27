@@ -5,22 +5,18 @@
 
 import os
 from collections.abc import Callable, Sequence
-from typing import Any, Literal
+from typing import Any
 
 import matplotlib.pyplot as plt
-import numpy as np
 import pandas as pd
 import tacoreader
 import torch
 import torch.nn as nn
-from einops import rearrange
 from torchgeo.datasets.utils import percentile_normalization
 
 from geobench_v2.datasets import GeoBenchForestnet
 
 from .base import GeoBenchClassificationDataModule
-
-from torch import Tensor
 
 
 class GeoBenchForestnetDataModule(GeoBenchClassificationDataModule):
@@ -134,7 +130,7 @@ class GeoBenchForestnetDataModule(GeoBenchClassificationDataModule):
             img = percentile_normalization(plot_img, lower=2, upper=98)
 
             ax.imshow(img.permute(1, 2, 0))
-            ax.set_title(f"Landsat 8" if i == 0 else "", fontsize=20)
+            ax.set_title("Landsat 8" if i == 0 else "", fontsize=20)
             ax.axis("off")
 
             label_ax = fig.add_subplot(gs[i, -1])

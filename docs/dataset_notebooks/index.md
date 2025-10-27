@@ -23,4 +23,6 @@ spacenet2
 spacenet7
 substation
 treesatai
+forestnet
+so2sat
 ```

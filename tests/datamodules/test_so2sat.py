@@ -12,9 +12,8 @@ import pytest
 from pytest import MonkeyPatch
 from torchgeo.datasets import DatasetNotFoundError
 
-from geobench_v2.datasets import GeoBenchSo2Sat
 from geobench_v2.datamodules import GeoBenchSo2SatDataModule
-import torch
+from geobench_v2.datasets import GeoBenchSo2Sat
 
 
 @pytest.fixture(

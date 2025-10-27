@@ -3,35 +3,25 @@
 
 """Generate Benchmark version of So2Sat dataset."""
 
-import ast
 import argparse
-import concurrent.futures
+import ast
 import glob
+import json
 import os
-import random
-from typing import Any
+import pickle
+import warnings
 
+import h5py
 import numpy as np
 import pandas as pd
 import rasterio
 import tacoreader
 import tacotoolbox
-from rasterio.enums import Resampling
 from tqdm import tqdm
-import glob
-import json
-import h5py
-import pickle
 
-from geobench_v2.generate_benchmark.utils import (
-    create_subset_from_df,
-    create_unittest_subset,
-)
-
-import warnings
+from geobench_v2.generate_benchmark.utils import create_unittest_subset
 
 warnings.filterwarnings("ignore")
-import pdb
 
 
 def generate_metadata_df(root_dir: str) -> pd.DataFrame:
@@ -44,7 +34,6 @@ def generate_metadata_df(root_dir: str) -> pd.DataFrame:
     Returns:
         DataFrame with metadata including geolocation for each patch
     """
-
     file_list = glob.glob(f"{root_dir}*hdf5")
     splits_file = root_dir + "default_partition.json"
 
@@ -187,8 +176,6 @@ def main():
     metadata_df = generate_metadata_df(args.root)
 
     create_tortilla(args.root, metadata_df, args.save_dir, tortilla_name)
-
-    result_df_path = os.path.join(args.save_dir, tortilla_name)
 
     create_unittest_subset(
         data_dir=args.save_dir,

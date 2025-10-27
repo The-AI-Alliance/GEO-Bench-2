@@ -1167,7 +1167,13 @@ class MultiModalNormalizer(ZScoreNormalizer):
     This class is kept for backward compatibility. It will be removed in a future release.
     """
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, **kwargs) -> None:
+        """Initialize MultiModalNormalizer and issue deprecation warning.
+
+        Args:
+            *args: Positional arguments for ZScoreNormalizer
+            **kwargs: Keyword arguments for ZScoreNormalizer
+        """
         warnings.warn(
             "MultiModalNormalizer is deprecated. Please use ZScoreNormalizer instead.",
             DeprecationWarning,

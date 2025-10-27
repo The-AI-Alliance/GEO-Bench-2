@@ -10,9 +10,9 @@ from typing import Any
 import numpy as np
 import torch
 from lightning import LightningDataModule
+from omegaconf import DictConfig
 from torch import Tensor
 from tqdm.auto import tqdm
-from omegaconf import DictConfig
 
 
 # Using Caleb Robinson's implementation: https://gist.github.com/calebrob6/1ef1e64bd62b1274adf2c6f91e20d215

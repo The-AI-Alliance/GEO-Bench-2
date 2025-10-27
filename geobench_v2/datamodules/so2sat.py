@@ -5,7 +5,7 @@
 
 import os
 from collections.abc import Callable, Sequence
-from typing import Any, Literal
+from typing import Any
 
 import matplotlib.pyplot as plt
 import numpy as np
