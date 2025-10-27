@@ -32,7 +32,6 @@ from .utils import (
     MultiModalSegmentationAugmentation,
     MultiTemporalSegmentationAugmentation,
 )
-from .wind_turbine import GeoBenchWindTurbineDataModule
 
 __all__ = (
     "GeoBenchDataModule",
@@ -54,7 +53,6 @@ __all__ = (
     "GeoBenchTreeSatAIDataModule",
     "GeoBenchBioMasstersDataModule",
     "GeoBenchDynamicEarthNetDataModule",
-    "GeoBenchWindTurbineDataModule",
     "GeoBenchNZCattleDataModule",
     "GeoBenchSubstationDataModule",
     "GeoBenchBurnScarsDataModule",
