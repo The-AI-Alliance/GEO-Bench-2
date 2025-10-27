@@ -401,6 +401,26 @@ datamodules:
   #     clip_max_vals:
   #       image: 3000
   
+  
+  - name: so2sat
+    stats_computer:
+      _target_: geobench_v2.generate_benchmark.utils_dataset_statistics.ClassificationStatistics
+      datamodule:
+        _target_: geobench_v2.datamodules.GeoBenchSo2SatDataModule
+        batch_size: 64
+        num_workers: 4
+        root: '/opt/app-root/src/fm-geospatial/data/GEO-Bench_V2'
+      input_keys: ["image_s2", "image_s1"]
+      target_key: "label"
+      range_vals:
+        image_s2: [0, 1]
+        image_s1: [0, 1]
+      clip_min_vals:
+        image_s1: -50
+        image_s2: 0
+      clip_max_vals:
+        image_s1: 10
+        image_s2: 1
    - name: forestnet
      stats_computer:
       _target_: geobench_v2.generate_benchmark.utils_dataset_statistics.ClassificationStatistics

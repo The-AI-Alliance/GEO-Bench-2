@@ -419,7 +419,68 @@ class DatasetBandRegistry:
             "VH": "s1",
         },
     )
+        
+    SO2SAT = MultiModalConfig(
+        # s2 does not have B01, B09 and B10 band 
+        modalities={
+            "s2": ModalityConfig(
+                bands={
+                    k: v
+                    for k, v in SensorBandRegistry.SENTINEL2.bands.items()
+                    if k
+                    not in [ 
+                        "B01", "B09", "B10"  # all bands except b10
+                    ]
+                },
+                default_order=[
+                    "B02",
+                    "B03",
+                    "B04",
+                    "B05",
+                    "B06",
+                    "B07",
+                    "B08",
+                    "B8A",
+                    "B11",
+                    "B12",
+                ],
+                plot_bands=["B04", "B03", "B02"],
+                native_resolution=10,
+            ),
+            "s1": SensorBandRegistry.SENTINEL1,
+        },
+        default_order={
+            "s2": [
+                "B02",
+                "B03",
+                "B04",
+                "B05",
+                "B06",
+                "B07",
+                "B08",
+                "B8A",
+                "B11",
+                "B12",
+            ],
+            "s1": ["VV", "VH"],
+        },
+        band_to_modality={
+            "B02": "s2",
+            "B03": "s2",
+            "B04": "s2",
+            "B05": "s2",
+            "B06": "s2",
+            "B07": "s2",
+            "B08": "s2",
+            "B8A": "s2",
+            "B11": "s2",
+            "B12": "s2",
+            "VV": "s1",
+            "VH": "s1",
+        },
+    )
 
+    
     PASTIS = MultiModalConfig(
         modalities={
             "s2": ModalityConfig(
