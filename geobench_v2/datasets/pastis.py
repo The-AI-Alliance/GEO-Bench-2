@@ -16,7 +16,7 @@ from torch import Tensor
 from torchgeo.datasets import PASTIS
 
 from .base import GeoBenchBaseDataset
-from .normalization import MultiModalNormalizer
+from .normalization import ZScoreNormalizer
 from .sensor_util import DatasetBandRegistry
 
 
@@ -29,13 +29,14 @@ def greater_than_zero_area_bbox_indexes(bboxes):
 
 
 class GeoBenchPASTIS(GeoBenchBaseDataset):
-    """PAStis Dataset with enhanced functionality.
+    """GeoBench version of PASTIS dataset.
 
-    This is the PASTIS-R version.
+    Crop type and parcel segmentation dataset using
+    multi-temporal Sentinel-1 and Sentinel-2 imagery, with 19-class parcel-level labels.
 
-    Allows:
-    - Variable Band Selection
-    - Return band wavelengths
+    If you use this dataset in your research, please cite the following paper:
+
+    * https://arxiv.org/abs/2112.07558
     """
 
     url = "https://hf.co/datasets/aialliance/pastis/resolve/main/{}"
@@ -111,7 +112,7 @@ class GeoBenchPASTIS(GeoBenchBaseDataset):
         split: Literal["train", "val", "validation", "test"],
         rename_modalities: dict | None = None,
         band_order: dict[str, Sequence[float | str]] = {"s2": ["B04", "B03", "B02"]},
-        data_normalizer: type[nn.Module] = MultiModalNormalizer,
+        data_normalizer: type[nn.Module] = ZScoreNormalizer,
         num_time_steps: int = 1,
         transforms: nn.Module | None = None,
         metadata: Sequence[str] | None = None,
@@ -242,8 +243,17 @@ class GeoBenchPASTIS(GeoBenchBaseDataset):
         if self.transforms:
             sample = self.transforms(sample)
 
+        for key in sample:
+            if "image" in key and len(sample[key].shape) == 4:  # [T, C, H, W]
+                sample[key] = sample[key].permute(1, 0, 2, 3)  # C, T, H, W
+
         if self.return_stacked_image:
-            sample['image'] = torch.cat([sample[f"image_{key}"] for key in self.band_order.keys()], 0)
+            sample = {
+                "image": torch.cat(
+                    [sample[f"image_{key}"] for key in self.band_order.keys()], 0
+                ),
+                "mask": sample["mask"],
+            }
             if self.num_time_steps == 1:
                 sample["image"] = sample["image"].squeeze(1)
 

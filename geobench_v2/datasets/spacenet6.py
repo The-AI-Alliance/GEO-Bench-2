@@ -15,23 +15,12 @@ from shapely import wkt
 from torch import Tensor
 
 from .base import GeoBenchBaseDataset
-from .normalization import MultiModalNormalizer
+from .normalization import ZScoreNormalizer
 from .sensor_util import DatasetBandRegistry
 
 
 class GeoBenchSpaceNet6(GeoBenchBaseDataset):
-    """SpaceNet6 dataset with enhanced functionality.
-
-    Allows:
-    - Variable Band Selection
-    - Return band wavelengths
-
-    Classes are:
-
-    0. Background
-    1. No Building
-    2. Building
-    """
+    """GeoBench version of SpaceNet6 dataset."""
 
     url = "https://hf.co/datasets/aialliance/spacenet6/resolve/main/{}"
 
@@ -84,7 +73,7 @@ class GeoBenchSpaceNet6(GeoBenchBaseDataset):
         split: Literal["train", "val", "validation", "test"],
         rename_modalities: dict | None = None,
         band_order: Sequence[str] = band_default_order,
-        data_normalizer: type[nn.Module] = MultiModalNormalizer,
+        data_normalizer: type[nn.Module] = ZScoreNormalizer,
         transforms: nn.Module | None = None,
         return_stacked_image: bool = False,
         metadata: Sequence[str] | None = None,

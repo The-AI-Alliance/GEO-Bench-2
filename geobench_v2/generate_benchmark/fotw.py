@@ -37,7 +37,6 @@ CC_BY_COUNTRIES = (
     "finland",
     "france",
     "india",
-    "kenya",
     "luxembourg",
     "netherlands",
     "rwanda",

@@ -18,12 +18,11 @@ from torchgeo.datasets import DatasetNotFoundError, NonGeoDataset
 from torchvision.datasets.utils import download_url
 
 from .data_util import DataUtilsMixin
-from .normalization import MultiModalNormalizer
-from .normalization import DataNormalizer
+from .normalization import DataNormalizer, ZScoreNormalizer
 
 
 class GeoBenchBaseDataset(NonGeoDataset, DataUtilsMixin):
-    """Base dataset for classification tasks."""
+    """Base dataset for GeoBench datasets."""
 
     url = ""
     paths: Sequence[str] = []
@@ -37,7 +36,7 @@ class GeoBenchBaseDataset(NonGeoDataset, DataUtilsMixin):
         root: Path,
         split: str,
         band_order: Sequence[str] | Mapping[str, Sequence[str]],
-        data_normalizer: type[nn.Module] = MultiModalNormalizer,
+        data_normalizer: type[nn.Module] = ZScoreNormalizer,
         transforms: nn.Module | None = None,
         metadata: list[str] | None = None,
         download: bool = False,
@@ -81,7 +80,16 @@ class GeoBenchBaseDataset(NonGeoDataset, DataUtilsMixin):
 
         if isinstance(data_normalizer, type):
             print(f"Initializing normalizer from class: {data_normalizer.__name__}")
-            if issubclass(data_normalizer, MultiModalNormalizer) | issubclass(data_normalizer, DataNormalizer):
+            if issubclass(data_normalizer, ZScoreNormalizer) | issubclass(data_normalizer, DataNormalizer):
+                self.data_normalizer = data_normalizer(
+                    self.normalization_stats, self.band_order
+                )
+            else:
+                self.data_normalizer = data_normalizer()
+
+        if isinstance(data_normalizer, type):
+            print(f"Initializing normalizer from class: {data_normalizer.__name__}")
+            if issubclass(data_normalizer, (DataNormalizer, ZScoreNormalizer)):
                 self.data_normalizer = data_normalizer(
                     self.normalization_stats, self.band_order
                 )

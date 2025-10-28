@@ -26,8 +26,7 @@ from .base import GeoBenchBaseDataset
 
 
 class GeoBenchNZCattle(GeoBenchBaseDataset):
-    """ nzCattle dataset.
-    """
+    """GeoBench version of NzCattle dataset."""
 
     url = "https://hf.co/datasets/aialliance/nzcattle/resolve/main/{}"
 

@@ -16,16 +16,21 @@ import torch.nn as nn
 from torch import Tensor
 
 from .base import GeoBenchBaseDataset
-from .normalization import MultiModalNormalizer
+from .normalization import ZScoreNormalizer
 from .sensor_util import DatasetBandRegistry
 
 
 class GeoBenchBENV2(GeoBenchBaseDataset):
-    """BigEarthNet V2 Dataset with enhanced functionality.
+    """GeoBench Version of BigEarthNet V2 Dataset.
 
-    Allows:
-    - Variable Band Selection
-    - Return band wavelengths
+    Multi-label land cover classification dataset using Sentinel-1 SAR (VV, VH)
+    and Sentinel-2 optical (12 bands) imagery, with
+    CORINE Land Cover-based hierarchical multi-label annotations.
+
+
+    If you use this dataset in your research, please cite the following paper:
+
+    * https://arxiv.org/abs/2407.03653
     """
 
     url = "https://hf.co/datasets/aialliance/benv2/resolve/main/{}"
@@ -33,7 +38,7 @@ class GeoBenchBENV2(GeoBenchBaseDataset):
     paths: Sequence[str] = ["geobench_benv2.tortilla"]
 
     sha256str: Sequence[str] = [
-        "330876e91199cb179113224c6e4e9632f8971446fe29ffbb035e5b8bbdee8319"
+        "821c2f429c3e85c158c758bbb215bf61170a2451a11284efaf0f89cef97e468a"
     ]
 
     band_default_order = {
@@ -127,7 +132,7 @@ class GeoBenchBENV2(GeoBenchBaseDataset):
         split: Literal["train", "val", "validation", "test"],
         rename_modalities: dict | None = None,
         band_order: dict[str, Sequence[float | str]] = {"s2": ["B04", "B03", "B02"]},
-        data_normalizer: type[nn.Module] = MultiModalNormalizer,
+        data_normalizer: type[nn.Module] = ZScoreNormalizer,
         transforms: nn.Module | None = None,
         metadata: Sequence[str] | None = None,
         return_stacked_image: bool = False,

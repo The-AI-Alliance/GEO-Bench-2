@@ -74,8 +74,7 @@ class GeoBenchNZCattleDataModule(GeoBenchObjectDetectionDataModule):
                 at the sample level and should include normalization. See :meth:`define_augmentations`
                 for the default transformation.
             pin_memory: Pin memory
-            **kwargs: Additional keyword arguments for the dataset class
-
+            **kwargs: Additional keyword arguments for :class:`geobench_v2.datasets.nzcattle.GeoBenchNZCattle`
         """
         super().__init__(
             dataset_class=GeoBenchNZCattle,

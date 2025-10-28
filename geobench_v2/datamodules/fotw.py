@@ -52,8 +52,7 @@ class GeoBenchFieldsOfTheWorldDataModule(GeoBenchSegmentationDataModule):
                 at the sample level and should include normalization. See :meth:`define_augmentations`
                 for the default transformation.
             pin_memory: Pin memory
-            **kwargs: Additional keyword arguments
-                :class:`~geobench_v2.datasets.fotw.GeoBenchFieldsOfTheWorld`.
+            **kwargs: Additional keyword arguments for :class:`~geobench_v2.datasets.fotw.GeoBenchFieldsOfTheWorld`.
         """
         super().__init__(
             dataset_class=GeoBenchFieldsOfTheWorld,

@@ -1,4 +1,4 @@
-# GEO-Bench 2
+# GEO-Bench 2 (Still under development, stay tuned for full release)!
 
 ![1-earth](https://github.com/The-AI-Alliance/GEO-Bench-2/assets/5478516/738b5aa6-b46d-48bc-bdde-fd71605b9bac)
 [![huggingface](https://img.shields.io/badge/Hugging_Face-join-FFD21E?logo=huggingface)](https://hf.co/datasets/aialliance/)
@@ -44,6 +44,40 @@ The directory `./generate_benchmark` contains a script for each included dataset
 requirements for users.
 2. Generate possible partition sizes for experiments across dataset sizes
 3. Generate a super tiny dataset version of dummy data that is used for unit testing all implemented functionality
+
+## Downloading the datasets
+
+While each dataset class has automatic download capabilites similar to [TorchGeo](https://github.com/torchgeo/torchgeo), downloads can be sped up by using the Huggingface Command Line Interface. We have therefore provided a bash script named [download_geobenchV2.sh](./download_geobenchV2.sh), which you can use to download all or selected datasets to a specified root.
+
+First, you need to install the Hugging Face CLI: 
+
+```bash
+pip install huggingface_hub[cli]
+```
+
+Then, you can use the download script as follows:
+
+```bash
+./download_geobenchV2.sh
+# or
+./download_geobenchV2.sh all
+```
+
+if you want to download all datasets.
+
+Or only download specific datasets, for example:
+
+```bash
+./download_geobenchV2.sh dynamic_earthnet
+./download_geobenchV2.sh caffe
+./download_geobenchV2.sh spacenet7
+```
+
+The default root where the datasets will be downloaded is `./data`, if you like to specify a dedicated download root for a specific or all dataset downloads, preprend the above commands as follows:
+
+```bash
+DOWNLOAD_ROOT="path/to/your/desired/location" ./download_geobenchV2.sh spacenet7
+```
 
 ## License
 This code is licensed under the Apache License 2.0. By contributing to this repository, you agree that your contributions will be licensed under the Apache 2.0 License unless otherwise stated.

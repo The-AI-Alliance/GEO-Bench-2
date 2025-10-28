@@ -1,10 +1,13 @@
 # Dataset Notebooks
 
-These additional data notebooks are intended as a starting point to get familiar with the dataset through different visualizations and exploring different normalization schemes and seeing their effect on the image statistics. For more detailed 
+These additional data notebooks are intended as a starting point to get familiar with the dataset through different visualizations, exploring some of the built in features and exploring different normalization schemes and seeing their effect on the image statistics.
+
+
 
 ```{toctree}
 :maxdepth: 1
 
+intro
 benv2
 biomassters
 burn_scars
@@ -17,10 +20,9 @@ fotw
 kuro_siwo
 pastis
 spacenet2
-spacenet6
 spacenet7
-spacenet8
 substation
 treesatai
-wind_turbine
+forestnet
+so2sat
 ```
