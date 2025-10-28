@@ -16,27 +16,26 @@ from shapely import wkt
 from torch import Tensor
 
 from .base import GeoBenchBaseDataset
-from .normalization import MultiModalNormalizer
+from .normalization import ZScoreNormalizer
 from .sensor_util import DatasetBandRegistry
 
 
 class GeoBenchTreeSatAI(GeoBenchBaseDataset):
-    """TreeSatAI dataset with enhanced functionality.
+    """GeoBench version of TreeSatAI dataset.
 
-    Multi-label classification dataset, should we also support standard classification
-    based on majority label?
+    Tree species classification dataset using multi-temporal Sentinel-2 imagery,
+    with multi-class 13-class species labels.
 
-    If you use this dataset, please cite:
+    If you use this dataset in your research, please cite the following paper:
 
-    *
-    *
+    * https://essd.copernicus.org/articles/15/681/2023/
     """
 
     url = "https://hf.co/datasets/aialliance/treesatai/resolve/main/{}"
 
     paths = ["geobench_treesatai.tortilla"]
 
-    sha256str = ["04435ade7d429418cf2e51db9ec493a9ca196e79aff661425d82b066bdd3a759"]
+    sha256str = ["0ddb8068720242ad4f5931ea91f3459ed695ad490bbaa48905afe72dd9623aee"]
 
     dataset_band_config = DatasetBandRegistry.TREESATAI
 
@@ -133,7 +132,7 @@ class GeoBenchTreeSatAI(GeoBenchBaseDataset):
         rename_modalities: dict | None = None,
         split: dict[str, list[str]] = {"aerial": ["red", "green", "blue", "nir"]},
         band_order: dict[str, Sequence[str]] = {"aerial": ["r", "g", "b"]},
-        data_normalizer: type[nn.Module] = MultiModalNormalizer,
+        data_normalizer: type[nn.Module] = ZScoreNormalizer,
         transforms: nn.Module | None = None,
         metadata: Sequence[str] | None = None,
         include_ts: bool = False,

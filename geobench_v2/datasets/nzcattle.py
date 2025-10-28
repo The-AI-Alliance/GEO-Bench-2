@@ -26,8 +26,7 @@ from .base import GeoBenchBaseDataset
 
 
 class GeoBenchNZCattle(GeoBenchBaseDataset):
-    """ nzCattle dataset.
-    """
+    """GeoBench version of NzCattle object detection dataset. It is aimed to identify cattle from RGB high resoltion imagery. """
 
     url = "https://hf.co/datasets/aialliance/nzcattle/resolve/main/{}"
 

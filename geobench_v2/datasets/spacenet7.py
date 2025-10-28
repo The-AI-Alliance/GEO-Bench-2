@@ -15,23 +15,26 @@ from shapely import wkt
 from torch import Tensor
 
 from .base import GeoBenchBaseDataset
-from .normalization import MultiModalNormalizer
+from .normalization import ZScoreNormalizer
 from .sensor_util import DatasetBandRegistry
 
 
 class GeoBenchSpaceNet7(GeoBenchBaseDataset):
-    """SpaceNet7 dataset with enhanced functionality.
+    """GeoBench version of SpaceNet7 dataset.
 
-    Allows:
-    - Variable Band Selection
-    - Return band wavelengths
+    Multi-temporal building segmentation and tracking dataset using PlanetScope imagery,
+    with fine grained building footprint masks.
+
+    If you use this dataset in your research, please cite the following paper:
+
+    * https://openaccess.thecvf.com/content/CVPR2021/html/Van_Etten_The_Multi-Temporal_Urban_Development_SpaceNet_Dataset_CVPR_2021_paper.html
     """
 
     url = "https://hf.co/datasets/aialliance/spacenet7/resolve/main/{}"
 
     paths = ["geobench_spacenet7.tortilla"]
 
-    sha256str = ["dc2364926ce2b247d183f77fadf778f3a679d6be6ef891ffed92cff230722ee4"]
+    sha256str = ["f202abe270b729f7f2651de64cb5c6b41c5f9915109ec12b6c467afa2abcb5b6"]
 
     dataset_band_config = DatasetBandRegistry.SPACENET7
 
@@ -63,7 +66,7 @@ class GeoBenchSpaceNet7(GeoBenchBaseDataset):
         root: Path,
         split: Literal["train", "val", "validation", "test"],
         band_order: list[str] = band_default_order,
-        data_normalizer: type[nn.Module] = MultiModalNormalizer,
+        data_normalizer: type[nn.Module] = ZScoreNormalizer,
         transforms: nn.Module = None,
         metadata: Sequence[str] | None = None,
         download: bool = False,

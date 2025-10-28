@@ -18,17 +18,11 @@ from matplotlib.lines import Line2D
 from torch import Tensor
 from torch.utils.data import DataLoader, Dataset
 
+
 from .utils import (
     MultiModalClassificationAugmentation,
     MultiTemporalSegmentationAugmentation,
 )
-
-# TODO come up with an expected metadata file scheme
-# with common names etc. so a standardization
-# - datamodules have functions to create nice visualizations of data distribution etc
-# - datasets return an id that can be used to link back to all metadata available
-# - datasets return lat/lon, if available time, and wavelength information
-# - show how to allow for more elaborate analysis of predictions etc.
 
 
 class GeoBenchDataModule(LightningDataModule, ABC):
@@ -38,6 +32,7 @@ class GeoBenchDataModule(LightningDataModule, ABC):
         self,
         dataset_class: Dataset,
         img_size: int,
+        band_order: Sequence[float | str] | dict[str, Sequence[float | str]],
         band_order: Sequence[float | str] | dict[str, Sequence[float | str]],
         batch_size: int = 32,
         eval_batch_size: int = 64,
@@ -72,8 +67,12 @@ class GeoBenchDataModule(LightningDataModule, ABC):
         if isinstance(train_augmentations, str):
             assert train_augmentations in ("default", "multi_temporal_default"), (
                 "Please provide one of the follow for eval_augmentations: Callable or None or 'default' or 'multi_temporal_default'"
+            assert train_augmentations in ("default", "multi_temporal_default"), (
+                "Please provide one of the follow for eval_augmentations: Callable or None or 'default' or 'multi_temporal_default'"
             )
         if isinstance(eval_augmentations, str):
+            assert eval_augmentations in ("default", "multi_temporal_default"), (
+                "Please provide one of the follow for eval_augmentations: Callable or None or 'default' or 'multi_temporal_default'"
             assert eval_augmentations in ("default", "multi_temporal_default"), (
                 "Please provide one of the follow for eval_augmentations: Callable or None or 'default' or 'multi_temporal_default'"
             )

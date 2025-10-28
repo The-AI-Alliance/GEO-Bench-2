@@ -13,26 +13,26 @@ import torch.nn as nn
 from torch import Tensor
 
 from .base import GeoBenchBaseDataset
-from .normalization import MultiModalNormalizer
+from .normalization import ZScoreNormalizer
 from .sensor_util import DatasetBandRegistry
 
 
 class GeoBenchKuroSiwo(GeoBenchBaseDataset):
-    """Kuro Siwo Flood Change Detection Dataset.
+    """GeoBench version of Kuro Siwo dataset.
 
-    Classes:
-    1. NO-Water
-    2. Permanent Water
-    3. Flood
-    0. No-Data
+    Flood segmentation dataset using Sentinel-1 SAR, DEM,
+    and slope data, with 4-class flood extent masks.
 
+    If you use this dataset in your research, please cite the following paper:
+
+    * https://arxiv.org/abs/2311.12056
     """
 
     url = "https://hf.co/datasets/aialliance/kuro_siwo/resolve/main/{}"
 
     paths = ["geobench_kuro_siwo.tortilla"]
 
-    sha256str = ["0b546c54df70cb7548081df688cc2317f00f7b81e541e09fa0ddcd787d647eef"]
+    sha256str = ["4830fe6f23bf9750dee0c765850724b55026bf5d47cb67162d3ef7dcb04c3bbd"]
 
     dataset_band_config = DatasetBandRegistry.KURO_SIWO
 
@@ -65,7 +65,7 @@ class GeoBenchKuroSiwo(GeoBenchBaseDataset):
         root: str,
         split: Literal["train", "val", "test"],
         band_order: dict[str, Sequence[str]] = band_default_order,
-        data_normalizer: type[nn.Module] = MultiModalNormalizer,
+        data_normalizer: type[nn.Module] = ZScoreNormalizer,
         transforms: type[nn.Module] = None,
         return_stacked_image: bool = False,
         time_step: Sequence[str] = ["pre_1", "pre_2", "post"],

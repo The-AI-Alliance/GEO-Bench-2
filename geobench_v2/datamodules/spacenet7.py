@@ -55,7 +55,7 @@ class GeoBenchSpaceNet7DataModule(GeoBenchSegmentationDataModule):
                 at the sample level and should include normalization. See :meth:`define_augmentations`
                 for the default transformation.
             pin_memory: Pin memory
-            **kwargs: Additional keyword arguments for the dataset class
+            **kwargs: Additional keyword arguments for :class:`geobench_v2.datasets.spacenet7.GeoBenchSpaceNet7`
         """
         super().__init__(
             dataset_class=GeoBenchSpaceNet7,

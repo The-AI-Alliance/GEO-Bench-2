@@ -7,6 +7,7 @@
 """BigEarthNet V2 Dataset."""
 
 from collections.abc import Sequence
+from collections.abc import Sequence
 from pathlib import Path
 from typing import Literal, cast
 
@@ -21,11 +22,16 @@ from .sensor_util import DatasetBandRegistry
 
 
 class GeoBenchBENV2(GeoBenchBaseDataset):
-    """BigEarthNet V2 Dataset with enhanced functionality.
+    """GeoBench Version of BigEarthNet V2 Dataset.
 
-    Allows:
-    - Variable Band Selection
-    - Return band wavelengths
+    Multi-label land cover classification dataset using Sentinel-1 SAR (VV, VH)
+    and Sentinel-2 optical (12 bands) imagery, with
+    CORINE Land Cover-based hierarchical multi-label annotations.
+
+
+    If you use this dataset in your research, please cite the following paper:
+
+    * https://arxiv.org/abs/2407.03653
     """
 
     url = "https://hf.co/datasets/aialliance/benv2/resolve/main/{}"
@@ -33,10 +39,11 @@ class GeoBenchBENV2(GeoBenchBaseDataset):
     paths: Sequence[str] = ["geobench_benv2.tortilla"]
 
     sha256str: Sequence[str] = [
-        "330876e91199cb179113224c6e4e9632f8971446fe29ffbb035e5b8bbdee8319"
+        "821c2f429c3e85c158c758bbb215bf61170a2451a11284efaf0f89cef97e468a"
     ]
 
     band_default_order = {
+        "s2": (
         "s2": (
             "B01",
             "B02",
@@ -50,6 +57,8 @@ class GeoBenchBENV2(GeoBenchBaseDataset):
             "B09",
             "B11",
             "B12",
+        ),
+        "s1": ("VV", "VH"),
         ),
         "s1": ("VV", "VH"),
     }
@@ -72,8 +81,36 @@ class GeoBenchBENV2(GeoBenchBaseDataset):
             "B12": 973.8273315429688,
             "VH": -12.091922760009766,
             "VV": -18.96333885192871,
+            "B01": 355.96197509765625,
+            "B02": 414.3730773925781,
+            "B03": 594.096435546875,
+            "B04": 559.0433959960938,
+            "B05": 919.4099731445312,
+            "B06": 1794.6605224609375,
+            "B07": 2091.45947265625,
+            "B08": 2241.517822265625,
+            "B8A": 2288.0302734375,
+            "B09": 2289.5380859375,
+            "B11": 1556.958740234375,
+            "B12": 973.8273315429688,
+            "VH": -12.091922760009766,
+            "VV": -18.96333885192871,
         },
         "stds": {
+            "B01": 512.3419799804688,
+            "B02": 541.94921875,
+            "B03": 532.579833984375,
+            "B04": 607.0200805664062,
+            "B05": 646.341064453125,
+            "B06": 1041.35009765625,
+            "B07": 1231.787841796875,
+            "B08": 1340.4661865234375,
+            "B8A": 1316.02880859375,
+            "B09": 1267.3955078125,
+            "B11": 984.2933349609375,
+            "B12": 753.2081909179688,
+            "VH": 4.574888229370117,
+            "VV": 5.396073818206787,
             "B01": 512.3419799804688,
             "B02": 541.94921875,
             "B03": 532.579833984375,
@@ -127,7 +164,7 @@ class GeoBenchBENV2(GeoBenchBaseDataset):
         split: Literal["train", "val", "validation", "test"],
         rename_modalities: dict | None = None,
         band_order: dict[str, Sequence[float | str]] = {"s2": ["B04", "B03", "B02"]},
-        data_normalizer: type[nn.Module] = MultiModalNormalizer,
+        data_normalizer: type[nn.Module] = ZScoreNormalizer,
         transforms: nn.Module | None = None,
         metadata: Sequence[str] | None = None,
         return_stacked_image: bool = False,

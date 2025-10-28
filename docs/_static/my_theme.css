@@ -1,12 +1,40 @@
 @import url("theme.css");
 
-.rst-content {
-    max-width: 95%;
+
+/* Sets the max width of the main article content */
+.bd-main .bd-content .bd-article-container {
+    max-width: 60%;
+}
+
+body {
+    font-size: 1.2rem; /* Makes all text 20% larger than the default */
+}
+
+.bd-sidebar {
+    font-size: 1.2rem; /* Slightly larger font for the main navigation */
+}
+
+.bd-toc-nav {
+    font-size: 1.2rem; /* Slightly larger font for the Table of Contents */
+}
+
+.bd-toc,
+.bd-toc li {
+    font-size: 1.2rem; 
+}
+
+.bd-sidebar-secondary a.reference.internal {
+    font-size: 1.1rem !important; 
+}
+
+/* Sets the max width of the entire content area (main content + sidebars) */
+.bd-page-width {
+    max-width: 70%; 
 }
 
 img[alt="Logo image"] {
-    width: 100px;  /* or whatever size you want */
-    height: auto;  /* to maintain aspect ratio */
+    width: 100px;  
+    height: auto;
 }
 
 

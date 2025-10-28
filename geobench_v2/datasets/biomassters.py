@@ -13,31 +13,32 @@ import torch.nn as nn
 from torch import Tensor
 
 from .base import GeoBenchBaseDataset
-from .normalization import MultiModalNormalizer
+from .normalization import ZScoreNormalizer
 from .sensor_util import DatasetBandRegistry
 
 
 class GeoBenchBioMassters(GeoBenchBaseDataset):
-    """BioMassters dataset.
+    """GeoBench version of BioMassters dataset.
 
-    There are always 12 S1 time steps available but the number of S2 time steps can vary.
+    Biomass regression dataset using Sentinel-1 SAR and Sentinel-2 optical imagery,
+    with reference pixel wise biomass annotation from LiDAR and field data.
 
-    Dataset does not include geospatial information.
+    If you use this dataset, please cite the following paper:
+
+    * https://openreview.net/pdf?id=hrWsIC4Cmz
     """
 
     url = "https://hf.co/datasets/aialliance/biomassters/resolve/main/{}"
     paths = [
-        "geobench_biomassters.0000.part.tortilla"
-        # "geobench_biomassters.0001.part.tortilla",
-        # "geobench_biomassters.0002.part.tortilla",
-        # "geobench_biomassters.0003.part.tortilla",
-        # "geobench_biomassters.0004.part.tortilla",
-        # "geobench_biomassters.0005.part.tortilla",
-        # "geobench_biomassters.0006.part.tortilla",
+        "geobench_biomassters.0000.part.tortilla",
+        "geobench_biomassters.0001.part.tortilla",
+        "geobench_biomassters.0002.part.tortilla",
     ]
 
     sha256str: Sequence[str] = [
-        "77682ec73a9d496eb694b6a6e65c2ee793ed9f326e6b37a9dea1b065177334ff"
+        "52bdd8f76107ef14498c54c751c0cddb9ab073fc03cff0102b05406af127b747",
+        "52b3217ad7b44667f147fc2033769e42f2c47b502126f3ff9413c7f75b2de82f",
+        "7da0898b25ff4ca23a8bbe06dcf383ae70068b78c95132ae26abdabbba4c13d4",
     ]
 
     dataset_band_config = DatasetBandRegistry.BIOMASSTERS
@@ -58,9 +59,37 @@ class GeoBenchBioMassters(GeoBenchBaseDataset):
             "B07": 2676.554931640625,
             "B06": 2639.328857421875,
             "B11": 814.9059448242188,
+            "VH_desc": -16.17842674255371,
+            "VH_asc": -16.246776580810547,
+            "VV_asc": -10.21057415008545,
+            "VV_desc": -10.160239219665527,
+            "B04": 1976.1279296875,
+            "B05": 2247.41552734375,
+            "B8A": 2724.071044921875,
+            "B02": 2058.060546875,
+            "B12": 614.978759765625,
+            "B08": 2813.352294921875,
+            "B03": 1962.2747802734375,
+            "B07": 2676.554931640625,
+            "B06": 2639.328857421875,
+            "B11": 814.9059448242188,
             "AGB": 0.0,  # 2 percentile
         },
         "stds": {
+            "VH_desc": 7.192081451416016,
+            "VH_asc": 7.049084186553955,
+            "VV_asc": 4.686783313751221,
+            "VV_desc": 4.753581523895264,
+            "B04": 2660.7744140625,
+            "B05": 2692.405517578125,
+            "B8A": 2371.029296875,
+            "B02": 2772.856201171875,
+            "B12": 843.781494140625,
+            "B08": 2548.47265625,
+            "B03": 2582.9853515625,
+            "B07": 2445.801025390625,
+            "B06": 2556.077392578125,
+            "B11": 993.0784912109375,
             "VH_desc": 7.192081451416016,
             "VH_asc": 7.049084186553955,
             "VV_asc": 4.686783313751221,
@@ -95,11 +124,14 @@ class GeoBenchBioMassters(GeoBenchBaseDataset):
             "s2": ["B04", "B03", "B02", "B08"],
         },
         rename_modalities: dict | None = None,
+        data_normalizer: type[nn.Module] = ZScoreNormalizer,
+        rename_modalities: dict | None = None,
         data_normalizer: type[nn.Module] = MultiModalNormalizer,
         transforms: nn.Module | None = None,
         metadata: Sequence[str] | None = None,
         num_time_steps: int = 1,
         download: bool = False,
+        return_stacked_image: bool = False,
         return_stacked_image: bool = False,
     ) -> None:
         """Initialize BioMassters dataset.
@@ -114,11 +146,15 @@ class GeoBenchBioMassters(GeoBenchBaseDataset):
             data_normalizer: The data normalizer to apply to the data, defaults to :class:`data_util.MultiModalNormalizer`,
                 which applies z-score normalization to each band.
             transforms:The transforms to apply to the data, defaults to None.
+            transforms:The transforms to apply to the data, defaults to None.
             metadata: metadata names to be returned under specified keys as part of the sample in the
                 __getitem__ method. If None, no metadata is returned.
             num_time_steps: Number of last time steps to include in the dataset, maximum is 12, for S2
                 missing time steps are filled with zeros.
             download: Whether to download the dataset
+            rename_modalities: dictionary with information to rename modalities in output e.g. {image: {sar:  S1RTC, rgbn: S2L2A}}
+            return_stacked_image: If True, return the stacked modalities across channel dimension instead of the individual modalities.
+            **kwargs: Additional keyword arguments passed to ``torchgeo.datasets.BioMassters``
             rename_modalities: dictionary with information to rename modalities in output e.g. {image: {sar:  S1RTC, rgbn: S2L2A}}
             return_stacked_image: If True, return the stacked modalities across channel dimension instead of the individual modalities.
             **kwargs: Additional keyword arguments passed to ``torchgeo.datasets.BioMassters``
@@ -139,6 +175,13 @@ class GeoBenchBioMassters(GeoBenchBaseDataset):
             "Number of time steps must be less than or equal to 12"
         )
         self.num_time_steps = num_time_steps
+
+        if return_stacked_image:
+            assert rename_modalities is None, (
+                "Cannot return a stacked image if modalities are renamed"
+            )
+        self.return_stacked_image = return_stacked_image
+        self.rename_modalities = rename_modalities
 
         if return_stacked_image:
             assert rename_modalities is None, (

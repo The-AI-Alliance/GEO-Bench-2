@@ -20,28 +20,21 @@ from .sensor_util import DatasetBandRegistry
 
 
 class GeoBenchSpaceNet2(GeoBenchBaseDataset):
-    """SpaceNet2 dataset with enhanced functionality.
+    """GeoBench version of SpaceNet2 dataset.
 
-    Allows:
-    - Variable Band Selection
-    - Return band wavelengths
+    Building footprint segmentation dataset using high-resolution optical imagery,
+    with binary building masks.
 
-    2 classes: background, building
+    If you use this dataset in your research, please cite the following paper:
+
+    * https://arxiv.org/abs/2102.11958
     """
 
     url = "https://hf.co/datasets/aialliance/spacenet2/resolve/main/{}"
 
-    paths = [
-        "geobench_spacenet2.0000.part.tortilla",
-        "geobench_spacenet2.0001.part.tortilla",
-        "geobench_spacenet2.0002.part.tortilla",
-    ]
+    paths = ["geobench_spacenet2.tortilla"]
 
-    sha256str = [
-        "97e47bca68e482bed0fe44d5e1d799cbbef7828374a1a7e5cf9687385047183a",
-        "66bfd89e7d80ceaef88a439034ab771e61ee396b8a3e785817e876c9c0a35163",
-        "bcfcaedef82d7b49bc9bf23cb34fcf50e83d25fdb14e50332bfeabeb793b3e03",
-    ]
+    sha256str = ["e48e57654c1755a6b1c79bcfe172035a27b815ebe1738d1ce95d96d5c37214b6"]
 
     dataset_band_config = DatasetBandRegistry.SPACENET2
 

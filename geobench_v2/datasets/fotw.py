@@ -21,16 +21,19 @@ from .sensor_util import DatasetBandRegistry
 class GeoBenchFieldsOfTheWorld(GeoBenchBaseDataset):
     """Fields of the World Dataset with enhanced functionality.
 
-    Allows:
-    - Variable Band Selection
-    - Return band wavelengths
+    Field boundary segmentation dataset using multi-temporal Sentinel-2 imagery,
+    with field mask annotations across diverse regions.
+
+    If you use this dataset in your research, please cite the following paper:
+
+    * https://arxiv.org/abs/2409.16252
     """
 
     url = "https://hf.co/datasets/aialliance/fotw/resolve/main/{}"
 
     paths = ["geobench_fotw.tortilla"]
 
-    sha256str = ["7b422acc120b99f3cf4e8389a28616f257ea81016073d9ee529699fcda667763"]
+    sha256str = ["2584cdada3dd3c275792d2376c8bbca782a7b1faea54924c9627906f0296854c"]
 
     dataset_band_config = DatasetBandRegistry.FOTW
 

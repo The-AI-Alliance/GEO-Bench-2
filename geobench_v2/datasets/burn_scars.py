@@ -17,7 +17,15 @@ from .sensor_util import DatasetBandRegistry
 
 
 class GeoBenchBurnScars(GeoBenchBaseDataset):
-    """GeoBench Burn Scars dataset."""
+    """GeoBench Burn Scars dataset.
+
+    Burned area segmentation dataset using Harmonized Landsat-Sentinel
+    (HLS: Landsat 8/9 + Sentinel-2) imagery, with multi-source burn scar annotations.
+
+    If you use this dataset in your research, please cite the following paper:
+
+    *
+    """
 
     url = "https://hf.co/datasets/aialliance/burn_scars/resolve/main/{}"
     paths = ["geobench_burn_scars.tortilla"]
@@ -27,6 +35,25 @@ class GeoBenchBurnScars(GeoBenchBaseDataset):
     # TODO update sensor type with wavelength and resolution
 
     band_default_order = dataset_band_config.default_order
+
+    # normalization_stats: dict[str, dict[str, float]] = {
+    #     "means": {
+    #         "B02": 0.0333497067415863,
+    #         "B03": 0.0570118552053618,
+    #         "B04": 0.0588974813200132,
+    #         "B8A": 0.2323245113436119,
+    #         "B11": 0.1972854853760658,
+    #         "B12": 0.1194491422518656,
+    #     },
+    #     "stds": {
+    #         "B02": 0.0226913556882377,
+    #         "B03": 0.0268075602230702,
+    #         "B04": 0.0400410984436278,
+    #         "B8A": 0.0779173242367269,
+    #         "B11": 0.0870873883814014,
+    #         "B12": 0.0724197947743781,
+    #     },
+    # }
 
     normalization_stats: dict[str, dict[str, float]] = {
         "means": {

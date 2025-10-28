@@ -19,10 +19,9 @@ from .sensor_util import DatasetBandRegistry
 
 
 class GeoBenchCloudSen12(GeoBenchBaseDataset):
-    """Implementation of CloudSen12 dataset Sentinel 2 L1C.
+    """GeoBench version of CloudSen12 dataset.
 
-    CloudSen12 is a dataset for cloud segmentation that provides humanly annotated Sentinel-2 L1C imagery.
-    The dataset contains four semantic segmentation classes:
+    Cloud and shadow segmentation dataset using Sentinel-2 optical imagery, with pixel-level cloud and shadow masks.
 
     0. clear: Pixels without cloud and cloud shadow contamination.
     1. thick cloud: Opaque clouds that block all reflected light from Earth's surface.
@@ -31,14 +30,14 @@ class GeoBenchCloudSen12(GeoBenchBaseDataset):
 
     If you use this dataset in your research, please cite the following paper:
 
-    * link
+    * https://www.sciencedirect.com/science/article/pii/S2352340924008163
     """
 
     url = "https://hf.co/datasets/aialliance/cloudsen12/resolve/main/{}"
 
     paths = ["geobench_cloudsen12.tortilla"]
 
-    sha256str = ["8c1509160c74be95f7934bf9cdcca1b1893d8fb1a7df70c5de1944160f741e04"]
+    sha256str = ["16b3c03d7b15cf42f6ef0cee6d453b6ad8ebbe7744674c4b58657511f7f5d0c0"]
 
     classes = ("clear", "thick cloud", "thin cloud", "cloud shadow")
 
@@ -88,7 +87,7 @@ class GeoBenchCloudSen12(GeoBenchBaseDataset):
         root,
         split: Literal["train", "validation", "test"] = "train",
         band_order: Sequence[float | str] = ["B04", "B03", "B02"],
-        data_normalizer: type[nn.Module] = MultiModalNormalizer,
+        data_normalizer: type[nn.Module] = ZScoreNormalizer,
         transforms: nn.Module | None = None,
         metadata: Sequence[str] | None = None,
         download: bool = False,

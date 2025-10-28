@@ -17,14 +17,21 @@ from .sensor_util import DatasetBandRegistry
 
 
 class GeoBenchCaFFe(GeoBenchBaseDataset):
-    """GeoBench Caffe dataset."""
+    """GeoBench version of Caffe dataset.
+
+    lacier calving front segmentation dataset using Sentinel-1 SAR imagery,
+    with annotated calving front masks.
+
+    If you use this dataset in your research, please cite the following paper:
+
+    * https://essd.copernicus.org/articles/14/4287/2022/
+    """
 
     url = "https://hf.co/datasets/aialliance/caffe/resolve/main/{}"
     paths = ["geobench_caffe.tortilla"]
-    sha256str = ["f9aec21a2a0da3365e853c1a370b3209dca668ab7a595ac1b3b6f13446fd8939"]
+    sha256str = ["8b2a2e1020a26a2e62080c96646c9c1f1cb35a54722739f8cef6f11122c4161e"]
 
     dataset_band_config = DatasetBandRegistry.CAFFE
-    # TODO update sensor type with wavelength and resolution
 
     band_default_order = ("gray",)
 

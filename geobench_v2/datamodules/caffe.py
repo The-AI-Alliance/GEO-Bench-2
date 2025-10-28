@@ -5,13 +5,16 @@
 
 import os
 from collections.abc import Callable, Sequence
-from typing import Any
+from typing import Any, Literal
 
+import cartopy.crs as ccrs
+import cartopy.feature as cfeature
 import matplotlib.pyplot as plt
 import pandas as pd
 import tacoreader
 import torch
 import torch.nn as nn
+from matplotlib.lines import Line2D
 from torch import Tensor
 from torchgeo.datasets.utils import percentile_normalization
 
@@ -52,7 +55,7 @@ class GeoBenchCaFFeDataModule(GeoBenchSegmentationDataModule):
                 at the sample level and should include normalization. See :meth:`define_augmentations`
                 for the default transformation.
             pin_memory: Pin memory
-            **kwargs: Additional keyword arguments for the dataset class
+            **kwargs: Additional keyword arguments for :class:`geobench_v2.datasets.caffe.GeoBenchCaFFe`
         """
         super().__init__(
             dataset_class=GeoBenchCaFFe,
@@ -78,6 +81,191 @@ class GeoBenchCaFFeDataModule(GeoBenchSegmentationDataModule):
             [os.path.join(self.kwargs["root"], f) for f in GeoBenchCaFFe.paths]
         )
         return self.data_df
+
+    def visualize_geospatial_distribution(
+        self,
+        split_column: str = "tortilla:data_split",
+        buffer_degrees: float = 5.0,
+        sample_fraction: float | None = None,
+        scale: Literal["10m", "50m", "110m"] = "50m",
+        alpha: float = 0.7,
+        s: float = 5,
+    ) -> plt.Figure:
+        """Visualize the geospatial distribution of CaFFe samples on polar projections.
+
+        CaFFe dataset contains glacier data from high northern and southern latitudes,
+        focusing on Greenland/Canada in the north and West Antarctica in the south.
+        This creates a split view with zoomed polar projections for each region.
+
+        Args:
+            split_column: Column name in the metadata DataFrame that indicates the dataset split.
+            buffer_degrees: Buffer around the data extent in degrees.
+            sample_fraction: Optional fraction of samples to plot (0.0-1.0) for performance.
+            scale: Scale of cartopy features (e.g., '10m', '50m', '110m').
+            alpha: Transparency of plotted points.
+            s: Size of plotted points.
+
+        Returns:
+            A matplotlib Figure object with the geospatial distribution plot.
+        """
+        data_df = self.load_metadata()
+
+        # Standardize coordinate columns
+        if "lat" not in data_df.columns or "lon" not in data_df.columns:
+            if "latitude" in data_df.columns and "longitude" in data_df.columns:
+                data_df = data_df.rename(
+                    columns={"latitude": "lat", "longitude": "lon"}
+                )
+            else:
+                raise ValueError(
+                    "Metadata is missing required latitude and longitude information"
+                )
+
+        # Optional sub-sampling for performance
+        if sample_fraction is not None and 0.0 < sample_fraction < 1.0:
+            data_df = data_df.sample(frac=sample_fraction, random_state=0)
+
+        # Normalize split names on the main dataframe first
+        plot_col = "plot_split"
+        data_df[plot_col] = (
+            data_df[split_column].astype(str).replace({"val": "validation"})
+        )
+
+        # Split data into northern and southern hemisphere (already has plot_col)
+        northern_data = data_df[data_df["lat"] > 0].copy()
+        southern_data = data_df[data_df["lat"] < 0].copy()
+
+        # Determine splits present
+        desired_order = ["train", "validation", "test", "extra_test"]
+        present = [sp for sp in desired_order if sp in set(data_df[plot_col].unique())]
+        others = [sp for sp in data_df[plot_col].unique() if sp not in present]
+        splits = present + others
+
+        split_colors = {"train": "blue", "validation": "green", "test": "red"}
+
+        # Create figure with two subplots (north and south)
+        fig = plt.figure(figsize=(20, 10))
+
+        # Northern hemisphere subplot - focused on Greenland/Canada region
+        ax_north = fig.add_subplot(1, 2, 1, projection=ccrs.NorthPolarStereo())
+
+        # Compute extent for northern hemisphere with tighter bounds
+        if len(northern_data) > 0:
+            min_lon = northern_data["lon"].min() - buffer_degrees
+            max_lon = northern_data["lon"].max() + buffer_degrees
+            min_lat = max(60, northern_data["lat"].min() - buffer_degrees)
+            max_lat = min(90, northern_data["lat"].max() + buffer_degrees)
+            # Focus on Greenland/Canada region (roughly -100 to -10 longitude)
+            ax_north.set_extent(
+                [min_lon, max_lon, min_lat, max_lat], crs=ccrs.PlateCarree()
+            )
+        else:
+            # Default to Greenland/Canada region
+            ax_north.set_extent([-100, -10, 60, 85], crs=ccrs.PlateCarree())
+
+        # Add features to northern plot
+        ax_north.add_feature(cfeature.LAND.with_scale(scale), facecolor="lightgray")
+        ax_north.add_feature(cfeature.OCEAN.with_scale(scale), facecolor="lightblue")
+        ax_north.add_feature(cfeature.COASTLINE.with_scale(scale), linewidth=0.8)
+        ax_north.gridlines(linewidth=0.5, color="gray", alpha=0.5, linestyle="--")
+        ax_north.set_title(
+            "Northern Hemisphere (Greenland/Canada Glaciers)", fontsize=12, pad=20
+        )
+
+        # Plot northern hemisphere data
+        legend_elements: list[Line2D] = []
+        for split in splits:
+            split_data = northern_data[northern_data[plot_col] == split]
+            if len(split_data) == 0:
+                continue
+            color = split_colors.get(split, "gray")
+            ax_north.scatter(
+                split_data["lon"],
+                split_data["lat"],
+                transform=ccrs.PlateCarree(),
+                c=color,
+                s=s,
+                alpha=alpha,
+                label=split,
+            )
+            # Only create legend elements once
+            if not legend_elements or split not in [
+                le.get_label() for le in legend_elements
+            ]:
+                total_count = len(data_df[data_df[plot_col] == split])
+                legend_elements.append(
+                    Line2D(
+                        [0],
+                        [0],
+                        marker="o",
+                        color="w",
+                        markerfacecolor=color,
+                        markersize=8,
+                        label=f"{split} (n={total_count})",
+                    )
+                )
+
+        # Southern hemisphere subplot - focused on West Antarctica
+        ax_south = fig.add_subplot(1, 2, 2, projection=ccrs.SouthPolarStereo())
+
+        # Compute extent for southern hemisphere with tighter bounds
+        if len(southern_data) > 0:
+            min_lon = southern_data["lon"].min() - buffer_degrees
+            max_lon = southern_data["lon"].max() + buffer_degrees
+            min_lat = max(-90, southern_data["lat"].min() - buffer_degrees)
+            max_lat = min(-60, southern_data["lat"].max() + buffer_degrees)
+            # Focus on West Antarctica region
+            ax_south.set_extent(
+                [min_lon, max_lon, min_lat, max_lat], crs=ccrs.PlateCarree()
+            )
+        else:
+            # Default to West Antarctica region
+            ax_south.set_extent([-180, 0, -90, -65], crs=ccrs.PlateCarree())
+
+        # Add features to southern plot
+        ax_south.add_feature(cfeature.LAND.with_scale(scale), facecolor="lightgray")
+        ax_south.add_feature(cfeature.OCEAN.with_scale(scale), facecolor="lightblue")
+        ax_south.add_feature(cfeature.COASTLINE.with_scale(scale), linewidth=0.8)
+        ax_south.gridlines(linewidth=0.5, color="gray", alpha=0.5, linestyle="--")
+        ax_south.set_title(
+            "Southern Hemisphere (West Antarctica Glaciers)", fontsize=12, pad=20
+        )
+
+        # Plot southern hemisphere data
+        for split in splits:
+            split_data = southern_data[southern_data[plot_col] == split]
+            if len(split_data) == 0:
+                continue
+            color = split_colors.get(split, "gray")
+            ax_south.scatter(
+                split_data["lon"],
+                split_data["lat"],
+                transform=ccrs.PlateCarree(),
+                c=color,
+                s=s,
+                alpha=alpha,
+                label=split,
+            )
+
+        # Add shared legend below both plots
+        fig.legend(
+            handles=legend_elements,
+            loc="lower center",
+            ncol=len(legend_elements),
+            frameon=True,
+            fontsize=10,
+            title="Dataset Splits",
+            bbox_to_anchor=(0.5, -0.05),
+        )
+
+        plt.suptitle(
+            "Geographic Distribution of CaFFe Glacier Samples by Split",
+            fontsize=14,
+            y=0.98,
+        )
+
+        plt.tight_layout()
+        return fig
 
     def visualize_batch(
         self, batch: dict[str, Tensor] | None = None, split: str = "train"

@@ -18,17 +18,25 @@ from .sensor_util import DatasetBandRegistry
 
 
 class GeoBenchFLAIR2(GeoBenchBaseDataset):
-    """Implementation of FLAIR 2 Aerial dataset."""
+    """GeoBench version of FLAIR 2 dataset.
+
+    Land cover semantic segmentation dataset using
+    aerial RGB+NIR, DEM, and Sentinel-2 imagery, with 13-class pixel-level labels.
+
+    If you use this dataset in your research, please cite the following paper:
+
+    * https://arxiv.org/abs/2305.14467
+    """
 
     url = "https://hf.co/datasets/aialliance/flair2/resolve/main/{}"
 
-    sha256str = ["96d18b1e7673fa2233145d69fd67db530c53bf68027b30466f7c94fd456df689"]
+    sha256str = ["f446098513d85591b8abae03e8d98447d2ab5173271f85c11f40edcdb1e2e1a9"]
 
     paths: Sequence[str] = ["geobench_flair2.tortilla"]
 
     classes = (
         "building",
-        "pervious surface",
+        "previous surface",
         "impervious surface",
         "bare soil",
         "water",

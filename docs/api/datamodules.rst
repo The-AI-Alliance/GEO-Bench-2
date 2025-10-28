@@ -88,10 +88,6 @@ TreeSatAI
 
 .. autoclass:: GeoBenchTreeSatAIDataModule
 
-Wind Turbine
-------------
-
-.. autoclass:: GeoBenchWindTurbineDataModule
 
 Burn Scars
 ----------
