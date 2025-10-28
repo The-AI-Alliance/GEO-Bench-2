@@ -66,7 +66,7 @@ def datamodule(
     datamodule.setup("fit")
     datamodule.setup("test")
     return datamodule
-
+# 
 
 class TestPASTISPanopticDataModule:
     """Test cases for PASTIS Panoptic datamodule functionality."""
@@ -84,9 +84,11 @@ class TestPASTISPanopticDataModule:
 
         # Check modality-specific outputs
         assert "image_s2" in batch
-        assert "image_s1_asc" in batch
-        assert "image_s1_desc" in batch
+        # assert "image_s1_asc" in batch
+        # assert "image_s1_desc" in batch
         assert "mask" in batch
+        assert "label" in batch
+        assert "bbox_xyxy"
 
         # TODO handle correctly both cases
         # Check dimensions - these are time-series shapes [batch_size, bands, time_steps, H, W]

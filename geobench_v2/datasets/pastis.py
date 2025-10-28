@@ -221,10 +221,6 @@ class GeoBenchPASTIS(GeoBenchBaseDataset):
         img_dict = self.rearrange_bands(data, self.band_order)
 
         img_dict = self.data_normalizer(img_dict)
-        
-        if self.temporal_output_format == "CTHW":
-            for key in img_dict.keys():
-                img_dict[key] = img_dict[key].permute((1,0,2,3))
 
         sample.update(img_dict)
 
@@ -243,9 +239,10 @@ class GeoBenchPASTIS(GeoBenchBaseDataset):
         if self.transforms:
             sample = self.transforms(sample)
 
-        for key in sample:
-            if "image" in key and len(sample[key].shape) == 4:  # [T, C, H, W]
-                sample[key] = sample[key].permute(1, 0, 2, 3)  # C, T, H, W
+        if self.temporal_output_format == "CTHW":
+            for key in sample:
+                if "image" in key and len(sample[key].shape) == 4:  # [T, C, H, W]
+                    sample[key] = sample[key].permute(1, 0, 2, 3)  # C, T, H, W
 
         if self.return_stacked_image:
             sample = {

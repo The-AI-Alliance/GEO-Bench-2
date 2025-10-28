@@ -124,7 +124,7 @@ class GeoBenchPASTISPanopticDataModule(GeoBenchObjectDetectionDataModule):
         Args:
             batch: Optional batch of data. If not provided, a batch will be fetched from the dataloader
             split: One of 'train', 'validation', 'test'
-
+            n_samples: number of samples to plot
         Returns:
             The matplotlib figure and the batch of data
 
@@ -150,9 +150,7 @@ class GeoBenchPASTISPanopticDataModule(GeoBenchObjectDetectionDataModule):
             batch = self.data_normalizer.unnormalize(batch)
 
         batch_size = batch["mask"].shape[0] if hasattr(batch["mask"], "shape") else len(batch["mask"])
-
-        n_samples = 8
-
+        n_samples = min(8, batch_size)
         indices = torch.arange(batch_size)[:n_samples]
 
         # Collect modality images and determine timesteps per modality
