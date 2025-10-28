@@ -239,10 +239,15 @@ class GeoBenchDataModule(LightningDataModule, ABC):
         else:
             central_lon = (min_lon + max_lon) / 2
             central_lat = (min_lat + max_lat) / 2
-
-            projection = ccrs.AlbersEqualArea(
+            if lat_extent > 60:
+                projection = ccrs.AlbersEqualArea(
                     central_longitude=central_lon, central_latitude=central_lat
                 )
+            else:
+                projection = ccrs.LambertConformal(
+                    central_longitude=central_lon, central_latitude=central_lat
+                )
+
         ax = plt.axes(projection=projection)
         ax.set_extent([min_lon, max_lon, min_lat, max_lat], crs=ccrs.PlateCarree())
 
@@ -297,7 +302,6 @@ class GeoBenchDataModule(LightningDataModule, ABC):
             )
 
         ax.legend(handles=legend_elements, loc="lower right", title="Dataset Splits")
-        title = f"Geographic Distribution of {dataset_name} Samples by Split"
 
         # Gridlines and title
         gl = ax.gridlines(
@@ -310,6 +314,7 @@ class GeoBenchDataModule(LightningDataModule, ABC):
         )
 
         return fig
+
 
     # @abstractmethod
     # def visualize_target_distribution(self) -> None:
