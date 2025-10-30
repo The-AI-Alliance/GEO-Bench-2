@@ -29,6 +29,8 @@ from .spacenet7 import GeoBenchSpaceNet7DataModule
 from .spacenet8 import GeoBenchSpaceNet8DataModule
 from .substation import GeoBenchSubstationDataModule
 from .treesatai import GeoBenchTreeSatAIDataModule
+from .so2sat import GeoBenchSo2SatDataModule
+
 from .utils import (
     MultiModalClassificationAugmentation,
     MultiModalSegmentationAugmentation,
