@@ -14,12 +14,20 @@ from shapely import wkt
 from torch import Tensor
 
 from .base import GeoBenchBaseDataset
-from .normalization import MultiModalNormalizer
+from .normalization import ZScoreNormalizer
 from .sensor_util import DatasetBandRegistry
 
 
 class GeoBenchDynamicEarthNet(GeoBenchBaseDataset):
-    """GeoBench version of DynamicEarthNet dataset."""
+    """GeoBench version of DynamicEarthNet dataset.
+
+    ulti-temporal land cover segmentation dataset using Sentinel-2 and
+    PlanetScope imagery, with 7-class semantic segmentation labels.
+
+    If you use this dataset in your research, please cite the following paper:
+
+    * https://arxiv.org/abs/2203.12560
+    """
 
     url = "https://hf.co/datasets/aialliance/dynamic_earthnet/resolve/main/{}"
 
@@ -126,7 +134,7 @@ class GeoBenchDynamicEarthNet(GeoBenchBaseDataset):
         band_order: dict[str, Sequence[float | str]] = {
             "planet": ["red", "green", "blue", "nir"]
         },
-        data_normalizer: type[nn.Module] = MultiModalNormalizer,
+        data_normalizer: type[nn.Module] = ZScoreNormalizer,
         transforms: nn.Module | None = None,
         metadata: Sequence[str] | None = None,
         temporal_setting: Literal["single", "daily", "weekly"] = "single",

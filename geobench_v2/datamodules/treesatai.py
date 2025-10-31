@@ -50,7 +50,7 @@ class GeoBenchTreeSatAIDataModule(GeoBenchClassificationDataModule):
             train_augmentations: Training augmentations
             eval_augmentations: Evaluation augmentations
             pin_memory: Pin memory
-            **kwargs: Additional keyword arguments
+            **kwargs: Additional keyword arguments for :class:`geobench_v2.datasets.treesatai.GeoBenchTreeSatAI`
         """
         super().__init__(
             dataset_class=GeoBenchTreeSatAI,

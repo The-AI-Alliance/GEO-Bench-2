@@ -14,23 +14,26 @@ from shapely import wkt
 from torch import Tensor
 
 from .base import GeoBenchBaseDataset
-from .normalization import MultiModalNormalizer
+from .normalization import ZScoreNormalizer
 from .sensor_util import DatasetBandRegistry
 
 
 class GeoBenchFieldsOfTheWorld(GeoBenchBaseDataset):
     """Fields of the World Dataset with enhanced functionality.
 
-    Allows:
-    - Variable Band Selection
-    - Return band wavelengths
+    Field boundary segmentation dataset using multi-temporal Sentinel-2 imagery,
+    with field mask annotations across diverse regions.
+
+    If you use this dataset in your research, please cite the following paper:
+
+    * https://arxiv.org/abs/2409.16252
     """
 
     url = "https://hf.co/datasets/aialliance/fotw/resolve/main/{}"
 
     paths = ["geobench_fotw.tortilla"]
 
-    sha256str = ["3bdca4e56ee3f1944fb86f9818ed5fa44c418be395f3d1fd4bed82fd749949ab"]
+    sha256str = ["2584cdada3dd3c275792d2376c8bbca782a7b1faea54924c9627906f0296854c"]
 
     dataset_band_config = DatasetBandRegistry.FOTW
 
@@ -63,7 +66,7 @@ class GeoBenchFieldsOfTheWorld(GeoBenchBaseDataset):
         root: Path,
         split: str,
         band_order: Sequence[str | float] = dataset_band_config.default_order,
-        data_normalizer: type[nn.Module] = MultiModalNormalizer,
+        data_normalizer: type[nn.Module] = ZScoreNormalizer,
         label_type: Literal["instance_seg", "semantic_seg"] = "semantic_seg",
         transforms: nn.Module | None = None,
         metadata: Sequence[str] | None = None,
@@ -80,7 +83,7 @@ class GeoBenchFieldsOfTheWorld(GeoBenchBaseDataset):
                 specify ['red', 'green', 'blue', 'nir', 'nir'], the dataset would return images with 5 channels
                 in that order. This is useful for models that expect a certain band order, or
                 test the impact of band order on model performance.
-            data_normalizer: The data normalizer to apply to the data, defaults to :class:`data_util.MultiModalNormalizer`,
+            data_normalizer: The data normalizer to apply to the data, defaults to :class:`data_util.ZScoreNormalizer`,
                 which applies z-score normalization to each band.
             label_type: The type of label to return, supports 'instance_seg' or 'semantic_seg'
             transforms: The transforms to apply to the data, defaults to None

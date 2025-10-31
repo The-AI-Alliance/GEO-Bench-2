@@ -64,10 +64,12 @@ def create_tortilla(annotations_df, image_dir, save_dir, tortilla_name):
         )
 
         with h5py.File(annotations_file, "w") as f:
+            # Store the entire dictionary as a JSON string attribute
             f.attrs["annotation"] = json.dumps(
                 {"boxes": boxes, "image_size": (height, width)}
             )
 
+        # create image
         image_sample = tacotoolbox.tortilla.datamodel.Sample(
             id="image",
             path=geotiff_path,

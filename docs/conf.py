@@ -77,13 +77,16 @@ html_theme_options = {
     "navigation_with_keys": True,
 }
 
+# sphinx.ext.autodoc
 autodoc_default_options = {
     "members": True,
-    "member-order": "bysource",
-    "special-members": "__init__",
-    "undoc-members": True,
-    "exclude-members": "__weakref__",
+    "special-members": True,
+    "show-inheritance": True,
 }
+autodoc_class_signature = "separated"
+autodoc_member_order = "bysource"
+autodoc_typehints = "description"
+autodoc_typehints_description_target = "documented"
 
 # sphinx.ext.intersphinx
 intersphinx_mapping = {
