@@ -76,11 +76,9 @@ class GeoBenchPASTISDataModule(GeoBenchSegmentationDataModule):
         Returns:
             pandas DataFrame with metadata.
         """
-        self.data_df = tacoreader.load(
+        return tacoreader.load(
             [os.path.join(self.kwargs["root"], f) for f in GeoBenchPASTIS.paths]
         )
-        
-        return self.data_df
 
     def visualize_batch(
         self, batch: dict[str, Any] | None = None, split: str = "train"
