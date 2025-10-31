@@ -62,6 +62,10 @@ PASTIS
 
 .. autoclass:: GeoBenchPASTISDataModule
 
+PASTIS Panoptic
+
+.. autoclass:: GeoBenchPASTISPanopticDataModule
+
 
 SpaceNet2
 ---------
