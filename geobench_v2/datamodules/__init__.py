@@ -49,7 +49,6 @@ __all__ = (
     "GeoBenchSpaceNet8DataModule",
     "GeoBenchBENV2DataModule",
     "GeoBenchEverWatchDataModule",
-    "GeoBenchDOTAV2DataModule",
     "GeoBenchFLAIR2DataModule",
     "GeoBenchCloudSen12DataModule",
     "GeoBenchClassificationDataModule",
