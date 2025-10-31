@@ -166,8 +166,7 @@ class GeoBenchEverWatch(GeoBenchBaseDataset):
         boxes = torch.from_numpy(
             annot_df[["xmin", "ymin", "xmax", "ymax"]].values
         ).float()
-        # import pdb
-        # pdb.set_trace()
+
         labels = torch.Tensor(
             [self.class2idx[label] if label is not None else self.class2idx["Unknown White"] for label in annot_df["label"].tolist()]
         ).long()

@@ -147,7 +147,7 @@ class GeoBenchBENV2(GeoBenchBaseDataset):
                 specify ['B04', 'B03', 'B02], the dataset would return the red, green, and blue bands.
                 This is useful for models that expect a certain band order, or
                 test the impact of band order on model performance.
-            data_normalizer: The data normalizer to apply to the data, defaults to :class:`data_util.MultiModalNormalizer`,
+            data_normalizer: The data normalizer to apply to the data, defaults to :class:`data_util.ZScoreNormalizer`,
                 which applies z-score normalization to each band.
             transforms: Transforms to apply to the data
             metadata: metadata names to be returned under specified keys as part of the sample in the

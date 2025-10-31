@@ -99,7 +99,7 @@ class GeoBenchCloudSen12(GeoBenchBaseDataset):
             split: The dataset split, supports 'train', 'test'
             band_order: The order of bands to return, defaults to ['r', 'g', 'b'], if one would
                 specify ['r', 'g', 'b', 'nir'], the dataset would return images with 4 channels
-            data_normalizer: The data normalizer to apply to the data, defaults to :class:`data_util.MultiModalNormalizer`,
+            data_normalizer: The data normalizer to apply to the data, defaults to :class:`data_util.ZScoreNormalizer`,
                 which applies z-score normalization to each band.
             transforms: Image resize transform on sample level
             metadata: metadata names to be returned under specified keys as part of the sample in the
