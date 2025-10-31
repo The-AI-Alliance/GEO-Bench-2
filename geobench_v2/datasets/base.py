@@ -5,10 +5,9 @@
 
 import hashlib
 import os
-import urllib.request
-from collections.abc import Callable, Sequence, Mapping
-from typing import Literal
+from collections.abc import Mapping, Sequence
 from pathlib import Path
+from typing import Any, Literal, cast
 import rasterio
 import tacoreader
 import torch
@@ -28,8 +27,8 @@ class GeoBenchBaseDataset(NonGeoDataset, DataUtilsMixin):
     paths: Sequence[str] = []
     sha256str: Sequence[str] = []
 
-    normalization_stats = {"means": {}, "stds": {}}
-    band_default_order: dict[str, list[str]] = {}
+    normalization_stats: dict[str, dict[str, float]] = {}
+    band_default_order: Any = ()
 
     def __init__(
         self,
@@ -45,10 +44,10 @@ class GeoBenchBaseDataset(NonGeoDataset, DataUtilsMixin):
 
         Args:
             root: Root directory where the dataset can be found
-            split: The dataset split, supports 'train', 'val', 'test'
+            split: The dataset split, supports 'train', 'validation', 'test', 'extra_test'. Also accepts 'val' as an alias for 'validation'.
             band_order: List of bands to return
             data_normalizer: Normalization strategy. Can be:
-                             - A class type inheriting from DataNormalizer (e.g., MultiModalNormalizer)
+                             - A class type inheriting from DataNormalizer (e.g., ZScoreNormalizer)
                                or a basic callable class (e.g., nn.Identity - default).
                                It will be initialized appropriately (using stats/band_order if needed).
                              - An initialized callable instance (e.g., a custom nn.Module or nn.Identity()).
@@ -61,31 +60,29 @@ class GeoBenchBaseDataset(NonGeoDataset, DataUtilsMixin):
         super().__init__()
         self.root = root
         self.transforms = transforms
-        if metadata is None:
-            self.metadata = []
-        else:
-            self.metadata = metadata
-
         self.download = download
-
         self.dataset_verification()
 
-        self.data_df = tacoreader.load([os.path.join(root, f) for f in self.paths])
-        effective_split = "validation" if split == "val" else split
-        self.data_df = self.data_df[
-            self.data_df["tortilla:data_split"] == effective_split
-        ].reset_index(drop=True)
+        split_norm: Literal["train", "validation", "test"]
+        if split == "val":
+            split_norm = "validation"
+        elif split in ("train", "validation", "test"):
+            split_norm = cast(Literal["train", "validation", "test"], split)
+        else:
+            raise ValueError(
+                "split must be one of {'train', 'val', 'validation', 'test'}"
+            )
+        self.split = split_norm
+
+        # Store metadata as a list of strings on the instance
+        self.metadata: list[str] = metadata if metadata is not None else []
 
         self.band_order = self.resolve_band_order(band_order)
 
-        if isinstance(data_normalizer, type):
-            print(f"Initializing normalizer from class: {data_normalizer.__name__}")
-            if issubclass(data_normalizer, ZScoreNormalizer) | issubclass(data_normalizer, DataNormalizer):
-                self.data_normalizer = data_normalizer(
-                    self.normalization_stats, self.band_order
-                )
-            else:
-                self.data_normalizer = data_normalizer()
+        self.data_df = tacoreader.load([os.path.join(root, f) for f in self.paths])
+        self.data_df = self.data_df[
+            (self.data_df["tortilla:data_split"] == self.split)
+        ].reset_index(drop=True)
 
         if isinstance(data_normalizer, type):
             print(f"Initializing normalizer from class: {data_normalizer.__name__}")
@@ -158,7 +155,7 @@ class GeoBenchBaseDataset(NonGeoDataset, DataUtilsMixin):
                         "The file may be corrupted or incomplete."
                     )
 
-        # TODO maybe check for other band stats etc files
+        # TODO check for other band stats etc files
 
     def verify_sha256str(self, file_path, expected_sha256str):
         """Verify file integrity using sha256str hash.
