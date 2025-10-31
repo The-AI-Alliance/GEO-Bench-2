@@ -12,7 +12,7 @@ from shapely import wkt
 from torch import Tensor
 
 from .base import GeoBenchBaseDataset
-from .normalization import MultiModalNormalizer
+from .normalization import ZScoreNormalizer
 from .sensor_util import DatasetBandRegistry
 
 
@@ -57,14 +57,21 @@ class GeoBenchBurnScars(GeoBenchBaseDataset):
 
     normalization_stats: dict[str, dict[str, float]] = {
         "means": {
-            "B02": 0.0,
-            "B03": 0.0,
-            "B04": 0.0,
-            "B8A": 0.0,
-            "B11": 0.0,
-            "B12": 0.0,
+            "B02": 0.0333497067415863,
+            "B03": 0.0570118552053618,
+            "B04": 0.0588974813200132,
+            "B8A": 0.2323245113436119,
+            "B11": 0.1972854853760658,
+            "B12": 0.1194491422518656,
         },
-        "stds": {"B02": 1, "B03": 1, "B04": 1, "B8A": 1, "B11": 1, "B12": 1},
+        "stds": {
+            "B02": 0.0226913556882377,
+            "B03": 0.0268075602230702,
+            "B04": 0.0400410984436278,
+            "B8A": 0.0779173242367269,
+            "B11": 0.0870873883814014,
+            "B12": 0.0724197947743781,
+        },
     }
 
     classes = ("Background", "Burn Scar")
@@ -76,7 +83,7 @@ class GeoBenchBurnScars(GeoBenchBaseDataset):
         root,
         split="train",
         band_order: Sequence[float | str] = band_default_order,
-        data_normalizer: type[nn.Module] = MultiModalNormalizer,
+        data_normalizer: type[nn.Module] = ZScoreNormalizer,
         transforms: nn.Module | None = None,
         metadata: Sequence[str] | None = None,
         download: bool = False,

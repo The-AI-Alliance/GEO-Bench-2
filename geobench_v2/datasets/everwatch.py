@@ -40,6 +40,7 @@ class GeoBenchEverWatch(GeoBenchBaseDataset):
     sha256str = ["4afb1eada24ce990c1798fa481963ab8c0a0e302ba2d4112f02261c6a8246272"]
 
     classes = (
+        "Background",
         "White Ibis",
         "Great Egret",
         "Great Blue Heron",
@@ -54,11 +55,19 @@ class GeoBenchEverWatch(GeoBenchBaseDataset):
 
     dataset_band_config = DatasetBandRegistry.EVERWATCH
 
-    band_default_order = ["red", "green", "blue"]
+    band_default_order = ("red", "green", "blue")
 
     normalization_stats: dict[str, dict[str, float]] = {
-        "means": {"red": 0.0, "green": 0.0, "blue": 0.0},
-        "stds": {"red": 255.0, "green": 255.0, "blue": 255.0},
+        "means": {
+            "red": 68.09844970703125,
+            "green": 83.53096771240234,
+            "blue": 35.009552001953125,
+        },
+        "stds": {
+            "red": 46.88275146484375,
+            "green": 50.39387893676758,
+            "blue": 29.952987670898438,
+        },
     }
 
     def __init__(
@@ -165,7 +174,13 @@ class GeoBenchEverWatch(GeoBenchBaseDataset):
         boxes = torch.from_numpy(
             annot_df[["xmin", "ymin", "xmax", "ymax"]].values
         ).float()
+
         labels = torch.Tensor(
-            [self.class2idx[label] for label in annot_df["label"].tolist()]
+            [
+                self.class2idx[label]
+                if label is not None
+                else self.class2idx["Unknown White"]
+                for label in annot_df["label"].tolist()
+            ]
         ).long()
         return boxes, labels

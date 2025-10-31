@@ -14,7 +14,7 @@ from shapely import wkt
 from torch import Tensor
 
 from .base import GeoBenchBaseDataset
-from .normalization import MultiModalNormalizer
+from .normalization import ZScoreNormalizer
 from .sensor_util import DatasetBandRegistry
 
 
@@ -134,7 +134,7 @@ class GeoBenchDynamicEarthNet(GeoBenchBaseDataset):
         band_order: dict[str, Sequence[float | str]] = {
             "planet": ["red", "green", "blue", "nir"]
         },
-        data_normalizer: type[nn.Module] = MultiModalNormalizer,
+        data_normalizer: type[nn.Module] = ZScoreNormalizer,
         transforms: nn.Module | None = None,
         metadata: Sequence[str] | None = None,
         temporal_setting: Literal["single", "daily", "weekly"] = "single",
