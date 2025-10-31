@@ -3,21 +3,23 @@
 
 """GeoBench NZCattle DataModule."""
 
+import os
 from collections.abc import Callable, Sequence
 from typing import Any
 
 import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
+import tacoreader
 import torch
 import torch.nn as nn
 from einops import rearrange
 from torchgeo.datasets.utils import percentile_normalization
-import tacoreader
+
 from geobench_v2.datasets import GeoBenchNZCattle
 
 from .base import GeoBenchObjectDetectionDataModule
-import os
-import pandas as pd
+
 
 def nzcattle_collate_fn(batch: Sequence[dict[str, Any]]) -> dict[str, Any]:
     """Collate function for nzCattle dataset.
@@ -254,7 +256,7 @@ class GeoBenchNZCattleDataModule(GeoBenchObjectDetectionDataModule):
     def visualize_geolocation_distribution(self) -> None:
         """Visualize the geolocation distribution of the dataset."""
         pass
-    
+
     def load_metadata(self) -> pd.DataFrame:
         """Load metadata file.
 

@@ -22,21 +22,19 @@ from .fotw import GeoBenchFieldsOfTheWorldDataModule
 from .kuro_siwo import GeoBenchKuroSiwoDataModule
 from .nzcattle import GeoBenchNZCattleDataModule
 from .pastis import GeoBenchPASTISDataModule
-from .so2sat import GeoBenchSo2SatDataModule
 from .pastis_panoptic import GeoBenchPASTISPanopticDataModule
+from .so2sat import GeoBenchSo2SatDataModule
 from .spacenet2 import GeoBenchSpaceNet2DataModule
 from .spacenet6 import GeoBenchSpaceNet6DataModule
 from .spacenet7 import GeoBenchSpaceNet7DataModule
 from .spacenet8 import GeoBenchSpaceNet8DataModule
 from .substation import GeoBenchSubstationDataModule
 from .treesatai import GeoBenchTreeSatAIDataModule
-
 from .utils import (
     MultiModalClassificationAugmentation,
     MultiModalSegmentationAugmentation,
     MultiTemporalSegmentationAugmentation,
 )
-
 
 __all__ = (
     "GeoBenchDataModule",
@@ -62,11 +60,9 @@ __all__ = (
     "GeoBenchSubstationDataModule",
     "GeoBenchBurnScarsDataModule",
     "GeoBenchPASTISPanopticDataModule",
-
     "MultiModalClassificationAugmentation",
     "MultiModalSegmentationAugmentation",
     "MultiTemporalSegmentationAugmentation",
-
     "GeoBenchSo2SatDataModule",
     "GeoBenchForestnetDataModule",
 )

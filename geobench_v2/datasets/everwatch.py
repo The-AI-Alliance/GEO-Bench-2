@@ -57,9 +57,17 @@ class GeoBenchEverWatch(GeoBenchBaseDataset):
 
     band_default_order = ("red", "green", "blue")
 
-    normalization_stats = {
-        "means": {"red": 68.09844970703125, "green": 83.53096771240234, "blue": 35.009552001953125},
-        "stds": {"red": 46.88275146484375, "green": 50.39387893676758, "blue": 29.952987670898438},
+    normalization_stats: dict[str, dict[str, float]] = {
+        "means": {
+            "red": 68.09844970703125,
+            "green": 83.53096771240234,
+            "blue": 35.009552001953125,
+        },
+        "stds": {
+            "red": 46.88275146484375,
+            "green": 50.39387893676758,
+            "blue": 29.952987670898438,
+        },
     }
 
     def __init__(
@@ -168,7 +176,11 @@ class GeoBenchEverWatch(GeoBenchBaseDataset):
         ).float()
 
         labels = torch.Tensor(
-            [self.class2idx[label] if label is not None else self.class2idx["Unknown White"] for label in annot_df["label"].tolist()]
+            [
+                self.class2idx[label]
+                if label is not None
+                else self.class2idx["Unknown White"]
+                for label in annot_df["label"].tolist()
+            ]
         ).long()
         return boxes, labels
-

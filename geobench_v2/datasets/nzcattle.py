@@ -15,14 +15,11 @@ import rasterio
 import torch
 import torch.nn as nn
 from torch import Tensor
-import tacoreader
+
 from geobench_v2.datasets.sensor_util import DatasetBandRegistry
-import pdb
-import rasterio
-import h5py
-import json
-from .normalization import ZScoreNormalizer, DataNormalizer
+
 from .base import GeoBenchBaseDataset
+from .normalization import ZScoreNormalizer
 
 
 class GeoBenchNZCattle(GeoBenchBaseDataset):
@@ -38,8 +35,16 @@ class GeoBenchNZCattle(GeoBenchBaseDataset):
     band_default_order = ("red", "green", "blue")
 
     normalization_stats = {
-        "means": {"red": 126.21480560302734, "green": 130.08578491210938, "blue": 106.48361206054688},
-        "stds": {"red": 18.657546997070312, "green": 23.068553924560547, "blue": 19.50484848022461},
+        "means": {
+            "red": 126.21480560302734,
+            "green": 130.08578491210938,
+            "blue": 106.48361206054688,
+        },
+        "stds": {
+            "red": 18.657546997070312,
+            "green": 23.068553924560547,
+            "blue": 19.50484848022461,
+        },
     }
 
     classes = ["background", "cattle"]
@@ -67,7 +72,7 @@ class GeoBenchNZCattle(GeoBenchBaseDataset):
             data_normalizer: The data normalizer to apply to the data, defaults to :class:`ZScoreNormalizer`,
                 which applies z-score normalization to each band.
             transforms: image transformations to apply to the data, defaults to None
-            download: Whether to download the dataset 
+            download: Whether to download the dataset
         """
         split_norm: Literal["train", "validation", "test"]
         if split == "val":
@@ -93,7 +98,6 @@ class GeoBenchNZCattle(GeoBenchBaseDataset):
         Returns:
             data and label at that index
         """
-        
         sample_row = self.data_df.read(index)
 
         image_path = sample_row["internal:subfile"].values[0]

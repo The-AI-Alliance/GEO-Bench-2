@@ -3,9 +3,6 @@
 import argparse
 import glob
 import json
-from tqdm import tqdm
-from shapely.geometry import shape
-
 import os
 import pdb
 
@@ -66,9 +63,11 @@ def create_tortilla(annotations_df, image_dir, save_dir, tortilla_name):
             f"{os.path.splitext(img_name.split('/')[-1])[0]}_annotations.HDF5",
         )
 
-        with h5py.File(annotations_file, 'w') as f:
+        with h5py.File(annotations_file, "w") as f:
             # Store the entire dictionary as a JSON string attribute
-            f.attrs['annotation'] = json.dumps({"boxes": boxes, "image_size": (height, width)})
+            f.attrs["annotation"] = json.dumps(
+                {"boxes": boxes, "image_size": (height, width)}
+            )
 
         # create image
         image_sample = tacotoolbox.tortilla.datamodel.Sample(

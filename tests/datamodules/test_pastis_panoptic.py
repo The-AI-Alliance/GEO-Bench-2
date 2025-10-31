@@ -11,10 +11,10 @@ import matplotlib.pyplot as plt
 import pytest
 from pytest import MonkeyPatch
 from torchgeo.datasets import DatasetNotFoundError
-from geobench_v2.datasets import GeoBenchPASTIS
+
 from geobench_v2.datamodules import GeoBenchPASTISPanopticDataModule
-from geobench_v2.datamodules.pastis_panoptic import pastis_collate_fn as collate
-import pdb
+from geobench_v2.datasets import GeoBenchPASTIS
+
 
 @pytest.fixture(
     params=[
@@ -59,14 +59,17 @@ def datamodule(
         root=tmp_path,
         metadata=["lon", "lat"],
         return_stacked_image=False,
-        num_time_steps= 2,
+        num_time_steps=2,
         pin_memory=False,
         download=True,
     )
     datamodule.setup("fit")
     datamodule.setup("test")
     return datamodule
-# 
+
+
+#
+
 
 class TestPASTISPanopticDataModule:
     """Test cases for PASTIS Panoptic datamodule functionality."""
@@ -98,16 +101,18 @@ class TestPASTISPanopticDataModule:
         assert batch["image_s2"].shape[2] == datamodule.train_dataset.num_time_steps
         assert batch["image_s2"].shape[3] == datamodule.img_size
         assert batch["image_s2"].shape[4] == datamodule.img_size
-        
+
         assert batch["image_s1_asc"].shape[0] == datamodule.batch_size
         assert batch["image_s1_asc"].shape[1] == len(datamodule.band_order["s1_asc"])
         assert batch["image_s1_asc"].shape[2] == datamodule.train_dataset.num_time_steps
         assert batch["image_s1_asc"].shape[3] == datamodule.img_size
         assert batch["image_s1_asc"].shape[4] == datamodule.img_size
-        
+
         assert batch["image_s1_desc"].shape[0] == datamodule.batch_size
         assert batch["image_s1_desc"].shape[1] == len(datamodule.band_order["s1_desc"])
-        assert batch["image_s1_desc"].shape[2] == datamodule.train_dataset.num_time_steps
+        assert (
+            batch["image_s1_desc"].shape[2] == datamodule.train_dataset.num_time_steps
+        )
         assert batch["image_s1_desc"].shape[3] == datamodule.img_size
         assert batch["image_s1_desc"].shape[4] == datamodule.img_size
 

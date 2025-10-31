@@ -10,19 +10,18 @@ from typing import Any
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+import skimage
+import tacoreader
 import torch
 import torch.nn as nn
 from einops import rearrange
-
+from matplotlib import patches
 from torchgeo.datasets.utils import percentile_normalization
-import tacoreader
+
 from geobench_v2.datasets import GeoBenchPASTIS
 
 from .base import GeoBenchObjectDetectionDataModule
-import skimage
-from matplotlib import patches
 
-import pdb
 
 def pastis_collate_fn(batch: Sequence[dict[str, Any]]) -> dict[str, Any]:
     """Collate function for Pastis dataset.
@@ -50,9 +49,9 @@ def pastis_collate_fn(batch: Sequence[dict[str, Any]]) -> dict[str, Any]:
 
     return collated_batch
 
+
 # TODO add timeseries argument
 class GeoBenchPASTISPanopticDataModule(GeoBenchObjectDetectionDataModule):
-
     """GeoBench PASTIS Data Module for Panoptic Segmentation."""
 
     def __init__(
@@ -78,17 +77,18 @@ class GeoBenchPASTISPanopticDataModule(GeoBenchObjectDetectionDataModule):
             num_workers: Number of workers
             collate_fn: Collate function
             train_augmentations: Transforms/Augmentations to apply during training, they will be applied
-                at the sample level and should include normalization. See :method:`define_augmentations`
+                at the sample level and should include normalization. See :meth:`define_augmentations`
                 for the default transformation.
             eval_augmentations: Transforms/Augmentations to apply during evaluation, they will be applied
-                at the sample level and should include normalization. See :method:`define_augmentations`
+                at the sample level and should include normalization. See :meth:`define_augmentations`
                 for the default transformation.
             pin_memory: Pin memory
             **kwargs: Additional keyword arguments to
                 :class:`~geobench_v2.datasets.pastis.GeoBenchPASTIS`.
         """
-        if collate_fn is None: collate_fn = pastis_collate_fn
-        
+        if collate_fn is None:
+            collate_fn = pastis_collate_fn
+
         super().__init__(
             dataset_class=GeoBenchPASTIS,
             band_order=band_order,
@@ -100,7 +100,7 @@ class GeoBenchPASTISPanopticDataModule(GeoBenchObjectDetectionDataModule):
             eval_augmentations=eval_augmentations,
             pin_memory=pin_memory,
             label_type="instance_seg",
-            collate_fn = collate_fn,
+            collate_fn=collate_fn,
             **kwargs,
         )
 
@@ -113,9 +113,9 @@ class GeoBenchPASTISPanopticDataModule(GeoBenchObjectDetectionDataModule):
         self.data_df = tacoreader.load(
             [os.path.join(self.kwargs["root"], f) for f in GeoBenchPASTIS.paths]
         )
-        
+
         return self.data_df
-    
+
     def visualize_batch(
         self, batch: dict[str, Any] | None = None, split: str = "train"
     ) -> tuple[Any, dict[str, Any]]:
@@ -149,7 +149,11 @@ class GeoBenchPASTISPanopticDataModule(GeoBenchObjectDetectionDataModule):
         if hasattr(self.data_normalizer, "unnormalize"):
             batch = self.data_normalizer.unnormalize(batch)
 
-        batch_size = batch["mask"].shape[0] if hasattr(batch["mask"], "shape") else len(batch["mask"])
+        batch_size = (
+            batch["mask"].shape[0]
+            if hasattr(batch["mask"], "shape")
+            else len(batch["mask"])
+        )
         n_samples = min(8, batch_size)
         indices = torch.arange(batch_size)[:n_samples]
 
@@ -218,15 +222,13 @@ class GeoBenchPASTISPanopticDataModule(GeoBenchObjectDetectionDataModule):
                 )
 
         masks = [x for x in batch["mask"]]
-        labels= [x for x in batch["label"]]
+        labels = [x for x in batch["label"]]
         boxes = [x for x in batch["boxes"]]
 
         unique_classes = torch.arange(len(self.class_names)).tolist()
         # use tab20 colormap to color the unique classes found
         cmap = plt.cm.tab20
-        colors = {
-            i: cmap(i) for i in range(len(self.class_names))
-        }
+        colors = {i: cmap(i) for i in range(len(self.class_names))}
         class_cmap = plt.cm.colors.ListedColormap(colors.values())
 
         # Build legend handles once
@@ -283,46 +285,23 @@ class GeoBenchPASTISPanopticDataModule(GeoBenchObjectDetectionDataModule):
 
             # Mask column (last)
             for t in range(t_max):
-                
                 row_idx = i * t_max + t
                 ax = axes[row_idx, -1]
 
                 for l in range(len(masks[i])):
-
                     class_num = labels[i][l]
                     color = cmap(class_num / len(self.class_names))
-
-                    # # Add bounding boxes
-                    # x1, y1, x2, y2 = boxes[i][l]
-                    # r = patches.Rectangle(
-                    #     (x1, y1),
-                    #     x2 - x1,
-                    #     y2 - y1,
-                    #     linewidth=2,
-                    #     alpha=0.7,
-                    #     linestyle='dashed',
-                    #     edgecolor=color,
-                    #     facecolor='none',
-                    # )
-                    # ax.add_patch(r)
-
-                    # # Add labels
-                    # label = self.class_names[class_num]
-                    # caption = label
-                    # ax.text(
-                    #     x1, y1 - 8, caption, color='white', size=11, backgroundcolor='none'
-                    # )
-
                     # Add masks
                     mask = masks[i][l]
-                    contours = skimage.measure.find_contours(mask.cpu().numpy(), 0.5, 'high')
+                    contours = skimage.measure.find_contours(
+                        mask.cpu().numpy(), 0.5, "high"
+                    )
                     for verts in contours:
                         verts = np.fliplr(verts)
                         p = patches.Polygon(
-                            verts, facecolor=color, alpha=0.7, edgecolor='white'
+                            verts, facecolor=color, alpha=0.7, edgecolor="white"
                         )
                         ax.add_patch(p)
-
 
                 if t == 0:
                     mask_img = masks[i][l].cpu().numpy()
@@ -338,7 +317,6 @@ class GeoBenchPASTISPanopticDataModule(GeoBenchObjectDetectionDataModule):
                 ax.axis("off")
 
         # Compute legend layout
-        n_classes = len(legend_elements)
         ncols = 8
 
         legend = fig.legend(
@@ -364,7 +342,9 @@ class GeoBenchPASTISPanopticDataModule(GeoBenchObjectDetectionDataModule):
         fig_w, fig_h = fig.get_size_inches()
 
         legend_h_frac = (bbox.height / (fig_h * fig.dpi)) + 0.006
-        fig.subplots_adjust(left=0.02, right=0.98, bottom=0.02, top=0.98 - legend_h_frac)
+        fig.subplots_adjust(
+            left=0.02, right=0.98, bottom=0.02, top=0.98 - legend_h_frac
+        )
 
         return fig, batch
 

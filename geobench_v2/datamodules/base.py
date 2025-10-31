@@ -203,7 +203,7 @@ class GeoBenchDataModule(LightningDataModule, ABC):
         """
         if not hasattr(self, "data_df") or self.data_df is None:
             self.load_metadata()
-            
+
         data_df = self.data_df.copy()
 
         # Standardize coordinate columns
@@ -314,13 +314,6 @@ class GeoBenchDataModule(LightningDataModule, ABC):
         )
 
         return fig
-
-
-    # @abstractmethod
-    # def visualize_target_distribution(self) -> None:
-    #     """Visualize the target distribution of the dataset."""
-    #     # for single vector targets this should be easy, but how to make this easier for pixel-wise targets, also store in metadata?
-    #     pass
 
     @abstractmethod
     def visualize_geolocation_distribution(self) -> None:
@@ -600,10 +593,10 @@ class GeoBenchSegmentationDataModule(GeoBenchDataModule):
             num_workers: Number of workers for dataloaders
             collate_fn: Collate function that can reformat samples to the needs of the model.
             train_augmentations: Transforms/Augmentations to apply during training, they will be applied
-                at the sample level and should include normalization. See :method:`define_augmentations`
+                at the sample level and should include normalization. See :meth:`define_augmentations`
                 for the default transformation.
             eval_augmentations: Transforms/Augmentations to apply during evaluation, they will be applied
-                at the sample level and should include normalization. See :method:`define_augmentations`
+                at the sample level and should include normalization. See :meth:`define_augmentations`
                 for the default transformation.
             pin_memory: whether to pin memory in dataloaders
             **kwargs: Additional keyword arguments passed to ``dataset_class``
@@ -780,7 +773,7 @@ class GeoBenchObjectDetectionDataModule(GeoBenchDataModule):
                 data_keys=None,
                 keepdim=True,
             )
-            
+
         elif self.train_augmentations is None:
             self.train_augmentations = nn.Identity()
 

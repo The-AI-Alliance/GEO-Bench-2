@@ -21,11 +21,12 @@ from .sensor_util import DatasetBandRegistry
 
 
 def greater_than_zero_area_bbox_indexes(bboxes):
-    """
-    Returns the indexes of bounding boxes with greater than zero area.
+    """Returns the indexes of bounding boxes with greater than zero area.
     bboxes: list of [x1, y1, x2, y2]
     """
-    return [i for i, (x1, y1, x2, y2) in enumerate(bboxes) if ((x1 != x2) and (y1 != y2))]
+    return [
+        i for i, (x1, y1, x2, y2) in enumerate(bboxes) if ((x1 != x2) and (y1 != y2))
+    ]
 
 
 class GeoBenchPASTIS(GeoBenchBaseDataset):
@@ -122,8 +123,7 @@ class GeoBenchPASTIS(GeoBenchBaseDataset):
         temporal_output_format: Literal["TCHW", "CTHW"] = "CTHW",
         download: bool = False,
     ) -> None:
-        """
-        Initialize PASTIS Dataset.
+        """Initialize PASTIS Dataset.
 
         Args:
             root: Path to the dataset root directory
@@ -136,7 +136,7 @@ class GeoBenchPASTIS(GeoBenchBaseDataset):
                 if set to 10, the latest 10 time steps will be returned. If a time series has fewer time steps than
                 specified, it will be padded with zeros. A value of 1 will return a [C, H, W] tensor, while a value
                 of 10 will return a [T, C, H, W] tensor.
-            data_normalizer: The data normalizer to apply to the data, defaults to :class:`data_util.MultiModalNormalizer`,
+            data_normalizer: The data normalizer to apply to the data, defaults to :class:`data_util.ZScoreNormalizer`,
                 which applies z-score normalization to each band.
             transforms: The transforms to apply to the data, defaults to None
             metadata: metadata names to be returned under specified keys as part of the sample in the
@@ -147,6 +147,7 @@ class GeoBenchPASTIS(GeoBenchBaseDataset):
             download: Whether to download the dataset
             temporal_aggregation: whether apply temporal aggregation [mean, median]
             temporal_output_format: what temporal format the data should be in [TCHW, CTHW]
+
         Raises:
             AssertionError: If an invalid split is specified
         """
@@ -193,7 +194,7 @@ class GeoBenchPASTIS(GeoBenchBaseDataset):
             self.metadata = []
         else:
             self.metadata = metadata
-            
+
         self.temporal_aggregation = temporal_aggregation
         self.temporal_output_format = temporal_output_format
 
@@ -336,14 +337,14 @@ class GeoBenchPASTIS(GeoBenchBaseDataset):
             )
             tensor = torch.cat((padding, tensor), dim=0)
         else:
-            step =  tensor.shape[0] / self.num_time_steps
+            step = tensor.shape[0] / self.num_time_steps
             indexes = [int(i * step) for i in range(self.num_time_steps)]
             tensor = tensor[indexes, :, :, :]
 
         if self.temporal_aggregation is not None:
-            if self.temporal_aggregation == 'mean':
+            if self.temporal_aggregation == "mean":
                 tensor = torch.mean(tensor, 0)
-            if self.temporal_aggregation == 'median':
+            if self.temporal_aggregation == "median":
                 tensor = torch.median(tensor, 0).values
 
         if self.num_time_steps == 1:
@@ -389,7 +390,7 @@ class GeoBenchPASTIS(GeoBenchBaseDataset):
         instance_ids = instance_ids[instance_ids != 0]
         instance_ids = instance_ids[:, None, None]
         masks: Tensor = instance_tensor == instance_ids
-        
+
         mask_tensor = mask_tensor.to(torch.int16)
         # Parse labels for each instance
         labels_list = []
@@ -407,9 +408,9 @@ class GeoBenchPASTIS(GeoBenchBaseDataset):
             ymin = torch.min(pos[0])
             ymax = torch.max(pos[0])
             if xmin == xmax:
-                xmax = xmax +1
+                xmax = xmax + 1
             if ymin == ymax:
-                ymax = ymax +1    
+                ymax = ymax + 1
             boxes_list.append([xmin, ymin, xmax, ymax])
 
         masks = masks.to(torch.uint8)
