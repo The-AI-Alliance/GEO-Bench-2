@@ -20,15 +20,6 @@ from .normalization import ZScoreNormalizer
 from .sensor_util import DatasetBandRegistry
 
 
-def greater_than_zero_area_bbox_indexes(bboxes):
-    """Returns the indexes of bounding boxes with greater than zero area.
-    bboxes: list of [x1, y1, x2, y2]
-    """
-    return [
-        i for i, (x1, y1, x2, y2) in enumerate(bboxes) if ((x1 != x2) and (y1 != y2))
-    ]
-
-
 class GeoBenchPASTIS(GeoBenchBaseDataset):
     """GeoBench version of PASTIS dataset.
 

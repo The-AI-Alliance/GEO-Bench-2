@@ -223,7 +223,6 @@ class GeoBenchPASTISPanopticDataModule(GeoBenchObjectDetectionDataModule):
 
         masks = [x for x in batch["mask"]]
         labels = [x for x in batch["label"]]
-        boxes = [x for x in batch["boxes"]]
 
         unique_classes = torch.arange(len(self.class_names)).tolist()
         # use tab20 colormap to color the unique classes found
@@ -288,11 +287,11 @@ class GeoBenchPASTISPanopticDataModule(GeoBenchObjectDetectionDataModule):
                 row_idx = i * t_max + t
                 ax = axes[row_idx, -1]
 
-                for l in range(len(masks[i])):
-                    class_num = labels[i][l]
+                for num_l in range(len(masks[i])):
+                    class_num = labels[i][num_l]
                     color = cmap(class_num / len(self.class_names))
                     # Add masks
-                    mask = masks[i][l]
+                    mask = masks[i][num_l]
                     contours = skimage.measure.find_contours(
                         mask.cpu().numpy(), 0.5, "high"
                     )
@@ -304,7 +303,7 @@ class GeoBenchPASTISPanopticDataModule(GeoBenchObjectDetectionDataModule):
                         ax.add_patch(p)
 
                 if t == 0:
-                    mask_img = masks[i][l].cpu().numpy()
+                    mask_img = masks[i][num_l].cpu().numpy()
                     ax.imshow(
                         mask_img,
                         cmap=class_cmap,
