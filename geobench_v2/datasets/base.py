@@ -26,7 +26,7 @@ class GeoBenchBaseDataset(NonGeoDataset, DataUtilsMixin):
 
     url = ""
     paths: Sequence[str] = []
-    sha256strsumsumsumsumsum: Sequence[str] = []
+    sha256str: Sequence[str] = []
 
     normalization_stats = {"means": {}, "stds": {}}
     band_default_order: dict[str, list[str]] = {}
