@@ -15,12 +15,20 @@ from shapely import wkt
 from torch import Tensor
 
 from .base import GeoBenchBaseDataset
-from .normalization import MultiModalNormalizer
+from .normalization import ZScoreNormalizer
 from .sensor_util import DatasetBandRegistry
 
 
 class GeoBenchSpaceNet7(GeoBenchBaseDataset):
-    """GeoBench version of SpaceNet7 dataset."""
+    """GeoBench version of SpaceNet7 dataset.
+
+    Multi-temporal building segmentation and tracking dataset using PlanetScope imagery,
+    with fine grained building footprint masks.
+
+    If you use this dataset in your research, please cite the following paper:
+
+    * https://openaccess.thecvf.com/content/CVPR2021/html/Van_Etten_The_Multi-Temporal_Urban_Development_SpaceNet_Dataset_CVPR_2021_paper.html
+    """
 
     url = "https://hf.co/datasets/aialliance/spacenet7/resolve/main/{}"
 
@@ -58,7 +66,7 @@ class GeoBenchSpaceNet7(GeoBenchBaseDataset):
         root: Path,
         split: Literal["train", "val", "validation", "test"],
         band_order: list[str] = band_default_order,
-        data_normalizer: type[nn.Module] = MultiModalNormalizer,
+        data_normalizer: type[nn.Module] = ZScoreNormalizer,
         transforms: nn.Module = None,
         metadata: Sequence[str] | None = None,
         download: bool = False,
@@ -72,7 +80,7 @@ class GeoBenchSpaceNet7(GeoBenchBaseDataset):
                 specify ['red', 'green', 'blue', 'blue', 'blue'], the dataset would return images with 5 channels
                 in that order. This is useful for models that expect a certain band order, or
                 test the impact of band order on model performance.
-            data_normalizer: The data normalizer to apply to the data, defaults to :class:`data_util.MultiModalNormalizer`,
+            data_normalizer: The data normalizer to apply to the data, defaults to :class:`data_util.ZScoreNormalizer`,
             transforms: The transforms to apply to the data, defaults to None
             metadata: metadata names to be returned as part of the sample in the
                 __getitem__ method. If None, no metadata is returned.

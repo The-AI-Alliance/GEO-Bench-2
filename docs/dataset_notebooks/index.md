@@ -19,9 +19,12 @@ flair2
 fotw
 kuro_siwo
 pastis
+pastis_panoptic
 spacenet2
 spacenet7
+nzcattle
 substation
 treesatai
-wind_turbine
+forestnet
+so2sat
 ```

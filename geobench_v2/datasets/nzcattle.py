@@ -32,11 +32,19 @@ class GeoBenchNZCattle(GeoBenchBaseDataset):
     sha256str = ["70ca3b78af3f5b17868dd856b8e31b102a03e74439d58960a69c77b1efcd31c1"]
 
     dataset_band_config = DatasetBandRegistry.NZCATTLE
-    band_default_order = ["red", "green", "blue"]
+    band_default_order = ("red", "green", "blue")
 
-    normalization_stats: dict[str, dict[str, float]] = {
-        "means": {"red": 0.0, "green": 0.0, "blue": 0.0},
-        "stds": {"red": 255.0, "green": 255.0, "blue": 255.0},
+    normalization_stats = {
+        "means": {
+            "red": 126.21480560302734,
+            "green": 130.08578491210938,
+            "blue": 106.48361206054688,
+        },
+        "stds": {
+            "red": 18.657546997070312,
+            "green": 23.068553924560547,
+            "blue": 19.50484848022461,
+        },
     }
 
     classes = ["background", "cattle"]
@@ -97,11 +105,14 @@ class GeoBenchNZCattle(GeoBenchBaseDataset):
 
         sample: dict[str, Tensor] = {}
 
+        ## load image
         image = self._load_image(image_path)
 
         image_dict = self.rearrange_bands(image, self.band_order)
         image_dict = self.data_normalizer(image_dict)
         sample.update(image_dict)
+
+        ## load annotations
 
         boxes, labels = self._load_target(anno_path)
 

@@ -10,7 +10,7 @@ build-backend = "setuptools.build_meta"
 name = "GeoBenchV2"
 description = "GeoBenchV2: A comprehensive benchmark evaluation suite for Earth observation tasks."
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 license = {file = "LICENSE"}
 authors = [
     {name = "Nils Lehmann", email = "n.lehmann@tum.de"},
@@ -62,6 +62,7 @@ dependencies = [
     "geopandas>=1.1.0",
     "h5py>=3.14.0",
     "cartopy>=0.25.0",
+    "scikit-image>=0.25.2"
 ]
 dynamic = ["version"]
 

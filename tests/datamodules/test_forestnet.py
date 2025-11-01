@@ -1,0 +1,98 @@
+# Copyright (c) 2025 GeoBenchV2. All rights reserved.
+# Licensed under the Apache License 2.0.
+
+"""Test Foresnet Dataset."""
+
+import os
+from collections.abc import Sequence
+from pathlib import Path
+
+import matplotlib.pyplot as plt
+import pytest
+from pytest import MonkeyPatch
+from torchgeo.datasets import DatasetNotFoundError
+
+from geobench_v2.datamodules import GeoBenchForestnetDataModule
+from geobench_v2.datasets import GeoBenchForestnet
+
+
+@pytest.fixture
+def band_order():
+    """Test band configuration with fill values."""
+    return ["B04", "B03", "B02"]
+
+
+@pytest.fixture
+def datamodule(
+    monkeypatch: MonkeyPatch,
+    tmp_path: Path,
+    band_order: dict[str, Sequence[str | float]],
+):
+    """Initialize Forestnet datamodule with test configuration."""
+    monkeypatch.setattr(GeoBenchForestnet, "paths", ["forestnet.tortilla"])
+    monkeypatch.setattr(
+        GeoBenchForestnet, "url", os.path.join("tests", "data", "forestnet", "{}")
+    )
+    monkeypatch.setattr(
+        GeoBenchForestnet,
+        "sha256str",
+        ["1da2ef8c5718bf617cbf06a0d7740a9dcefaf75e3f9be81b8693dde0a7e5f244"],
+    )
+    dm = GeoBenchForestnetDataModule(
+        img_size=512,
+        batch_size=2,
+        eval_batch_size=1,
+        num_workers=0,
+        pin_memory=False,
+        band_order=band_order,
+        root=tmp_path,
+        download=True,
+        metadata=["lon", "lat"],
+    )
+    dm.setup("fit")
+    dm.setup("test")
+
+    return dm
+
+
+class TestForestnetDataModule:
+    """Test cases for Forestnet datamodule functionality."""
+
+    def test_loaders(self, datamodule):
+        """Test if dataloaders are created successfully."""
+        assert len(datamodule.train_dataloader()) > 0
+        assert len(datamodule.val_dataloader()) > 0
+        assert len(datamodule.test_dataloader()) > 0
+
+    def test_batch_dimensions(self, datamodule):
+        """Test if batches have correct dimensions."""
+        train_batch = next(iter(datamodule.train_dataloader()))
+        assert train_batch["image"].shape[0] == datamodule.batch_size
+        assert train_batch["image"].shape[1] == len(datamodule.band_order)
+        assert train_batch["image"].shape[3] == datamodule.img_size
+
+        assert len(train_batch["label"]) == datamodule.batch_size
+
+        assert "lon" in train_batch
+        assert "lat" in train_batch
+        assert train_batch["lon"].shape == (datamodule.batch_size,)
+        assert train_batch["lat"].shape == (datamodule.batch_size,)
+
+    def test_band_order_resolution(self, datamodule):
+        """Test if band order is correctly resolved."""
+        assert len(datamodule.band_order) == 3
+        assert isinstance(datamodule.band_order[1], str)
+        assert datamodule.band_order[1] == "B03"
+
+    def test_batch_visualization(self, datamodule):
+        """Test batch visualization."""
+        fig, batch = datamodule.visualize_batch(split="train")
+        assert isinstance(fig, plt.Figure)
+        assert isinstance(batch, dict)
+
+        fig.savefig(os.path.join("tests", "data", "forestnet", "test_batch.png"))
+        plt.close(fig)
+
+    def test_not_downloaded(self, tmp_path: Path) -> None:
+        with pytest.raises(DatasetNotFoundError, match="Dataset not found"):
+            GeoBenchForestnet(tmp_path, split="train")

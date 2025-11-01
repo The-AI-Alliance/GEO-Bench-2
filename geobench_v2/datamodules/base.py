@@ -122,15 +122,18 @@ class GeoBenchDataModule(LightningDataModule, ABC):
                 **self.kwargs,
             )
 
-        self.dataset_band_config = self.train_dataset.dataset_band_config
+        if stage in ["fit", "validate"]:
+            dataset = self.train_dataset
+        elif stage in ["test"]:
+            dataset = self.test_dataset
 
-        self.data_normalizer = self.train_dataset.data_normalizer
+        self.dataset_band_config = dataset.dataset_band_config
+        self.data_normalizer = dataset.data_normalizer
+        self.band_order = dataset.band_order
 
-        self.band_order = self.train_dataset.band_order
-
-        if hasattr(self.train_dataset, "num_classes"):
-            self.num_classes = self.train_dataset.num_classes
-            self.class_names = self.train_dataset.classes
+        if hasattr(dataset, "num_classes"):
+            self.num_classes = dataset.num_classes
+            self.class_names = dataset.classes
 
     @abstractmethod
     def setup_image_size_transforms(self) -> tuple[nn.Module, nn.Module, nn.Module]:
@@ -198,7 +201,10 @@ class GeoBenchDataModule(LightningDataModule, ABC):
         Returns:
             A matplotlib Figure object with the geospatial distribution plot.
         """
-        data_df = self.load_metadata()
+        if not hasattr(self, "data_df") or self.data_df is None:
+            self.load_metadata()
+
+        data_df = self.data_df.copy()
 
         # Standardize coordinate columns
         if "lat" not in data_df.columns or "lon" not in data_df.columns:
@@ -308,12 +314,6 @@ class GeoBenchDataModule(LightningDataModule, ABC):
         )
 
         return fig
-
-    # @abstractmethod
-    # def visualize_target_distribution(self) -> None:
-    #     """Visualize the target distribution of the dataset."""
-    #     # for single vector targets this should be easy, but how to make this easier for pixel-wise targets, also store in metadata?
-    #     pass
 
     @abstractmethod
     def visualize_geolocation_distribution(self) -> None:
@@ -760,7 +760,7 @@ class GeoBenchObjectDetectionDataModule(GeoBenchDataModule):
             self.train_augmentations = K.AugmentationSequential(
                 K.RandomHorizontalFlip(p=0.5),
                 K.RandomVerticalFlip(p=0.5),
-                data_keys=["image", "bbox_xyxy", "label"],
+                data_keys=None,
                 keepdim=True,
             )
         elif self.train_augmentations == "multi_temporal_default":
@@ -773,6 +773,7 @@ class GeoBenchObjectDetectionDataModule(GeoBenchDataModule):
                 data_keys=None,
                 keepdim=True,
             )
+
         elif self.train_augmentations is None:
             self.train_augmentations = nn.Identity()
 

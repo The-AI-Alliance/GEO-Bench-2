@@ -15,12 +15,20 @@ from shapely import wkt
 from torch import Tensor
 
 from .base import GeoBenchBaseDataset
-from .normalization import MultiModalNormalizer
+from .normalization import ZScoreNormalizer
 from .sensor_util import DatasetBandRegistry
 
 
 class GeoBenchSpaceNet2(GeoBenchBaseDataset):
-    """GeoBench version of SpaceNet2 dataset."""
+    """GeoBench version of SpaceNet2 dataset.
+
+    Building footprint segmentation dataset using high-resolution optical imagery,
+    with binary building masks.
+
+    If you use this dataset in your research, please cite the following paper:
+
+    * https://arxiv.org/abs/2102.11958
+    """
 
     url = "https://hf.co/datasets/aialliance/spacenet2/resolve/main/{}"
 
@@ -80,7 +88,7 @@ class GeoBenchSpaceNet2(GeoBenchBaseDataset):
         root: Path,
         split: Literal["train", "val", "validation", "test"],
         band_order: list[str] = band_default_order,
-        data_normalizer: type[nn.Module] = MultiModalNormalizer,
+        data_normalizer: type[nn.Module] = ZScoreNormalizer,
         label_type: Literal["instance_seg", "semantic_seg"] = "semantic_seg",
         transforms: nn.Module | None = None,
         metadata: Sequence[str] | None = None,
@@ -97,7 +105,7 @@ class GeoBenchSpaceNet2(GeoBenchBaseDataset):
                 specify ['red', 'green', 'blue', 'blue', 'blue'], the dataset would return images with 5 channels
                 in that order. This is useful for models that expect a certain band order, or
                 test the impact of band order on model performance.
-            data_normalizer: The data normalizer to apply to the data, defaults to :class:`data_util.MultiModalNormalizer`,
+            data_normalizer: The data normalizer to apply to the data, defaults to :class:`data_util.ZScoreNormalizer`,
                 which applies z-score normalization to each band.
             label_type: The type of label to return, supports 'instance_seg' or 'semantic_seg'
             transforms: The transforms to apply to the data, defaults to None
