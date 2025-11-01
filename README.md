@@ -82,6 +82,10 @@ DOWNLOAD_ROOT="path/to/your/desired/location" ./download_geobenchV2.sh spacenet7
 ## License
 This code is licensed under the Apache License 2.0. By contributing to this repository, you agree that your contributions will be licensed under the Apache 2.0 License unless otherwise stated.
 
+## Dataset Licenses
+
+All dataset are distributed under open-licenses. For license details please see the respective Huggingface repository of each dataset. A summary of the license files can be found in [this file](./dataset_licenses.md).
+
 
 ## Credits
 This project was developed as part of the AI Alliance with involvement from IBM and ServiceNow.
