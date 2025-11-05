@@ -237,12 +237,23 @@ class GeoBenchPASTIS(GeoBenchBaseDataset):
                     sample[key] = sample[key].permute(1, 0, 2, 3)  # C, T, H, W
 
         if self.return_stacked_image:
-            sample = {
-                "image": torch.cat(
-                    [sample[f"image_{key}"] for key in self.band_order.keys()], 0
-                ),
-                "mask": sample["mask"],
-            }
+            if self.label_type == "instance_seg":
+                sample = {
+                    "image": torch.cat(
+                        [sample[f"image_{key}"] for key in self.band_order.keys()], 0
+                    ),
+                    "mask": sample["mask"],
+                    "label": sample["label"],
+                    "boxes": sample["boxes"],
+                }
+            else:
+                sample = {
+                    "image": torch.cat(
+                        [sample[f"image_{key}"] for key in self.band_order.keys()], 0
+                    ),
+                    "mask": sample["mask"],
+                }
+ 
             if self.num_time_steps == 1:
                 sample["image"] = sample["image"].squeeze(1)
 
