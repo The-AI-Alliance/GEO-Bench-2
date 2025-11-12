@@ -8,6 +8,7 @@ build-backend = "setuptools.build_meta"
 # https://packaging.python.org/en/latest/specifications/declaring-project-metadata/
 [project]
 name = "GeoBenchV2"
+version = "0.9"
 description = "GeoBenchV2: A comprehensive benchmark evaluation suite for Earth observation tasks."
 readme = "README.md"
 requires-python = ">=3.11"
@@ -64,7 +65,6 @@ dependencies = [
     "cartopy>=0.25.0",
     "scikit-image>=0.25.2"
 ]
-dynamic = ["version"]
 
 [project.optional-dependencies]
 tests = [
