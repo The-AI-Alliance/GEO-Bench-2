@@ -253,7 +253,7 @@ class GeoBenchPASTIS(GeoBenchBaseDataset):
                     ),
                     "mask": sample["mask"],
                 }
- 
+
             if self.num_time_steps == 1:
                 sample["image"] = sample["image"].squeeze(1)
 
