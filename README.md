@@ -24,7 +24,7 @@ For the the most recent version of the main branch, install with `pip install gi
 
 To use the library as a developer, install in editable mode with:
 ```
-git clone https://https://github.com/The-AI-Alliance/GEO-Bench-2.git
+git clone https://github.com/The-AI-Alliance/GEO-Bench-2.git
 cd GEO-Bench-2
 pip install -e .
 ```
