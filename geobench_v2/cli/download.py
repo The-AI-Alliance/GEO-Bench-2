@@ -27,10 +27,7 @@ def main() -> None:
         description="Download GeoBench-2 datasets from Hugging Face (requires --root).",
     )
     parser.add_argument(
-        "--root",
-        "-r",
-        required=True,
-        help="Root directory for downloads (required).",
+        "--root", "-r", required=True, help="Root directory for downloads (required)."
     )
     parser.add_argument(
         "datasets",
