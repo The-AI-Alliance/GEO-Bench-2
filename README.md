@@ -1,10 +1,10 @@
-# GEO-Bench 2 (Still under development, stay tuned for full release)!
+# GEO-Bench 2
 
-![1-earth](https://github.com/The-AI-Alliance/GEO-Bench-2/assets/5478516/738b5aa6-b46d-48bc-bdde-fd71605b9bac)
-[![huggingface](https://img.shields.io/badge/Hugging_Face-join-FFD21E?logo=huggingface)](https://hf.co/datasets/aialliance/)
+![1-earth](https://github.com/The-AI-Alliance/GEO-Bench-2/docs/_assets/GEO-Bench-2_banner.jpg)
+[![huggingface](https://img.shields.io/badge/Hugging_Face-join-FFD21E?logo=huggingface)](https://huggingface.co/collections/aialliance/geo-bench-2)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![Language: Python](https://img.shields.io/badge/language-Python%203.10%2B-green?logo=python&logoColor=green)](https://www.python.org)
-[![pypi](https://badge.fury.io/py/geobenchv2.svg)](https://pypi.org/project/geobenchv2)
+[![pypi](https://badge.fury.io/py/geobenchv2.svg)](https://pypi.org/project/GeoBenchV2/)
 [![docs](https://readthedocs.org/projects/pip/badge/)](https://geo-bench-2.readthedocs.io/en/latest/)
 
 ## Overview
@@ -18,7 +18,7 @@ The [Geo-Bench-2-Leaderbaord](https://github.com/The-AI-Alliance/GEO-Bench-2-Lea
 
 ## Installation
 
-For a stable release, install with `pip install geobenchv2==<version>`.
+For a stable release, install with `pip install GeoBenchV2`.
 
 For the the most recent version of the main branch, install with `pip install git+https://github.com/The-AI-Alliance/GEO-Bench-2.git`.
 
