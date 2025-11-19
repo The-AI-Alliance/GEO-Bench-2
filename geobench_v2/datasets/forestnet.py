@@ -14,7 +14,7 @@ from shapely import wkt
 from torch import Tensor
 
 from .base import GeoBenchBaseDataset
-from .normalization import MultiModalNormalizer
+from .normalization import ZScoreNormalizer
 from .sensor_util import DatasetBandRegistry
 
 
@@ -79,7 +79,7 @@ class GeoBenchForestnet(GeoBenchBaseDataset):
         root: Path,
         split: Literal["train", "val", "validation", "test"],
         band_order: dict[str, Sequence[float | str]] = band_default_order,
-        data_normalizer: type[nn.Module] = MultiModalNormalizer,
+        data_normalizer: type[nn.Module] = ZScoreNormalizer,
         transforms: nn.Module | None = None,
         metadata: list[str] = None,
         download: bool = False,
@@ -91,7 +91,7 @@ class GeoBenchForestnet(GeoBenchBaseDataset):
             split: The dataset split, supports 'train', 'validation', 'test'
             band_order: The order of bands to return, defaults to all s2 bands. This is useful for models that expect a certain band order, or
                 test the impact of band order on model performance.
-            data_normalizer: The data normalizer to apply to the data, defaults to :class:`data_util.MultiModalNormalizer`,
+            data_normalizer: The data normalizer to apply to the data, defaults to :class:`data_util.ZScoreNormalizer`,
                 which applies z-score normalization to each band.
             transforms: Transforms to apply to the data
             metadata: metadata names to be returned under specified keys as part of the sample in the

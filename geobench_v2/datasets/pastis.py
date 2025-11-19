@@ -47,22 +47,6 @@ class GeoBenchPASTIS(GeoBenchBaseDataset):
 
     dataset_band_config = DatasetBandRegistry.PASTIS
 
-    band_default_order = (
-        "B01",
-        "B02",
-        "B03",
-        "B04",
-        "B05",
-        "B06",
-        "B07",
-        "B08",
-        "B8A",
-        "B09",
-        "B10",
-        "B11",
-        "B12",
-    )
-
     band_default_order = {
         "s2": ("B02", "B03", "B04", "B05", "B06", "B07", "B08", "B8A", "B11", "B12"),
         "s1_asc": ("VV_asc", "VH_asc", "VV/VH_asc"),
@@ -126,13 +110,15 @@ class GeoBenchPASTIS(GeoBenchBaseDataset):
         metadata: Sequence[str] | None = None,
         label_type: Literal["instance_seg", "semantic_seg"] = "semantic_seg",
         return_stacked_image: bool = False,
+        temporal_aggregation: Literal["mean", "median"] = None,
+        temporal_output_format: Literal["TCHW", "CTHW"] = "CTHW",
         download: bool = False,
     ) -> None:
         """Initialize PASTIS Dataset.
 
         Args:
             root: Path to the dataset root directory
-            split: The dataset split, supports 'train', 'validation', 'test'
+            split: The dataset split, supports 'train', 'val', 'test'
             band_order: The order of bands to return, defaults to ['red', 'green', 'blue', 'nir'], if one would
                 specify ['red', 'green', 'blue', 'nir', 'nir'], the dataset would return images with 5 channels
                 in that order. This is useful for models that expect a certain band order, or
@@ -150,6 +136,9 @@ class GeoBenchPASTIS(GeoBenchBaseDataset):
             return_stacked_image: if true, returns a single image tensor with all modalities stacked in band_order
             rename_modalities: dictionary with information to rename modalities in output e.g. {image: {sar:  S1RTC, rgbn: S2L2A}}
             download: Whether to download the dataset
+            temporal_aggregation: whether apply temporal aggregation [mean, median]
+            temporal_output_format: what temporal format the data should be in [TCHW, CTHW]
+
         Raises:
             AssertionError: If an invalid split is specified
         """
@@ -175,14 +164,34 @@ class GeoBenchPASTIS(GeoBenchBaseDataset):
             download=download,
         )
 
-        self.label_type = label_type
+        if split == "validation":
+            split = "val"
+
+        self.split = split
+
+        self.band_order = self.validate_band_order(band_order)
+
+        self.transforms = transforms
         self.num_time_steps = num_time_steps
+        self.label_type = label_type
         if return_stacked_image:
             assert rename_modalities is None, (
                 "Cannot return a stacked image if modalities are renamed"
             )
         self.return_stacked_image = return_stacked_image
         self.rename_modalities = rename_modalities
+
+        if metadata is None:
+            self.metadata = []
+        else:
+            self.metadata = metadata
+
+        self.temporal_aggregation = temporal_aggregation
+        self.temporal_output_format = temporal_output_format
+
+    def __len__(self) -> int:
+        """Return the length of the dataset."""
+        return len(self.data_df)
 
     def __getitem__(self, index: int) -> dict[str, Tensor]:
         """Return an index within the dataset.
@@ -219,21 +228,32 @@ class GeoBenchPASTIS(GeoBenchBaseDataset):
             sample_dates = [0] * (self.num_time_steps - len(dates)) + dates
         else:
             sample_dates = dates[-self.num_time_steps :]
-
         if self.transforms:
             sample = self.transforms(sample)
 
-        for key in sample:
-            if "image" in key and len(sample[key].shape) == 4:  # [T, C, H, W]
-                sample[key] = sample[key].permute(1, 0, 2, 3)  # C, T, H, W
+        if self.temporal_output_format == "CTHW":
+            for key in sample:
+                if "image" in key and len(sample[key].shape) == 4:  # [T, C, H, W]
+                    sample[key] = sample[key].permute(1, 0, 2, 3)  # C, T, H, W
 
         if self.return_stacked_image:
-            sample = {
-                "image": torch.cat(
-                    [sample[f"image_{key}"] for key in self.band_order.keys()], 0
-                ),
-                "mask": sample["mask"],
-            }
+            if self.label_type == "instance_seg":
+                sample = {
+                    "image": torch.cat(
+                        [sample[f"image_{key}"] for key in self.band_order.keys()], 0
+                    ),
+                    "mask": sample["mask"],
+                    "label": sample["label"],
+                    "boxes": sample["boxes"],
+                }
+            else:
+                sample = {
+                    "image": torch.cat(
+                        [sample[f"image_{key}"] for key in self.band_order.keys()], 0
+                    ),
+                    "mask": sample["mask"],
+                }
+
             if self.num_time_steps == 1:
                 sample["image"] = sample["image"].squeeze(1)
 
@@ -319,7 +339,15 @@ class GeoBenchPASTIS(GeoBenchBaseDataset):
             )
             tensor = torch.cat((padding, tensor), dim=0)
         else:
-            tensor = tensor[-self.num_time_steps :]
+            step = tensor.shape[0] / self.num_time_steps
+            indexes = [int(i * step) for i in range(self.num_time_steps)]
+            tensor = tensor[indexes, :, :, :]
+
+        if self.temporal_aggregation is not None:
+            if self.temporal_aggregation == "mean":
+                tensor = torch.mean(tensor, 0)
+            if self.temporal_aggregation == "median":
+                tensor = torch.median(tensor, 0).values
 
         if self.num_time_steps == 1:
             tensor = tensor.squeeze(0)
@@ -365,6 +393,7 @@ class GeoBenchPASTIS(GeoBenchBaseDataset):
         instance_ids = instance_ids[:, None, None]
         masks: Tensor = instance_tensor == instance_ids
 
+        mask_tensor = mask_tensor.to(torch.int16)
         # Parse labels for each instance
         labels_list = []
         for mask in masks:
@@ -380,6 +409,10 @@ class GeoBenchPASTIS(GeoBenchBaseDataset):
             xmax = torch.max(pos[1])
             ymin = torch.min(pos[0])
             ymax = torch.max(pos[0])
+            if xmin == xmax:
+                xmax = xmax + 1
+            if ymin == ymax:
+                ymax = ymax + 1
             boxes_list.append([xmin, ymin, xmax, ymax])
 
         masks = masks.to(torch.uint8)

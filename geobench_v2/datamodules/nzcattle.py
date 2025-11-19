@@ -3,11 +3,14 @@
 
 """GeoBench NZCattle DataModule."""
 
+import os
 from collections.abc import Callable, Sequence
 from typing import Any
 
 import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
+import tacoreader
 import torch
 import torch.nn as nn
 from einops import rearrange
@@ -108,7 +111,8 @@ class GeoBenchNZCattleDataModule(GeoBenchObjectDetectionDataModule):
         else:
             batch = next(iter(self.test_dataloader()))
 
-        batch = self.data_normalizer.unnormalize(batch)
+        if hasattr(self.data_normalizer, "unnormalize"):
+            batch = self.data_normalizer.unnormalize(batch)
 
         images = batch["image"]
         boxes_batch = batch["bbox_xyxy"]
@@ -252,3 +256,14 @@ class GeoBenchNZCattleDataModule(GeoBenchObjectDetectionDataModule):
     def visualize_geolocation_distribution(self) -> None:
         """Visualize the geolocation distribution of the dataset."""
         pass
+
+    def load_metadata(self) -> pd.DataFrame:
+        """Load metadata file.
+
+        Returns:
+            pandas DataFrame with metadata.
+        """
+        self.data_df = tacoreader.load(
+            [os.path.join(self.kwargs["root"], f) for f in GeoBenchNZCattle.paths]
+        )
+        return self.data_df

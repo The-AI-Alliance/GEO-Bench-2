@@ -104,7 +104,7 @@ class GeoBenchBaseDataset(NonGeoDataset, DataUtilsMixin):
                 f"data_normalizer must be a DataNormalizer subclass type or a callable instance. Got {type(data_normalizer)}"
             )
 
-    def __getitem__(self, index: int) -> dict[str, Any]:
+    def __getitem__(self, index: int) -> dict[str, any]:
         """Return an index within the dataset.
 
         Args:
@@ -176,5 +176,5 @@ class GeoBenchBaseDataset(NonGeoDataset, DataUtilsMixin):
                 sha256str_hash.update(chunk)
 
         calculated_hash = sha256str_hash.hexdigest()
-        print(calculated_hash)
+
         return calculated_hash == expected_sha256str
