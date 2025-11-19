@@ -1,6 +1,6 @@
 # GEO-Bench 2
 
-![1-earth](https://github.com/The-AI-Alliance/GEO-Bench-2/docs/_assets/GEO-Bench-2_banner.jpg)
+![1-earth](https://raw.githubusercontent.com/The-AI-Alliance/GEO-Bench-2/main/docs/_assets/GEO-Bench-2_banner.jpg)
 [![huggingface](https://img.shields.io/badge/Hugging_Face-join-FFD21E?logo=huggingface)](https://huggingface.co/collections/aialliance/geo-bench-2)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![Language: Python](https://img.shields.io/badge/language-Python%203.10%2B-green?logo=python&logoColor=green)](https://www.python.org)
