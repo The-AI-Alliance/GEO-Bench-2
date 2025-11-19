@@ -33,66 +33,46 @@ pip install -e .
 
 The latest documentation can be found at this [link](https://geo-bench-2.readthedocs.io/en/latest/)
 
-## Generating the Benchmark
-
-The directory `./generate_benchmark` contains a script for each included dataset that has three purposes:
-
-1. Generate a dataset subset that is sufficient for benchmark purposes and minimal in size to reduce disk space
-requirements for users.
-2. Generate possible partition sizes for experiments across dataset sizes
-3. Generate a super tiny dataset version of dummy data that is used for unit testing all implemented functionality
-
 ## Downloading the Benchmark
 
-While each dataset class has automatic download capabilites similar to [TorchGeo](https://github.com/torchgeo/torchgeo), downloads can be sped up by using the Huggingface Command Line Interface. We have therefore provided a bash script named [download_geobenchV2.sh](./download_geobenchV2.sh), which you can use to download all or selected datasets to a specified root.
+Datasets can be downloaded using the `geobench-download` command-line tool, which is installed automatically with the package.
 
-First, you need to install the Hugging Face CLI: 
-
-```bash
-pip install huggingface_hub[cli]
-```
-
-Then, you can use the download script as follows to download all datasets:
+First, make sure you have installed the GEO-Bench-2 package: 
 
 ```bash
-./download_geobenchV2.sh
+pip install geobenchv2
 ```
 
-Or only download specific datasets, for example:
+To download all datasets to a specified directory:
 
 ```bash
-./download_geobenchV2.sh dynamic_earthnet caffe spacenet7
+geobench-download --root /path/to/data
 ```
 
-The default root where the datasets will be downloaded is `./data`, if you like to specify a dedicated download root for a specific or all dataset downloads, preprend the above commands as follows:
+To download only selected datasets:
 
 ```bash
-DOWNLOAD_ROOT="path/to/your/desired/location" ./download_geobenchV2.sh spacenet7
+geobench-download --root /path/to/data spacenet7 caffe dynamic_earthnet
 ```
+
+The following datasets are available for download:
+- `benv2`, `biomassters`, `burn_scars`, `caffe`, `cloudsen12`
+- `dynamic_earthnet`, `everwatch`, `flair2`, `forestnet`, `fotw`
+- `kuro_siwo`, `pastis`, `spacenet2`, `spacenet7`, `substation`
+- `treesatai`, `wind_turbine`, `so2sat`
+
+**Note:** The `--root` argument is required to ensure you explicitly choose where to store the datasets, as they can be quite large.
 
 ## Code License
 This code is licensed under the Apache License 2.0. By contributing to this repository, you agree that your contributions will be licensed under the Apache 2.0 License unless otherwise stated.
 
 ## Dataset Licenses
 
-All dataset are distributed under open-licenses. For license details please see the respective Huggingface repository of each dataset. A summary of the license files can be found in [this file](./dataset_licenses.md). License information is also contained in each `README.md` file that will be downloaded with the data from Huggingface. 
+All dataset are distributed under open-licenses. For license details please see the respective Huggingface repository of each dataset. A summary of the license files can be found in [this file](./dataset_licenses.md). License information is also contained in each `README.md` file that will be downloaded with the data from Huggingface. For our disclaimer about the licenses and our takedown policy, please see [benchmark_license_disclaimer.md](./benchmark_license_disclaimer.md).
 
+## How was the Benchmark Generated?
 
-```
-License Disclaimer & Takedown Policy 
-
-GEO-Bench-2 redistributes transformed versions of publicly available datasets for research and benchmarking purposes. Each dataset included here is redistributed under the same license terms designated by its original licensor. 
-
-No New Rights Created: ServiceNow Research, IBM Research, TUM, and AI Alliance do not claim ownership over these datasets and do not grant any new rights beyond those already specified by the original licensors. 
-
-Attribution: All credit remains with the original dataset creators and providers. Each dataset is accompanied by license and attribution information pointing to the original source. 
-
-Disclaimer of Responsibility: The consortium partners act only as redistributors. We do not independently verify the accuracy of the license terms supplied by original dataset providers and disclaim liability for any errors, omissions, or misattributions in those designations. 
-
-Takedown Procedure: If you are a rights holder and believe that a dataset has been misattributed, incorrectly licensed, or should not be redistributed in this form, please contact Paolo Fraccaro (paolo.fraccaro@ibm.com) and Alexandre Lacoste (alexandre.lacoste@servicenow.com). We will promptly review and, if necessary, remove or modify access to the dataset. 
-
-By accessing or using GEO-Bench-2, you agree to comply with the original dataset licenses and acknowledge that the responsibility for verifying appropriate use lies with the end-user. 
-```
+All scripts that were used to generate the GEO-Bench-2 dataset versions are included in the [generate_benchmark](/geobench_v2/generate_benchmark/) directory.
 
 
 ## Credits
