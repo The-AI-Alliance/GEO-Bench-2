@@ -21,10 +21,10 @@ The [Geo-Bench-2-Leaderbaord](https://github.com/The-AI-Alliance/GEO-Bench-2-Lea
 For a stable release, install with:
 
 ```
-pip install GeoBenchV2`
+pip install GeoBenchV2
 ```
 
-For the the most recent version of the main branch, install with:
+For the most recent version of the main branch, install with:
 
 ```
 pip install git+https://github.com/The-AI-Alliance/GEO-Bench-2.git
