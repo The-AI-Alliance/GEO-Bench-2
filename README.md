@@ -18,11 +18,19 @@ The [Geo-Bench-2-Leaderbaord](https://github.com/The-AI-Alliance/GEO-Bench-2-Lea
 
 ## Installation
 
-For a stable release, install with `pip install GeoBenchV2`.
+For a stable release, install with:
 
-For the the most recent version of the main branch, install with `pip install git+https://github.com/The-AI-Alliance/GEO-Bench-2.git`.
+```
+pip install GeoBenchV2`
+```
 
-To use the library as a developer, install in editable mode with:
+For the the most recent version of the main branch, install with:
+
+```
+pip install git+https://github.com/The-AI-Alliance/GEO-Bench-2.git
+```
+
+To use the package as a developer, install in editable mode with:
 ```
 git clone https://github.com/The-AI-Alliance/GEO-Bench-2.git
 cd GEO-Bench-2
@@ -31,7 +39,7 @@ pip install -e .
 
 ## Documentation
 
-The latest documentation can be found at this [link](https://geo-bench-2.readthedocs.io/en/latest/)
+The latest documentation can be found at this [link](https://geo-bench-2.readthedocs.io/en/latest/).
 
 ## Downloading the Benchmark
 
@@ -68,7 +76,7 @@ This code is licensed under the Apache License 2.0. By contributing to this repo
 
 ## Dataset Licenses
 
-All dataset are distributed under open-licenses. For license details please see the respective Huggingface repository of each dataset. A summary of the license files can be found in [this file](./dataset_licenses.md). License information is also contained in each `README.md` file that will be downloaded with the data from Huggingface. For our disclaimer about the licenses and our takedown policy, please see [benchmark_license_disclaimer.md](./benchmark_license_disclaimer.md).
+All dataset are distributed under open-licenses. For license details please see the respective Huggingface repository of each dataset. A summary of the license files can be found in [this file](./dataset_licenses.md). License information is also contained in each `README.md` file that will be downloaded with the data from Huggingface. For our disclaimer about the licenses and our takedown policy, please see [disclaimer file](./benchmark_license_disclaimer.md).
 
 ## How was the Benchmark Generated?
 
