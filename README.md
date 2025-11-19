@@ -72,7 +72,7 @@ All dataset are distributed under open-licenses. For license details please see 
 
 ## How was the Benchmark Generated?
 
-All scripts that were used to generate the GEO-Bench-2 dataset versions are included in the [generate_benchmark](/geobench_v2/generate_benchmark/) directory.
+All scripts that were used to generate the GEO-Bench-2 dataset versions are included in the [generate_benchmark](/geobench_v2/generate_benchmark/) directory. These scripts are included for transparency purposes, but leaderboard submissions are solely accepted based on official dataset versions on [HuggingFace](https://huggingface.co/collections/aialliance/geo-bench-2).
 
 
 ## Credits
