@@ -63,7 +63,8 @@ dependencies = [
     "geopandas>=1.1.0",
     "h5py>=3.14.0",
     "cartopy>=0.25.0",
-    "scikit-image>=0.25.2"
+    "scikit-image>=0.25.2",
+    "huggingface_hub>=1.1.4"
 ]
 
 [project.optional-dependencies]
@@ -119,10 +120,11 @@ all = [
 Documentation = "https://geo-bench-2.readthedocs.io/en/latest/"
 Issues = "https://github.com/The-AI-Alliance/GEO-Bench-2/issues"
 Source = "https://github.com/The-AI-Alliance/GEO-Bench-2"
-# Download = #TODO downlaod link in HF
+HF = "https://huggingface.co/collections/aialliance/geo-bench-2"
 
-# [project.scripts]
-# geobench = "geobench_v2.main:main"
+
+[project.scripts]
+geobench-download = "geobench_v2.cli.download:main"
 
 [tool.pytest.ini_options]
 # Skip slow tests by default
@@ -162,8 +164,12 @@ convention = "google"
 [tool.setuptools.dynamic]
 version = {attr = "geobench_v2.__version__"}
 
+[tool.setuptools]
+include-package-data = true
+
 [tool.setuptools.package-data]
 geobench_v2 = ["py.typed"]
+"geobench_v2.cli" = ["download_geobenchV2.sh"]
 
 [tool.setuptools.packages.find]
 include = ["geobench_v2*"]
