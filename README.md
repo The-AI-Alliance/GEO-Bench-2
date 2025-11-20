@@ -12,7 +12,7 @@
 GEO-Bench-2 is a framework for robust evaluation of Geospatial Foundation Models (GeoFMs) which expands on the work of GEO-Bench. It has been carefully curated for evaluation of state-of-the-art model features such as such as multi-modality and multi-temporality.
 This library aims to facilitate extensive benchmarking of GeoFMs on the GEO-Bench-2 datasets, including features such band re-ordering, changing normalizations, and more.
 
-For details on the GEO-Bench-2 methodology, please see: #TODO:link to paper
+For details on the GEO-Bench-2 methodology, please see [the paper](https://arxiv.org/abs/2511.15658).
 
 The [Geo-Bench-2-Leaderbaord](https://github.com/The-AI-Alliance/GEO-Bench-2-Leaderboard) tracks the performance of state-of-the-art models on GeoBench-2 datasets. It further acts as a public repository of model performance. We strongly encourage users of the this library to submit experimental results to the leaderboard.
 
@@ -89,9 +89,6 @@ This project was developed as part of the AI Alliance with involvement from IBM 
 
 ## Citation
 
-If you are using GEO-Bench-2 in your work, please cite:
-
-```bibtex
-```
+If you are using GEO-Bench-2 in your work, please cite [the paper](https://arxiv.org/abs/2511.15658).
 
 
