@@ -10,7 +10,7 @@
 ## Overview
 
 GEO-Bench-2 is a framework for robust evaluation of Geospatial Foundation Models (GeoFMs) which expands on the work of GEO-Bench. It has been carefully curated for evaluation of state-of-the-art model features such as such as multi-modality and multi-temporality.
-This library aims to facilitate extensive benchmarking of GeoFMs on the GEo-Bench-2 datasets, including features such band re-ordering, changing normalizations, and more.
+This library aims to facilitate extensive benchmarking of GeoFMs on the GEO-Bench-2 datasets, including features such band re-ordering, changing normalizations, and more.
 
 For details on the GEO-Bench-2 methodology, please see: #TODO:link to paper
 
@@ -21,10 +21,10 @@ The [Geo-Bench-2-Leaderbaord](https://github.com/The-AI-Alliance/GEO-Bench-2-Lea
 For a stable release, install with:
 
 ```
-pip install GeoBenchV2`
+pip install GeoBenchV2
 ```
 
-For the the most recent version of the main branch, install with:
+For the most recent version of the main branch, install with:
 
 ```
 pip install git+https://github.com/The-AI-Alliance/GEO-Bench-2.git
