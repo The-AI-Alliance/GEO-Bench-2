@@ -1,6 +1,3 @@
-@import url("theme.css");
-
-
 /* Sets the max width of the main article content */
 .bd-main .bd-content .bd-article-container {
     max-width: 60%;
@@ -24,7 +21,7 @@ body {
 }
 
 .bd-sidebar-secondary a.reference.internal {
-    font-size: 1.1rem !important; 
+    font-size: 1.1rem; 
 }
 
 /* Sets the max width of the entire content area (main content + sidebars) */
@@ -40,6 +37,6 @@ img[alt="Logo image"] {
 
 div.nboutput.container div.output_area .highlight,
 div.nboutput.container div.output_area pre {
-    background-color: #080000 !important; /* Background color of cell output */
-    color: #07adee !important; /* Text color inside cell output */
+    background-color: #080000; /* Background color of cell output */
+    color: #07adee; /* Text color inside cell output */
 }
