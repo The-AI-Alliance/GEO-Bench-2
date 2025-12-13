@@ -12,6 +12,7 @@ import torch
 import torch.nn as nn
 from shapely import wkt
 from torch import Tensor
+from datetime import datetime
 
 from .base import GeoBenchBaseDataset
 from .normalization import ZScoreNormalizer
@@ -125,7 +126,7 @@ class GeoBenchDynamicEarthNet(GeoBenchBaseDataset):
 
     num_classes = len(classes)
 
-    valid_metadata = ("lat", "lon", "time")
+    valid_metadata = ("lat", "lon", "dates")
 
     def __init__(
         self,
@@ -194,13 +195,30 @@ class GeoBenchDynamicEarthNet(GeoBenchBaseDataset):
 
         img_dict: dict[str, Tensor] = {}
         planet_imgs: list[Tensor] = []
+        dates_planet: list[Tensor] = []
         for i in indices:
             with rasterio.open(sample_row.read(i)) as src:
                 img = src.read()
                 planet_imgs.append(torch.from_numpy(img))
-
+                date = datetime.fromtimestamp(sample_row.iloc[i]['stac:time_start'])
+                date_int = torch.tensor([date.year * 10000 + date.month * 100 + date.day])
+                dates_planet.append(date_int)
+       
         # [T, C, H, W]
         planet_imgs = torch.stack(planet_imgs, dim=0).float()
+        
+        # Fixed number of days per month
+        if self.temporal_setting == "daily":
+            T, C, H, W = planet_imgs.shape
+            if T > 30:
+                planet_imgs = planet_imgs[:30]
+                dates_planet = dates_planet[:30]
+            elif T < 30:
+                # Pad with zeros at the end
+                pad_shape = (30 - T, C, H, W)
+                padding = torch.zeros(pad_shape, dtype=planet_imgs.dtype, device=planet_imgs.device)
+                planet_imgs = torch.cat([planet_imgs, padding], dim=0)
+                dates_planet += [0] * (30 - T)
 
         img_dict["planet"] = planet_imgs
         # [C, T, H, W]
@@ -220,6 +238,8 @@ class GeoBenchDynamicEarthNet(GeoBenchBaseDataset):
                     img = src.read()
                     img = torch.from_numpy(img).float()
             img_dict["s2"] = img
+            date = datetime.fromtimestamp(sample_row.iloc[-2]['stac:time_start'])
+            dates_s2 = torch.tensor([date.year * 10000 + date.month * 100 + date.day])
 
         img_dict = self.rearrange_bands(img_dict, self.band_order)
         img_dict = self.data_normalizer(img_dict)
@@ -261,5 +281,6 @@ class GeoBenchDynamicEarthNet(GeoBenchBaseDataset):
             sample["lon"] = torch.tensor(lon)
         if "lat" in self.metadata:
             sample["lat"] = torch.tensor(lat)
-
+        if "dates" in self.metadata:
+            sample["dates"] = {"dates_planet": torch.tensor(dates_planet), "dates_s2": torch.tensor(dates_s2)}
         return sample
