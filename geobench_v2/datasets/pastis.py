@@ -41,8 +41,8 @@ class GeoBenchPASTIS(GeoBenchBaseDataset):
 
     sha256str = [
         "56b1490c6dc7345fdff79e94d9132753ee28d8504bb061d8db39d19e888f7ca3",
-        "7d0463a695a0822a1f25638598b2d54daf28f387d6a80d353be7c323069060db",
-        "22d27389b1ccee4f250f4a187d034d12dbf15c5610a5dd8d502ee8783e94c81e",
+        "3f1e98e304bf6021fd522c0b24f80a3a028feab9bd7238db364398580baf1c2e",
+        "b249a8e71d1c6a755457621caf51ebb67f9174eca12eeb6750953c7cefcc9575",
     ]
 
     dataset_band_config = DatasetBandRegistry.PASTIS
