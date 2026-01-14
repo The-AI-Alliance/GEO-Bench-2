@@ -30,7 +30,7 @@ class GeoBenchFLAIR2(GeoBenchBaseDataset):
 
     url = "https://hf.co/datasets/aialliance/flair2/resolve/main/{}"
 
-    sha256str = ["f446098513d85591b8abae03e8d98447d2ab5173271f85c11f40edcdb1e2e1a9"]
+    sha256str = ["96d18b1e7673fa2233145d69fd67db530c53bf68027b30466f7c94fd456df689"]
 
     paths: Sequence[str] = ["geobench_flair2.tortilla"]
 

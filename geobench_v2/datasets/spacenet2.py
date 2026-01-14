@@ -34,7 +34,7 @@ class GeoBenchSpaceNet2(GeoBenchBaseDataset):
 
     paths = ["geobench_spacenet2.tortilla"]
 
-    sha256str = ["e48e57654c1755a6b1c79bcfe172035a27b815ebe1738d1ce95d96d5c37214b6"]
+    sha256str = ["078b5acd408522e84bd717a8437ea33779282dfb95b80c023ca507b83154f661"]
 
     dataset_band_config = DatasetBandRegistry.SPACENET2
 
