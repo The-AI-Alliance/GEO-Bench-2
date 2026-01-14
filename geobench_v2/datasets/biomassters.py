@@ -46,7 +46,7 @@ class GeoBenchBioMassters(GeoBenchBaseDataset):
         "9320bf9317e67607cae99f00292aceaa42b2cbc90ff8c8c360dad7d503f13f64",
         "4a4ed4fae0cf5316705adfe6a18dc9610ddd51887a00fc10d5bef8aea189a051",
         "34758620cc4d6133d01a1b9dab0ecfc9e7235db7405f1d47a47a062c5717d40d",
-        "4c44b725074b9663bf81393b47f4cb0783b3d3892e3a89bfa01c96015ad0912a"
+        "4c44b725074b9663bf81393b47f4cb0783b3d3892e3a89bfa01c96015ad0912a",
     ]
 
     dataset_band_config = DatasetBandRegistry.BIOMASSTERS
