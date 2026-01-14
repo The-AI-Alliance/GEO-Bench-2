@@ -33,12 +33,20 @@ class GeoBenchBioMassters(GeoBenchBaseDataset):
         "geobench_biomassters.0000.part.tortilla",
         "geobench_biomassters.0001.part.tortilla",
         "geobench_biomassters.0002.part.tortilla",
+        "geobench_biomassters.0003.part.tortilla",
+        "geobench_biomassters.0004.part.tortilla",
+        "geobench_biomassters.0005.part.tortilla",
+        "geobench_biomassters.0006.part.tortilla",
     ]
 
     sha256str: Sequence[str] = [
-        "52bdd8f76107ef14498c54c751c0cddb9ab073fc03cff0102b05406af127b747",
-        "52b3217ad7b44667f147fc2033769e42f2c47b502126f3ff9413c7f75b2de82f",
-        "7da0898b25ff4ca23a8bbe06dcf383ae70068b78c95132ae26abdabbba4c13d4",
+        "76e741d002d0524d174881d6f947399c19db0e487b5f77b957ec87c3f448466a",
+        "476d3a5b0aa2abb749b818cee7a9112e49b2706c6174b1887b400f6ac3b4ce76",
+        "5131194c8c8228320000bedaba9a398e15100ad8bd8d37879b06851fe9a6aaf7",
+        "9320bf9317e67607cae99f00292aceaa42b2cbc90ff8c8c360dad7d503f13f64",
+        "4a4ed4fae0cf5316705adfe6a18dc9610ddd51887a00fc10d5bef8aea189a051",
+        "34758620cc4d6133d01a1b9dab0ecfc9e7235db7405f1d47a47a062c5717d40d",
+        "4c44b725074b9663bf81393b47f4cb0783b3d3892e3a89bfa01c96015ad0912a"
     ]
 
     dataset_band_config = DatasetBandRegistry.BIOMASSTERS
