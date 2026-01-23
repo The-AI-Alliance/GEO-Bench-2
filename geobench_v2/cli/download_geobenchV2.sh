@@ -114,12 +114,6 @@ download_dataset() {
             hf download "aialliance/treesatai" "treesatai_stats_clip_rescale.json" --repo-type=dataset --local-dir "$target_dir"
             hf download "aialliance/treesatai" "README.md" --repo-type=dataset --local-dir "$target_dir"
             ;;
-        "wind_turbine")
-            hf download "aialliance/wind_turbine" "geobench_wind_turbine.tortilla" --repo-type=dataset --local-dir "$target_dir" 
-            hf download "aialliance/wind_turbine" "wind_turbine_stats_satmae.json" --repo-type=dataset --local-dir "$target_dir"
-            hf download "aialliance/wind_turbine" "wind_turbine_stats_clip_rescale.json" --repo-type=dataset --local-dir "$target_dir"
-            hf download "aialliance/wind_turbine" "README.md" --repo-type=dataset --local-dir "$target_dir"
-            ;;
         "so2sat")
             hf download "aialliance/so2sat" "geobench_so2sat.tortilla" --repo-type=dataset --local-dir "$target_dir" 
             hf download "aialliance/so2sat" "so2sat_stats_satmae.json" --repo-type=dataset --local-dir "$target_dir"
@@ -134,7 +128,7 @@ download_dataset() {
             ;;
         *)
             echo "Error: Unknown dataset '$dataset_name'"
-            echo "Available: benv2, biomassters, burn_scars, caffe, cloudsen12, dynamic_earthnet, everwatch, flair2, fotw, kuro_siwo, pastis, spacenet2, spacenet7, substation, treesatai, wind_turbine, so2sat, forestnet"
+            echo "Available: benv2, biomassters, burn_scars, caffe, cloudsen12, dynamic_earthnet, everwatch, flair2, fotw, kuro_siwo, pastis, spacenet2, spacenet7, substation, treesatai, so2sat, forestnet"
             exit 1
             ;;
     esac
@@ -142,7 +136,7 @@ download_dataset() {
     echo "=== Completed ${dataset_name} ==="
 }
 
-ALL_DATASETS=("benv2" "biomassters" "burn_scars" "caffe" "cloudsen12" "dynamic_earthnet" "everwatch" "flair2" "fotw" "kuro_siwo" "pastis" "spacenet2" "spacenet7" "substation" "treesatai" "wind_turbine" "forestnet" "so2sat")
+ALL_DATASETS=("benv2" "biomassters" "burn_scars" "caffe" "cloudsen12" "dynamic_earthnet" "everwatch" "flair2" "fotw" "kuro_siwo" "pastis" "spacenet2" "spacenet7" "substation" "treesatai" "forestnet" "so2sat")
 
 # Main execution
 if [[ $# -eq 0 ]]; then
