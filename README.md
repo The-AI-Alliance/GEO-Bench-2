@@ -67,7 +67,7 @@ The following datasets are available for download:
 - `benv2`, `biomassters`, `burn_scars`, `caffe`, `cloudsen12`
 - `dynamic_earthnet`, `everwatch`, `flair2`, `forestnet`, `fotw`
 - `kuro_siwo`, `pastis`, `spacenet2`, `spacenet7`, `substation`
-- `treesatai`, `wind_turbine`, `so2sat`
+- `treesatai`, `so2sat`
 
 **Note:** The `--root` argument is required to ensure you explicitly choose where to store the datasets, as they can be quite large.
 
