@@ -128,6 +128,8 @@ download_dataset() {
             ;;
         "nzcattle")
             hf download "aialliance/nzcattle" "geobench_forestnet.tortilla" --repo-type=dataset --local-dir "$target_dir" 
+            hf download "aialliance/nzcattle" "nzcattle_stats_satmae.json" --repo-type=dataset --local-dir "$target_dir"
+            hf download "aialliance/nzcattle" "nzcattle_stats_clip_rescale.json" --repo-type=dataset --local-dir "$target_dir"
             hf download "aialliance/nzcattle" "README.md" --repo-type=dataset --local-dir "$target_dir"
             ;;
         *)
