@@ -142,7 +142,7 @@ download_dataset() {
     echo "=== Completed ${dataset_name} ==="
 }
 
-ALL_DATASETS=("benv2" "biomassters" "burn_scars" "caffe" "cloudsen12" "dynamic_earthnet" "everwatch" "flair2" "fotw" "kuro_siwo" "pastis" "spacenet2" "spacenet7" "substation" "treesatai" "forestnet" "so2sat", "nzcattle")
+ALL_DATASETS=("benv2" "biomassters" "burn_scars" "caffe" "cloudsen12" "dynamic_earthnet" "everwatch" "flair2" "fotw" "kuro_siwo" "pastis" "spacenet2" "spacenet7" "substation" "treesatai" "forestnet" "so2sat" "nzcattle")
 
 # Main execution
 if [[ $# -eq 0 ]]; then
