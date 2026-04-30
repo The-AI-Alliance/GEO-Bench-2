@@ -115,9 +115,9 @@ download_dataset() {
             hf download "aialliance/treesatai" "README.md" --repo-type=dataset --local-dir "$target_dir"
             ;;
         "so2sat")
-            hf download "aialliance/so2sat" "geobench_so2sat.tortilla" --repo-type=dataset --local-dir "$target_dir" 
-            hf download "aialliance/so2sat" "so2sat_stats_satmae.json" --repo-type=dataset --local-dir "$target_dir"
-            hf download "aialliance/so2sat" "so2sat_stats_clip_rescale.json" --repo-type=dataset --local-dir "$target_dir"
+            # HF repo aialliance/so2sat only publishes the tortilla + README; normalization
+            # stats live in geobench_v2.datasets.so2sat.GeoBenchSo2Sat.normalization_stats.
+            hf download "aialliance/so2sat" "geobench_so2sat.tortilla" --repo-type=dataset --local-dir "$target_dir"
             hf download "aialliance/so2sat" "README.md" --repo-type=dataset --local-dir "$target_dir"
             ;;
         "forestnet")
@@ -127,7 +127,7 @@ download_dataset() {
             hf download "aialliance/forestnet" "README.md" --repo-type=dataset --local-dir "$target_dir"
             ;;
         "nzcattle")
-            hf download "aialliance/nzcattle" "geobench_forestnet.tortilla" --repo-type=dataset --local-dir "$target_dir" 
+            hf download "aialliance/nzcattle" "geobench_nzcattle.tortilla" --repo-type=dataset --local-dir "$target_dir" 
             hf download "aialliance/nzcattle" "nzcattle_stats_satmae.json" --repo-type=dataset --local-dir "$target_dir"
             hf download "aialliance/nzcattle" "nzcattle_stats_clip_rescale.json" --repo-type=dataset --local-dir "$target_dir"
             hf download "aialliance/nzcattle" "README.md" --repo-type=dataset --local-dir "$target_dir"
@@ -142,7 +142,7 @@ download_dataset() {
     echo "=== Completed ${dataset_name} ==="
 }
 
-ALL_DATASETS=("benv2" "biomassters" "burn_scars" "caffe" "cloudsen12" "dynamic_earthnet" "everwatch" "flair2" "fotw" "kuro_siwo" "pastis" "spacenet2" "spacenet7" "substation" "treesatai" "forestnet" "so2sat", "nzcattle")
+ALL_DATASETS=("benv2" "biomassters" "burn_scars" "caffe" "cloudsen12" "dynamic_earthnet" "everwatch" "flair2" "fotw" "kuro_siwo" "pastis" "spacenet2" "spacenet7" "substation" "treesatai" "forestnet" "so2sat" "nzcattle")
 
 # Main execution
 if [[ $# -eq 0 ]]; then
