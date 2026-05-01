@@ -7,9 +7,9 @@ matplotlib>=3.5
 numpy>=1.21.1
 omegaconf>=2.3.0
 pandas>=1.1.3
-torch>=2.0
+torch>=2.11.0
 torchmetrics>=1.2
-torchvision>=0.16.1
+torchvision>=0.26.0
 tacoreader==0.6.5
 geopandas>=1.1.0
 h5py>=3.14.0
