@@ -3,7 +3,7 @@ setuptools==80.10.1
 
 # dependencies
 lightning>=2.4.0
-matplotlib>=3.5
+matplotlib>=3.10.9
 numpy>=1.21.1
 omegaconf>=2.3.0
 pandas>=1.1.3
