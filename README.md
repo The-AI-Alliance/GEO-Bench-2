@@ -89,6 +89,15 @@ This project was developed as part of the AI Alliance with involvement from IBM 
 
 ## Citation
 
-If you are using GEO-Bench-2 in your work, please cite [the paper](https://arxiv.org/abs/2511.15658).
+If you are using GEO-Bench-2 in your work, please cite:
+
+```bibtex
+@article{simumba2026geo,
+  title={GEO-Bench-2: From Performance to Capability, Rethinking Evaluation in Geospatial AI},
+  author={Simumba, Naomi and Lehmann, Nils and Fraccaro, Paolo and Alemohammad, Hamed and De Mel, Geeth and Khan, Salman and Maskey, Manil and Long{\'e}p{\'e}, Nicolas and Zhu, Xiao Xiang and Kerner, Hannah and others},
+  journal={Transactions on Machine Learning Research},
+  year={2026}
+}
+```
 
 
