@@ -223,11 +223,17 @@ class GeoBenchPASTIS(GeoBenchBaseDataset):
                 self._load_instance_targets(sample_row.read(3), sample_row.read(4))
             )
 
-        dates = sample_row["dates"].iloc[0]
-        if len(dates) < self.num_time_steps:
-            sample_dates = [0] * (self.num_time_steps - len(dates)) + dates
-        else:
-            sample_dates = dates[-self.num_time_steps :]
+        dates_s2 = list(sample_row[sample_row["tortilla:id"] == "s2"]["dates"].iloc[0])
+        dates_s1a = list(sample_row[sample_row["tortilla:id"] == "s1a"]["dates"].iloc[0])
+        dates_s1d = list(sample_row[sample_row["tortilla:id"] == "s1d"]["dates"].iloc[0])
+
+        sample_dates = {"dates_s2": dates_s2, "dates_s1a": dates_s1a, "dates_s1d": dates_s1d}
+        for key, dates in sample_dates.items():
+            if len(dates) < self.num_time_steps:
+                sample_dates[key] = torch.tensor([0] * (self.num_time_steps - len(dates_s2)) + dates_s2)
+            else:
+                sample_dates[key] = torch.tensor(dates[-self.num_time_steps :])
+
         if self.transforms:
             sample = self.transforms(sample)
 
@@ -294,7 +300,7 @@ class GeoBenchPASTIS(GeoBenchBaseDataset):
         if "lat" in self.metadata:
             sample["lat"] = torch.Tensor([sample_row.lat.iloc[0]]).squeeze()
         if "dates" in self.metadata:
-            sample["dates"] = torch.from_numpy(sample_dates)
+            sample["dates"] = sample_dates
 
         return sample
 
