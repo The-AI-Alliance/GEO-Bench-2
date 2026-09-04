@@ -7,7 +7,6 @@ import argparse
 import gzip
 import json
 import os
-import pickle as pkl
 from concurrent.futures import ProcessPoolExecutor
 from datetime import datetime
 from glob import glob
@@ -23,6 +22,7 @@ from mpl_toolkits.axes_grid1 import make_axes_locatable
 from torchgeo.datasets.utils import percentile_normalization
 from tqdm import tqdm
 
+from geobench_v2.generate_benchmark.safe_pickle import safe_pickle_load
 from geobench_v2.generate_benchmark.utils import (
     create_subset_from_df,
     create_unittest_subset,
@@ -118,12 +118,15 @@ def create_split_mapper():
 def extract_grid_data(path: str):
     """Extract grid data from the Kuro Siwo dataset.
 
+    The grid dictionary ships as a gzipped pickle, so it is read with the
+    restricted loader rather than :func:`pickle.load`.
+
     Args:
         path: Path to the gzipped pickle file containing grid data.
     """
     extracted = []
     with gzip.open(path, "rb") as f:
-        data = pkl.load(f)
+        data = safe_pickle_load(f)
 
         for key in data:
             extracted.append(

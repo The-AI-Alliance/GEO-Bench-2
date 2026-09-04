@@ -8,7 +8,6 @@ import ast
 import glob
 import json
 import os
-import pickle
 import warnings
 
 import h5py
@@ -20,6 +19,7 @@ import tacotoolbox
 from rasterio.transform import Affine
 from tqdm import tqdm
 
+from geobench_v2.generate_benchmark.safe_pickle import safe_pickle_loads
 from geobench_v2.generate_benchmark.utils import create_unittest_subset
 
 warnings.filterwarnings("ignore")
@@ -74,7 +74,7 @@ def create_tortilla(root_dir, metadata_df, save_dir, tortilla_name):
             bands = [np.array(h5file[key]) for key in keys]
 
             data = np.stack(bands, axis=-1).transpose(2, 1, 0)
-            attr_dict = pickle.loads(ast.literal_eval(h5file.attrs["pickle"]))  # noqa: S301
+            attr_dict = safe_pickle_loads(ast.literal_eval(h5file.attrs["pickle"]))
             class_index = attr_dict["label"]
 
         id_, lat_str, lon_str, time = sample_id.split("_", 3)
