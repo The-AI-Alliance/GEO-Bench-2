@@ -4,7 +4,6 @@ import argparse
 import glob
 import json
 import os
-import pdb
 
 import h5py
 import pandas as pd
@@ -124,7 +123,6 @@ def create_tortilla(annotations_df, image_dir, save_dir, tortilla_name):
 
     final_samples = tacotoolbox.tortilla.datamodel.Samples(samples=samples)
     final_path = os.path.join(save_dir, tortilla_name)
-    pdb.set_trace()
     tacotoolbox.tortilla.create(final_samples, final_path, quiet=False, nworkers=1)
 
 
@@ -138,10 +136,20 @@ if __name__ == "__main__":
     parser.add_argument(
         "--save_dir", default="geobenchV2/nzcattle", help="Directory to save the subset"
     )
+    parser.add_argument(
+        "--annotations",
+        default=None,
+        help="Path to the annotations parquet file, defaults to "
+        "'nzcattle_annotations.parquet' inside --root. Convert a legacy pickle with "
+        "pandas.read_pickle(...).to_parquet(...) before running this script.",
+    )
 
     args = parser.parse_args()
 
-    annotations_df = pd.read_pickle(args.root + "nzcattle_annotations.pkl")
+    annotations_path = args.annotations or os.path.join(
+        args.root, "nzcattle_annotations.parquet"
+    )
+    annotations_df = pd.read_parquet(annotations_path)
     tortilla_name = "geobench_nzcattle.tortilla"
 
     create_tortilla(
